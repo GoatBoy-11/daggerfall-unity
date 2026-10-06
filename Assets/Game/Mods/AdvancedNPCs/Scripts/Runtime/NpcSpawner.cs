@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Utility;
 using AdvancedNPCs.Core;
 
@@ -110,6 +111,13 @@ namespace AdvancedNPCs
             DaggerfallEnemy enemy = go.GetComponent<DaggerfallEnemy>();
             if (enemy != null)
                 enemy.LoadID = 0;
+
+            // Townsfolk side: with Enemy Infighting on, enemies attack anything on another team, and class
+            // enemies default to KnightsAndMages/Criminals. On the CityWatch team, guards leave them alone
+            // while monsters (other teams) can still attack them.
+            DaggerfallEntityBehaviour behaviour = go.GetComponent<DaggerfallEntityBehaviour>();
+            if (behaviour != null && behaviour.Entity != null)
+                behaviour.Entity.Team = MobileTeams.CityWatch;
 
             go.AddComponent<NpcMover>();
             NpcBrain brain = go.AddComponent<NpcBrain>();
