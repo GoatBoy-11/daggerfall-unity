@@ -1,0 +1,10 @@
+{
+  "kind": "generic",
+  "spawn": {
+    "locationTypes": ["TownCity", "TownHamlet", "TownVillage"],
+    "count": [1, 3]
+  },
+  "baseClass": "Bard",
+  "bravery": "Coward",
+  "wanderRadius": 12
+}

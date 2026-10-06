@@ -116,6 +116,12 @@ namespace AdvancedNPCs
             get { return instance; }
         }
 
+        /// <summary>Health as a fraction of max (the saved fraction before the ANPC has started).</summary>
+        public float CurrentHealthFraction
+        {
+            get { return entityBehaviour != null && entityBehaviour.Entity != null ? HealthFraction() : state.healthFraction; }
+        }
+
         /// <summary>One-line state for console output.</summary>
         public string Status
         {

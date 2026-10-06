@@ -53,6 +53,45 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 | `crimeOnAttack` | no | `true` | `true`: attacking is assault, killing is murder |
 | `wanderRadius` | no | `8` | metres around the spawn point; `0` stands still |
 
+
+## Generic townsfolk
+
+A generic template makes several different people per town, alongside vanilla citizens:
+
+```json
+{
+  "kind": "generic",
+  "portraits": ["commoner_1", "commoner_2"],
+  "spawn": {
+    "locationTypes": ["TownCity", "TownHamlet", "TownVillage"],
+    "count": [1, 3]
+  },
+  "baseClass": "Bard",
+  "bravery": "Coward"
+}
+```
+
+| Field | Default | Meaning |
+|---|---|---|
+| `name` / `names` | generated | every instance has `name`, or one of `names` is picked; neither: a DFU-style name for its race and gender |
+| `portrait` / `portraits` | vanilla face | one portrait, or a list to pick from |
+| `spawn.locationTypes` | `TownCity`, `TownHamlet`, `TownVillage` | location types the template appears in |
+| `spawn.places` | all matching towns | list of `{ "region", "place" }`; only those towns. Add `"positions": [[x, y, z], …]` (from `anpc_pos`) for fixed spots |
+| `spawn.count` | `[1, 3]` | instances per town, `0 <= min <= max <= 20` |
+
+All behaviour fields of unique ANPCs (`race`, `baseClass`, `gender`, `bravery`, …) work the same. `location`,
+`position` and `dialogue.json` are for unique ANPCs only. Instances are named `<template>@<map id>#<n>` in
+`anpc_list` and in save data.
+
+## Settings
+
+In DFU's mod list, select Advanced NPCs → Settings → **Population**:
+
+- **Generic people** — *Same people every visit* (default): each town keeps the same generic people, and what happens to them (killed, angry, hurt) is saved. *Random each visit*: re-rolled whenever the town loads; nothing about them is saved.
+- **Max generic per town** — 0 to 30 (default 12); 0 turns generic ANPCs off.
+
+Changes apply the next time a town loads.
+
 ## Upgrading from 0.1
 
 On the first start, every valid `StreamingAssets/AdvancedNPCs/<name>.json` is copied to
@@ -63,9 +102,9 @@ folder name is the old id.
 ## Console commands
 
 - `anpc_pos` — your position as definition JSON (also written to `Player.log`).
-- `anpc_list` — spawned ANPCs with distance, direction, height and state.
+- `anpc_list` — spawned ANPCs (unique and generic) with key, name, distance, direction, height and state.
 - `anpc_place <id>` — makes your current spot that unique ANPC's home: rewrites `location` and `position` in its `npc.json` (nothing else) and moves it here.
-- `anpc_summon <id>` — moves a spawned ANPC in front of you (testing only; not saved).
+- `anpc_summon <id or key>` — moves a spawned ANPC in front of you (testing only; not saved).
 - `anpc_selftest` — runs the behaviour checks with temporary ANPCs next to you (god mode on, crimes recorded instead of punished, game clock untouched); results on screen and in `Player.log`.
 
 ## Behaviour
@@ -85,7 +124,7 @@ folder name is the old id.
 
 `Examples/ANPCs/` holds three Daggerfall city ANPCs: Bram (Normal), Cora (Coward) and Bors (Brave). They
 stand next to each other at Daggerfall's north-west gate; use `anpc_list` or `anpc_summon` if they are not
-in view.
+in view. `Examples/ANPCs/commoner` is a generic template that adds one to three cowardly commoners to every city, town and village.
 
 ## Building (developers)
 

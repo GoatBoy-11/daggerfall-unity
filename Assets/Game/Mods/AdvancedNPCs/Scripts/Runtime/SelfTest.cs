@@ -206,6 +206,62 @@ namespace AdvancedNPCs
             Check("save data survives a serialize/deserialize round trip",
                 back != null && SameState(data, back, "selftest_brave") && SameState(data, back, "selftest_victim"), text);
             Check("mod settings are read", mod.Config.FromSettings, "no modsettings.json in the mod, or DFU could not read it");
+            // Generic townsfolk (spec §7.4, §8). The test template only matches this town.
+            List<NpcDefinition> templates = new List<NpcDefinition>();
+            templates.Add(GenericTemplate(location, 3));
+
+            List<NpcBrain> first = SpawnGenerics(location, templates, GenericMode.SamePeople, 12);
+            yield return Settle;
+            string firstLayout = Layout(first);
+            Check("generic template spawns its count", first.Count == 3, firstLayout);
+            DiscardAll(first);
+            yield return Settle;
+
+            List<NpcBrain> second = SpawnGenerics(location, templates, GenericMode.SamePeople, 12);
+            yield return Settle;
+            Check("same-people mode brings back the same people", Layout(second) == firstLayout, firstLayout + " vs " + Layout(second));
+
+            string hurtKey = second.Count > 0 ? second[0].Id : "?";
+            if (second.Count > 0)
+                SetHealthFraction(second[0], 0.5f);
+            yield return Settle;
+            DiscardAll(second);
+            yield return Settle;
+            NpcSaveData saved = (NpcSaveData)new NpcSaveDataInterface(mod.States, delegate { }).GetSaveData();
+            NpcState savedState;
+            Check("a generic ANPC's damage is saved under its key",
+                saved.States.TryGetValue(hurtKey, out savedState) && Mathf.Abs(savedState.healthFraction - 0.5f) < 0.05f, hurtKey);
+
+            List<NpcBrain> third = SpawnGenerics(location, templates, GenericMode.SamePeople, 12);
+            yield return Settle;
+            NpcBrain hurt = NpcBrain.Find(hurtKey);
+            Check("a damaged generic ANPC comes back damaged",
+                hurt != null && Mathf.Abs(hurt.CurrentHealthFraction - 0.5f) < 0.05f, hurt == null ? "missing" : hurt.Status);
+            DiscardAll(third);
+            yield return Settle;
+
+            foreach (string key in ids)
+            {
+                if (key.StartsWith("selftest_generic@", StringComparison.Ordinal))
+                    mod.States.Remove(key);
+            }
+            List<NpcBrain> random1 = SpawnGenerics(location, templates, GenericMode.RandomEachVisit, 12);
+            yield return Settle;
+            string randomLayout = Layout(random1);
+            bool randomInTable = false;
+            foreach (NpcBrain b in random1)
+                randomInTable |= mod.States.Has(b.Id);
+            DiscardAll(random1);
+            yield return Settle;
+            List<NpcBrain> random2 = SpawnGenerics(location, templates, GenericMode.RandomEachVisit, 12);
+            yield return Settle;
+            Check("random mode re-rolls the people", random2.Count == 3 && Layout(random2) != randomLayout, randomLayout + " vs " + Layout(random2));
+            Check("random mode saves nothing about them", !randomInTable, randomLayout);
+            DiscardAll(random2);
+            yield return Settle;
+
+            List<NpcBrain> none = SpawnGenerics(location, templates, GenericMode.SamePeople, 0);
+            Check("MaxGenericPerTown 0 spawns no generic ANPCs", none.Count == 0, Layout(none));
         }
 
         NpcBrain Make(string id, Bravery bravery, DaggerfallLocation location, Transform player, float side)
@@ -234,6 +290,65 @@ namespace AdvancedNPCs
             d.Folder = id;
             d.SourceFile = "(selftest)";
             return spawner.SpawnTest(NpcInstance.ForUnique(d, "Breton"), location.transform);
+        }
+
+        /// <summary>Spawns generic test ANPCs; their keys go into ids so the end of the run removes them and their state.</summary>
+        List<NpcBrain> SpawnGenerics(DaggerfallLocation location, List<NpcDefinition> templates, GenericMode mode, int cap)
+        {
+            List<NpcBrain> brains = spawner.SpawnGenerics(location, templates, mode, cap);
+            foreach (NpcBrain b in brains)
+            {
+                if (!ids.Contains(b.Id))
+                    ids.Add(b.Id);
+            }
+            return brains;
+        }
+
+        static void DiscardAll(List<NpcBrain> brains)
+        {
+            foreach (NpcBrain b in brains)
+                NpcBrain.Discard(b);
+        }
+
+        /// <summary>Keys, names and rounded positions, sorted: equal strings mean the same people in the same places.</summary>
+        static string Layout(List<NpcBrain> brains)
+        {
+            List<string> parts = new List<string>();
+            foreach (NpcBrain b in brains)
+            {
+                if (b == null)
+                    continue;
+                Vector3 p = b.transform.localPosition;
+                parts.Add(b.Id + "=" + b.DisplayName + "@" + Mathf.Round(p.x) + "," + Mathf.Round(p.z));
+            }
+            parts.Sort(StringComparer.Ordinal);
+            return string.Join("; ", parts.ToArray());
+        }
+
+        static NpcDefinition GenericTemplate(DaggerfallLocation location, int count)
+        {
+            NpcDefinition d = new NpcDefinition();
+            d.Id = "selftest_generic";
+            d.Folder = d.Id;
+            d.Kind = NpcKind.Generic;
+            d.Name = "";
+            d.Gender = "";
+            d.BaseClass = "Spellsword";
+            d.Bravery = Bravery.Normal;
+            d.FleeHealthPercent = 25;
+            d.CalmDownMinHours = 6f;
+            d.CalmDownMaxHours = 48f;
+            d.CrimeOnAttack = true;
+            d.WanderRadius = 0f;
+            d.SourceFile = "(selftest)";
+            d.Spawn = new GenericSpawn();
+            d.Spawn.CountMin = count;
+            d.Spawn.CountMax = count;
+            SpawnPlace here = new SpawnPlace();
+            here.Region = location.Summary.RegionName;
+            here.Place = location.Summary.LocationName;
+            d.Spawn.Places.Add(here);
+            return d;
         }
 
         // Same order as a real weapon hit: damage first, then DFU's attack handling.
