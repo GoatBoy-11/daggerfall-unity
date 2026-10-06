@@ -197,8 +197,9 @@ namespace AdvancedNPCs
             d.CalmDownMaxHours = 48f;
             d.CrimeOnAttack = true;
             d.WanderRadius = 0f;
+            d.Folder = id;
             d.SourceFile = "(selftest)";
-            return spawner.SpawnTest(d, location.transform);
+            return spawner.SpawnTest(NpcInstance.ForUnique(d, "Breton"), location.transform);
         }
 
         // Same order as a real weapon hit: damage first, then DFU's attack handling.

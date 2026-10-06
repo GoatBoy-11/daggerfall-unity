@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using DaggerfallConnect.Arena2;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
@@ -9,7 +10,7 @@ using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
 {
-    /// <summary>Spawns Advanced NPCs when their town's GameObject is created.</summary>
+    /// <summary>Spawns ANPCs when their town's GameObject is created.</summary>
     public class NpcSpawner
     {
         readonly AdvancedNpcsMod owner;
@@ -36,7 +37,7 @@ namespace AdvancedNPCs
             owner.OnStateRestored -= RespawnLoadedLocations;
         }
 
-        /// <summary>After a load or new game, rebuild NPCs in every loaded town from the restored state.</summary>
+        /// <summary>After a load or new game, rebuild ANPCs in every loaded town from the restored state.</summary>
         public void RespawnLoadedLocations()
         {
             NpcBrain.DespawnAll();
@@ -61,7 +62,7 @@ namespace AdvancedNPCs
         List<DaggerfallLocation> LoadedLocations()
         {
             // StreamingWorld deactivates a town object before destroying it, so inactive ones are on their way out.
-            knownLocations.RemoveAll(l => l == null || !l.gameObject.activeSelf);
+            knownLocations.RemoveAll(delegate (DaggerfallLocation l) { return l == null || !l.gameObject.activeSelf; });
             return new List<DaggerfallLocation>(knownLocations);
         }
 
@@ -72,48 +73,63 @@ namespace AdvancedNPCs
             if (!knownLocations.Contains(location))
                 knownLocations.Add(location);
 
-            List<NpcDefinition> defs = owner.Catalog.ForLocation(location.Summary.RegionName, location.Summary.LocationName);
-            foreach (NpcDefinition def in defs)
+            string defaultRace = DefaultRace();
+            foreach (NpcDefinition def in owner.Catalog.ForLocation(location.Summary.RegionName, location.Summary.LocationName))
             {
-                NpcState state = owner.States.GetOrCreate(def.Id);
-                NpcBrain existing = NpcBrain.Find(def.Id);
-                bool existingHere = existing != null && existing.transform.parent == location.transform;
-                SpawnAction action = SpawnRules.Decide(state.dead, existing != null, existingHere);
-                if (action == SpawnAction.Skip)
-                    continue;
-                if (action == SpawnAction.ReplaceStale)
-                    NpcBrain.Discard(existing);
-                try
-                {
-                    Spawn(def, state, location.transform);
-                }
-                catch (Exception e)
-                {
-                    AdvancedNpcsMod.LogError(def.Id + ": spawn failed (" + e.Message + ")");
-                }
+                NpcInstance instance = NpcInstance.ForUnique(def, defaultRace);
+                SpawnChecked(instance, owner.States.GetOrCreate(instance.Key), location);
             }
         }
 
-        /// <summary>Spawns an NPC that is not in the catalog (self-test). Its state lives in the normal table.</summary>
-        public NpcBrain SpawnTest(NpcDefinition def, Transform parent)
+        /// <summary>Spawns an ANPC that is not in the catalog (self-test). Its state lives in the normal table.</summary>
+        public NpcBrain SpawnTest(NpcInstance instance, Transform parent)
         {
-            return Spawn(def, owner.States.GetOrCreate(def.Id), parent);
+            return Spawn(instance, owner.States.GetOrCreate(instance.Key), parent);
         }
 
-        static NpcBrain Spawn(NpcDefinition def, NpcState state, Transform parent)
+        /// <summary>The region's people, used when an ANPC does not set its race.</summary>
+        public static string DefaultRace()
         {
-            MobileTypes type = (MobileTypes)Enum.Parse(typeof(MobileTypes), def.BaseClass);
-            MobileGender gender = MobileGender.Unspecified;
-            if (def.Gender == "Male")
-                gender = MobileGender.Male;
-            else if (def.Gender == "Female")
-                gender = MobileGender.Female;
+            FactionFile.FactionRaces people = GameManager.Instance.PlayerGPS.ClimateSettings.People;
+            if (people == FactionFile.FactionRaces.Redguard)
+                return "Redguard";
+            if (people == FactionFile.FactionRaces.Nord)
+                return "Nord";
+            return "Breton";
+        }
 
-            GameObject go = GameObjectHelper.CreateEnemy(def.Name, type, new Vector3(def.X, def.Y, def.Z),
+        /// <summary>Spawns unless dead or already spawned in this town (SpawnRules). Returns the new brain or null.</summary>
+        NpcBrain SpawnChecked(NpcInstance instance, NpcState state, DaggerfallLocation location)
+        {
+            NpcBrain existing = NpcBrain.Find(instance.Key);
+            bool existingHere = existing != null && existing.transform.parent == location.transform;
+            SpawnAction action = SpawnRules.Decide(state.dead, existing != null, existingHere);
+            if (action == SpawnAction.Skip)
+                return null;
+            if (action == SpawnAction.ReplaceStale)
+                NpcBrain.Discard(existing);
+            try
+            {
+                return Spawn(instance, state, location.transform);
+            }
+            catch (Exception e)
+            {
+                AdvancedNpcsMod.LogError(instance.Key + ": spawn failed (" + e.Message + ")");
+                return null;
+            }
+        }
+
+        NpcBrain Spawn(NpcInstance instance, NpcState state, Transform parent)
+        {
+            NpcDefinition def = instance.Definition;
+            MobileTypes type = (MobileTypes)Enum.Parse(typeof(MobileTypes), def.BaseClass);
+            MobileGender gender = instance.Gender == "Female" ? MobileGender.Female : MobileGender.Male;
+
+            GameObject go = GameObjectHelper.CreateEnemy(instance.Name, type, new Vector3(instance.X, instance.Y, instance.Z),
                 gender, parent, MobileReactions.Passive);
 
             // SerializableEnemy only registers with the vanilla save system when LoadID != 0.
-            // Keeping it 0 means our own state table is the only save, so loads never duplicate NPCs.
+            // Keeping it 0 means our own state table is the only save, so loads never duplicate ANPCs.
             DaggerfallEnemy enemy = go.GetComponent<DaggerfallEnemy>();
             if (enemy != null)
                 enemy.LoadID = 0;
@@ -127,8 +143,8 @@ namespace AdvancedNPCs
 
             go.AddComponent<NpcMover>();
             NpcBrain brain = go.AddComponent<NpcBrain>();
-            brain.Init(def, state);
-            AdvancedNpcsMod.Log(def.Id + ": spawned in " + def.Place + ".");
+            brain.Init(instance, state);
+            AdvancedNpcsMod.Log(instance.Key + " (" + instance.Name + "): spawned.");
             return brain;
         }
     }

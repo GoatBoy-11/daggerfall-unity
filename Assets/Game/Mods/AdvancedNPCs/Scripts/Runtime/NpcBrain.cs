@@ -28,6 +28,8 @@ namespace AdvancedNPCs
         static readonly Dictionary<string, NpcBrain> live = new Dictionary<string, NpcBrain>();
 
         NpcDefinition def;
+        NpcInstance instance;
+        string key;
         NpcState state;
         NpcMode mode = NpcMode.Calm;
         DaggerfallEntityBehaviour threat;
@@ -61,8 +63,8 @@ namespace AdvancedNPCs
             if (brain == null)
                 return;
             NpcBrain current;
-            if (brain.def != null && live.TryGetValue(brain.def.Id, out current) && current == brain)
-                live.Remove(brain.def.Id);
+            if (brain.key != null && live.TryGetValue(brain.key, out current) && current == brain)
+                live.Remove(brain.key);
             Destroy(brain.gameObject);
         }
 
@@ -98,9 +100,20 @@ namespace AdvancedNPCs
             get { return motor; }
         }
 
+        /// <summary>Unique id or generic instance key.</summary>
         public string Id
         {
-            get { return def != null ? def.Id : "?"; }
+            get { return key != null ? key : "?"; }
+        }
+
+        public string DisplayName
+        {
+            get { return instance != null ? instance.Name : "?"; }
+        }
+
+        public NpcInstance Instance
+        {
+            get { return instance; }
         }
 
         /// <summary>One-line state for console output.</summary>
@@ -141,12 +154,14 @@ namespace AdvancedNPCs
             live.Clear();
         }
 
-        public void Init(NpcDefinition definition, NpcState npcState)
+        public void Init(NpcInstance npcInstance, NpcState npcState)
         {
-            def = definition;
+            instance = npcInstance;
+            def = npcInstance.Definition;
+            key = npcInstance.Key;
             state = npcState;
-            rng = new System.Random(definition.Id.GetHashCode() ^ System.Environment.TickCount);
-            live[def.Id] = this;
+            rng = new System.Random((int)npcInstance.Seed ^ System.Environment.TickCount);
+            live[key] = this;
         }
 
         void Start()
@@ -187,8 +202,8 @@ namespace AdvancedNPCs
                     state.healthFraction = HealthRules.Fraction(entityBehaviour.Entity.CurrentHealth, entityBehaviour.Entity.MaxHealth);
             }
             NpcBrain current;
-            if (def != null && live.TryGetValue(def.Id, out current) && current == this)
-                live.Remove(def.Id);
+            if (key != null && live.TryGetValue(key, out current) && current == this)
+                live.Remove(key);
         }
 
         void Update()
@@ -256,7 +271,7 @@ namespace AdvancedNPCs
             if (wasCalm && def.CrimeOnAttack)
             {
                 NpcCrime.Report(PlayerEntity.Crimes.Assault);
-                AdvancedNpcsMod.Log(def.Id + ": assaulted by player.");
+                AdvancedNpcsMod.Log(key + ": assaulted by player.");
             }
             EnterCombat();
         }
@@ -290,7 +305,7 @@ namespace AdvancedNPCs
                 entityBehaviour.Entity.CurrentHealth = entityBehaviour.Entity.MaxHealth;
                 lastHealth = entityBehaviour.Entity.CurrentHealth;
                 state.healthFraction = 1f;
-                AdvancedNpcsMod.Log(def.Id + ": calmed down.");
+                AdvancedNpcsMod.Log(key + ": calmed down.");
                 if (threat == GameManager.Instance.PlayerEntityBehaviour)
                     SetMode(NpcMode.Calm);
             }
@@ -417,10 +432,10 @@ namespace AdvancedNPCs
             state.hostile = false;
 
             // DFU tells the victim who hit it only after OnDeath; decide the killer once that has happened.
-            AdvancedNpcsMod.Instance.StartCoroutine(ResolveKiller(def, motor, wasHostile, fightingCreature));
+            AdvancedNpcsMod.Instance.StartCoroutine(ResolveKiller(def, key, motor, wasHostile, fightingCreature));
         }
 
-        static IEnumerator ResolveKiller(NpcDefinition def, EnemyMotor motor, bool wasHostile, bool fightingCreature)
+        static IEnumerator ResolveKiller(NpcDefinition def, string key, EnemyMotor motor, bool wasHostile, bool fightingCreature)
         {
             yield return null;
 
@@ -430,7 +445,7 @@ namespace AdvancedNPCs
             {
                 NpcCrime.Report(PlayerEntity.Crimes.Murder);
             }
-            AdvancedNpcsMod.Log(def.Id + ": died" + (byPlayer ? " (player)." : " (creature)."));
+            AdvancedNpcsMod.Log(key + ": died" + (byPlayer ? " (player)." : " (creature)."));
         }
 
         float HealthFraction()

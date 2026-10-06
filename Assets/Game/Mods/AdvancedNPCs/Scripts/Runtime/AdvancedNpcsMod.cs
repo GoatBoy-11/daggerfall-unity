@@ -111,14 +111,14 @@ namespace AdvancedNPCs
         {
             List<NpcBrain> brains = NpcBrain.All();
             if (brains.Count == 0)
-                return "No Advanced NPCs are spawned nearby (" + Instance.Catalog.Count + " defined).";
+                return "No ANPCs are spawned nearby (" + Instance.Catalog.Count + " defined).";
 
             Vector3 player = GameManager.Instance.PlayerObject.transform.position;
             StringBuilder sb = new StringBuilder();
             foreach (NpcBrain b in brains)
             {
                 Vector3 d = b.transform.position - player;
-                sb.Append(b.Id).Append(": ").Append(Bearing.Describe(d.x, d.z))
+                sb.Append(b.Id).Append(" (").Append(b.DisplayName).Append("): ").Append(Bearing.Describe(d.x, d.z))
                   .Append(", height ").Append(d.y.ToString("0.#", CultureInfo.InvariantCulture))
                   .Append(" (").Append(b.Status).Append(")\n");
             }
