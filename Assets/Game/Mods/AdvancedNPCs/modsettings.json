@@ -1,0 +1,33 @@
+{
+    "Version": "1.0",
+    "Sections": [
+        {
+            "Name": "Population",
+            "Description": "Generic Advanced NPCs: townsfolk made from generic templates.",
+            "IsAdvanced": false,
+            "Keys": [
+                {
+                    "Options": [
+                        "Same people every visit",
+                        "Random each visit"
+                    ],
+                    "Value": 0,
+                    "Name": "GenericPeople",
+                    "Description": "Same people every visit: each town keeps its generic NPCs and what happens to them is saved. Random each visit: re-rolled whenever a town loads; nothing about them is saved.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.MultipleChoiceKey"
+                },
+                {
+                    "Min": 0,
+                    "Max": 30,
+                    "Value": 12,
+                    "Name": "MaxGenericPerTown",
+                    "Description": "Most generic NPCs in one town (0 turns them off).",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderIntKey"
+                }
+            ],
+            "$version": "v1"
+        }
+    ]
+}

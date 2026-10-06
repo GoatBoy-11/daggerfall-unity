@@ -21,6 +21,14 @@ cp "$CC/Plugins/mcs.dll" "$OUTDIR/mcs.dll"
   "$(w "$HERE/RuntimeCompileHarness.cs")" "$(w "$CC/CodeCompiler.cs")" \
   "$(w "$CC/CustomDynamicDriver.cs")" "$(w "$CC/CustomReportPrinter.cs")"
 
-sources=()
-while IFS= read -r src; do sources+=("$(w "$src")"); done < <(find "$MOD/Scripts" -name '*.cs' | sort)
-"$MONO/bin/mono.exe" "$(w "$OUTDIR/harness.exe")" "$(w "$MANAGED")" "${sources[@]}"
+# DFU compiles the bundle's sources in an order of its own, and mcs fails to load a type whose enum field is
+# declared in a later file (TypeLoadException "bad underlying type"). Check folder order and file-name order.
+check() {
+  sources=()
+  while IFS= read -r src; do sources+=("$(w "$src")"); done
+  "$MONO/bin/mono.exe" "$(w "$OUTDIR/harness.exe")" "$(w "$MANAGED")" "${sources[@]}"
+}
+echo "Order: by path"
+find "$MOD/Scripts" -name '*.cs' | sort | check
+echo "Order: by file name"
+find "$MOD/Scripts" -name '*.cs' | awk -F/ '{print $NF "	" $0}' | sort | cut -f2 | check

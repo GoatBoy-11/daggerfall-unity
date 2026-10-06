@@ -49,6 +49,7 @@ namespace AdvancedNPCs.EditorTools
 
         static bool Run(string outDir)
         {
+            ModSettingsWriter.Write();
             ManifestFiles manifest = JsonUtility.FromJson<ManifestFiles>(File.ReadAllText(ManifestPath));
             if (manifest.Files.Count == 0)
             {

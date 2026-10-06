@@ -205,6 +205,7 @@ namespace AdvancedNPCs
             NpcSaveData back = SaveLoadManager.Deserialize(typeof(NpcSaveData), text) as NpcSaveData;
             Check("save data survives a serialize/deserialize round trip",
                 back != null && SameState(data, back, "selftest_brave") && SameState(data, back, "selftest_victim"), text);
+            Check("mod settings are read", mod.Config.FromSettings, "no modsettings.json in the mod, or DFU could not read it");
         }
 
         NpcBrain Make(string id, Bravery bravery, DaggerfallLocation location, Transform player, float side)

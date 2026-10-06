@@ -26,6 +26,7 @@ namespace AdvancedNPCs
         public DefinitionCatalog Catalog { get; private set; }
         public NpcStateTable States { get; private set; }
         public PortraitLibrary Portraits { get; private set; }
+        public ModConfig Config { get; private set; }
 
         /// <summary>Raised after save data is restored or a new game starts.</summary>
         public event Action OnStateRestored;
@@ -39,12 +40,14 @@ namespace AdvancedNPCs
             mod = initParams.Mod;
             GameObject go = new GameObject("AdvancedNPCs");
             Instance = go.AddComponent<AdvancedNpcsMod>();
+            Instance.Config.Attach(mod);
             mod.SaveDataInterface = new NpcSaveDataInterface(Instance.States, Instance.RaiseStateRestored);
             mod.IsReady = true;
         }
 
         void Awake()
         {
+            Config = new ModConfig();
             States = new NpcStateTable();
             AnpcFiles.MigrateLegacy();
             Catalog = LoadCatalog();
@@ -207,8 +210,10 @@ namespace AdvancedNPCs
         }
 
         /// <summary>
-        /// Unattended test run used by Tools~/selftest.sh: the file's first two lines name a character and a
-        /// save; the save is loaded, the self-test runs, and the game quits.
+        /// Unattended start used by Tools~/selftest.sh and Tools~/play.sh: the flag file's first two lines name a
+        /// character and a save, which is loaded straight from the title screen. A third line "play" stops there
+        /// (manual testing; the flag file is removed so the next start is normal); otherwise the self-test runs
+        /// and the game quits.
         /// </summary>
         IEnumerator AutoRun(string path)
         {
@@ -221,25 +226,55 @@ namespace AdvancedNPCs
             }
             string character = lines[0].Trim();
             string save = lines[1].Trim();
-            Log(SelfTest.Prefix + "autorun: loading save '" + save + "' of '" + character + "'");
-            yield return new WaitForSeconds(3f);
-            SaveLoadManager.Instance.Load(character, save);
+            bool play = lines.Length > 2 && lines[2].Trim() == "play";
+            if (play)
+                File.Delete(path);
+            Log(SelfTest.Prefix + "autorun: loading save '" + save + "' of '" + character + "'" + (play ? " to play" : ""));
 
+            // The title screen runs with the game paused (timeScale 0), so only real-time waits finish there.
             float waited = 0f;
+            while (waited < 60f && !SaveLoadManager.Instance.IsReady())
+            {
+                waited += 0.5f;
+                yield return new WaitForSecondsRealtime(0.5f);
+            }
+            yield return new WaitForSecondsRealtime(2f);
+            SaveLoadManager.Instance.EnumerateSaves();
+            int key = SaveLoadManager.Instance.FindSaveFolderByNames(character, save);
+            if (key < 0)
+            {
+                LogError(SelfTest.Prefix + "FAIL autorun -- no save '" + save + "' of character '" + character + "'");
+                if (!play)
+                    Application.Quit();
+                yield break;
+            }
+            SaveLoadManager.Instance.Load(key);
+
+            // Like DFU's own Load button, close the title screen windows (intro video, start menu): while they
+            // are open the game stays paused. They can appear after the load starts, so keep closing them.
+            waited = 0f;
             while (waited < 180f && !InTown())
             {
+                DaggerfallUI.Instance.PopToHUD();
                 waited += 1f;
-                yield return new WaitForSeconds(1f);
+                yield return new WaitForSecondsRealtime(1f);
             }
+            DaggerfallUI.Instance.PopToHUD();
             if (!InTown())
             {
                 LogError(SelfTest.Prefix + "FAIL autorun -- save did not load into a town within 180 s");
-                Application.Quit();
+                if (!play)
+                    Application.Quit();
                 yield break;
             }
-            yield return new WaitForSeconds(5f); // let the town and its NPCs finish spawning
+            if (play)
+            {
+                Log("Loaded '" + save + "'; have fun.");
+                yield break;
+            }
+            yield return new WaitForSecondsRealtime(5f); // let the town and its NPCs finish spawning
             yield return StartCoroutine(new SelfTest(this, spawner).Run(null));
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSecondsRealtime(1f);
             Application.Quit();
         }
 
