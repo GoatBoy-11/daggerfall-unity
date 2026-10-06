@@ -56,7 +56,8 @@ Sources live in `Scripts/Core` (pure logic, unit-tested) and `Scripts/Runtime` (
 `Tools~` (ignored by Unity) holds:
 
 - `run-tests.sh` — runs the Core NUnit tests in a small Unity host project.
-- `compile-check.sh` — compiles every mod source against a DFU install's own assemblies, the way DFU compiles mods at runtime.
+- `compile-check.sh` — compiles every mod source against a DFU install's own assemblies.
+- `runtime-check.sh` — compiles the sources with DFU's own in-memory runtime compiler and loads every type, catching problems only the game's compiler has (e.g. nested enums cause TypeLoadException there).
 - `build-mod.sh` — builds `advancednpcs.dfmod` with Unity 2019.4.41f2 in batch mode and installs it (plus the examples) into a DFU install. Needs an activated Unity license. In the editor the same build is under **Daggerfall Tools → Build Advanced NPCs mod**.
 
 When adding a `.cs` file under `Scripts/`, also add it to `Files` in `AdvancedNPCs.dfmod.json`.

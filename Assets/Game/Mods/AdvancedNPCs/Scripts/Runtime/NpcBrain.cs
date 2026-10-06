@@ -8,6 +8,9 @@ using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
 {
+    // Top-level on purpose: DFU's runtime compiler cannot load a field whose type is a nested enum.
+    enum NpcMode { Calm, Fighting, Fleeing, Dead }
+
     /// <summary>
     /// Authoritative state machine for one Advanced NPC. Vanilla EnemyMotor/EnemyAttack only run while Fighting.
     /// Undoes GameManager.MakeEnemiesHostile() for NPCs that were not actually attacked.
@@ -15,7 +18,6 @@ namespace AdvancedNPCs
     [RequireComponent(typeof(NpcMover))]
     public class NpcBrain : MonoBehaviour
     {
-        enum Mode { Calm, Fighting, Fleeing, Dead }
 
         const float SafeDistance = 30f;
         const float CreatureGiveUpDistance = 40f;
@@ -27,7 +29,7 @@ namespace AdvancedNPCs
 
         NpcDefinition def;
         NpcState state;
-        Mode mode = Mode.Calm;
+        NpcMode mode = NpcMode.Calm;
         DaggerfallEntityBehaviour threat;
 
         DaggerfallEntityBehaviour entityBehaviour;
@@ -107,7 +109,7 @@ namespace AdvancedNPCs
             }
             else
             {
-                SetMode(Mode.Calm);
+                SetMode(NpcMode.Calm);
             }
         }
 
@@ -116,7 +118,7 @@ namespace AdvancedNPCs
             if (entityBehaviour != null && entityBehaviour.Entity != null)
             {
                 entityBehaviour.Entity.OnDeath -= OnDeath;
-                if (mode != Mode.Dead)
+                if (mode != NpcMode.Dead)
                     state.healthFraction = HealthRules.Fraction(entityBehaviour.Entity.CurrentHealth, entityBehaviour.Entity.MaxHealth);
             }
             NpcBrain current;
@@ -126,7 +128,7 @@ namespace AdvancedNPCs
 
         void Update()
         {
-            if (mode == Mode.Dead || entityBehaviour == null)
+            if (mode == NpcMode.Dead || entityBehaviour == null)
                 return;
 
             DaggerfallEntityBehaviour player = GameManager.Instance.PlayerEntityBehaviour;
@@ -166,14 +168,14 @@ namespace AdvancedNPCs
 
             switch (mode)
             {
-                case Mode.Calm:
+                case NpcMode.Calm:
                     motor.GiveUpTimer = 0;
                     UpdateCalm();
                     break;
-                case Mode.Fighting:
+                case NpcMode.Fighting:
                     UpdateFighting();
                     break;
-                case Mode.Fleeing:
+                case NpcMode.Fleeing:
                     UpdateFleeing();
                     break;
             }
@@ -198,7 +200,7 @@ namespace AdvancedNPCs
 
         void OnAttackedByCreature(DaggerfallEntityBehaviour attacker)
         {
-            if (mode != Mode.Calm)
+            if (mode != NpcMode.Calm)
                 return;
             threat = attacker;
             EnterCombat();
@@ -207,7 +209,7 @@ namespace AdvancedNPCs
         void EnterCombat()
         {
             CombatChoice choice = HostilityRules.Decide(def.Bravery, HealthFraction(), def.FleeHealthPercent);
-            SetMode(choice == CombatChoice.Flee ? Mode.Fleeing : Mode.Fighting);
+            SetMode(choice == CombatChoice.Flee ? NpcMode.Fleeing : NpcMode.Fighting);
         }
 
         void UpdateCalmDown()
@@ -227,7 +229,7 @@ namespace AdvancedNPCs
                 state.healthFraction = 1f;
                 AdvancedNpcsMod.Log(def.Id + ": calmed down.");
                 if (threat == GameManager.Instance.PlayerEntityBehaviour)
-                    SetMode(Mode.Calm);
+                    SetMode(NpcMode.Calm);
             }
         }
 
@@ -273,7 +275,7 @@ namespace AdvancedNPCs
             if (threat != GameManager.Instance.PlayerEntityBehaviour)
                 senses.Target = threat;
             if (HostilityRules.Decide(def.Bravery, HealthFraction(), def.FleeHealthPercent) == CombatChoice.Flee)
-                SetMode(Mode.Fleeing);
+                SetMode(NpcMode.Fleeing);
         }
 
         void UpdateFleeing()
@@ -307,7 +309,7 @@ namespace AdvancedNPCs
             }
             else
             {
-                SetMode(Mode.Calm);
+                SetMode(NpcMode.Calm);
             }
         }
 
@@ -321,15 +323,15 @@ namespace AdvancedNPCs
             return hit.collider.GetComponentInParent<DaggerfallEntityBehaviour>() == other;
         }
 
-        void SetMode(Mode newMode)
+        void SetMode(NpcMode newMode)
         {
             mode = newMode;
-            bool fighting = newMode == Mode.Fighting;
+            bool fighting = newMode == NpcMode.Fighting;
             motor.enabled = fighting;
             attack.enabled = fighting;
-            mover.enabled = !fighting && newMode != Mode.Dead;
+            mover.enabled = !fighting && newMode != NpcMode.Dead;
 
-            if (newMode == Mode.Calm)
+            if (newMode == NpcMode.Calm)
             {
                 threat = null;
                 senses.Target = null;
@@ -341,13 +343,13 @@ namespace AdvancedNPCs
         void OnDeath(DaggerfallEntity entity)
         {
             // DFU raises OnDeath on every health change while health <= 0; only the first counts.
-            if (mode == Mode.Dead)
+            if (mode == NpcMode.Dead)
                 return;
 
             bool wasHostile = state.hostile;
             bool fightingCreature = threat != null && threat != GameManager.Instance.PlayerEntityBehaviour;
 
-            mode = Mode.Dead;
+            mode = NpcMode.Dead;
             state.dead = true;
             state.hostile = false;
 

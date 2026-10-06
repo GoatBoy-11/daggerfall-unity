@@ -12,6 +12,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HealthRules.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HostilityRules.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HumanClasses.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/Json.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcDefinition.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcState.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/PositionFormat.cs",
