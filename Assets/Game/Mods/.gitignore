@@ -2,3 +2,6 @@
 !.gitignore
 !ReadMe.txt
 !ReadMe.txt.meta
+!AdvancedNPCs/
+!AdvancedNPCs/**
+!AdvancedNPCs.meta
