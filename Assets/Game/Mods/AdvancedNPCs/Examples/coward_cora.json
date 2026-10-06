@@ -2,7 +2,7 @@
   "id": "daggerfall_city_cora",
   "name": "Cora the Baker",
   "location": { "region": "Daggerfall", "place": "Daggerfall" },
-  "position": [146, 1, 512],
+  "position": [63.36, 1.21, 643.12],
   "baseClass": "Bard",
   "gender": "Female",
   "bravery": "Coward",

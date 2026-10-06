@@ -54,7 +54,7 @@ hours, and keep their state (alive/dead, hostile/calm, health) through visits an
 ## Examples
 
 `Examples/` holds three Daggerfall city NPCs: Bram (Normal), Cora (Coward) and Bors (Brave). They stand
-next to each other at Daggerfall's north gate, where fast travel arrived in testing; use `anpc_list` or `anpc_summon` if
+next to each other at Daggerfall's north-west gate; use `anpc_list` or `anpc_summon` if
 they are not in view, and `anpc_pos` to move them.
 
 ## Building (developers)
