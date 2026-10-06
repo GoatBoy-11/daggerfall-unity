@@ -31,6 +31,7 @@ namespace AdvancedNPCs
         public void Enable()
         {
             StreamingWorld.OnCreateLocationGameObject += SpawnFor;
+            StreamingWorld.OnUpdateLocationGameObject += OnLocationLaidOut;
             StreamingWorld.OnClearStreamingWorld += OnWorldCleared;
             owner.OnStateRestored += RespawnLoadedLocations;
         }
@@ -38,6 +39,7 @@ namespace AdvancedNPCs
         public void Disable()
         {
             StreamingWorld.OnCreateLocationGameObject -= SpawnFor;
+            StreamingWorld.OnUpdateLocationGameObject -= OnLocationLaidOut;
             StreamingWorld.OnClearStreamingWorld -= OnWorldCleared;
             owner.OnStateRestored -= RespawnLoadedLocations;
         }
@@ -54,7 +56,10 @@ namespace AdvancedNPCs
                     towns.Add(current);
             }
             foreach (DaggerfallLocation town in towns)
+            {
                 SpawnFor(town);
+                SpawnGenerics(town, owner.Catalog.Generics, owner.Config.Mode, owner.Config.MaxGenericPerTown);
+            }
         }
 
         // Fast travel, teleport and load tear the world down; old towns are destroyed over many frames.
@@ -84,8 +89,6 @@ namespace AdvancedNPCs
                 NpcInstance instance = NpcInstance.ForUnique(def, defaultRace);
                 SpawnChecked(instance, owner.States.GetOrCreate(instance.Key), location);
             }
-            if (owner.Catalog.Generics.Count > 0)
-                owner.StartCoroutine(SpawnGenericsLater(location));
         }
 
         /// <summary>Spawns an ANPC that is not in the catalog (self-test). Its state lives in the normal table.</summary>
@@ -94,11 +97,13 @@ namespace AdvancedNPCs
             return Spawn(instance, owner.States.GetOrCreate(instance.Key), parent);
         }
 
-        IEnumerator SpawnGenericsLater(DaggerfallLocation location)
+        // Raised once a town's blocks, and so its navigation grid, are complete. Towns streamed in while travelling
+        // are laid out over many frames after OnCreateLocationGameObject, so generics must wait for this event.
+        void OnLocationLaidOut(GameObject locationObject, bool allowYield)
         {
-            yield return null; // let the town finish building before reading its navigation grid
+            DaggerfallLocation location = locationObject == null ? null : locationObject.GetComponent<DaggerfallLocation>();
             if (location == null || !location.gameObject.activeSelf)
-                yield break;
+                return;
             SpawnGenerics(location, owner.Catalog.Generics, owner.Config.Mode, owner.Config.MaxGenericPerTown);
         }
 
@@ -127,10 +132,18 @@ namespace AdvancedNPCs
                             AdvancedNpcsMod.Log(town.Place + ": no walkable cells; generic ANPCs without fixed positions are not spawned there.");
                         continue;
                     }
-                    Vector3 local = CellToLocal(location, cells[instance.CellIndex]);
-                    instance.X = local.x;
-                    instance.Y = local.y;
-                    instance.Z = local.z;
+                    try
+                    {
+                        Vector3 local = CellToLocal(location, cells[instance.CellIndex]);
+                        instance.X = local.x;
+                        instance.Y = local.y;
+                        instance.Z = local.z;
+                    }
+                    catch (Exception e)
+                    {
+                        AdvancedNpcsMod.LogError(instance.Key + ": spawn failed (" + e.Message + ")");
+                        continue;
+                    }
                 }
                 NpcState state = instance.Persistent ? owner.States.GetOrCreate(instance.Key) : new NpcState();
                 NpcBrain brain = SpawnChecked(instance, state, location);
