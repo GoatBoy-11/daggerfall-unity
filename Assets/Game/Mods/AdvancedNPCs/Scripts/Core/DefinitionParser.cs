@@ -33,6 +33,8 @@ namespace AdvancedNPCs.Core
         static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
         static readonly string[] GenericOnlyKeys = { "names", "portraits", "spawn" };
         static readonly string[] RaceNames = { "Breton", "Redguard", "Nord" };
+        static readonly string[] SpawnKeys = { "locationTypes", "places", "count" };
+        static readonly string[] PlaceKeys = { "region", "place", "positions" };
 
         /// <summary>A 1a flat file from StreamingAssets/AdvancedNPCs (the id is inside the file). Used by migration.</summary>
         public static ParseResult Parse(string fileName, string json)
@@ -189,10 +191,142 @@ namespace AdvancedNPCs.Core
             return true;
         }
 
-        // Generic templates are read from Task 8 on (spec §7.3).
         static bool ReadGeneric(string file, Dictionary<string, object> o, NpcDefinition d, ParseResult r)
         {
-            return Problem(r, file, "kind", "generic templates are not supported yet");
+            if (o.ContainsKey("location"))
+                return Problem(r, file, "location", "belongs to unique ANPCs; generic templates use spawn");
+            if (o.ContainsKey("position"))
+                return Problem(r, file, "position", "belongs to unique ANPCs; generic templates use spawn");
+
+            string problem;
+            string name;
+            if ((problem = FieldReader.Text(o, "name", "", out name)) != null)
+                return Problem(r, file, "name", problem);
+            d.Name = name;
+            List<string> names;
+            if ((problem = FieldReader.Texts(o, "names", out names)) != null)
+                return Problem(r, file, "names", problem);
+            if (names != null)
+                d.Names.AddRange(names);
+
+            string portrait;
+            if ((problem = FieldReader.Text(o, "portrait", "", out portrait)) != null)
+                return Problem(r, file, "portrait", problem);
+            AddPortrait(d, portrait);
+            List<string> portraits;
+            if ((problem = FieldReader.Texts(o, "portraits", out portraits)) != null)
+                return Problem(r, file, "portraits", problem);
+            if (portraits != null)
+            {
+                foreach (string p in portraits)
+                    AddPortrait(d, p);
+            }
+
+            d.Spawn = new GenericSpawn();
+            Dictionary<string, object> spawn;
+            if ((problem = FieldReader.Object(o, "spawn", out spawn)) != null)
+                return Problem(r, file, "spawn", problem);
+            if (spawn == null)
+                return true;
+            foreach (string key in FieldReader.UnknownKeys(spawn, SpawnKeys))
+                r.Warnings.Add(file + ": spawn." + key + ": unknown field, ignored");
+
+            List<string> types;
+            if ((problem = FieldReader.Texts(spawn, "locationTypes", out types)) != null)
+                return Problem(r, file, "spawn.locationTypes", problem);
+            if (types != null)
+            {
+                d.Spawn.LocationTypes.Clear();
+                foreach (string t in types)
+                {
+                    string canonical = LocationTypeNames.Canonical(t);
+                    if (canonical == null)
+                        return Problem(r, file, "spawn.locationTypes", "unknown location type \"" + t + "\"");
+                    d.Spawn.LocationTypes.Add(canonical);
+                }
+            }
+
+            List<Dictionary<string, object>> places;
+            if ((problem = FieldReader.Objects(spawn, "places", out places)) != null)
+                return Problem(r, file, "spawn.places", problem);
+            if (places != null)
+            {
+                for (int i = 0; i < places.Count; i++)
+                {
+                    SpawnPlace p = new SpawnPlace();
+                    if (!ReadPlace(file, "spawn.places[" + i + "]", places[i], p, r))
+                        return false;
+                    d.Spawn.Places.Add(p);
+                }
+            }
+
+            double[] count;
+            if (!FieldReader.Numbers(spawn, "count", out count) || (count != null && count.Length != 2))
+                return Problem(r, file, "spawn.count", "must be [min, max]");
+            if (count != null)
+            {
+                if (count[0] != Math.Floor(count[0]) || count[1] != Math.Floor(count[1]) ||
+                    count[0] < 0 || count[0] > count[1] || count[1] > 20)
+                    return Problem(r, file, "spawn.count", "need whole numbers 0 <= min <= max <= 20 (got [" +
+                        FieldReader.Num(count[0]) + ", " + FieldReader.Num(count[1]) + "])");
+                d.Spawn.CountMin = (int)count[0];
+                d.Spawn.CountMax = (int)count[1];
+            }
+            return true;
+        }
+
+        static void AddPortrait(NpcDefinition d, string raw)
+        {
+            string name = PortraitNames.Normalize(raw);
+            if (name.Length > 0 && !d.Portraits.Contains(name))
+                d.Portraits.Add(name);
+        }
+
+        static bool ReadPlace(string file, string field, Dictionary<string, object> o, SpawnPlace p, ParseResult r)
+        {
+            foreach (string key in FieldReader.UnknownKeys(o, PlaceKeys))
+                r.Warnings.Add(file + ": " + field + "." + key + ": unknown field, ignored");
+
+            string problem;
+            if ((problem = FieldReader.Text(o, "region", null, out p.Region)) != null)
+                return Problem(r, file, field + ".region", problem);
+            if (string.IsNullOrEmpty(p.Region))
+                return Problem(r, file, field + ".region", "required");
+            if ((problem = FieldReader.Text(o, "place", null, out p.Place)) != null)
+                return Problem(r, file, field + ".place", problem);
+            if (string.IsNullOrEmpty(p.Place))
+                return Problem(r, file, field + ".place", "required");
+
+            object raw;
+            if (o.TryGetValue("positions", out raw) && raw != null)
+            {
+                List<object> list = raw as List<object>;
+                if (list == null)
+                    return Problem(r, file, field + ".positions", "must be a list of [x, y, z]");
+                foreach (object item in list)
+                {
+                    float[] xyz = Xyz(item);
+                    if (xyz == null)
+                        return Problem(r, file, field + ".positions", "must be a list of [x, y, z]");
+                    p.Positions.Add(xyz);
+                }
+            }
+            return true;
+        }
+
+        static float[] Xyz(object item)
+        {
+            List<object> list = item as List<object>;
+            if (list == null || list.Count != 3)
+                return null;
+            float[] xyz = new float[3];
+            for (int i = 0; i < 3; i++)
+            {
+                if (!(list[i] is double))
+                    return null;
+                xyz[i] = (float)(double)list[i];
+            }
+            return xyz;
         }
 
         static bool ReadShared(string file, Dictionary<string, object> o, NpcDefinition d, ParseResult r)

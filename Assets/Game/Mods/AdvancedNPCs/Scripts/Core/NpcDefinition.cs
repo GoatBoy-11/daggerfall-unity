@@ -34,6 +34,8 @@ namespace AdvancedNPCs.Core
         public readonly List<string> Portraits = new List<string>();
         /// <summary>Generic templates: names to pick from (empty: fixed Name or generated).</summary>
         public readonly List<string> Names = new List<string>();
+        /// <summary>Generic templates only: where and how many (null for unique ANPCs).</summary>
+        public GenericSpawn Spawn;
         public Bravery Bravery;
         public int FleeHealthPercent;
         public float CalmDownMinHours;
