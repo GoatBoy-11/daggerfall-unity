@@ -66,6 +66,51 @@ namespace AdvancedNPCs
             Destroy(brain.gameObject);
         }
 
+        /// <summary>All spawned NPCs (for console commands).</summary>
+        public static List<NpcBrain> All()
+        {
+            List<NpcBrain> result = new List<NpcBrain>();
+            foreach (NpcBrain b in live.Values)
+            {
+                if (b != null)
+                    result.Add(b);
+            }
+            return result;
+        }
+
+        public string Id
+        {
+            get { return def != null ? def.Id : "?"; }
+        }
+
+        /// <summary>One-line state for console output.</summary>
+        public string Status
+        {
+            get
+            {
+                string text = mode.ToString();
+                if (state != null && state.hostile)
+                    text += ", hostile to player";
+                if (entityBehaviour != null && entityBehaviour.Entity != null)
+                    text += ", health " + entityBehaviour.Entity.CurrentHealth + "/" + entityBehaviour.Entity.MaxHealth;
+                if (!gameObject.activeInHierarchy)
+                    text += ", inactive";
+                return text;
+            }
+        }
+
+        /// <summary>Moves the NPC, and the centre it wanders around, to a world position. Not saved.</summary>
+        public void Teleport(Vector3 worldPos)
+        {
+            CharacterController controller = GetComponent<CharacterController>();
+            bool wasEnabled = controller.enabled;
+            controller.enabled = false;
+            transform.position = worldPos;
+            controller.enabled = wasEnabled;
+            homeLocal = transform.localPosition;
+            hasWanderTarget = false;
+        }
+
         public static void DespawnAll()
         {
             foreach (NpcBrain b in new List<NpcBrain>(live.Values))

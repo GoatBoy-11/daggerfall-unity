@@ -38,6 +38,12 @@ hours, and keep their state (alive/dead, hostile/calm, health) through visits an
 | `crimeOnAttack` | no | `true` | `true`: attacking is assault, killing is murder |
 | `wanderRadius` | no | `8` | metres around the spawn point; `0` stands still |
 
+## Console commands
+
+- `anpc_pos` — your position as definition JSON (also written to `Player.log`).
+- `anpc_list` — spawned NPCs with distance, direction, height and state.
+- `anpc_summon <id>` — moves a spawned NPC in front of you (testing only; not saved).
+
 ## Behaviour
 
 - Calm NPCs never stop you resting or travelling.
@@ -46,9 +52,9 @@ hours, and keep their state (alive/dead, hostile/calm, health) through visits an
 
 ## Examples
 
-`Examples/` holds three Daggerfall city NPCs: Bram (Normal), Cora (Coward) and Bors (Brave). Their
-positions are placed just inside the city's origin corner and are approximate — use `anpc_pos` to
-move them somewhere better.
+`Examples/` holds three Daggerfall city NPCs: Bram (Normal), Cora (Coward) and Bors (Brave). They stand
+next to each other near where fast travel to Daggerfall drops you; use `anpc_list` or `anpc_summon` if
+they are not in view, and `anpc_pos` to move them.
 
 ## Building (developers)
 

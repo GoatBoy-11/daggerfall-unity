@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Text;
 using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
@@ -44,7 +46,11 @@ namespace AdvancedNPCs
             Catalog = LoadCatalog();
             StartGameBehaviour.OnNewGame += OnNewGame;
             ConsoleCommandsDatabase.RegisterCommand("anpc_pos",
-                "Prints your position as Advanced NPC definition JSON.", "anpc_pos", PosCommand);
+                "Prints your position as Advanced NPC definition JSON (also written to Player.log).", "anpc_pos", PosCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_list",
+                "Lists spawned Advanced NPCs with distance, direction and state.", "anpc_list", ListCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_summon",
+                "Moves a spawned Advanced NPC in front of you (testing only, not saved).", "anpc_summon <id>", SummonCommand);
             spawner = new NpcSpawner(this);
             spawner.Enable();
         }
@@ -105,8 +111,45 @@ namespace AdvancedNPCs
                 return "Stand outdoors inside a town first.";
 
             Vector3 local = location.transform.InverseTransformPoint(gm.PlayerObject.transform.position);
-            return PositionFormat.ToJsonSnippet(location.Summary.RegionName, location.Summary.LocationName,
+            string snippet = PositionFormat.ToJsonSnippet(location.Summary.RegionName, location.Summary.LocationName,
                 local.x, local.y, local.z);
+            Log("anpc_pos\n" + snippet);
+            return snippet;
+        }
+
+        static string ListCommand(params string[] args)
+        {
+            List<NpcBrain> brains = NpcBrain.All();
+            if (brains.Count == 0)
+                return "No Advanced NPCs are spawned nearby (" + Instance.Catalog.Count + " defined).";
+
+            Vector3 player = GameManager.Instance.PlayerObject.transform.position;
+            StringBuilder sb = new StringBuilder();
+            foreach (NpcBrain b in brains)
+            {
+                Vector3 d = b.transform.position - player;
+                sb.Append(b.Id).Append(": ").Append(Bearing.Describe(d.x, d.z))
+                  .Append(", height ").Append(d.y.ToString("0.#", CultureInfo.InvariantCulture))
+                  .Append(" (").Append(b.Status).Append(")\n");
+            }
+            string text = sb.ToString().TrimEnd('\n');
+            Log("anpc_list\n" + text);
+            return text;
+        }
+
+        static string SummonCommand(params string[] args)
+        {
+            if (args == null || args.Length == 0)
+                return "Usage: anpc_summon <id>   (ids from anpc_list)";
+            NpcBrain b = NpcBrain.Find(args[0]);
+            if (b == null)
+                return "No spawned NPC with id \"" + args[0] + "\". Try anpc_list.";
+
+            Transform player = GameManager.Instance.PlayerObject.transform;
+            b.Teleport(player.position + player.forward * 2f);
+            string message = args[0] + " summoned.";
+            Log(message);
+            return message;
         }
 
         public static void Log(string message)
