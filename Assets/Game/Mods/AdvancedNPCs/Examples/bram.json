@@ -2,7 +2,7 @@
   "id": "daggerfall_city_bram",
   "name": "Bram the Cooper",
   "location": { "region": "Daggerfall", "place": "Daggerfall" },
-  "position": [712, 1, 152],
+  "position": [142, 1, 515],
   "baseClass": "Spellsword",
   "gender": "Male",
   "bravery": "Normal",
