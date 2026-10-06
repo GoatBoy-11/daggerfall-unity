@@ -21,6 +21,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcDefinition.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcInstance.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcState.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/PopulationPlanner.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/PortraitNames.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/PositionFormat.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/SeededRandom.cs",
