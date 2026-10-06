@@ -45,6 +45,7 @@ namespace AdvancedNPCs
         void Awake()
         {
             States = new NpcStateTable();
+            AnpcFiles.MigrateLegacy();
             Catalog = LoadCatalog();
             StartGameBehaviour.OnNewGame += OnNewGame;
             ConsoleCommandsDatabase.RegisterCommand("anpc_pos",
