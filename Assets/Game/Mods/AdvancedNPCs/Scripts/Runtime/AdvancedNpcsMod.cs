@@ -26,6 +26,7 @@ namespace AdvancedNPCs
         public event Action OnStateRestored;
 
         static Mod mod;
+        NpcSpawner spawner;
 
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
@@ -44,11 +45,15 @@ namespace AdvancedNPCs
             StartGameBehaviour.OnNewGame += OnNewGame;
             ConsoleCommandsDatabase.RegisterCommand("anpc_pos",
                 "Prints your position as Advanced NPC definition JSON.", "anpc_pos", PosCommand);
+            spawner = new NpcSpawner(this);
+            spawner.Enable();
         }
 
         void OnDestroy()
         {
             StartGameBehaviour.OnNewGame -= OnNewGame;
+            if (spawner != null)
+                spawner.Disable();
         }
 
         void OnNewGame()

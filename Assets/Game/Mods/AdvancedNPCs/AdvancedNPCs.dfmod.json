@@ -15,7 +15,10 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcState.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/PositionFormat.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/AdvancedNpcsMod.cs",
-        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcSaveDataInterface.cs"
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcBrain.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcMover.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcSaveDataInterface.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcSpawner.cs"
     ],
     "Dependencies": []
 }
