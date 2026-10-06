@@ -23,6 +23,12 @@ namespace AdvancedNPCs.Core
             c.healthFraction = healthFraction;
             return c;
         }
+
+        /// <summary>Alive, calm and at full health: nothing worth saving (spec §8).</summary>
+        public bool IsDefault()
+        {
+            return !dead && !hostile && healthFraction >= 0.999f;
+        }
     }
 
     /// <summary>All NPC states keyed by definition id. Entries for ids without a definition are kept.</summary>
@@ -51,11 +57,15 @@ namespace AdvancedNPCs.Core
             return states.ContainsKey(id);
         }
 
+        /// <summary>Copy of every state that differs from fresh; fresh ones are not saved.</summary>
         public Dictionary<string, NpcState> Snapshot()
         {
             Dictionary<string, NpcState> copy = new Dictionary<string, NpcState>(StringComparer.Ordinal);
             foreach (KeyValuePair<string, NpcState> kv in states)
-                copy.Add(kv.Key, kv.Value.Clone());
+            {
+                if (!kv.Value.IsDefault())
+                    copy.Add(kv.Key, kv.Value.Clone());
+            }
             return copy;
         }
 

@@ -37,6 +37,32 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void Snapshot_OmitsFreshStates()
+        {
+            NpcStateTable t = new NpcStateTable();
+            t.GetOrCreate("fresh");
+            t.GetOrCreate("hurt").healthFraction = 0.5f;
+            t.GetOrCreate("dead").dead = true;
+            t.GetOrCreate("angry").hostile = true;
+            Dictionary<string, NpcState> snap = t.Snapshot();
+            Assert.IsFalse(snap.ContainsKey("fresh"));
+            Assert.IsTrue(snap.ContainsKey("hurt"));
+            Assert.IsTrue(snap.ContainsKey("dead"));
+            Assert.IsTrue(snap.ContainsKey("angry"));
+            Assert.IsTrue(t.Has("fresh")); // only the snapshot drops it
+        }
+
+        [Test]
+        public void IsDefault_IgnoresOldCalmDeadline()
+        {
+            NpcState s = new NpcState();
+            s.hostileUntil = 500UL;
+            Assert.IsTrue(s.IsDefault());
+            s.hostile = true;
+            Assert.IsFalse(s.IsDefault());
+        }
+
+        [Test]
         public void Restore_ReplacesContentAndKeepsUnknownIds()
         {
             NpcStateTable t = new NpcStateTable();
