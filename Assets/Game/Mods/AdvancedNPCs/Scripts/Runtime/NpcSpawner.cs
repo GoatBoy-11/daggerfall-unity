@@ -144,6 +144,7 @@ namespace AdvancedNPCs
             go.AddComponent<NpcMover>();
             NpcBrain brain = go.AddComponent<NpcBrain>();
             brain.Init(instance, state);
+            go.AddComponent<NpcTalk>().Init(instance, owner.Portraits.Get(instance.PortraitName));
             AdvancedNpcsMod.Log(instance.Key + " (" + instance.Name + "): spawned.");
             return brain;
         }

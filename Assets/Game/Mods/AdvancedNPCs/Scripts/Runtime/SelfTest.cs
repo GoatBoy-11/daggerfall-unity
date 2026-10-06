@@ -6,6 +6,8 @@ using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Serialization;
+using DaggerfallWorkshop.Game.UserInterface;
+using DaggerfallWorkshop.Game.UserInterfaceWindows;
 using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
@@ -104,6 +106,34 @@ namespace AdvancedNPCs
                 allCalm &= b.CurrentMode == NpcMode.Calm && !b.State.hostile && !b.Motor.IsHostile;
             Check("spawned NPCs are calm", allCalm, Describe(all));
             Check("calm NPCs do not block resting", !gm.AreEnemiesNearby(true), "GameManager.AreEnemiesNearby(resting) returned true");
+            // Talking (spec §9.2): name, PNG portrait, vanilla face fallback, Info text.
+            NpcTalk talk = normal.GetComponent<NpcTalk>();
+            Texture2D testPortrait = TestPortrait();
+            talk.Portrait = testPortrait;
+            bool opened = talk.TryTalk();
+            for (int wait = 0; wait < 10 && !TalkWindowOpen(); wait++)
+                yield return new WaitForSeconds(0.1f);
+            Check("calm ANPC opens DFU's talk window", opened && TalkWindowOpen(),
+                "opened=" + opened + ", top window=" + DaggerfallUI.UIManager.TopWindow);
+            Check("talk window shows the ANPC's name", TalkManager.Instance.NameNPC == "Selftest Normal", "name=" + TalkManager.Instance.NameNPC);
+            Check("talk window shows the ANPC's PNG portrait", NpcTalk.CurrentTalkPortrait() == testPortrait,
+                "portrait=" + NpcTalk.CurrentTalkPortrait());
+            CloseTalkWindow();
+            yield return Settle;
+
+            NpcTalk plain = bystander.GetComponent<NpcTalk>();
+            plain.Portrait = null;
+            opened = plain.TryTalk();
+            for (int wait = 0; wait < 10 && !TalkWindowOpen(); wait++)
+                yield return new WaitForSeconds(0.1f);
+            Check("ANPC without portrait talks with a vanilla face",
+                opened && TalkWindowOpen() && NpcTalk.CurrentTalkPortrait() != testPortrait,
+                "opened=" + opened + ", portrait=" + NpcTalk.CurrentTalkPortrait() + ", face record=" + plain.Proxy.PersonFaceRecordId);
+            CloseTalkWindow();
+            yield return Settle;
+
+            plain.HandleActivate(PlayerActivateModes.Info, 1f);
+            Check("Info-mode click names the ANPC", plain.LastMessage == "You see Selftest Normal.", "message=" + plain.LastMessage);
 
             gm.MakeEnemiesHostile();
             yield return Settle;
@@ -123,6 +153,9 @@ namespace AdvancedNPCs
             PlayerHit(normal, playerBehaviour, 1);
             yield return Settle;
             Check("hitting an already hostile NPC reports no new assault", Count(PlayerEntity.Crimes.Assault) == assaults + 1, CrimeList());
+            Check("hostile ANPC refuses to talk",
+                !talk.TryTalk() && !TalkWindowOpen() && talk.LastMessage == "Selftest Normal will not talk to you now.",
+                "message=" + talk.LastMessage + ", top window=" + DaggerfallUI.UIManager.TopWindow);
 
             SetHealthFraction(normal, 0.2f);
             yield return Settle;
@@ -171,7 +204,7 @@ namespace AdvancedNPCs
             string text = SaveLoadManager.Serialize(typeof(NpcSaveData), data);
             NpcSaveData back = SaveLoadManager.Deserialize(typeof(NpcSaveData), text) as NpcSaveData;
             Check("save data survives a serialize/deserialize round trip",
-                back != null && SameState(data, back, "selftest_normal") && SameState(data, back, "selftest_victim"), text);
+                back != null && SameState(data, back, "selftest_brave") && SameState(data, back, "selftest_victim"), text);
         }
 
         NpcBrain Make(string id, Bravery bravery, DaggerfallLocation location, Transform player, float side)
@@ -254,6 +287,28 @@ namespace AdvancedNPCs
             foreach (NpcBrain b in brains)
                 parts.Add(b == null ? "(gone)" : b.Id + ": " + b.Status + (b.Motor != null && b.Motor.IsHostile ? ", motor hostile" : ""));
             return string.Join("; ", parts.ToArray());
+        }
+
+        static bool TalkWindowOpen()
+        {
+            return DaggerfallUI.UIManager.TopWindow is DaggerfallTalkWindow;
+        }
+
+        static void CloseTalkWindow()
+        {
+            if (TalkWindowOpen())
+                DaggerfallUI.UIManager.PopWindow();
+        }
+
+        static Texture2D TestPortrait()
+        {
+            Texture2D texture = new Texture2D(64, 64, TextureFormat.ARGB32, false);
+            Color32[] pixels = new Color32[64 * 64];
+            for (int i = 0; i < pixels.Length; i++)
+                pixels[i] = new Color32((byte)(i % 64 * 4), (byte)(i / 64 * 4), 160, 255);
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            return texture;
         }
 
         void Check(string name, bool ok, string detail)

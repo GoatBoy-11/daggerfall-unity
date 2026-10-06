@@ -33,6 +33,8 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcMover.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcSaveDataInterface.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcSpawner.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcTalk.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/PortraitLibrary.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTest.cs"
     ],
     "Dependencies": []

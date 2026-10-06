@@ -44,6 +44,7 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 | `location` | yes | — | from `anpc_pos` |
 | `position` | yes | — | from `anpc_pos` (relative to the town's origin corner) |
 | `race` | no | the region's people | `Breton`, `Redguard`, `Nord` |
+| `portrait` | no | vanilla face | name of a PNG in `ANPCs/_Portraits/` without `.png` (any case) |
 | `baseClass` | no | `Spellsword` | Mage, Spellsword, Battlemage, Sorcerer, Healer, Nightblade, Bard, Burglar, Rogue, Acrobat, Thief, Assassin, Monk, Archer, Ranger, Barbarian, Warrior, Knight |
 | `gender` | no | fixed random per ANPC | `Male`, `Female` |
 | `bravery` | no | `Normal` | `Coward` (always flees), `Normal` (flees at low health), `Brave` (fights to the death) |
@@ -72,6 +73,13 @@ folder name is the old id.
 - Calm ANPCs never stop you resting or travelling.
 - They only fight whoever attacked them; hitting one ANPC does not anger the others.
 - Killed ANPCs stay dead in that save. A new game brings them back.
+
+
+## Talking and portraits
+
+- Click a calm ANPC in Talk or Grab mode to open DFU's citizen talk window with its name and portrait; vanilla topics work as for any citizen.
+- Hostile or fleeing ANPCs refuse to talk. Info mode shows "You see <name>.".
+- Portraits are PNG files in `ANPCs/_Portraits/`, shared by all ANPCs; 64 × 64 pixels recommended. Without one (or if the file is missing) the ANPC shows a vanilla face matching its race and gender.
 
 ## Examples
 
