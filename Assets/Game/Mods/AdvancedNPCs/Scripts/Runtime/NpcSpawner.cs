@@ -94,7 +94,13 @@ namespace AdvancedNPCs
             }
         }
 
-        static void Spawn(NpcDefinition def, NpcState state, Transform parent)
+        /// <summary>Spawns an NPC that is not in the catalog (self-test). Its state lives in the normal table.</summary>
+        public NpcBrain SpawnTest(NpcDefinition def, Transform parent)
+        {
+            return Spawn(def, owner.States.GetOrCreate(def.Id), parent);
+        }
+
+        static NpcBrain Spawn(NpcDefinition def, NpcState state, Transform parent)
         {
             MobileTypes type = (MobileTypes)Enum.Parse(typeof(MobileTypes), def.BaseClass);
             MobileGender gender = MobileGender.Unspecified;
@@ -123,6 +129,7 @@ namespace AdvancedNPCs
             NpcBrain brain = go.AddComponent<NpcBrain>();
             brain.Init(def, state);
             AdvancedNpcsMod.Log(def.Id + ": spawned in " + def.Place + ".");
+            return brain;
         }
     }
 }

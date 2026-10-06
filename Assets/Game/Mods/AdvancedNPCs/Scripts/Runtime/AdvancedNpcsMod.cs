@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -6,6 +7,7 @@ using System.Text;
 using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using Wenzil.Console;
@@ -18,6 +20,7 @@ namespace AdvancedNPCs
     {
         public const string LogPrefix = "[AdvancedNPCs] ";
         public const string FolderName = "AdvancedNPCs";
+        public const string AutoRunFile = "selftest-autorun.txt";
 
         public static AdvancedNpcsMod Instance { get; private set; }
 
@@ -55,6 +58,12 @@ namespace AdvancedNPCs
                 "Moves a spawned Advanced NPC in front of you (testing only, not saved).", "anpc_summon <id>", SummonCommand);
             spawner = new NpcSpawner(this);
             spawner.Enable();
+            ConsoleCommandsDatabase.RegisterCommand("anpc_selftest",
+                "Runs the Advanced NPCs in-game self-test next to you (god mode during the run; results in Player.log).", "anpc_selftest", SelfTestCommand);
+
+            string autorun = Path.Combine(Path.Combine(Application.streamingAssetsPath, FolderName), AutoRunFile);
+            if (File.Exists(autorun))
+                StartCoroutine(AutoRun(autorun));
         }
 
         void OnDestroy()
@@ -190,6 +199,59 @@ namespace AdvancedNPCs
                 message += " (It is dead in this save, so it will not appear.)";
             Log(message + "\n" + PositionFormat.ToJsonSnippet(region, place, local.x, local.y, local.z));
             return message;
+        }
+
+        static string SelfTestCommand(params string[] args)
+        {
+            if (SelfTest.Running)
+                return "The self-test is already running.";
+            Instance.StartCoroutine(new SelfTest(Instance, Instance.spawner).Run(null));
+            return "Self-test started; results appear on screen and in Player.log (SELFTEST lines).";
+        }
+
+        /// <summary>
+        /// Unattended test run used by Tools~/selftest.sh: the file's first two lines name a character and a
+        /// save; the save is loaded, the self-test runs, and the game quits.
+        /// </summary>
+        IEnumerator AutoRun(string path)
+        {
+            string[] lines = File.ReadAllLines(path);
+            if (lines.Length < 2)
+            {
+                LogError(SelfTest.Prefix + "FAIL autorun -- " + AutoRunFile + " needs: character name, then save name");
+                Application.Quit();
+                yield break;
+            }
+            string character = lines[0].Trim();
+            string save = lines[1].Trim();
+            Log(SelfTest.Prefix + "autorun: loading save '" + save + "' of '" + character + "'");
+            yield return new WaitForSeconds(3f);
+            SaveLoadManager.Instance.Load(character, save);
+
+            float waited = 0f;
+            while (waited < 180f && !InTown())
+            {
+                waited += 1f;
+                yield return new WaitForSeconds(1f);
+            }
+            if (!InTown())
+            {
+                LogError(SelfTest.Prefix + "FAIL autorun -- save did not load into a town within 180 s");
+                Application.Quit();
+                yield break;
+            }
+            yield return new WaitForSeconds(5f); // let the town and its NPCs finish spawning
+            yield return StartCoroutine(new SelfTest(this, spawner).Run(null));
+            yield return new WaitForSeconds(1f);
+            Application.Quit();
+        }
+
+        static bool InTown()
+        {
+            GameManager gm = GameManager.Instance;
+            return gm != null && gm.StateManager.CurrentState == StateManager.StateTypes.Game &&
+                   !SaveLoadManager.Instance.LoadInProgress && !gm.PlayerEnterExit.IsPlayerInside &&
+                   gm.StreamingWorld.CurrentPlayerLocationObject != null;
         }
 
         static string SummonCommand(params string[] args)

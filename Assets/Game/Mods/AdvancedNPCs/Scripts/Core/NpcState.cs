@@ -41,6 +41,11 @@ namespace AdvancedNPCs.Core
             return s;
         }
 
+        public void Remove(string id)
+        {
+            states.Remove(id);
+        }
+
         public bool Has(string id)
         {
             return states.ContainsKey(id);

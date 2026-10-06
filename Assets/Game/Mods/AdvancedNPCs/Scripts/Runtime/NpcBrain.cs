@@ -9,7 +9,7 @@ using AdvancedNPCs.Core;
 namespace AdvancedNPCs
 {
     // Top-level on purpose: DFU's runtime compiler cannot load a field whose type is a nested enum.
-    enum NpcMode { Calm, Fighting, Fleeing, Dead }
+    public enum NpcMode { Calm, Fighting, Fleeing, Dead }
 
     /// <summary>
     /// Authoritative state machine for one Advanced NPC. Vanilla EnemyMotor/EnemyAttack only run while Fighting.
@@ -76,6 +76,26 @@ namespace AdvancedNPCs
                     result.Add(b);
             }
             return result;
+        }
+
+        public NpcMode CurrentMode
+        {
+            get { return mode; }
+        }
+
+        public NpcState State
+        {
+            get { return state; }
+        }
+
+        public DaggerfallEntityBehaviour EntityBehaviour
+        {
+            get { return entityBehaviour; }
+        }
+
+        public EnemyMotor Motor
+        {
+            get { return motor; }
         }
 
         public string Id
@@ -235,9 +255,7 @@ namespace AdvancedNPCs
 
             if (wasCalm && def.CrimeOnAttack)
             {
-                PlayerEntity player = GameManager.Instance.PlayerEntity;
-                player.CrimeCommitted = PlayerEntity.Crimes.Assault;
-                player.SpawnCityGuards(true);
+                NpcCrime.Report(PlayerEntity.Crimes.Assault);
                 AdvancedNpcsMod.Log(def.Id + ": assaulted by player.");
             }
             EnterCombat();
@@ -410,9 +428,7 @@ namespace AdvancedNPCs
             bool byPlayer = HostilityRules.KilledByPlayer(wasHostile, fightingCreature, motorHostile);
             if (byPlayer && def.CrimeOnAttack)
             {
-                PlayerEntity player = GameManager.Instance.PlayerEntity;
-                player.CrimeCommitted = PlayerEntity.Crimes.Murder;
-                player.SpawnCityGuards(true);
+                NpcCrime.Report(PlayerEntity.Crimes.Murder);
             }
             AdvancedNpcsMod.Log(def.Id + ": died" + (byPlayer ? " (player)." : " (creature)."));
         }

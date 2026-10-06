@@ -71,6 +71,17 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void Remove_ForgetsOneId()
+        {
+            NpcStateTable t = new NpcStateTable();
+            t.GetOrCreate("selftest_a").dead = true;
+            t.GetOrCreate("bram");
+            t.Remove("selftest_a");
+            Assert.IsFalse(t.Has("selftest_a"));
+            Assert.IsTrue(t.Has("bram"));
+        }
+
+        [Test]
         public void Clear_ResetsEverything()
         {
             NpcStateTable t = new NpcStateTable();

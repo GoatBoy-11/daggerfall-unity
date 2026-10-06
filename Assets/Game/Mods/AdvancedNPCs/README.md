@@ -44,6 +44,7 @@ hours, and keep their state (alive/dead, hostile/calm, health) through visits an
 - `anpc_list` — spawned NPCs with distance, direction, height and state.
 - `anpc_place <id>` — makes your current spot that NPC's home: rewrites `location` and `position` in its definition file (nothing else) and moves it here.
 - `anpc_summon <id>` — moves a spawned NPC in front of you (testing only; not saved).
+- `anpc_selftest` — runs 18 behaviour checks with temporary NPCs next to you (god mode on, crimes recorded instead of punished, game clock untouched); results on screen and in `Player.log`.
 
 ## Behaviour
 
@@ -65,6 +66,7 @@ Sources live in `Scripts/Core` (pure logic, unit-tested) and `Scripts/Runtime` (
 - `run-tests.sh` — runs the Core NUnit tests in a small Unity host project.
 - `compile-check.sh` — compiles every mod source against a DFU install's own assemblies.
 - `runtime-check.sh` — compiles the sources with DFU's own in-memory runtime compiler and loads every type, catching problems only the game's compiler has (e.g. nested enums cause TypeLoadException there).
-- `build-mod.sh` — builds `advancednpcs.dfmod` with Unity 2019.4.41f2 in batch mode and installs it (plus the examples) into a DFU install. Needs an activated Unity license. In the editor the same build is under **Daggerfall Tools → Build Advanced NPCs mod**.
+- `build-mod.sh` — builds `advancednpcs.dfmod` with Unity 2019.4.41f2 (a windowed editor that closes itself) and installs it, plus the examples, into a DFU install. In the editor the same build is under **Daggerfall Tools → Build Advanced NPCs mod**.
+- `selftest.sh [character] [save]` — fully unattended in-game test: starts DFU, loads a save standing outdoors in a town, runs `anpc_selftest`, quits and prints the results. Temporarily skips the startup options screen (settings.ini is restored).
 
 When adding a `.cs` file under `Scripts/`, also add it to `Files` in `AdvancedNPCs.dfmod.json`.
