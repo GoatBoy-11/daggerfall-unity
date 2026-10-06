@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace AdvancedNPCs.Core
@@ -9,6 +8,7 @@ namespace AdvancedNPCs.Core
     {
         public NpcDefinition Definition;
         public string Error;
+        public readonly List<string> Warnings = new List<string>();
 
         public bool Ok
         {
@@ -16,16 +16,109 @@ namespace AdvancedNPCs.Core
         }
     }
 
-    /// <summary>Turns one definition file into a validated NpcDefinition or a single error line.</summary>
+    /// <summary>
+    /// Turns one ANPC folder's npc.json (or, for migration, a 1a flat definition file) into a validated
+    /// NpcDefinition or a single error line, plus warnings.
+    /// </summary>
     public static class DefinitionParser
     {
         static readonly Regex IdPattern = new Regex("^[a-z0-9_]+$");
 
+        static readonly string[] SharedKeys =
+        {
+            "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "calmDownHours",
+            "crimeOnAttack", "wanderRadius",
+        };
+        static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
+        static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
+        static readonly string[] GenericOnlyKeys = { "names", "portraits", "spawn" };
+        static readonly string[] RaceNames = { "Breton", "Redguard", "Nord" };
+
+        /// <summary>A 1a flat file from StreamingAssets/AdvancedNPCs (the id is inside the file). Used by migration.</summary>
         public static ParseResult Parse(string fileName, string json)
         {
-            if (string.IsNullOrEmpty(json) || json.Trim().Length == 0)
-                return Fail(fileName, "file", "empty");
+            ParseResult r = new ParseResult();
+            Dictionary<string, object> o = Root(fileName, json, r);
+            if (o == null)
+                return r;
 
+            string problem;
+            string id;
+            if ((problem = FieldReader.Text(o, "id", null, out id)) != null)
+                return Fail(r, fileName, "id", problem);
+            if (string.IsNullOrEmpty(id))
+                return Fail(r, fileName, "id", "required");
+            if (!IdPattern.IsMatch(id))
+                return Fail(r, fileName, "id", "use only lowercase letters, digits and underscore (got \"" + id + "\")");
+
+            NpcDefinition d = new NpcDefinition();
+            d.Id = id;
+            d.Folder = id;
+            d.SourceFile = fileName;
+            if (!ReadUnique(fileName, o, d, r) || !ReadShared(fileName, o, d, r))
+                return r;
+            r.Definition = d;
+            return r;
+        }
+
+        /// <summary>True for names usable as an ANPC folder (and so as an id).</summary>
+        public static bool IsValidFolderName(string folder)
+        {
+            return !string.IsNullOrEmpty(folder) && IdPattern.IsMatch(folder) && folder[0] != '_';
+        }
+
+        /// <summary>One ANPC folder's npc.json; the folder name is the id (spec §6, §7).</summary>
+        public static ParseResult ParseFolder(string folder, string json)
+        {
+            ParseResult r = new ParseResult();
+            if (!IsValidFolderName(folder))
+                return Fail(r, folder, "folder",
+                    "use only lowercase letters, digits and underscore, not starting with _ (got \"" + folder + "\")");
+
+            string file = folder + "/npc.json";
+            Dictionary<string, object> o = Root(file, json, r);
+            if (o == null)
+                return r;
+
+            string problem;
+            string jsonId;
+            if (FieldReader.Text(o, "id", null, out jsonId) == null && !string.IsNullOrEmpty(jsonId) && jsonId != folder)
+                r.Warnings.Add(file + ": id: \"" + jsonId + "\" differs from the folder name; using \"" + folder + "\"");
+
+            string rawKind;
+            if ((problem = FieldReader.Text(o, "kind", "unique", out rawKind)) != null)
+                return Fail(r, file, "kind", problem);
+            NpcDefinition d = new NpcDefinition();
+            if (string.Equals(rawKind.Trim(), "unique", StringComparison.OrdinalIgnoreCase))
+                d.Kind = NpcKind.Unique;
+            else if (string.Equals(rawKind.Trim(), "generic", StringComparison.OrdinalIgnoreCase))
+                d.Kind = NpcKind.Generic;
+            else
+                return Fail(r, file, "kind", "must be unique or generic (got \"" + rawKind + "\")");
+
+            d.Id = folder;
+            d.Folder = folder;
+            d.SourceFile = file;
+            bool ok = d.Kind == NpcKind.Unique ? ReadUnique(file, o, d, r) : ReadGeneric(file, o, d, r);
+            if (!ok || !ReadShared(file, o, d, r))
+                return r;
+
+            List<string> known = new List<string>(SharedKeys);
+            known.AddRange(d.Kind == NpcKind.Unique ? UniqueKeys : GenericKeys);
+            foreach (string key in FieldReader.UnknownKeys(o, known))
+                r.Warnings.Add(file + ": " + key + ": unknown field, ignored");
+
+            r.Definition = d;
+            return r;
+        }
+
+        static Dictionary<string, object> Root(string file, string json, ParseResult r)
+        {
+            if (string.IsNullOrEmpty(json) || json.Trim().Length == 0)
+            {
+                Fail(r, file, "file", "empty");
+                return null;
+            }
             object root;
             try
             {
@@ -33,61 +126,89 @@ namespace AdvancedNPCs.Core
             }
             catch (JsonException e)
             {
-                return Fail(fileName, "file", "invalid JSON (" + e.Message + ")");
+                Fail(r, file, "file", "invalid JSON (" + e.Message + ")");
+                return null;
             }
             Dictionary<string, object> o = root as Dictionary<string, object>;
             if (o == null)
-                return Fail(fileName, "file", "invalid JSON (top level must be an object)");
+                Fail(r, file, "file", "invalid JSON (top level must be an object)");
+            return o;
+        }
+
+        static bool ReadUnique(string file, Dictionary<string, object> o, NpcDefinition d, ParseResult r)
+        {
+            foreach (string key in GenericOnlyKeys)
+            {
+                if (o.ContainsKey(key))
+                    return Problem(r, file, key, "belongs to generic templates (\"kind\": \"generic\")");
+            }
 
             string problem;
-
-            string id;
-            if ((problem = Text(o, "id", null, out id)) != null)
-                return Fail(fileName, "id", problem);
-            if (string.IsNullOrEmpty(id))
-                return Fail(fileName, "id", "required");
-            if (!IdPattern.IsMatch(id))
-                return Fail(fileName, "id", "use only lowercase letters, digits and underscore (got \"" + id + "\")");
-
             string name;
-            if ((problem = Text(o, "name", null, out name)) != null)
-                return Fail(fileName, "name", problem);
+            if ((problem = FieldReader.Text(o, "name", null, out name)) != null)
+                return Problem(r, file, "name", problem);
             if (string.IsNullOrEmpty(name))
-                return Fail(fileName, "name", "required");
+                return Problem(r, file, "name", "required");
+            d.Name = name;
 
             object locationValue;
             o.TryGetValue("location", out locationValue);
             Dictionary<string, object> location = locationValue as Dictionary<string, object>;
             if (locationValue != null && location == null)
-                return Fail(fileName, "location", "must be an object with region and place");
+                return Problem(r, file, "location", "must be an object with region and place");
             if (location == null)
                 location = new Dictionary<string, object>();
 
             string region;
-            if ((problem = Text(location, "region", null, out region)) != null)
-                return Fail(fileName, "location.region", problem);
+            if ((problem = FieldReader.Text(location, "region", null, out region)) != null)
+                return Problem(r, file, "location.region", problem);
             if (string.IsNullOrEmpty(region))
-                return Fail(fileName, "location.region", "required");
+                return Problem(r, file, "location.region", "required");
             string place;
-            if ((problem = Text(location, "place", null, out place)) != null)
-                return Fail(fileName, "location.place", problem);
+            if ((problem = FieldReader.Text(location, "place", null, out place)) != null)
+                return Problem(r, file, "location.place", problem);
             if (string.IsNullOrEmpty(place))
-                return Fail(fileName, "location.place", "required");
+                return Problem(r, file, "location.place", "required");
 
             double[] position;
-            if (!Numbers(o, "position", out position) || position == null || position.Length != 3)
-                return Fail(fileName, "position", "required, must be [x, y, z]");
+            if (!FieldReader.Numbers(o, "position", out position) || position == null || position.Length != 3)
+                return Problem(r, file, "position", "required, must be [x, y, z]");
+
+            string portrait;
+            if ((problem = FieldReader.Text(o, "portrait", "", out portrait)) != null)
+                return Problem(r, file, "portrait", problem);
+            string normalised = PortraitNames.Normalize(portrait);
+            if (normalised.Length > 0)
+                d.Portraits.Add(normalised);
+
+            d.Region = region;
+            d.Place = place;
+            d.X = (float)position[0];
+            d.Y = (float)position[1];
+            d.Z = (float)position[2];
+            return true;
+        }
+
+        // Generic templates are read from Task 8 on (spec §7.3).
+        static bool ReadGeneric(string file, Dictionary<string, object> o, NpcDefinition d, ParseResult r)
+        {
+            return Problem(r, file, "kind", "generic templates are not supported yet");
+        }
+
+        static bool ReadShared(string file, Dictionary<string, object> o, NpcDefinition d, ParseResult r)
+        {
+            string problem;
 
             string rawClass;
-            if ((problem = Text(o, "baseClass", "Spellsword", out rawClass)) != null)
-                return Fail(fileName, "baseClass", problem);
+            if ((problem = FieldReader.Text(o, "baseClass", "Spellsword", out rawClass)) != null)
+                return Problem(r, file, "baseClass", problem);
             string baseClass = HumanClasses.Canonical(rawClass);
             if (baseClass == null)
-                return Fail(fileName, "baseClass", "unknown class \"" + rawClass + "\"");
+                return Problem(r, file, "baseClass", "unknown class \"" + rawClass + "\"");
 
             string rawGender;
-            if ((problem = Text(o, "gender", "", out rawGender)) != null)
-                return Fail(fileName, "gender", problem);
+            if ((problem = FieldReader.Text(o, "gender", "", out rawGender)) != null)
+                return Problem(r, file, "gender", problem);
             string gender;
             if (string.IsNullOrEmpty(rawGender))
                 gender = "";
@@ -96,47 +217,51 @@ namespace AdvancedNPCs.Core
             else if (string.Equals(rawGender, "Female", StringComparison.OrdinalIgnoreCase))
                 gender = "Female";
             else
-                return Fail(fileName, "gender", "must be Male or Female (got \"" + rawGender + "\")");
+                return Problem(r, file, "gender", "must be Male or Female (got \"" + rawGender + "\")");
 
             string rawBravery;
-            if ((problem = Text(o, "bravery", "Normal", out rawBravery)) != null)
-                return Fail(fileName, "bravery", problem);
+            if ((problem = FieldReader.Text(o, "bravery", "Normal", out rawBravery)) != null)
+                return Problem(r, file, "bravery", problem);
             Bravery bravery;
             if (!TryParseBravery(rawBravery, out bravery))
-                return Fail(fileName, "bravery", "must be Coward, Normal or Brave (got \"" + rawBravery + "\")");
+                return Problem(r, file, "bravery", "must be Coward, Normal or Brave (got \"" + rawBravery + "\")");
 
             double flee;
-            if ((problem = Number(o, "fleeHealthPercent", 25, out flee)) != null || flee != Math.Floor(flee))
-                return Fail(fileName, "fleeHealthPercent", "must be a whole number");
+            if ((problem = FieldReader.Number(o, "fleeHealthPercent", 25, out flee)) != null || flee != Math.Floor(flee))
+                return Problem(r, file, "fleeHealthPercent", "must be a whole number");
             if (flee < 1 || flee > 99)
-                return Fail(fileName, "fleeHealthPercent", "must be 1-99 (got " + Num(flee) + ")");
+                return Problem(r, file, "fleeHealthPercent", "must be 1-99 (got " + FieldReader.Num(flee) + ")");
 
             double[] calm;
-            if (!Numbers(o, "calmDownHours", out calm) || (calm != null && calm.Length != 2))
-                return Fail(fileName, "calmDownHours", "must be [min, max]");
+            if (!FieldReader.Numbers(o, "calmDownHours", out calm) || (calm != null && calm.Length != 2))
+                return Problem(r, file, "calmDownHours", "must be [min, max]");
             if (calm == null)
                 calm = new double[] { 6, 48 };
             if (!(calm[0] > 0) || calm[0] > calm[1])
-                return Fail(fileName, "calmDownHours", "need 0 < min <= max (got [" + Num(calm[0]) + ", " + Num(calm[1]) + "])");
+                return Problem(r, file, "calmDownHours",
+                    "need 0 < min <= max (got [" + FieldReader.Num(calm[0]) + ", " + FieldReader.Num(calm[1]) + "])");
 
             double wander;
-            if ((problem = Number(o, "wanderRadius", 8, out wander)) != null)
-                return Fail(fileName, "wanderRadius", problem);
+            if ((problem = FieldReader.Number(o, "wanderRadius", 8, out wander)) != null)
+                return Problem(r, file, "wanderRadius", problem);
             if (wander < 0)
-                return Fail(fileName, "wanderRadius", "must be 0 or more (got " + Num(wander) + ")");
+                return Problem(r, file, "wanderRadius", "must be 0 or more (got " + FieldReader.Num(wander) + ")");
 
             bool crime;
-            if ((problem = Bool(o, "crimeOnAttack", true, out crime)) != null)
-                return Fail(fileName, "crimeOnAttack", problem);
+            if ((problem = FieldReader.Bool(o, "crimeOnAttack", true, out crime)) != null)
+                return Problem(r, file, "crimeOnAttack", problem);
 
-            NpcDefinition d = new NpcDefinition();
-            d.Id = id;
-            d.Name = name;
-            d.Region = region;
-            d.Place = place;
-            d.X = (float)position[0];
-            d.Y = (float)position[1];
-            d.Z = (float)position[2];
+            string rawRace;
+            if ((problem = FieldReader.Text(o, "race", "", out rawRace)) != null)
+                return Problem(r, file, "race", problem);
+            string race = "";
+            if (rawRace.Trim().Length > 0)
+            {
+                race = CanonicalRace(rawRace);
+                if (race == null)
+                    return Problem(r, file, "race", "must be Breton, Redguard or Nord (got \"" + rawRace + "\")");
+            }
+
             d.BaseClass = baseClass;
             d.Gender = gender;
             d.Bravery = bravery;
@@ -145,70 +270,18 @@ namespace AdvancedNPCs.Core
             d.CalmDownMaxHours = (float)calm[1];
             d.CrimeOnAttack = crime;
             d.WanderRadius = (float)wander;
-            d.SourceFile = fileName;
-
-            ParseResult ok = new ParseResult();
-            ok.Definition = d;
-            return ok;
-        }
-
-        // Field readers: a missing or null key yields the fallback; a value of the wrong type yields a problem.
-
-        static string Text(Dictionary<string, object> o, string key, string fallback, out string value)
-        {
-            object raw;
-            value = fallback;
-            if (!o.TryGetValue(key, out raw) || raw == null)
-                return null;
-            value = raw as string;
-            return value == null ? "must be text" : null;
-        }
-
-        static string Number(Dictionary<string, object> o, string key, double fallback, out double value)
-        {
-            object raw;
-            value = fallback;
-            if (!o.TryGetValue(key, out raw) || raw == null)
-                return null;
-            if (!(raw is double))
-                return "must be a number";
-            value = (double)raw;
-            return null;
-        }
-
-        static string Bool(Dictionary<string, object> o, string key, bool fallback, out bool value)
-        {
-            object raw;
-            value = fallback;
-            if (!o.TryGetValue(key, out raw) || raw == null)
-                return null;
-            if (!(raw is bool))
-                return "must be true or false";
-            value = (bool)raw;
-            return null;
-        }
-
-        /// <summary>False if present but not an array of numbers; values is null when the key is missing.</summary>
-        static bool Numbers(Dictionary<string, object> o, string key, out double[] values)
-        {
-            object raw;
-            values = null;
-            if (!o.TryGetValue(key, out raw) || raw == null)
-                return true;
-            List<object> list = raw as List<object>;
-            if (list == null)
-                return false;
-            values = new double[list.Count];
-            for (int i = 0; i < list.Count; i++)
-            {
-                if (!(list[i] is double))
-                {
-                    values = null;
-                    return false;
-                }
-                values[i] = (double)list[i];
-            }
+            d.Race = race;
             return true;
+        }
+
+        static string CanonicalRace(string raw)
+        {
+            foreach (string race in RaceNames)
+            {
+                if (string.Equals(race, raw.Trim(), StringComparison.OrdinalIgnoreCase))
+                    return race;
+            }
+            return null;
         }
 
         static bool TryParseBravery(string value, out Bravery bravery)
@@ -227,15 +300,16 @@ namespace AdvancedNPCs.Core
             return false;
         }
 
-        static string Num(double f)
+        static bool Problem(ParseResult r, string file, string field, string problem)
         {
-            return f.ToString("0.###", CultureInfo.InvariantCulture);
+            r.Error = file + ": " + field + ": " + problem;
+            r.Definition = null;
+            return false;
         }
 
-        static ParseResult Fail(string fileName, string field, string problem)
+        static ParseResult Fail(ParseResult r, string file, string field, string problem)
         {
-            ParseResult r = new ParseResult();
-            r.Error = fileName + ": " + field + ": " + problem;
+            Problem(r, file, field, problem);
             return r;
         }
     }
