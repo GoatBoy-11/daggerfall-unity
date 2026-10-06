@@ -1,0 +1,21 @@
+{
+    "ModTitle": "Advanced NPCs",
+    "ModVersion": "0.1.0",
+    "ModAuthor": "GoatBoy-11",
+    "ContactInfo": "https://github.com/GoatBoy-11/daggerfall-unity",
+    "DFUnity_Version": "1.9.2",
+    "ModDescription": "Persistent, data-defined town NPCs that stay calm, fight or flee by bravery when attacked, report crimes, and calm down over in-game time. Define NPCs as JSON in StreamingAssets/AdvancedNPCs.",
+    "GUID": "cdeaee86-3114-4004-b08e-e98f8db44241",
+    "Files": [
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DefinitionCatalog.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DefinitionParser.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HostilityRules.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HumanClasses.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcDefinition.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcState.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/PositionFormat.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/AdvancedNpcsMod.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcSaveDataInterface.cs"
+    ],
+    "Dependencies": []
+}
