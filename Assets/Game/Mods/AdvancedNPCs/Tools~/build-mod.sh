@@ -1,9 +1,9 @@
 #!/bin/bash
-# Builds advancednpcs.dfmod with Unity 2019.4.41f2 in batch mode and installs it, plus the example
+# Builds advancednpcs.dfmod with Unity 2019.4.41f2 and installs it, plus the example
 # NPC definitions, into a Daggerfall Unity install.
 #
-# Needs: Unity 2019.4.41f2 with an activated license (Unity Hub > Preferences > Licenses > Add >
-# "Get a free personal license"), and the Unity Editor closed. The first run imports the whole
+# Runs a normal (windowed) editor, not -batchmode: a Hub Personal license works there but not in
+# batch mode. Needs the Unity Editor and the game closed. The first run imports the whole
 # DFU project and can take 30-60+ minutes.
 #
 # Usage: build-mod.sh [DFU install dir] [--no-examples]
@@ -23,8 +23,8 @@ OUT="$PROJECT/Builds/AdvancedNPCs"
 LOG="$PROJECT/Builds/advancednpcs-build.log"
 mkdir -p "$OUT"
 
-echo "Building with Unity 2019.4 (log: $LOG)..."
-if ! "$UNITY" -batchmode -quit -nographics -projectPath "$(cygpath -w "$PROJECT")" \
+echo "Building with Unity 2019.4 (an editor window opens and closes by itself; log: $LOG)..."
+if ! "$UNITY" -quit -projectPath "$(cygpath -w "$PROJECT")" \
      -executeMethod AdvancedNPCs.EditorTools.AdvancedNpcsModBuilder.Build \
      -modOut "$(cygpath -w "$OUT")" -logFile "$(cygpath -w "$LOG")"; then
   echo "BUILD FAILED. Last relevant log lines:"
