@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Collections.Generic;
 using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
@@ -22,6 +23,8 @@ namespace AdvancedNPCs
         static readonly FieldInfo PanelPortraitField =
             typeof(DaggerfallTalkWindow).GetField("panelPortrait", BindingFlags.Instance | BindingFlags.NonPublic);
         static bool warnedNoPortraitFields;
+        static readonly FieldInfo PopupRowsField =
+            typeof(PopupText).GetField("textRows", BindingFlags.Instance | BindingFlags.NonPublic);
 
         MobilePersonNPC proxy;
         NpcBrain brain;
@@ -66,6 +69,7 @@ namespace AdvancedNPCs
         {
             if (mode == PlayerActivateModes.Steal)
                 return; // vanilla enemy pickpocketing handles this
+            RemoveVanillaYouSee();
             if (mode == PlayerActivateModes.Info)
             {
                 Say("You see " + displayName + "."); // replaces vanilla's "You see a <class>."
@@ -102,6 +106,55 @@ namespace AdvancedNPCs
         {
             LastMessage = text;
             DaggerfallUI.SetMidScreenText(text);
+        }
+
+        /// <summary>
+        /// PlayerActivate already showed vanilla's "You see a &lt;class&gt;." as a HUD popup for this click (Info, Grab
+        /// and Talk modes). It names the base class, not the ANPC, so take it back out of the popup rows.
+        /// </summary>
+        static void RemoveVanillaYouSee()
+        {
+            LinkedList<TextLabel> rows = PopupRows();
+            if (rows == null || rows.Count == 0 || rows.Last.Value == null)
+                return;
+            string text = rows.Last.Value.Text;
+            if (StartsLike(text, TextManager.Instance.GetLocalizedText("youSeeA")) ||
+                StartsLike(text, TextManager.Instance.GetLocalizedText("youSeeAn")))
+                rows.RemoveLast();
+        }
+
+        /// <summary>The HUD popup lines currently shown (for the self-test).</summary>
+        public static List<string> PopupLines()
+        {
+            List<string> lines = new List<string>();
+            LinkedList<TextLabel> rows = PopupRows();
+            if (rows != null)
+            {
+                foreach (TextLabel row in rows)
+                {
+                    if (row != null)
+                        lines.Add(row.Text);
+                }
+            }
+            return lines;
+        }
+
+        static LinkedList<TextLabel> PopupRows()
+        {
+            DaggerfallHUD hud = DaggerfallUI.Instance.DaggerfallHUD;
+            if (hud == null || hud.PopupText == null || PopupRowsField == null)
+                return null;
+            return PopupRowsField.GetValue(hud.PopupText) as LinkedList<TextLabel>;
+        }
+
+        /// <summary>True if text starts with the template's part before "%s" (e.g. "You see a ").</summary>
+        static bool StartsLike(string text, string template)
+        {
+            if (text == null || string.IsNullOrEmpty(template))
+                return false;
+            int at = template.IndexOf("%s");
+            string prefix = at >= 0 ? template.Substring(0, at) : template;
+            return prefix.Length > 0 && text.StartsWith(prefix);
         }
 
         static void ApplyPortrait(DaggerfallTalkWindow window, Texture2D texture)

@@ -83,7 +83,7 @@ namespace AdvancedNPCs
             if (!knownLocations.Contains(location))
                 knownLocations.Add(location);
 
-            string defaultRace = DefaultRace();
+            string defaultRace = DefaultRace(location);
             foreach (NpcDefinition def in owner.Catalog.ForLocation(location.Summary.RegionName, location.Summary.LocationName))
             {
                 NpcInstance instance = NpcInstance.ForUnique(def, defaultRace);
@@ -107,6 +107,15 @@ namespace AdvancedNPCs
             SpawnGenerics(location, owner.Catalog.Generics, owner.Config.Mode, owner.Config.MaxGenericPerTown);
         }
 
+        /// <summary>Walkable cell count each town's generics were planned on, by map id (read by the self-test).</summary>
+        public readonly Dictionary<int, int> PlannedCellCounts = new Dictionary<int, int>();
+
+        /// <summary>Towns currently loaded.</summary>
+        public List<DaggerfallLocation> LoadedTowns()
+        {
+            return LoadedLocations();
+        }
+
         /// <summary>Plans and spawns a town's generic ANPCs (spec §7.4). Returns the ANPCs spawned now.</summary>
         public List<NpcBrain> SpawnGenerics(DaggerfallLocation location, IList<NpcDefinition> templates, GenericMode mode, int cap)
         {
@@ -114,19 +123,35 @@ namespace AdvancedNPCs
             if (location == null || templates == null || templates.Count == 0 || cap <= 0)
                 return spawned;
 
-            List<DFPosition> cells = WalkableCells(location);
             TownInfo town = new TownInfo(location.Summary.MapID, location.Summary.RegionName, location.Summary.LocationName,
-                location.Summary.LocationType.ToString(), DefaultRace());
+                location.Summary.LocationType.ToString(), DefaultRace(location));
+            if (!PopulationPlanner.AnyMatches(templates, town))
+                return spawned; // most locations (dungeons, farms, ...) never need their grid scanned
+
+            CityNavigation nav = location.GetComponent<CityNavigation>();
+            int cellCount = WalkableCount(location);
+            PlannedCellCounts[town.MapId] = cellCount;
             uint visitSeed = (uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue);
-            List<NpcInstance> plan = PopulationPlanner.Plan(templates, town, mode, cap, cells.Count, visitSeed, names);
+            List<NpcInstance> plan = PopulationPlanner.Plan(templates, town, mode, cap, cellCount, visitSeed, names);
             if (plan.Count == 0)
                 return spawned;
+
+            List<int> wanted = new List<int>();
+            foreach (NpcInstance instance in plan)
+            {
+                if (!instance.HasFixedPosition && instance.CellIndex >= 0)
+                    wanted.Add(instance.CellIndex);
+            }
+            Dictionary<int, int[]> cells = nav == null
+                ? new Dictionary<int, int[]>()
+                : NavCells.Resolve(nav.NavGridWidth, nav.NavGridHeight, Walkable(nav), wanted);
 
             foreach (NpcInstance instance in plan)
             {
                 if (!instance.HasFixedPosition)
                 {
-                    if (instance.CellIndex < 0)
+                    int[] cell;
+                    if (instance.CellIndex < 0 || !cells.TryGetValue(instance.CellIndex, out cell))
                     {
                         if (townsWithoutCells.Add(town.MapId))
                             AdvancedNpcsMod.Log(town.Place + ": no walkable cells; generic ANPCs without fixed positions are not spawned there.");
@@ -134,7 +159,7 @@ namespace AdvancedNPCs
                     }
                     try
                     {
-                        Vector3 local = CellToLocal(location, cells[instance.CellIndex]);
+                        Vector3 local = CellToLocal(location, nav, new DFPosition(cell[0], cell[1]));
                         instance.X = local.x;
                         instance.Y = local.y;
                         instance.Z = local.z;
@@ -151,39 +176,32 @@ namespace AdvancedNPCs
                     spawned.Add(brain);
             }
             AdvancedNpcsMod.Log(town.Place + ": " + spawned.Count + " generic ANPC(s) spawned (" + plan.Count + " planned, " +
-                cells.Count + " walkable cells, " + mode + ").");
+                cellCount + " walkable cells, " + mode + ").");
             return spawned;
         }
 
-        /// <summary>The town's street cells (navigation weight &gt; 0), in grid order.</summary>
-        static List<DFPosition> WalkableCells(DaggerfallLocation location)
+        /// <summary>Number of street cells (navigation weight &gt; 0) in the town's grid.</summary>
+        public static int WalkableCount(DaggerfallLocation location)
         {
-            List<DFPosition> cells = new List<DFPosition>();
             CityNavigation nav = location.GetComponent<CityNavigation>();
-            if (nav == null)
-                return cells;
-            for (int y = 0; y < nav.NavGridHeight; y++)
-            {
-                for (int x = 0; x < nav.NavGridWidth; x++)
-                {
-                    if (nav.GetNavGridWeightLocal(x, y) > 0)
-                        cells.Add(new DFPosition(x, y));
-                }
-            }
-            return cells;
+            return nav == null ? 0 : NavCells.Count(nav.NavGridWidth, nav.NavGridHeight, Walkable(nav));
         }
 
-        static Vector3 CellToLocal(DaggerfallLocation location, DFPosition cell)
+        static Func<int, int, bool> Walkable(CityNavigation nav)
         {
-            CityNavigation nav = location.GetComponent<CityNavigation>();
+            return delegate (int x, int y) { return nav.GetNavGridWeightLocal(x, y) > 0; };
+        }
+
+        static Vector3 CellToLocal(DaggerfallLocation location, CityNavigation nav, DFPosition cell)
+        {
             Vector3 scene = nav.WorldToScenePosition(nav.NavGridToWorldPosition(cell));
             return location.transform.InverseTransformPoint(scene);
         }
 
-        /// <summary>The region's people, used when an ANPC does not set its race.</summary>
-        public static string DefaultRace()
+        /// <summary>The people of the town's own climate, used when an ANPC does not set its race.</summary>
+        public static string DefaultRace(DaggerfallLocation location)
         {
-            FactionFile.FactionRaces people = GameManager.Instance.PlayerGPS.ClimateSettings.People;
+            FactionFile.FactionRaces people = MapsFile.GetWorldClimateSettings((int)location.Summary.WorldClimate).People;
             if (people == FactionFile.FactionRaces.Redguard)
                 return "Redguard";
             if (people == FactionFile.FactionRaces.Nord)

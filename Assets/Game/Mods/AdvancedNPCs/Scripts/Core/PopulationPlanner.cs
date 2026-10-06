@@ -26,6 +26,20 @@ namespace AdvancedNPCs.Core
             return templateId + "@" + mapId.ToString(CultureInfo.InvariantCulture) + "#" + n.ToString(CultureInfo.InvariantCulture);
         }
 
+        /// <summary>True if any generic template spawns in this town (checked before scanning its grid).</summary>
+        public static bool AnyMatches(IList<NpcDefinition> templates, TownInfo town)
+        {
+            if (templates == null)
+                return false;
+            foreach (NpcDefinition t in templates)
+            {
+                SpawnPlace place;
+                if (t.Kind == NpcKind.Generic && t.Spawn != null && t.Spawn.Matches(town, out place))
+                    return true;
+            }
+            return false;
+        }
+
         /// <param name="cellCount">Number of walkable cells in the town; instances get an index into that list.</param>
         /// <param name="visitSeed">Seed for "Random each visit"; ignored for "Same people every visit".</param>
         public static List<NpcInstance> Plan(IList<NpcDefinition> templates, TownInfo town, GenericMode mode, int cap,

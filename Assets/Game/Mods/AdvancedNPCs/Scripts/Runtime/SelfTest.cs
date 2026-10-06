@@ -134,6 +134,10 @@ namespace AdvancedNPCs
 
             plain.HandleActivate(PlayerActivateModes.Info, 1f);
             Check("Info-mode click names the ANPC", plain.LastMessage == "You see Selftest Normal.", "message=" + plain.LastMessage);
+            DaggerfallUI.Instance.PopupMessage(TextManager.Instance.GetLocalizedText("youSeeA").Replace("%s", "Spellsword"));
+            plain.HandleActivate(PlayerActivateModes.Info, 1f);
+            Check("Info-mode click replaces vanilla's class text", !NpcTalk.PopupLines().Exists(delegate (string l) { return l.Contains("Spellsword"); }),
+                "popup=" + string.Join(" | ", NpcTalk.PopupLines().ToArray()));
 
             gm.MakeEnemiesHostile();
             yield return Settle;
@@ -206,6 +210,19 @@ namespace AdvancedNPCs
             Check("save data survives a serialize/deserialize round trip",
                 back != null && SameState(data, back, "selftest_brave") && SameState(data, back, "selftest_victim"), text);
             Check("mod settings are read", mod.Config.FromSettings, "no modsettings.json in the mod, or DFU could not read it");
+            List<string> partial = new List<string>();
+            foreach (DaggerfallLocation town in spawner.LoadedTowns())
+            {
+                int planned;
+                if (town != null && spawner.PlannedCellCounts.TryGetValue(town.Summary.MapID, out planned))
+                {
+                    int now = NpcSpawner.WalkableCount(town);
+                    if (now != planned)
+                        partial.Add(town.Summary.LocationName + " planned on " + planned + " of " + now + " cells");
+                }
+            }
+            Check("generic ANPCs are planned on complete street grids", spawner.PlannedCellCounts.Count > 0 && partial.Count == 0,
+                "towns planned=" + spawner.PlannedCellCounts.Count + "; " + string.Join("; ", partial.ToArray()));
             // Generic townsfolk (spec §7.4, §8). The test template only matches this town.
             List<NpcDefinition> templates = new List<NpcDefinition>();
             templates.Add(GenericTemplate(location, 3));
