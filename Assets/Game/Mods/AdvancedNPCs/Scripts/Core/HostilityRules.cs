@@ -48,23 +48,29 @@ namespace AdvancedNPCs.Core
 
         /// <summary>
         /// Explains why EnemyMotor.IsHostile turned true while the brain believed the NPC was calm.
-        /// A real player attack always damages the NPC or points its senses at the player;
-        /// GameManager.MakeEnemiesHostile() does neither.
+        /// A real player attack damages the NPC, or runs EnemyMotor.MakeEnemyHostileToAttacker which both
+        /// targets the player and raises the attacker signal (GiveUpTimer). GameManager.MakeEnemiesHostile()
+        /// does neither; the NPC's own senses may target the player during the sweep, but without the signal.
         /// </summary>
-        public static HostileFlip ClassifyHostileFlip(bool brainHostile, bool motorHostile, bool healthDropped, bool targetIsPlayer)
+        public static HostileFlip ClassifyHostileFlip(bool brainHostile, bool motorHostile, bool healthDropped,
+            bool targetIsPlayer, bool attackerSignal)
         {
             if (brainHostile || !motorHostile)
                 return HostileFlip.None;
-            return (healthDropped || targetIsPlayer) ? HostileFlip.PlayerAttack : HostileFlip.EngineSweep;
+            return (healthDropped || (targetIsPlayer && attackerSignal)) ? HostileFlip.PlayerAttack : HostileFlip.EngineSweep;
         }
 
         /// <summary>
-        /// Who gets the blame for a death. DFU raises OnDeath before it tells the NPC who hit it,
-        /// so a calm NPC that dies without fighting a creature must have been killed by the player.
+        /// Who gets the blame for a death, decided after the killing blow's frame. DFU raises OnDeath before it
+        /// tells the NPC who hit it, but by the end of that frame only a player attack has turned
+        /// EnemyMotor.IsHostile on for an NPC that was calm. An NPC already hostile to the player is blamed on
+        /// the player unless it was busy with a creature.
         /// </summary>
-        public static bool KilledByPlayer(bool hostileToPlayer, bool fightingCreature)
+        public static bool KilledByPlayer(bool wasHostileToPlayer, bool fightingCreature, bool motorHostileAfterHit)
         {
-            return hostileToPlayer || !fightingCreature;
+            if (!wasHostileToPlayer)
+                return motorHostileAfterHit;
+            return !fightingCreature;
         }
     }
 }

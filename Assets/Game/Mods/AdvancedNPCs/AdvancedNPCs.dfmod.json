@@ -9,11 +9,13 @@
     "Files": [
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DefinitionCatalog.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DefinitionParser.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HealthRules.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HostilityRules.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HumanClasses.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcDefinition.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcState.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/PositionFormat.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/SpawnRules.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/AdvancedNpcsMod.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcBrain.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcMover.cs",

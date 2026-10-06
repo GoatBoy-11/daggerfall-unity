@@ -64,37 +64,39 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual(expected, HostilityRules.IsCalmDue(now, deadline));
         }
 
-        // brainHostile, motorHostile, healthDropped, targetIsPlayer -> expected
-        [TestCase(false, false, false, false, HostileFlip.None)]
-        [TestCase(false, false, true, false, HostileFlip.None)]
-        [TestCase(false, true, false, false, HostileFlip.EngineSweep)]
-        [TestCase(false, true, true, false, HostileFlip.PlayerAttack)]
-        [TestCase(false, true, false, true, HostileFlip.PlayerAttack)]
-        [TestCase(false, true, true, true, HostileFlip.PlayerAttack)]
-        [TestCase(true, true, false, false, HostileFlip.None)]
-        [TestCase(true, true, true, true, HostileFlip.None)]
-        [TestCase(true, false, false, false, HostileFlip.None)]
-        public void ClassifyHostileFlip(bool brainHostile, bool motorHostile, bool healthDropped, bool targetIsPlayer, HostileFlip expected)
+        // brainHostile, motorHostile, healthDropped, targetIsPlayer, attackerSignal -> expected
+        [TestCase(false, false, false, false, false, HostileFlip.None)]
+        [TestCase(false, false, true, false, false, HostileFlip.None)]
+        [TestCase(false, true, false, false, false, HostileFlip.EngineSweep)]
+        [TestCase(false, true, true, false, false, HostileFlip.PlayerAttack)]
+        [TestCase(false, true, false, true, true, HostileFlip.PlayerAttack)]
+        [TestCase(false, true, true, true, true, HostileFlip.PlayerAttack)]
+        [TestCase(true, true, false, false, false, HostileFlip.None)]
+        [TestCase(true, true, true, true, true, HostileFlip.None)]
+        [TestCase(true, false, false, false, false, HostileFlip.None)]
+        public void ClassifyHostileFlip(bool brainHostile, bool motorHostile, bool healthDropped, bool targetIsPlayer, bool attackerSignal, HostileFlip expected)
         {
-            Assert.AreEqual(expected, HostilityRules.ClassifyHostileFlip(brainHostile, motorHostile, healthDropped, targetIsPlayer));
+            Assert.AreEqual(expected, HostilityRules.ClassifyHostileFlip(brainHostile, motorHostile, healthDropped, targetIsPlayer, attackerSignal));
         }
 
         [Test]
-        public void KilledByPlayer_OneHitOnCalmNpc_CountsAsPlayer()
+        public void ClassifyHostileFlip_BystanderSensesPickPlayerDuringSweep_IsEngineSweep()
         {
-            Assert.IsTrue(HostilityRules.KilledByPlayer(false, false));
+            // Engine sweep made a bystander hostile and its own EnemySenses then targeted the player,
+            // but MakeEnemyHostileToAttacker never ran on it (no attacker signal, no damage).
+            Assert.AreEqual(HostileFlip.EngineSweep, HostilityRules.ClassifyHostileFlip(false, true, false, true, false));
         }
 
-        [Test]
-        public void KilledByPlayer_WhileHostileToPlayer_CountsAsPlayer()
+        // wasHostileToPlayer, fightingCreature, motorHostileAfterHit -> killed by player?
+        [TestCase(false, false, true, true, TestName = "KilledByPlayer_OneHitOnCalmNpcByPlayer")]
+        [TestCase(false, false, false, false, TestName = "KilledByPlayer_OneHitOnCalmNpcByCreature")]
+        [TestCase(false, true, true, true, TestName = "KilledByPlayer_PlayerFinishesNpcFightingCreature")]
+        [TestCase(false, true, false, false, TestName = "KilledByPlayer_CreatureKillsNpcFightingIt")]
+        [TestCase(true, false, true, true, TestName = "KilledByPlayer_WhileHostileToPlayer")]
+        [TestCase(true, true, true, false, TestName = "KilledByPlayer_HostileButFightingCreature_NotBlamed")]
+        public void KilledByPlayer(bool wasHostileToPlayer, bool fightingCreature, bool motorHostileAfterHit, bool expected)
         {
-            Assert.IsTrue(HostilityRules.KilledByPlayer(true, false));
-        }
-
-        [Test]
-        public void KilledByPlayer_CalmNpcFightingCreature_CountsAsCreature()
-        {
-            Assert.IsFalse(HostilityRules.KilledByPlayer(false, true));
+            Assert.AreEqual(expected, HostilityRules.KilledByPlayer(wasHostileToPlayer, fightingCreature, motorHostileAfterHit));
         }
     }
 }

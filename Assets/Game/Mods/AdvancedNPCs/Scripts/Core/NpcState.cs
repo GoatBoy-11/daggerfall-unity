@@ -10,7 +10,9 @@ namespace AdvancedNPCs.Core
         public bool dead;
         public bool hostile;
         public ulong hostileUntil;
-        public int health = -1;
+
+        /// <summary>Current health as a fraction of max (DFU re-rolls max health on every spawn).</summary>
+        public float healthFraction = 1f;
 
         public NpcState Clone()
         {
@@ -18,7 +20,7 @@ namespace AdvancedNPCs.Core
             c.dead = dead;
             c.hostile = hostile;
             c.hostileUntil = hostileUntil;
-            c.health = health;
+            c.healthFraction = healthFraction;
             return c;
         }
     }

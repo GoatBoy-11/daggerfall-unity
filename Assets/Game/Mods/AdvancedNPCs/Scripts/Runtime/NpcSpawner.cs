@@ -13,6 +13,9 @@ namespace AdvancedNPCs
     {
         readonly AdvancedNpcsMod owner;
 
+        // Towns currently built by StreamingWorld (several are loaded around the player at once).
+        readonly List<DaggerfallLocation> knownLocations = new List<DaggerfallLocation>();
+
         public NpcSpawner(AdvancedNpcsMod owner)
         {
             this.owner = owner;
@@ -21,37 +24,64 @@ namespace AdvancedNPCs
         public void Enable()
         {
             StreamingWorld.OnCreateLocationGameObject += SpawnFor;
-            owner.OnStateRestored += RespawnCurrentLocation;
+            StreamingWorld.OnClearStreamingWorld += OnWorldCleared;
+            owner.OnStateRestored += RespawnLoadedLocations;
         }
 
         public void Disable()
         {
             StreamingWorld.OnCreateLocationGameObject -= SpawnFor;
-            owner.OnStateRestored -= RespawnCurrentLocation;
+            StreamingWorld.OnClearStreamingWorld -= OnWorldCleared;
+            owner.OnStateRestored -= RespawnLoadedLocations;
         }
 
-        /// <summary>After a load or new game, rebuild NPCs in the current town from the restored state.</summary>
-        public void RespawnCurrentLocation()
+        /// <summary>After a load or new game, rebuild NPCs in every loaded town from the restored state.</summary>
+        public void RespawnLoadedLocations()
         {
             NpcBrain.DespawnAll();
-            if (GameManager.Instance == null || GameManager.Instance.StreamingWorld == null)
-                return;
-            SpawnFor(GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject);
+            List<DaggerfallLocation> towns = LoadedLocations();
+            if (towns.Count == 0 && GameManager.Instance != null && GameManager.Instance.StreamingWorld != null)
+            {
+                DaggerfallLocation current = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
+                if (current != null)
+                    towns.Add(current);
+            }
+            foreach (DaggerfallLocation town in towns)
+                SpawnFor(town);
+        }
+
+        // Fast travel, teleport and load tear the world down; old towns are destroyed over many frames.
+        void OnWorldCleared()
+        {
+            NpcBrain.DespawnAll();
+            knownLocations.Clear();
+        }
+
+        List<DaggerfallLocation> LoadedLocations()
+        {
+            // StreamingWorld deactivates a town object before destroying it, so inactive ones are on their way out.
+            knownLocations.RemoveAll(l => l == null || !l.gameObject.activeSelf);
+            return new List<DaggerfallLocation>(knownLocations);
         }
 
         void SpawnFor(DaggerfallLocation location)
         {
             if (location == null)
                 return;
+            if (!knownLocations.Contains(location))
+                knownLocations.Add(location);
 
             List<NpcDefinition> defs = owner.Catalog.ForLocation(location.Summary.RegionName, location.Summary.LocationName);
             foreach (NpcDefinition def in defs)
             {
-                if (NpcBrain.IsLive(def.Id))
-                    continue;
                 NpcState state = owner.States.GetOrCreate(def.Id);
-                if (state.dead)
+                NpcBrain existing = NpcBrain.Find(def.Id);
+                bool existingHere = existing != null && existing.transform.parent == location.transform;
+                SpawnAction action = SpawnRules.Decide(state.dead, existing != null, existingHere);
+                if (action == SpawnAction.Skip)
                     continue;
+                if (action == SpawnAction.ReplaceStale)
+                    NpcBrain.Discard(existing);
                 try
                 {
                     Spawn(def, state, location.transform);

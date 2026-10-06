@@ -192,7 +192,7 @@ This format is expected to grow (user note); new fields must be optional with de
 4. Ground alignment risk: terrain may not be ready at creation. Fallback: use the stored `y` from the definition, then re-run ground alignment one frame later.
 
 ### 9.2 Saving
-- `NpcState`: `{ dead: bool, hostile: bool, hostileUntil: in-game seconds, health: int }`.
+- `NpcState`: `{ dead: bool, hostile: bool, hostileUntil: in-game seconds, healthFraction: float 0-1 }` (fraction because DFU re-rolls max health, scaled by player level, on every spawn; full health restored on calm-down).
 - Save data class is versioned with FullSerializer's `fsObject` attribute.
 - No stored entry → fresh: alive, calm, full health.
 - On load, live NPCs in the current town are re-initialised from the restored store.

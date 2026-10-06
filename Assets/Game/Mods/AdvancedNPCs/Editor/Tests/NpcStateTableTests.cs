@@ -14,7 +14,7 @@ namespace AdvancedNPCs.Tests
             Assert.IsFalse(s.dead);
             Assert.IsFalse(s.hostile);
             Assert.AreEqual(0UL, s.hostileUntil);
-            Assert.AreEqual(-1, s.health);
+            Assert.AreEqual(1f, s.healthFraction);
             Assert.IsTrue(t.Has("bram"));
         }
 
@@ -30,10 +30,10 @@ namespace AdvancedNPCs.Tests
         public void Snapshot_IsIndependentCopy()
         {
             NpcStateTable t = new NpcStateTable();
-            t.GetOrCreate("bram").health = 10;
+            t.GetOrCreate("bram").healthFraction = 0.5f;
             Dictionary<string, NpcState> snap = t.Snapshot();
-            t.GetOrCreate("bram").health = 3;
-            Assert.AreEqual(10, snap["bram"].health);
+            t.GetOrCreate("bram").healthFraction = 0.25f;
+            Assert.AreEqual(0.5f, snap["bram"].healthFraction);
         }
 
         [Test]
@@ -46,19 +46,19 @@ namespace AdvancedNPCs.Tests
             NpcState s = new NpcState();
             s.hostile = true;
             s.hostileUntil = 99UL;
-            s.health = 7;
+            s.healthFraction = 0.7f;
             saved["bram"] = s;
             saved["removed_from_disk"] = new NpcState();
 
             t.Restore(saved);
-            s.health = 1; // mutating the source must not affect the table
+            s.healthFraction = 0.1f; // mutating the source must not affect the table
 
             Assert.IsFalse(t.Has("old"));
             Assert.IsTrue(t.Has("removed_from_disk"));
             NpcState r = t.GetOrCreate("bram");
             Assert.IsTrue(r.hostile);
             Assert.AreEqual(99UL, r.hostileUntil);
-            Assert.AreEqual(7, r.health);
+            Assert.AreEqual(0.7f, r.healthFraction);
         }
 
         [Test]

@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using DaggerfallWorkshop;
@@ -43,10 +44,24 @@ namespace AdvancedNPCs
         float calmCheckTimer;
         System.Random rng;
 
-        public static bool IsLive(string id)
+        /// <summary>The spawned copy of an NPC, or null.</summary>
+        public static NpcBrain Find(string id)
         {
             NpcBrain b;
-            return live.TryGetValue(id, out b) && b != null;
+            if (live.TryGetValue(id, out b) && b != null)
+                return b;
+            return null;
+        }
+
+        /// <summary>Forgets and destroys a spawned copy (used for stale copies under a town being torn down).</summary>
+        public static void Discard(NpcBrain brain)
+        {
+            if (brain == null)
+                return;
+            NpcBrain current;
+            if (brain.def != null && live.TryGetValue(brain.def.Id, out current) && current == brain)
+                live.Remove(brain.def.Id);
+            Destroy(brain.gameObject);
         }
 
         public static void DespawnAll()
@@ -76,8 +91,9 @@ namespace AdvancedNPCs
             mover = GetComponent<NpcMover>();
             homeLocal = transform.localPosition;
 
-            if (state.health > 0)
-                entityBehaviour.Entity.CurrentHealth = state.health;
+            int restored = HealthRules.Restore(entityBehaviour.Entity.MaxHealth, state.healthFraction);
+            if (restored != entityBehaviour.Entity.CurrentHealth)
+                entityBehaviour.Entity.CurrentHealth = restored;
             lastHealth = entityBehaviour.Entity.CurrentHealth;
             entityBehaviour.Entity.OnDeath += OnDeath;
 
@@ -101,7 +117,7 @@ namespace AdvancedNPCs
             {
                 entityBehaviour.Entity.OnDeath -= OnDeath;
                 if (mode != Mode.Dead)
-                    state.health = entityBehaviour.Entity.CurrentHealth;
+                    state.healthFraction = HealthRules.Fraction(entityBehaviour.Entity.CurrentHealth, entityBehaviour.Entity.MaxHealth);
             }
             NpcBrain current;
             if (def != null && live.TryGetValue(def.Id, out current) && current == this)
@@ -117,11 +133,12 @@ namespace AdvancedNPCs
             int health = entityBehaviour.Entity.CurrentHealth;
             bool healthDropped = health < lastHealth;
             lastHealth = health;
-            state.health = health;
+            state.healthFraction = HealthRules.Fraction(health, entityBehaviour.Entity.MaxHealth);
 
             // Hostility guard: decide why IsHostile changed before anything else reads it.
+            // GiveUpTimer is zeroed every calm frame; only MakeEnemyHostileToAttacker raises it while the motor is off.
             HostileFlip flip = HostilityRules.ClassifyHostileFlip(
-                state.hostile, motor.IsHostile, healthDropped, senses.Target == player);
+                state.hostile, motor.IsHostile, healthDropped, senses.Target == player, motor.GiveUpTimer > 0);
             if (flip == HostileFlip.PlayerAttack)
             {
                 OnAttackedByPlayer();
@@ -150,6 +167,7 @@ namespace AdvancedNPCs
             switch (mode)
             {
                 case Mode.Calm:
+                    motor.GiveUpTimer = 0;
                     UpdateCalm();
                     break;
                 case Mode.Fighting:
@@ -203,6 +221,10 @@ namespace AdvancedNPCs
             {
                 state.hostile = false;
                 motor.IsHostile = false;
+                // Hours have passed; the NPC has recovered.
+                entityBehaviour.Entity.CurrentHealth = entityBehaviour.Entity.MaxHealth;
+                lastHealth = entityBehaviour.Entity.CurrentHealth;
+                state.healthFraction = 1f;
                 AdvancedNpcsMod.Log(def.Id + ": calmed down.");
                 if (threat == GameManager.Instance.PlayerEntityBehaviour)
                     SetMode(Mode.Calm);
@@ -318,13 +340,27 @@ namespace AdvancedNPCs
 
         void OnDeath(DaggerfallEntity entity)
         {
+            // DFU raises OnDeath on every health change while health <= 0; only the first counts.
+            if (mode == Mode.Dead)
+                return;
+
+            bool wasHostile = state.hostile;
             bool fightingCreature = threat != null && threat != GameManager.Instance.PlayerEntityBehaviour;
-            bool byPlayer = HostilityRules.KilledByPlayer(state.hostile, fightingCreature);
 
             mode = Mode.Dead;
             state.dead = true;
             state.hostile = false;
 
+            // DFU tells the victim who hit it only after OnDeath; decide the killer once that has happened.
+            AdvancedNpcsMod.Instance.StartCoroutine(ResolveKiller(def, motor, wasHostile, fightingCreature));
+        }
+
+        static IEnumerator ResolveKiller(NpcDefinition def, EnemyMotor motor, bool wasHostile, bool fightingCreature)
+        {
+            yield return null;
+
+            bool motorHostile = motor != null && motor.IsHostile;
+            bool byPlayer = HostilityRules.KilledByPlayer(wasHostile, fightingCreature, motorHostile);
             if (byPlayer && def.CrimeOnAttack)
             {
                 PlayerEntity player = GameManager.Instance.PlayerEntity;
