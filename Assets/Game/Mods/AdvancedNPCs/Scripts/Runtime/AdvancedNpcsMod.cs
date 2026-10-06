@@ -19,7 +19,6 @@ namespace AdvancedNPCs
     public class AdvancedNpcsMod : MonoBehaviour
     {
         public const string LogPrefix = "[AdvancedNPCs] ";
-        public const string FolderName = "AdvancedNPCs";
         public const string AutoRunFile = "selftest-autorun.txt";
 
         public static AdvancedNpcsMod Instance { get; private set; }
@@ -61,7 +60,7 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_selftest",
                 "Runs the Advanced NPCs in-game self-test next to you (god mode during the run; results in Player.log).", "anpc_selftest", SelfTestCommand);
 
-            string autorun = Path.Combine(Path.Combine(Application.streamingAssetsPath, FolderName), AutoRunFile);
+            string autorun = Path.Combine(AnpcFiles.Root, AutoRunFile);
             if (File.Exists(autorun))
                 StartCoroutine(AutoRun(autorun));
         }
@@ -87,28 +86,7 @@ namespace AdvancedNPCs
 
         static DefinitionCatalog LoadCatalog()
         {
-            string folder = Path.Combine(Application.streamingAssetsPath, FolderName);
-            List<KeyValuePair<string, string>> files = new List<KeyValuePair<string, string>>();
-            if (!Directory.Exists(folder))
-            {
-                Log("No definitions folder at " + folder + "; nothing to spawn.");
-            }
-            else
-            {
-                foreach (string path in Directory.GetFiles(folder, "*.json"))
-                {
-                    try
-                    {
-                        files.Add(new KeyValuePair<string, string>(Path.GetFileName(path), File.ReadAllText(path)));
-                    }
-                    catch (Exception e)
-                    {
-                        LogError(Path.GetFileName(path) + ": file: could not read (" + e.Message + ")");
-                    }
-                }
-            }
-
-            DefinitionCatalog catalog = DefinitionCatalog.Build(files);
+            DefinitionCatalog catalog = DefinitionCatalog.Build(AnpcFiles.ReadFolders());
             foreach (string message in catalog.Messages)
                 Log(message);
             return catalog;
@@ -154,7 +132,11 @@ namespace AdvancedNPCs
                 return "Usage: anpc_place <id>   (the id from the NPC's definition file)";
             NpcDefinition def;
             if (!Instance.Catalog.ById.TryGetValue(args[0], out def))
-                return "No NPC definition with id \"" + args[0] + "\".";
+            {
+                if (IsGeneric(args[0]))
+                    return "\"" + args[0] + "\" is a generic ANPC; generic ANPCs are placed by the spawn rules in their template's npc.json.";
+                return "No unique ANPC with id \"" + args[0] + "\".";
+            }
 
             GameManager gm = GameManager.Instance;
             DaggerfallLocation location = gm.StreamingWorld.CurrentPlayerLocationObject;
@@ -165,11 +147,9 @@ namespace AdvancedNPCs
             Vector3 local = location.transform.InverseTransformPoint(world);
             string region = location.Summary.RegionName;
             string place = location.Summary.LocationName;
-            string path = Path.Combine(Path.Combine(Application.streamingAssetsPath, FolderName), def.SourceFile);
             try
             {
-                string edited = DefinitionEditor.SetPlacement(File.ReadAllText(path), region, place, local.x, local.y, local.z);
-                File.WriteAllText(path, edited);
+                AnpcFiles.SetPlacement(def, region, place, local.x, local.y, local.z);
             }
             catch (Exception e)
             {
@@ -199,6 +179,19 @@ namespace AdvancedNPCs
                 message += " (It is dead in this save, so it will not appear.)";
             Log(message + "\n" + PositionFormat.ToJsonSnippet(region, place, local.x, local.y, local.z));
             return message;
+        }
+
+        /// <summary>True for a generic template id or a generic instance key ("commoner@1234#0").</summary>
+        static bool IsGeneric(string idOrKey)
+        {
+            int at = idOrKey.IndexOf('@');
+            string template = at >= 0 ? idOrKey.Substring(0, at) : idOrKey;
+            foreach (NpcDefinition g in Instance.Catalog.Generics)
+            {
+                if (g.Id == template)
+                    return true;
+            }
+            return false;
         }
 
         static string SelfTestCommand(params string[] args)

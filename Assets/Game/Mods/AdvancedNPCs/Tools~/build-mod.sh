@@ -1,6 +1,6 @@
 #!/bin/bash
 # Builds advancednpcs.dfmod with Unity 2019.4.41f2 and installs it, plus the example
-# NPC definitions, into a Daggerfall Unity install.
+# ANPC folders, into a Daggerfall Unity install.
 #
 # Runs a normal (windowed) editor, not -batchmode: a Hub Personal license works there but not in
 # batch mode. Needs the Unity Editor and the game closed. The first run imports the whole
@@ -38,8 +38,11 @@ cp "$BUNDLE" "$DFU/DaggerfallUnity_Data/StreamingAssets/Mods/"
 echo "Installed $(basename "$BUNDLE") into $DFU"
 
 if [ "$EXAMPLES" = 1 ]; then
-  DEFS="$DFU/DaggerfallUnity_Data/StreamingAssets/AdvancedNPCs"
+  DEFS="$DFU/DaggerfallUnity_Data/StreamingAssets/ANPCs"
   mkdir -p "$DEFS"
-  cp "$HERE/../Examples/"*.json "$DEFS/"
-  echo "Copied example NPCs into $DEFS"
+  (cd "$HERE/../Examples/ANPCs" && find . -name '*.meta' -prune -o -type f -print | while read -r f; do
+    mkdir -p "$DEFS/$(dirname "$f")"
+    cp "$f" "$DEFS/$f"
+  done)
+  echo "Copied example ANPCs into $DEFS"
 fi

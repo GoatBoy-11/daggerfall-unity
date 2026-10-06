@@ -4,7 +4,7 @@
 #
 # While it runs, settings.ini has ShowOptionsAtStart = False (so the startup options screen is
 # skipped); the original settings.ini is restored afterwards. A flag file in
-# StreamingAssets/AdvancedNPCs tells the mod to auto-run; it is removed afterwards.
+# StreamingAssets/ANPCs tells the mod to auto-run; it is removed afterwards.
 #
 # Usage: selftest.sh [character] [save name] [DFU install]
 #        defaults: Testo AtDaggerfall F:/_Projects/Dagerfall/DFU_testing
@@ -14,7 +14,7 @@ DFU="${3:-/f/_Projects/Dagerfall/DFU_testing}"
 DATA="$USERPROFILE/AppData/LocalLow/Daggerfall Workshop/Daggerfall Unity"
 INI="$DATA/settings.ini"
 LOG="$DATA/Player.log"
-FLAG="$DFU/DaggerfallUnity_Data/StreamingAssets/AdvancedNPCs/selftest-autorun.txt"
+FLAG="$DFU/DaggerfallUnity_Data/StreamingAssets/ANPCs/selftest-autorun.txt"
 
 if tasklist | grep -qi DaggerfallUnity.exe; then
   echo "Close Daggerfall Unity first."
