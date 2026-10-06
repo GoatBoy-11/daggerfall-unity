@@ -1,0 +1,12 @@
+{
+  "id": "daggerfall_city_bors",
+  "name": "Bors the Smith",
+  "location": { "region": "Daggerfall", "place": "Daggerfall" },
+  "position": [6, 1, 10],
+  "baseClass": "Warrior",
+  "gender": "Male",
+  "bravery": "Brave",
+  "calmDownHours": [1, 2],
+  "crimeOnAttack": true,
+  "wanderRadius": 4
+}
