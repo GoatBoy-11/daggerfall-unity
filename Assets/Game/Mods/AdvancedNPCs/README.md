@@ -8,7 +8,7 @@ hours, and keep their state (alive/dead, hostile/calm, health) through visits an
 
 1. Install the mod and enable **Advanced NPCs** in the DFU mod list.
 2. Create the folder `DaggerfallUnity_Data/StreamingAssets/AdvancedNPCs/` in your game folder if it does not exist.
-3. In game, stand outdoors where the NPC should live, open the console (`~`) and type `anpc_pos`.
+3. In game, stand outdoors where the NPC should live, open the console (`~`) and type `anpc_pos` (or, for an NPC that already exists, `anpc_place <id>` to move it here and save the spot).
 4. Make a new file `my_npc.json` in that folder with an `id`, a `name`, and the two lines `anpc_pos` printed:
 
 ```json
@@ -42,6 +42,7 @@ hours, and keep their state (alive/dead, hostile/calm, health) through visits an
 
 - `anpc_pos` — your position as definition JSON (also written to `Player.log`).
 - `anpc_list` — spawned NPCs with distance, direction, height and state.
+- `anpc_place <id>` — makes your current spot that NPC's home: rewrites `location` and `position` in its definition file (nothing else) and moves it here.
 - `anpc_summon <id>` — moves a spawned NPC in front of you (testing only; not saved).
 
 ## Behaviour

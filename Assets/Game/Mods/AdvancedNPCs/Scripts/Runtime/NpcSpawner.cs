@@ -65,7 +65,7 @@ namespace AdvancedNPCs
             return new List<DaggerfallLocation>(knownLocations);
         }
 
-        void SpawnFor(DaggerfallLocation location)
+        public void SpawnFor(DaggerfallLocation location)
         {
             if (location == null)
                 return;

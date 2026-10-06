@@ -49,6 +49,8 @@ namespace AdvancedNPCs
                 "Prints your position as Advanced NPC definition JSON (also written to Player.log).", "anpc_pos", PosCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_list",
                 "Lists spawned Advanced NPCs with distance, direction and state.", "anpc_list", ListCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_place",
+                "Saves your current spot as an NPC's home (rewrites its definition file) and moves it here.", "anpc_place <id>", PlaceCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_summon",
                 "Moves a spawned Advanced NPC in front of you (testing only, not saved).", "anpc_summon <id>", SummonCommand);
             spawner = new NpcSpawner(this);
@@ -135,6 +137,59 @@ namespace AdvancedNPCs
             string text = sb.ToString().TrimEnd('\n');
             Log("anpc_list\n" + text);
             return text;
+        }
+
+        static string PlaceCommand(params string[] args)
+        {
+            if (args == null || args.Length == 0)
+                return "Usage: anpc_place <id>   (the id from the NPC's definition file)";
+            NpcDefinition def;
+            if (!Instance.Catalog.ById.TryGetValue(args[0], out def))
+                return "No NPC definition with id \"" + args[0] + "\".";
+
+            GameManager gm = GameManager.Instance;
+            DaggerfallLocation location = gm.StreamingWorld.CurrentPlayerLocationObject;
+            if (gm.PlayerEnterExit.IsPlayerInside || location == null)
+                return "Stand outdoors inside a town first.";
+
+            Vector3 world = gm.PlayerObject.transform.position;
+            Vector3 local = location.transform.InverseTransformPoint(world);
+            string region = location.Summary.RegionName;
+            string place = location.Summary.LocationName;
+            string path = Path.Combine(Path.Combine(Application.streamingAssetsPath, FolderName), def.SourceFile);
+            try
+            {
+                string edited = DefinitionEditor.SetPlacement(File.ReadAllText(path), region, place, local.x, local.y, local.z);
+                File.WriteAllText(path, edited);
+            }
+            catch (Exception e)
+            {
+                LogError(def.SourceFile + ": could not save placement (" + e.Message + ")");
+                return "Could not update " + def.SourceFile + ": " + e.Message;
+            }
+
+            def.Region = region;
+            def.Place = place;
+            def.X = local.x;
+            def.Y = local.y;
+            def.Z = local.z;
+
+            NpcBrain brain = NpcBrain.Find(def.Id);
+            if (brain != null && brain.transform.parent == location.transform)
+            {
+                brain.Teleport(world);
+            }
+            else
+            {
+                NpcBrain.Discard(brain);
+                Instance.spawner.SpawnFor(location);
+            }
+
+            string message = def.Id + " placed here and saved to " + def.SourceFile + ".";
+            if (Instance.States.GetOrCreate(def.Id).dead)
+                message += " (It is dead in this save, so it will not appear.)";
+            Log(message + "\n" + PositionFormat.ToJsonSnippet(region, place, local.x, local.y, local.z));
+            return message;
         }
 
         static string SummonCommand(params string[] args)

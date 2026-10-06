@@ -9,6 +9,7 @@
     "Files": [
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/Bearing.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DefinitionCatalog.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DefinitionEditor.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DefinitionParser.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HealthRules.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HostilityRules.cs",
