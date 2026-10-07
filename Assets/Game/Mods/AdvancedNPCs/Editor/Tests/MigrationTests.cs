@@ -8,10 +8,10 @@ namespace AdvancedNPCs.Tests
         const string Pretty =
             "{\n  \"id\": \"bram\",\n  \"name\": \"Bram\",\n  \"location\": { \"region\": \"R\", \"place\": \"P\" },\n  \"position\": [1, 2, 3]\n}\n";
         const string PrettyWithoutId =
-            "{\n  \"name\": \"Bram\",\n  \"location\": { \"region\": \"R\", \"place\": \"P\" },\n  \"position\": [1, 2, 3]\n}\n";
+            "{\n  \"kind\": \"unique\",\n  \"name\": \"Bram\",\n  \"location\": { \"region\": \"R\", \"place\": \"P\" },\n  \"position\": [1, 2, 3]\n}\n";
 
         [Test]
-        public void PrettyFile_RemovesIdLineOnly()
+        public void PrettyFile_ReplacesIdWithKind()
         {
             MigrationResult m = Migration.Convert("bram.json", Pretty);
             Assert.IsTrue(m.Ok, m.Error);
@@ -28,21 +28,21 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
-        public void IdLast_RemovesPrecedingComma()
+        public void IdLast_ReplacedInPlace()
         {
             string json = "{\n  \"name\": \"Bram\",\n  \"location\": { \"region\": \"R\", \"place\": \"P\" },\n  \"position\": [1, 2, 3],\n  \"id\": \"bram\"\n}";
             MigrationResult m = Migration.Convert("bram.json", json);
             Assert.IsTrue(m.Ok, m.Error);
-            Assert.AreEqual("{\n  \"name\": \"Bram\",\n  \"location\": { \"region\": \"R\", \"place\": \"P\" },\n  \"position\": [1, 2, 3]\n}", m.NpcJson);
+            Assert.AreEqual("{\n  \"name\": \"Bram\",\n  \"location\": { \"region\": \"R\", \"place\": \"P\" },\n  \"position\": [1, 2, 3],\n  \"kind\": \"unique\"\n}", m.NpcJson);
         }
 
         [Test]
-        public void OneLineFile_RemovesIdInline()
+        public void OneLineFile_ReplacedInline()
         {
             MigrationResult m = Migration.Convert("bram.json",
                 "{ \"id\": \"bram\", \"name\": \"Bram\", \"location\": { \"region\": \"R\", \"place\": \"P\" }, \"position\": [0,0,0] }");
             Assert.IsTrue(m.Ok, m.Error);
-            Assert.AreEqual("{ \"name\": \"Bram\", \"location\": { \"region\": \"R\", \"place\": \"P\" }, \"position\": [0,0,0] }", m.NpcJson);
+            Assert.AreEqual("{ \"kind\": \"unique\", \"name\": \"Bram\", \"location\": { \"region\": \"R\", \"place\": \"P\" }, \"position\": [0,0,0] }", m.NpcJson);
         }
 
         [Test]

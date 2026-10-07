@@ -8,13 +8,13 @@ namespace AdvancedNPCs.Tests
     {
         static string Unique(string region, string place)
         {
-            return "{ \"name\": \"N\", \"location\": { \"region\": \"" + region +
+            return "{ \"kind\": \"unique\", \"name\": \"N\", \"location\": { \"region\": \"" + region +
                    "\", \"place\": \"" + place + "\" }, \"position\": [0,0,0] }";
         }
 
         static string UniqueWithPortrait(string portrait)
         {
-            return "{ \"name\": \"N\", \"location\": { \"region\": \"R\", \"place\": \"P\" }, \"position\": [0,0,0], " +
+            return "{ \"kind\": \"unique\", \"name\": \"N\", \"location\": { \"region\": \"R\", \"place\": \"P\" }, \"position\": [0,0,0], " +
                    "\"portrait\": \"" + portrait + "\" }";
         }
 
@@ -82,7 +82,7 @@ namespace AdvancedNPCs.Tests
         [Test]
         public void ParserWarnings_AreCollected()
         {
-            string json = "{ \"name\": \"N\", \"location\": { \"region\": \"R\", \"place\": \"P\" }, \"position\": [0,0,0], \"colour\": \"red\" }";
+            string json = "{ \"kind\": \"unique\", \"name\": \"N\", \"location\": { \"region\": \"R\", \"place\": \"P\" }, \"position\": [0,0,0], \"colour\": \"red\" }";
             DefinitionCatalog c = DefinitionCatalog.Build(new[] { Folder("a", json) });
             Assert.AreEqual(1, c.Count);
             CollectionAssert.Contains(c.Messages, "a/npc.json: colour: unknown field, ignored");

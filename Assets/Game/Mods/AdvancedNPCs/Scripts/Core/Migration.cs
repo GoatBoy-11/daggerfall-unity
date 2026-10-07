@@ -16,8 +16,8 @@ namespace AdvancedNPCs.Core
     }
 
     /// <summary>
-    /// Converts a 1a definition file into the text of ANPCs/&lt;id&gt;/npc.json: the same text without the "id"
-    /// member, so the author's other fields, order and formatting survive (spec §11).
+    /// Converts a 1a definition file into the text of ANPCs/&lt;id&gt;/npc.json: the same text with the "id"
+    /// member replaced by "kind": "unique", so the author's other fields, order and formatting survive (spec §11).
     /// </summary>
     public static class Migration
     {
@@ -34,7 +34,7 @@ namespace AdvancedNPCs.Core
                 return m;
             }
 
-            string body = RemoveId(json);
+            string body = ReplaceIdWithKind(json);
             ParseResult check = DefinitionParser.ParseFolder(old.Definition.Id, body);
             if (!check.Ok)
             {
@@ -46,45 +46,13 @@ namespace AdvancedNPCs.Core
             return m;
         }
 
-        public static string RemoveId(string json)
+        /// <summary>Puts "kind": "unique" where the "id" member was; commas and line endings stay as they were.</summary>
+        public static string ReplaceIdWithKind(string json)
         {
             Match match = IdMember.Match(json);
             if (!match.Success)
                 return json;
-
-            int start = match.Index;
-            int end = match.Index + match.Length;
-            int after = end;
-            while (after < json.Length && (json[after] == ' ' || json[after] == '\t'))
-                after++;
-            if (after < json.Length && json[after] == ',')
-            {
-                // "id": "x", other... -> remove the member, its comma and the spaces after it.
-                end = after + 1;
-                while (end < json.Length && (json[end] == ' ' || json[end] == '\t'))
-                    end++;
-            }
-            else
-            {
-                // Last member: remove the comma that precedes it instead.
-                int before = start - 1;
-                while (before >= 0 && char.IsWhiteSpace(json[before]))
-                    before--;
-                if (before >= 0 && json[before] == ',')
-                    start = before;
-            }
-
-            string result = json.Substring(0, start) + json.Substring(end);
-
-            // If the member had its own line, that line is now blank: drop it (keeps \r\n or \n endings intact).
-            int lineEnd = result.IndexOf('\n', start);
-            if (lineEnd >= 0)
-            {
-                int lineStart = start > 0 ? result.LastIndexOf('\n', start - 1) + 1 : 0;
-                if (result.Substring(lineStart, lineEnd - lineStart).Trim().Length == 0)
-                    result = result.Remove(lineStart, lineEnd - lineStart + 1);
-            }
-            return result;
+            return json.Substring(0, match.Index) + "\"kind\": \"unique\"" + json.Substring(match.Index + match.Length);
         }
     }
 }

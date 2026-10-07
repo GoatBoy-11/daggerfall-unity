@@ -6,7 +6,7 @@ namespace AdvancedNPCs.Tests
     public class FolderParserTests
     {
         const string Unique =
-            "{ \"name\": \"Bram\", " +
+            "{ \"kind\": \"unique\", \"name\": \"Bram\", " +
             "\"location\": { \"region\": \"Daggerfall\", \"place\": \"Daggerfall\" }, " +
             "\"position\": [1.5, 2, -3] }";
 
@@ -105,7 +105,7 @@ namespace AdvancedNPCs.Tests
         public void MissingName_ReportsFolderPath()
         {
             ParseResult r = DefinitionParser.ParseFolder("bram",
-                "{ \"location\": { \"region\": \"R\", \"place\": \"P\" }, \"position\": [0,0,0] }");
+                "{ \"kind\": \"unique\", \"location\": { \"region\": \"R\", \"place\": \"P\" }, \"position\": [0,0,0] }");
             Assert.AreEqual("bram/npc.json: name: required", r.Error);
         }
 
@@ -125,6 +125,22 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual("bram", r.Definition.Id);
             Assert.AreEqual(NpcKind.Unique, r.Definition.Kind);
             Assert.AreEqual("bram.json", r.Definition.SourceFile);
+        }
+
+        [Test]
+        public void MissingKind_IsGeneric()
+        {
+            ParseResult r = DefinitionParser.ParseFolder("commoner", "{ \"baseClass\": \"Bard\" }");
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.AreEqual(NpcKind.Generic, r.Definition.Kind);
+        }
+
+        [Test]
+        public void LocationWithoutKind_HintsUnique()
+        {
+            ParseResult r = DefinitionParser.ParseFolder("bram",
+                "{ \"name\": \"Bram\", \"location\": { \"region\": \"R\", \"place\": \"P\" }, \"position\": [0,0,0] }");
+            Assert.AreEqual("bram/npc.json: location: belongs to unique ANPCs — add \"kind\": \"unique\"", r.Error);
         }
     }
 }

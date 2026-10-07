@@ -88,7 +88,7 @@ namespace AdvancedNPCs.Core
                 r.Warnings.Add(file + ": id: \"" + jsonId + "\" differs from the folder name; using \"" + folder + "\"");
 
             string rawKind;
-            if ((problem = FieldReader.Text(o, "kind", "unique", out rawKind)) != null)
+            if ((problem = FieldReader.Text(o, "kind", "generic", out rawKind)) != null)
                 return Fail(r, file, "kind", problem);
             NpcDefinition d = new NpcDefinition();
             if (string.Equals(rawKind.Trim(), "unique", StringComparison.OrdinalIgnoreCase))
@@ -101,7 +101,7 @@ namespace AdvancedNPCs.Core
             d.Id = folder;
             d.Folder = folder;
             d.SourceFile = file;
-            bool ok = d.Kind == NpcKind.Unique ? ReadUnique(file, o, d, r) : ReadGeneric(file, o, d, r);
+            bool ok = d.Kind == NpcKind.Unique ? ReadUnique(file, o, d, r) : ReadGeneric(file, o, d, r, o.ContainsKey("kind"));
             if (!ok || !ReadShared(file, o, d, r))
                 return r;
 
@@ -191,12 +191,16 @@ namespace AdvancedNPCs.Core
             return true;
         }
 
-        static bool ReadGeneric(string file, Dictionary<string, object> o, NpcDefinition d, ParseResult r)
+        static bool ReadGeneric(string file, Dictionary<string, object> o, NpcDefinition d, ParseResult r, bool kindGiven)
         {
+            // Generic is the default kind: a file that only forgot "kind" gets told how to fix it.
+            string uniqueOnly = kindGiven
+                ? "belongs to unique ANPCs; generic templates use spawn"
+                : "belongs to unique ANPCs — add \"kind\": \"unique\"";
             if (o.ContainsKey("location"))
-                return Problem(r, file, "location", "belongs to unique ANPCs; generic templates use spawn");
+                return Problem(r, file, "location", uniqueOnly);
             if (o.ContainsKey("position"))
-                return Problem(r, file, "position", "belongs to unique ANPCs; generic templates use spawn");
+                return Problem(r, file, "position", uniqueOnly);
 
             string problem;
             string name;
