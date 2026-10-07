@@ -36,6 +36,8 @@ namespace AdvancedNPCs.Core
         public readonly List<string> Names = new List<string>();
         /// <summary>Name list for generated names (normalized); "" = default_&lt;race&gt;.</summary>
         public string NameList = "";
+        /// <summary>World height of a custom sprite's standing pose; 0 = the vanilla class sprite's height.</summary>
+        public float SpriteHeight;
         /// <summary>Generic templates only: where and how many (null for unique ANPCs).</summary>
         public GenericSpawn Spawn;
         public Bravery Bravery;

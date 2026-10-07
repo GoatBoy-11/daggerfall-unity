@@ -151,5 +151,24 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual("pirates", r.Definition.NameList);
             Assert.AreEqual(0, r.Warnings.Count);
         }
+
+        [Test]
+        public void SpriteHeight_IsReadOrDefaultsToZero()
+        {
+            Assert.AreEqual(0f, DefinitionParser.ParseFolder("commoner", "{ }").Definition.SpriteHeight);
+            ParseResult r = DefinitionParser.ParseFolder("commoner", "{ \"spriteHeight\": 1.75 }");
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.AreEqual(1.75f, r.Definition.SpriteHeight);
+            Assert.AreEqual(0, r.Warnings.Count);
+        }
+
+        [TestCase("0")]
+        [TestCase("-2")]
+        [TestCase("\"tall\"")]
+        public void SpriteHeight_MustBePositive(string value)
+        {
+            Assert.AreEqual("commoner/npc.json: spriteHeight: must be a number above 0",
+                DefinitionParser.ParseFolder("commoner", "{ \"spriteHeight\": " + value + " }").Error);
+        }
     }
 }

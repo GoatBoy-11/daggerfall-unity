@@ -27,7 +27,7 @@ namespace AdvancedNPCs.Core
         static readonly string[] SharedKeys =
         {
             "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "calmDownHours",
-            "crimeOnAttack", "wanderRadius", "nameList",
+            "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight",
         };
         static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
         static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
@@ -412,8 +412,14 @@ namespace AdvancedNPCs.Core
             if ((problem = FieldReader.Text(o, "nameList", "", out nameList)) != null)
                 return Problem(r, file, "nameList", problem);
 
+            double spriteHeight;
+            if ((problem = FieldReader.Number(o, "spriteHeight", 0, out spriteHeight)) != null ||
+                (o.ContainsKey("spriteHeight") && !(spriteHeight > 0)))
+                return Problem(r, file, "spriteHeight", "must be a number above 0");
+
             d.Race = race;
             d.NameList = NameListParser.Normalize(nameList);
+            d.SpriteHeight = (float)spriteHeight;
             return true;
         }
 
