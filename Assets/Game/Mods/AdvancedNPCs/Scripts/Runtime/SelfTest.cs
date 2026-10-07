@@ -528,27 +528,45 @@ namespace AdvancedNPCs
                 swing == null ? "no NpcSprite" : "attacked=" + (swingStart >= 0) + ", landed " + (swing.BlowsLanded - landedBefore) + " after " + landedAt +
                 " s, delivered=" + swing.BlowsDelivered + ", DFU's own blows held back=" + swing.VanillaBlowsHeld);
 
-            // A hit before the action frame interrupts the swing: that attack lands no blow.
+            // A hit during a swing does not stop it (no stun-lock, as in vanilla): the blow lands on its action frame and the
+            // hit sheet plays right after the attack sheet.
             giveUp = Time.time + 8f;
             while (Time.time < giveUp && swingUnit.EnemyState == MobileStates.PrimaryAttack)
                 yield return null;
             while (Time.time < giveUp && swingUnit.EnemyState != MobileStates.PrimaryAttack)
                 yield return null;
             bool swungAgain = swingUnit.EnemyState == MobileStates.PrimaryAttack;
+            float againStart = Time.time;
             int landedBeforeHit = swing != null ? swing.BlowsLanded : 0;
+            int hitsBeforeSwingHit = swing != null ? swing.HitStarts : 0;
             yield return new WaitForSeconds(0.08f);
-            bool pendingBeforeHit = swing != null && swing.BlowPending;
             swinger.EntityBehaviour.Entity.DecreaseHealth(1);
             yield return null;
             yield return null;
+            string duringSwing = swing != null ? swing.CurrentState : null;
             bool pendingAfterHit = swing != null && swing.BlowPending;
-            giveUp = Time.time + 3f;
-            while (Time.time < giveUp && swingUnit.EnemyState == MobileStates.PrimaryAttack)
+            while (Time.time - againStart < 1.15f)
                 yield return null;
-            Check("a hit before the action frame stops the blow",
-                swing != null && swungAgain && pendingBeforeHit && !pendingAfterHit && swing.BlowsLanded == landedBeforeHit,
-                swing == null ? "no NpcSprite" : "attacked again=" + swungAgain + ", pending " + pendingBeforeHit + " -> " + pendingAfterHit +
-                ", blows landed " + (swing.BlowsLanded - landedBeforeHit));
+            Check("a hit during a swing lets the blow land, then plays the hit sheet",
+                swing != null && swungAgain && duringSwing == SpriteStates.Attack && pendingAfterHit && swing.BlowsLanded == landedBeforeHit + 1 &&
+                swing.HitStarts == hitsBeforeSwingHit + 1 && swing.CurrentState == SpriteStates.Hit,
+                swing == null ? "no NpcSprite" : "attacked again=" + swungAgain + ", state after hit=" + duringSwing + ", pending=" + pendingAfterHit +
+                ", blows landed " + (swing.BlowsLanded - landedBeforeHit) + ", hit starts " + (swing.HitStarts - hitsBeforeSwingHit) + ", now " + swing.CurrentState);
+
+            // Paralysis freezes the sprite like DFU's own picture. It is a constant effect: DFU clears it every frame and
+            // the spell sets it again, as done here.
+            int frozenChanges = 0;
+            float paralysedUntil = Time.time + 0.8f;
+            while (Time.time < paralysedUntil)
+            {
+                swinger.EntityBehaviour.Entity.IsParalyzed = true;
+                yield return null;
+                if (paralysedUntil - Time.time > 0.6f && swing != null)
+                    frozenChanges = swing.FrameChanges;
+            }
+            int frozenAfter = swing != null ? swing.FrameChanges : 0;
+            Check("a paralysed NPC's sprite stops animating", swing != null && frozenAfter == frozenChanges,
+                "frame changes while paralysed: " + (frozenAfter - frozenChanges));
             NpcBrain.Discard(swinger);
 
             mod.Sprites.Remove("selftest_sprite");

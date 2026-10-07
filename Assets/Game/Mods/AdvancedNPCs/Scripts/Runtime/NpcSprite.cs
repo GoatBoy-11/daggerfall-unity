@@ -42,7 +42,9 @@ namespace AdvancedNPCs
         MobileStates lastMobileState;
         int pendingBlow;        // MeleeBlow or ArrowBlow still to land on the attack sheet's action frame
         int sentBlow;           // the blow signalled last frame, for counting what DFU took
-        bool ownsBlows;         // DFU's own blow signals are held back while this attack runs
+        int vanillaToHold;      // DFU blow signals still to hold back: one per swing whose blow is ours
+        bool hitWaiting;        // hit during a swing: its sheet plays when the attack sheet ends
+        bool paralysed;         // read in LateUpdate: DFU clears paralysis each frame and the effect sets it again
         int blowsLanded;
         int blowsDelivered;
         int vanillaBlowsHeld;
@@ -240,27 +242,46 @@ namespace AdvancedNPCs
             lastPosition = p;
             if (dt > 0)
                 speed = Mathf.Lerp(speed, moved.magnitude / dt, 0.5f);
+            // Paralysis stops the picture (DFU's own FreezeAnims is switched straight back off by EnemyMotor). A hit taken
+            // meanwhile shows once it wears off.
+            if (paralysed)
+                return;
 
             // DFU only shows its hurt state on a hard knockback and never restarts it, so every health drop
-            // plays a hit sheet from its first frame, to its end.
+            // plays a hit sheet from its first frame, to its end. A swing is not interrupted (no stun-lock, as in
+            // vanilla): the hit sheet follows the attack sheet.
             int health = entityBehaviour != null && entityBehaviour.Entity != null ? entityBehaviour.Entity.CurrentHealth : -1;
             if (lastHealth >= 0 && health >= 0 && health < lastHealth && health > 0)
             {
-                StartOneShot(SpriteStates.Hit);
-                pendingBlow = NoBlow;       // the swing was interrupted
+                if (state == SpriteStates.Attack && oneShotLeft > 0)
+                    hitWaiting = true;
+                else
+                    StartOneShot(SpriteStates.Hit);
             }
             lastHealth = health;
 
             // Each attack DFU starts plays an attack sheet from its first frame, to its end.
             MobileStates s = mobile != null ? mobile.EnemyState : MobileStates.Idle;
-            if (IsAttack(s) && !IsAttack(lastMobileState))
+            if (IsAttack(s) && s != lastMobileState)
                 StartAttack(s);
+            else if (!IsAttack(s))
+                vanillaToHold = 0;      // DFU's swing is over: none of its signals can still come
             lastMobileState = s;
 
             if (oneShotLeft > 0)
                 oneShotLeft -= dt;
-            else
-                SetState(WantedState());
+            if (oneShotLeft <= 0)
+            {
+                if (hitWaiting)
+                {
+                    hitWaiting = false;
+                    StartOneShot(SpriteStates.Hit);
+                }
+                else
+                {
+                    SetState(WantedState());
+                }
+            }
             time += dt;
         }
 
@@ -272,6 +293,7 @@ namespace AdvancedNPCs
                 vanilla.forceRenderingOff = true;
             // Invisibility (Chameleon, Shadow, Invisibility spells) hides this sprite as it would the vanilla one.
             quadRenderer.enabled = entityBehaviour == null || entityBehaviour.Entity == null || !entityBehaviour.Entity.IsMagicallyConcealed;
+            paralysed = entityBehaviour != null && entityBehaviour.Entity != null && entityBehaviour.Entity.IsParalyzed;
             Draw();
             TimeBlows();
         }
@@ -284,19 +306,18 @@ namespace AdvancedNPCs
         void StartAttack(MobileStates s)
         {
             StartOneShot(SpriteStates.Attack);
-            pendingBlow = NoBlow;
+            hitWaiting = false;
             // Only attack sheets with an action frame take over the timing; spells keep DFU's own.
-            if (anim.ActionFrame >= 0 && SpriteStates.StateOf(anim.Name) == SpriteStates.Attack && s != MobileStates.Spell)
-            {
-                pendingBlow = s == MobileStates.PrimaryAttack ? MeleeBlow : ArrowBlow;
-                ownsBlows = true;
-            }
+            bool ours = anim.ActionFrame >= 0 && SpriteStates.StateOf(anim.Name) == SpriteStates.Attack && s != MobileStates.Spell;
+            pendingBlow = ours ? (s == MobileStates.PrimaryAttack ? MeleeBlow : ArrowBlow) : NoBlow;
+            vanillaToHold = ours ? 1 : 0;
         }
 
         /// <summary>
         /// Attack sheets with an action frame decide when the blow lands. DFU raises DoMeleeDamage / ShootArrow from its
         /// own animation (a coroutine, before LateUpdate) and EnemyAttack.Update acts on it the next frame, so here,
-        /// in LateUpdate, DFU's own signal is held back and ours is raised when the sheet shows its action frame.
+        /// in LateUpdate, DFU's own signal for that swing (one per swing) is held back and ours is raised when the sheet
+        /// shows its action frame. A swing this sprite did not see start keeps DFU's own signal.
         /// </summary>
         void TimeBlows()
         {
@@ -309,12 +330,13 @@ namespace AdvancedNPCs
                     blowsDelivered++;
                 sentBlow = NoBlow;
             }
-            if (!ownsBlows)
-                return;
-            if (mobile.DoMeleeDamage || mobile.ShootArrow)
+            if (vanillaToHold > 0 && (mobile.DoMeleeDamage || mobile.ShootArrow))
+            {
+                mobile.DoMeleeDamage = false;
+                mobile.ShootArrow = false;
+                vanillaToHold--;
                 vanillaBlowsHeld++;
-            mobile.DoMeleeDamage = false;
-            mobile.ShootArrow = false;
+            }
 
             if (pendingBlow != NoBlow && state == SpriteStates.Attack && frame >= anim.ActionFrame)
             {
@@ -326,8 +348,6 @@ namespace AdvancedNPCs
                 pendingBlow = NoBlow;
                 blowsLanded++;
             }
-            if (pendingBlow == NoBlow && sentBlow == NoBlow && !IsAttack(mobile.EnemyState))
-                ownsBlows = false;
         }
 
         void OnDestroy()
