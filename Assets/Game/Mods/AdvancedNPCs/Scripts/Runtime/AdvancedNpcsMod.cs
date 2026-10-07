@@ -27,6 +27,7 @@ namespace AdvancedNPCs
         public NpcStateTable States { get; private set; }
         public PortraitLibrary Portraits { get; private set; }
         public NameLists Names { get; private set; }
+        public SpriteLibrary Sprites { get; private set; }
         public ModConfig Config { get; private set; }
 
         /// <summary>Raised after save data is restored or a new game starts.</summary>
@@ -55,6 +56,9 @@ namespace AdvancedNPCs
             Portraits = PortraitLibrary.Load(AnpcFiles.PortraitsFolder);
             Portraits.WarnMissing(Catalog.ReferencedPortraits());
             Names = NameLists.Load(Path.Combine(AnpcFiles.Root, NameLists.FolderName));
+            List<NpcDefinition> all = new List<NpcDefinition>(Catalog.ById.Values);
+            all.AddRange(Catalog.Generics);
+            Sprites = SpriteLibrary.Load(AnpcFiles.Root, all);
             StartGameBehaviour.OnNewGame += OnNewGame;
             ConsoleCommandsDatabase.RegisterCommand("anpc_pos",
                 "Prints your position as Advanced NPC definition JSON (also written to Player.log).", "anpc_pos", PosCommand);
