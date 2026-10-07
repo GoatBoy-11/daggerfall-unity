@@ -1,7 +1,8 @@
 # Renders Advanced NPCs sprite sheets from a rigged, animated character (spec 1b): one sheet per Action,
 # 8 direction rows (front, front_right, right, back_right, back, back_left, left, front_left), one column per
 # frame (the last keyframe, a repeat of the first, is left out), one scale for every sheet, feet on a fixed
-# ground row, plus sprites.json. Orthographic camera tilted 7 degrees down; strong key light from the viewer's
+# ground row, plus sprites.json. The ground is the lowest point of the idle poses (the character need not
+# stand at Z=0). Orthographic camera tilted 7 degrees down; strong key light from the viewer's
 # upper left and a weak fill, high-contrast look (like Daggerfall's own sprites). Never saves the .blend.
 #
 # Usage:
@@ -50,30 +51,46 @@ def axes(k):
     rot = Matrix.Rotation(math.radians(-45 * k), 3, 'Z')
     return np.array(rot @ rgt), np.array(rot @ u)
 
-# Exact extents on screen for every action, direction and frame.
+def world_vertices():
+    ev = body.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    me = ev.to_mesh()
+    co = np.empty(len(me.vertices) * 3); me.vertices.foreach_get("co", co); co = co.reshape(-1, 3)
+    m = np.array(body.matrix_world); w = co @ m[:3, :3].T + m[:3, 3]
+    ev.to_mesh_clear()
+    return w
+
+# Ground height: the lowest point of the standing (idle) poses; every action if there is no idle one.
+standing = [a for a in bpy.data.actions if a.name.lower().startswith("idle")] or list(bpy.data.actions)
+ground_z = 1e9
+for act in standing:
+    set_action(act)
+    for f in frames(act):
+        scene.frame_set(f)
+        ground_z = min(ground_z, float(world_vertices()[:, 2].min()))
+print("GROUND z=%.3f (lowest point of %s)" % (ground_z, ", ".join(a.name for a in standing)))
+feet = np.array([0.0, 0.0, ground_z])
+
+# Exact extents on screen, relative to the feet, for every action, direction and frame.
 ext = {}
 for act in bpy.data.actions:
     set_action(act)
     half, lo, hi = 0.0, 1e9, -1e9
     for f in frames(act):
         scene.frame_set(f)
-        ev = body.evaluated_get(bpy.context.evaluated_depsgraph_get())
-        me = ev.to_mesh()
-        co = np.empty(len(me.vertices) * 3); me.vertices.foreach_get("co", co); co = co.reshape(-1, 3)
-        m = np.array(body.matrix_world); w = co @ m[:3, :3].T + m[:3, 3]
-        ev.to_mesh_clear()
+        w = world_vertices() - feet
         for k in range(len(DIRS)):
             ra, ua = axes(k)
             x = w @ ra; y = w @ ua
             half = max(half, float(np.abs(x).max()))
             lo = min(lo, float(y.min())); hi = max(hi, float(y.max()))
     ext[act.name] = (half, lo, hi)
-lo_all = min(e[1] for e in ext.values()); hi_all = max(e[2] for e in ext.values())
+lo_all = min(0.0, min(e[1] for e in ext.values())); hi_all = max(e[2] for e in ext.values())   # the feet row is always in the cell
 ppu = (CELL_H - 2 * PAD) / (hi_all - lo_all)
 ground_px = int(round(PAD + (0 - lo_all) * ppu))     # feet row, counted from the bottom of the cell
 print("SCALE ppu=%.2f ground=%dpx up=[%.2f,%.2f]" % (ppu, ground_px, lo_all, hi_all))
 
 pivot = bpy.data.objects.new("anpc_pivot", None); scene.collection.objects.link(pivot)
+pivot.location = tuple(feet)
 cam_data = bpy.data.cameras.new("anpc_cam"); cam_data.type = 'ORTHO'; cam_data.clip_end = 100
 cam = bpy.data.objects.new("anpc_cam", cam_data); scene.collection.objects.link(cam)
 cam.parent = pivot; cam.rotation_mode = 'QUATERNION'; cam.rotation_quaternion = d.to_track_quat('-Z', 'Y')

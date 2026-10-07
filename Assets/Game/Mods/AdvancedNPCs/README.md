@@ -143,7 +143,7 @@ ANPCs/wench/
     death_static.png  (optional)
 ```
 
-- Make them with `Tools~/render-sprites.py` from a rigged, animated `.blend`: one sheet per Action, rows = directions (front, front_right, right, back_right, back, back_left, left, front_left), columns = frames, plus `sprites.json` (scale, frame sizes, feet row, fps). Run with `test` first to check light and size:
+- Make them with `Tools~/render-sprites.py` from a rigged, animated `.blend`: one sheet per Action, rows = directions (front, front_right, right, back_right, back, back_left, left, front_left), columns = frames, plus `sprites.json` (scale, frame sizes, feet row, fps). The feet row is the lowest point of the idle poses, so the character may stand at any height. Run with `test` first to check light and size:
   `blender -b character.blend --python render-sprites.py -- <out_dir> [test] [--rig NAME] [--mesh NAME]`
 - Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `hit*` (hurt), `attack*` (attacking), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing walk/hit/attack sheets use idle; a set needs at least one idle sheet.
 - Every hit (any health loss) plays a hit sheet from its first frame to its last, also when the person is hit again while it plays.
