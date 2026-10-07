@@ -1,13 +1,13 @@
 Custom name lists for ANPCs. Put one list per .json file here and use it from an npc.json:
   "nameList": "pirates"          -> _Namelists/pirates.json
 Without "nameList" a person gets a name from the vanilla list of its race. Vanilla lists can also be chosen
-by name: default_breton, default_redguard, default_nord, default_highelf, default_woodelf, default_khajiit,
-default_imperial (DFU has no Dark Elf bank; default_darkelf falls back to the person's race).
+by name: default_breton, default_redguard, default_nord, default_darkelf, default_highelf, default_woodelf,
+default_khajiit, default_imperial.
 
 Two formats:
 
 1. Vanilla format: one bank copied from DFU's NameGen.txt plus the style that glues the parts.
-   breton/highelf/woodelf/khajiit/imperial need 6 sets, nord 4 (surname = sets 0+1 + "sen"), redguard 5.
+   breton/darkelf/highelf/woodelf/khajiit/imperial need 6 sets, nord 4 (surname = sets 0+1 + "sen"), redguard 5.
    {
      "style": "nord",
      "sets": [

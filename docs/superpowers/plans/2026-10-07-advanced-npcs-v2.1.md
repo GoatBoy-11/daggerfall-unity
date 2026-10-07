@@ -16,7 +16,7 @@ All Global Constraints and Verification commands of `docs/superpowers/plans/2026
 
 - Build with `build-mod.sh --no-examples` except in Task 5 (the user's test install has hand edits).
 - Name-list names and portrait names: trimmed, lowercase; `.json` / `.png` stripped.
-- Vanilla list names: `default_breton`, `default_redguard`, `default_nord`, `default_darkelf`, `default_highelf`, `default_woodelf`, `default_khajiit`, `default_imperial`. DFU's `NameGen.txt` has no DarkElf bank, so `default_darkelf` falls back like any missing list (warning, `default_<race>`, then `default_breton`).
+- Vanilla list names: `default_breton`, `default_redguard`, `default_nord`, `default_darkelf`, `default_highelf`, `default_woodelf`, `default_khajiit`, `default_imperial`. A missing list falls back with a warning to `default_<race>`, then `default_breton`.
 - Vanilla style rules (DFU `NameHelper`): breton, darkelf, highelf, woodelf, khajiit, imperial — first name male sets 0+1, female 2+3, surname 4+5 (6 sets needed); nord — first as above, surname 0+1+`nordSurnameImmutableSuffix` ("sen"), 4 sets; redguard — single name, male 0+1+2 then 75% +3, female 0+1+2+4, 5 sets.
 
 ## Review Focus

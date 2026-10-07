@@ -247,7 +247,7 @@ namespace AdvancedNPCs
             if (!string.IsNullOrEmpty(state.portrait) && owner.Portraits.Get(state.portrait) != null)
                 return state.portrait;
             List<string> pool = PortraitPools.Joined(owner.Portraits.Names, instance.Definition.Portraits);
-            string chosen = PortraitPools.Choose(pool, instance.Key);
+            string chosen = PortraitPools.Choose(pool, instance.Seed);
             if (!string.IsNullOrEmpty(state.portrait) && chosen != null)
                 state.portrait = chosen;
             return chosen;

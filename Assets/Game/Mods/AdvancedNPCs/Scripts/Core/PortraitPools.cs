@@ -37,12 +37,16 @@ namespace AdvancedNPCs.Core
             return joined;
         }
 
-        /// <summary>One file of the pool for this person, always the same for the same key; null for an empty pool.</summary>
-        public static string Choose(List<string> pool, string key)
+        /// <summary>
+        /// One file of the pool for the person with this seed (spec v2.1 §6.2): the same person always gets the same
+        /// file, a re-rolled person (Random each visit) a new one; null for an empty pool.
+        /// </summary>
+        public static string Choose(List<string> pool, uint seed)
         {
             if (pool == null || pool.Count == 0)
                 return null;
-            return pool[new SeededRandom(StableHash.Of(key + "#portrait")).Next(pool.Count)];
+            // Mixed so the pick does not mirror the person's other seeded choices.
+            return pool[new SeededRandom(seed ^ 0x5F3759DFu).Next(pool.Count)];
         }
 
         static bool IsNumbered(string file, string baseName)

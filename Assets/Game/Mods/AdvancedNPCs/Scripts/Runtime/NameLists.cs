@@ -90,6 +90,7 @@ namespace AdvancedNPCs
                     AdvancedNpcsMod.LogError("NameGen.txt could not be read; only custom name lists are available.");
                     return;
                 }
+                List<string> vanilla = new List<string>();
                 foreach (KeyValuePair<NameHelper.BankTypes, NameHelper.NameBank> bank in banks)
                 {
                     string style = bank.Key.ToString().ToLowerInvariant();
@@ -103,7 +104,9 @@ namespace AdvancedNPCs
                         continue;
                     list.Style = style;
                     lists[list.Name] = list;
+                    vanilla.Add(list.Name);
                 }
+                AdvancedNpcsMod.Log("Loaded " + vanilla.Count + " vanilla name list(s): " + string.Join(", ", vanilla.ToArray()) + ".");
             }
             catch (Exception e)
             {

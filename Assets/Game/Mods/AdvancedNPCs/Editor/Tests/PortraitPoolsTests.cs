@@ -49,13 +49,13 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
-        public void Choose_IsStablePerKeyAndInPool()
+        public void Choose_IsStablePerSeedAndInPool()
         {
             List<string> pool = new List<string> { "bram_1", "bram_2", "bram_3" };
-            string first = PortraitPools.Choose(pool, "cooper@1234#0");
-            Assert.AreEqual(first, PortraitPools.Choose(pool, "cooper@1234#0"));
+            string first = PortraitPools.Choose(pool, 12345u);
+            Assert.AreEqual(first, PortraitPools.Choose(pool, 12345u));
             CollectionAssert.Contains(pool, first);
-            Assert.IsNull(PortraitPools.Choose(new List<string>(), "x"));
+            Assert.IsNull(PortraitPools.Choose(new List<string>(), 1u));
         }
 
         [Test]
@@ -64,7 +64,7 @@ namespace AdvancedNPCs.Tests
             List<string> pool = new List<string> { "bram_1", "bram_2", "bram_3" };
             HashSet<string> seen = new HashSet<string>();
             for (int n = 0; n < 30; n++)
-                seen.Add(PortraitPools.Choose(pool, "cooper@1234#" + n));
+                seen.Add(PortraitPools.Choose(pool, StableHash.Of("cooper@1234#" + n)));
             Assert.AreEqual(3, seen.Count);
         }
 
@@ -75,6 +75,36 @@ namespace AdvancedNPCs.Tests
             t.GetOrCreate("cooper@1234#0").portrait = "bram_2";
             NpcState copy = t.Snapshot()["cooper@1234#0"];
             Assert.AreEqual("bram_2", copy.portrait);
+        }
+
+        [Test]
+        public void RandomEachVisit_PortraitFollowsThePersonsSeed()
+        {
+            // Same slot key, different visits: the face must re-roll with the person (spec v2.1 §6.2).
+            NpcDefinition t = new NpcDefinition();
+            t.Id = "cooper";
+            t.Kind = NpcKind.Generic;
+            t.Gender = "";
+            t.Spawn = new GenericSpawn();
+            t.Spawn.CountMin = 1;
+            t.Spawn.CountMax = 1;
+            List<string> pool = new List<string> { "bram_1", "bram_2", "bram_3" };
+            HashSet<string> faces = new HashSet<string>();
+            for (uint visit = 1; visit <= 30; visit++)
+            {
+                List<NpcInstance> plan = PopulationPlanner.Plan(new[] { t }, new TownInfo(1234, "R", "P", "TownCity", "Breton"),
+                    GenericMode.RandomEachVisit, 12, 10, visit, new FixedNames());
+                faces.Add(PortraitPools.Choose(pool, plan[0].Seed));
+            }
+            Assert.AreEqual(3, faces.Count);
+        }
+
+        class FixedNames : INameSource
+        {
+            public string Generate(string listName, string race, string gender, uint seed)
+            {
+                return "N";
+            }
         }
     }
 }
