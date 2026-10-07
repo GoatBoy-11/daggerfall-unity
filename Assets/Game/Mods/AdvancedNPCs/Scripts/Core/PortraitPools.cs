@@ -49,6 +49,15 @@ namespace AdvancedNPCs.Core
             return pool[new SeededRandom(seed ^ 0x5F3759DFu).Next(pool.Count)];
         }
 
+        /// <summary>
+        /// Only a pool with a real choice is worth locking at the first talk: with one picture (or none) the face can
+        /// never change, so nothing is saved for it (keeps save data small).
+        /// </summary>
+        public static bool IsLockable(List<string> pool)
+        {
+            return pool != null && pool.Count > 1;
+        }
+
         static bool IsNumbered(string file, string baseName)
         {
             if (file.Length <= baseName.Length + 1 || !file.StartsWith(baseName + "_", StringComparison.Ordinal))

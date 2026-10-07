@@ -330,6 +330,26 @@ namespace AdvancedNPCs
             Check("talked-to person keeps its portrait", talked && shown != null && locked == shown && shownBack == shown,
                 "shown=" + shown + ", locked=" + locked + ", after pool grew=" + shownBack);
             DiscardAll(facedBack);
+
+            // A single-picture pool can never change, so talking saves nothing for it.
+            mod.Portraits.Add("selftest_solo", TestPortrait());
+            NpcDefinition solo = GenericTemplate(location, 1);
+            solo.Id = "selftest_solo";
+            solo.Portraits.Add("selftest_solo");
+            List<NpcBrain> soloPeople = SpawnGenerics(location, new List<NpcDefinition> { solo }, GenericMode.SamePeople, 12);
+            yield return Settle;
+            NpcTalk soloTalk = soloPeople.Count > 0 ? soloPeople[0].GetComponent<NpcTalk>() : null;
+            bool soloTalked = soloTalk != null && soloTalk.TryTalk();
+            for (int wait = 0; wait < 10 && !TalkWindowOpen(); wait++)
+                yield return new WaitForSeconds(0.1f);
+            CloseTalkWindow();
+            yield return Settle;
+            string soloKey = soloPeople.Count > 0 ? soloPeople[0].Id : "?";
+            Check("one-picture portrait is not locked in save data",
+                soloTalked && soloTalk.PortraitFile == "selftest_solo" && string.IsNullOrEmpty(mod.States.GetOrCreate(soloKey).portrait),
+                "talked=" + soloTalked + ", locked=" + mod.States.GetOrCreate(soloKey).portrait);
+            DiscardAll(soloPeople);
+            mod.Portraits.Remove("selftest_solo");
             mod.Portraits.Remove("selftest_face_1");
             mod.Portraits.Remove("selftest_face_2");
             mod.Portraits.Remove("selftest_face_3");

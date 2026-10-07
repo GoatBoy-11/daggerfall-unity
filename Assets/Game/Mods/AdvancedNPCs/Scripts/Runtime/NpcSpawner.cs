@@ -242,11 +242,10 @@ namespace AdvancedNPCs
         /// The portrait file for this person (spec v2.1 §6.2): the one locked at the first talk if it still exists,
         /// otherwise a seeded pick from the joined pools of its portrait names (re-locked if the old file is gone).
         /// </summary>
-        string ResolvePortrait(NpcInstance instance, NpcState state)
+        string ResolvePortrait(NpcInstance instance, NpcState state, List<string> pool)
         {
             if (!string.IsNullOrEmpty(state.portrait) && owner.Portraits.Get(state.portrait) != null)
                 return state.portrait;
-            List<string> pool = PortraitPools.Joined(owner.Portraits.Names, instance.Definition.Portraits);
             string chosen = PortraitPools.Choose(pool, instance.Seed);
             if (!string.IsNullOrEmpty(state.portrait) && chosen != null)
                 state.portrait = chosen;
@@ -278,9 +277,10 @@ namespace AdvancedNPCs
             go.AddComponent<NpcMover>();
             NpcBrain brain = go.AddComponent<NpcBrain>();
             brain.Init(instance, state);
-            string portraitFile = ResolvePortrait(instance, state);
+            List<string> pool = PortraitPools.Joined(owner.Portraits.Names, instance.Definition.Portraits);
+            string portraitFile = ResolvePortrait(instance, state, pool);
             instance.PortraitName = portraitFile;
-            go.AddComponent<NpcTalk>().Init(instance, owner.Portraits.Get(portraitFile), portraitFile);
+            go.AddComponent<NpcTalk>().Init(instance, owner.Portraits.Get(portraitFile), portraitFile, PortraitPools.IsLockable(pool));
             AdvancedNpcsMod.Log(instance.Key + " (" + instance.Name + "): spawned.");
             return brain;
         }

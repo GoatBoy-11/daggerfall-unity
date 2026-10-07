@@ -99,6 +99,15 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual(3, faces.Count);
         }
 
+        [Test]
+        public void OnlyPoolsWithChoice_AreLocked()
+        {
+            Assert.IsFalse(PortraitPools.IsLockable(new List<string> { "bram" }));
+            Assert.IsFalse(PortraitPools.IsLockable(new List<string>()));
+            Assert.IsFalse(PortraitPools.IsLockable(null));
+            Assert.IsTrue(PortraitPools.IsLockable(new List<string> { "bram_1", "bram_2" }));
+        }
+
         class FixedNames : INameSource
         {
             public string Generate(string listName, string race, string gender, uint seed)

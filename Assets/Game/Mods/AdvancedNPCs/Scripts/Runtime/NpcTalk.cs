@@ -31,6 +31,7 @@ namespace AdvancedNPCs
         Texture2D portrait;
         string displayName;
         string portraitFile;
+        bool lockPortrait;
 
         /// <summary>The last mid-screen text this ANPC showed (read by the self-test).</summary>
         public string LastMessage { get; private set; }
@@ -52,7 +53,7 @@ namespace AdvancedNPCs
             set { portrait = value; }
         }
 
-        public void Init(NpcInstance instance, Texture2D portraitTexture, string portraitFileName)
+        public void Init(NpcInstance instance, Texture2D portraitTexture, string portraitFileName, bool lockPortraitAtFirstTalk)
         {
             GameObject proxyObject = new GameObject("TalkProxy");
             proxyObject.transform.SetParent(transform, false);
@@ -64,6 +65,7 @@ namespace AdvancedNPCs
             displayName = instance.Name;
             portrait = portraitTexture;
             portraitFile = portraitFileName;
+            lockPortrait = lockPortraitAtFirstTalk;
             brain = GetComponent<NpcBrain>();
         }
 
@@ -100,7 +102,7 @@ namespace AdvancedNPCs
             if (portrait != null)
                 ApplyPortrait(DaggerfallUI.Instance.TalkWindow, portrait);
             // The face shown at the first talk is kept for the rest of the game (spec v2.1 §6.2).
-            if (portraitFile != null && brain != null && brain.Instance != null && brain.Instance.Persistent &&
+            if (lockPortrait && portraitFile != null && brain != null && brain.Instance != null && brain.Instance.Persistent &&
                 string.IsNullOrEmpty(brain.State.portrait))
                 brain.State.portrait = portraitFile;
             return true;

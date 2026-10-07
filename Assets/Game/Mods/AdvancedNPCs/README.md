@@ -127,7 +127,7 @@ folder name is the old id.
 
 - PNG files in `ANPCs/_Portraits/`, shared by all ANPCs; 64 × 64 pixels recommended.
 - `"portrait": "bram"` uses `bram.png` and every `bram_<number>.png` (`bram_1.png`, `bram_2.png`, …) as a pool: each person gets one of them. A lone `bram_1.png` works too.
-- The face a person shows the first time you talk to them is kept for the rest of that game, even if you add or remove files later (*Random each visit* people are re-rolled anyway).
+- The face a person shows the first time you talk to them is kept for the rest of that game, even if you add or remove files later (*Random each visit* people are re-rolled anyway). This is only saved when the pool has more than one picture.
 - Without a portrait, or if no file matches, the ANPC shows a vanilla face matching its race and gender.
 
 ## Name lists
