@@ -32,7 +32,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/StableHash.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/VanillaFaces.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/AnpcFiles.cs",
-        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/DfuNameSource.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NameLists.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/ModConfig.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/AdvancedNpcsMod.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcBrain.cs",

@@ -10,9 +10,9 @@ namespace AdvancedNPCs.Tests
         {
             public readonly List<string> Calls = new List<string>();
 
-            public string Generate(string race, string gender, uint seed)
+            public string Generate(string listName, string race, string gender, uint seed)
             {
-                Calls.Add(race + "/" + gender);
+                Calls.Add(listName + "/" + race + "/" + gender);
                 return race + " " + gender + " " + seed;
             }
         }
@@ -236,7 +236,7 @@ namespace AdvancedNPCs.Tests
             FakeNames names = new FakeNames();
             List<NpcInstance> plan = PopulationPlanner.Plan(new[] { generated }, Town(1234), GenericMode.SamePeople, 12, 100, 0, names);
             Assert.AreEqual(2, names.Calls.Count);
-            Assert.AreEqual("Nord/" + plan[0].Gender, names.Calls[0]);
+            Assert.AreEqual("default_nord/Nord/" + plan[0].Gender, names.Calls[0]);
             StringAssert.StartsWith("Nord " + plan[0].Gender + " ", plan[0].Name);
         }
 
@@ -254,6 +254,18 @@ namespace AdvancedNPCs.Tests
             }
             foreach (NpcInstance i in Plan(GenericMode.SamePeople, 12, 100, 0, Template("b", 2, 2)))
                 Assert.IsNull(i.PortraitName);
+        }
+
+        [Test]
+        public void Names_UseListOrDefaultForRace()
+        {
+            NpcDefinition pirates = Template("pirate", 1, 1);
+            pirates.NameList = "pirates";
+            FakeNames names = new FakeNames();
+            PopulationPlanner.Plan(new[] { pirates, Template("plain", 1, 1) }, Town(1234), GenericMode.SamePeople, 12, 100, 0, names);
+            Assert.AreEqual(2, names.Calls.Count);
+            StringAssert.StartsWith("pirates/Breton/", names.Calls[0]);
+            StringAssert.StartsWith("default_breton/Breton/", names.Calls[1]);
         }
     }
 }

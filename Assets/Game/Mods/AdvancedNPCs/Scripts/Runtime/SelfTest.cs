@@ -279,6 +279,29 @@ namespace AdvancedNPCs
 
             List<NpcBrain> none = SpawnGenerics(location, templates, GenericMode.SamePeople, 0);
             Check("MaxGenericPerTown 0 spawns no generic ANPCs", none.Count == 0, Layout(none));
+
+            // Name lists (spec v2.1 §5): one generic person from a simple list, one from a vanilla-format list.
+            mod.Names.Add(NameListParser.Parse("selftest_simple", "{ \"male\": [\"Testmale\"], \"female\": [\"Testfemale\"] }").List);
+            mod.Names.Add(NameListParser.Parse("selftest_vanilla", "{ \"style\": \"breton\", \"sets\": [ {\"parts\":[\"A\"]}, " +
+                "{\"parts\":[\"b\"]}, {\"parts\":[\"C\"]}, {\"parts\":[\"d\"]}, {\"parts\":[\"E\"]}, {\"parts\":[\"f\"]} ] }").List);
+            NpcDefinition simpleNames = GenericTemplate(location, 1);
+            simpleNames.Id = "selftest_names_simple";
+            simpleNames.NameList = "selftest_simple";
+            NpcDefinition vanillaNames = GenericTemplate(location, 1);
+            vanillaNames.Id = "selftest_names_vanilla";
+            vanillaNames.NameList = "selftest_vanilla";
+            List<NpcBrain> named = SpawnGenerics(location, new List<NpcDefinition> { simpleNames, vanillaNames }, GenericMode.SamePeople, 12);
+            yield return Settle;
+            NpcBrain simpleOne = NpcBrain.Find(PopulationPlanner.KeyFor("selftest_names_simple", location.Summary.MapID, 0));
+            NpcBrain vanillaOne = NpcBrain.Find(PopulationPlanner.KeyFor("selftest_names_vanilla", location.Summary.MapID, 0));
+            Check("generic name from a simple name list",
+                simpleOne != null && (simpleOne.DisplayName == "Testmale" || simpleOne.DisplayName == "Testfemale"),
+                simpleOne == null ? "missing" : simpleOne.DisplayName);
+            Check("generic name from a vanilla-format name list",
+                vanillaOne != null && (vanillaOne.DisplayName == "Ab Ef" || vanillaOne.DisplayName == "Cd Ef"),
+                vanillaOne == null ? "missing" : vanillaOne.DisplayName);
+            DiscardAll(named);
+            yield return Settle;
         }
 
         NpcBrain Make(string id, Bravery bravery, DaggerfallLocation location, Transform player, float side)

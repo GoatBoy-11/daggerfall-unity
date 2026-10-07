@@ -20,7 +20,6 @@ namespace AdvancedNPCs
 
         // Towns currently built by StreamingWorld (several are loaded around the player at once).
         readonly List<DaggerfallLocation> knownLocations = new List<DaggerfallLocation>();
-        readonly INameSource names = new DfuNameSource();
         readonly HashSet<int> townsWithoutCells = new HashSet<int>();
 
         public NpcSpawner(AdvancedNpcsMod owner)
@@ -102,8 +101,17 @@ namespace AdvancedNPCs
         void OnLocationLaidOut(GameObject locationObject, bool allowYield)
         {
             DaggerfallLocation location = locationObject == null ? null : locationObject.GetComponent<DaggerfallLocation>();
+            if (location != null)
+                owner.StartCoroutine(SpawnGenericsNextFrame(location));
+        }
+
+        // A town built in one go raises the event in the frame it was created, before CityNavigation.Start has
+        // linked the grid to its location (placing a person then throws). One frame later both are ready.
+        IEnumerator SpawnGenericsNextFrame(DaggerfallLocation location)
+        {
+            yield return null;
             if (location == null || !location.gameObject.activeSelf)
-                return;
+                yield break;
             SpawnGenerics(location, owner.Catalog.Generics, owner.Config.Mode, owner.Config.MaxGenericPerTown);
         }
 
@@ -132,7 +140,7 @@ namespace AdvancedNPCs
             int cellCount = WalkableCount(location);
             PlannedCellCounts[town.MapId] = cellCount;
             uint visitSeed = (uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue);
-            List<NpcInstance> plan = PopulationPlanner.Plan(templates, town, mode, cap, cellCount, visitSeed, names);
+            List<NpcInstance> plan = PopulationPlanner.Plan(templates, town, mode, cap, cellCount, visitSeed, owner.Names);
             if (plan.Count == 0)
                 return spawned;
 

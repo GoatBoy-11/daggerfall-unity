@@ -27,7 +27,7 @@ namespace AdvancedNPCs.Core
         static readonly string[] SharedKeys =
         {
             "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "calmDownHours",
-            "crimeOnAttack", "wanderRadius",
+            "crimeOnAttack", "wanderRadius", "nameList",
         };
         static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
         static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
@@ -408,7 +408,12 @@ namespace AdvancedNPCs.Core
             d.CalmDownMaxHours = (float)calm[1];
             d.CrimeOnAttack = crime;
             d.WanderRadius = (float)wander;
+            string nameList;
+            if ((problem = FieldReader.Text(o, "nameList", "", out nameList)) != null)
+                return Problem(r, file, "nameList", problem);
+
             d.Race = race;
+            d.NameList = NameListParser.Normalize(nameList);
             return true;
         }
 

@@ -13,7 +13,8 @@ namespace AdvancedNPCs.Core
     /// <summary>Makes a person's name for a race and gender; the same seed must give the same name.</summary>
     public interface INameSource
     {
-        string Generate(string race, string gender, uint seed);
+        /// <param name="listName">A _Namelists name or default_&lt;race&gt; (normalized).</param>
+        string Generate(string listName, string race, string gender, uint seed);
     }
 
     /// <summary>Decides which generic people a town gets (spec §7.4). Pure and deterministic.</summary>
@@ -109,7 +110,8 @@ namespace AdvancedNPCs.Core
                 return rng.Pick(t.Names);
             if (!string.IsNullOrEmpty(t.Name))
                 return t.Name;
-            return names.Generate(i.Race, i.Gender, rng.NextUInt());
+            string listName = string.IsNullOrEmpty(t.NameList) ? "default_" + i.Race.ToLowerInvariant() : t.NameList;
+            return names.Generate(listName, i.Race, i.Gender, rng.NextUInt());
         }
 
         /// <summary>A cell not used yet if one turns up within a few tries; -1 when the town has no cells.</summary>

@@ -142,5 +142,14 @@ namespace AdvancedNPCs.Tests
                 "{ \"name\": \"Bram\", \"location\": { \"region\": \"R\", \"place\": \"P\" }, \"position\": [0,0,0] }");
             Assert.AreEqual("bram/npc.json: location: belongs to unique ANPCs — add \"kind\": \"unique\"", r.Error);
         }
+
+        [Test]
+        public void NameList_IsReadAndNormalized()
+        {
+            ParseResult r = DefinitionParser.ParseFolder("commoner", "{ \"nameList\": \" Pirates.json \" }");
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.AreEqual("pirates", r.Definition.NameList);
+            Assert.AreEqual(0, r.Warnings.Count);
+        }
     }
 }
