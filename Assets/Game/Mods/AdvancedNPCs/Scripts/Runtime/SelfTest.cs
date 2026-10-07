@@ -385,6 +385,27 @@ namespace AdvancedNPCs
                     walking = sprite.CurrentAnimation;
             }
             Check("sprite walks while moving", walking == "walk", "animation while moving=" + walking);
+
+            // Death (spec 1b §6.4): the death sheet plays, the body stays, the loot pile's own picture is hidden.
+            int corpsesBefore = NpcCorpseSprite.All.Count;
+            PlayerHit(sprited, playerBehaviour, 100000);
+            yield return new WaitForSeconds(1.5f);
+            NpcCorpseSprite body = NpcCorpseSprite.All.Count > corpsesBefore ? NpcCorpseSprite.All[NpcCorpseSprite.All.Count - 1] : null;
+            Check("death leaves a sprite corpse and hides the loot picture",
+                body != null && body.Finished && body.HidLoot && !body.ShowingStatic,
+                body == null ? "no corpse sprite" : "finished=" + body.Finished + ", hid loot=" + body.HidLoot + ", static=" + body.ShowingStatic);
+
+            mod.Sprites.Add("selftest_sprite_static", TestSpriteSet(true));
+            NpcBrain staticDeath = Make("selftest_sprite_static", Bravery.Normal, location, playerTransform, -2f);
+            yield return Settle;
+            corpsesBefore = NpcCorpseSprite.All.Count;
+            PlayerHit(staticDeath, playerBehaviour, 100000);
+            yield return new WaitForSeconds(1.5f);
+            NpcCorpseSprite staticBody = NpcCorpseSprite.All.Count > corpsesBefore ? NpcCorpseSprite.All[NpcCorpseSprite.All.Count - 1] : null;
+            Check("death_static is used as the corpse", staticBody != null && staticBody.ShowingStatic,
+                staticBody == null ? "no corpse sprite" : "static=" + staticBody.ShowingStatic);
+            mod.Sprites.Remove("selftest_sprite");
+            mod.Sprites.Remove("selftest_sprite_static");
             mod.Portraits.Remove("selftest_face_1");
             mod.Portraits.Remove("selftest_face_2");
             mod.Portraits.Remove("selftest_face_3");

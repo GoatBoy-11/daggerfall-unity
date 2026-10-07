@@ -80,6 +80,32 @@ namespace AdvancedNPCs
             get { return vanilla == null || vanilla.forceRenderingOff; }
         }
 
+        /// <summary>The material the quad uses (copied for the corpse).</summary>
+        public Material MaterialTemplate
+        {
+            get { return material; }
+        }
+
+        /// <summary>The ground point under the NPC.</summary>
+        public Vector3 Feet
+        {
+            get
+            {
+                Vector3 feet = transform.position;
+                if (controller != null)
+                    feet.y = controller.bounds.min.y;
+                return feet;
+            }
+        }
+
+        /// <summary>Stops drawing (the corpse sprite takes over).</summary>
+        public void Hide()
+        {
+            if (quadRenderer != null)
+                quadRenderer.enabled = false;
+            set = null;
+        }
+
         /// <summary>The vanilla class sprite's height: the default world height of a custom sprite (spec 1b §5.2).</summary>
         public static float DefaultHeight(GameObject npc)
         {

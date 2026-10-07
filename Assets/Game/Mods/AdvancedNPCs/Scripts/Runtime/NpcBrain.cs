@@ -437,6 +437,11 @@ namespace AdvancedNPCs
             state.dead = true;
             state.hostile = false;
 
+            // Custom sprites: the death sheet plays and the body stays as the corpse (spec 1b §6.4).
+            NpcSprite sprite = GetComponent<NpcSprite>();
+            if (sprite != null && sprite.Set != null && NpcCorpseSprite.Spawn(sprite, entityBehaviour) != null)
+                sprite.Hide();
+
             // DFU tells the victim who hit it only after OnDeath; decide the killer once that has happened.
             AdvancedNpcsMod.Instance.StartCoroutine(ResolveKiller(def, key, motor, wasHostile, fightingCreature));
         }
