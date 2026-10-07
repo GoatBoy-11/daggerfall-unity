@@ -59,6 +59,7 @@ namespace AdvancedNPCs
             Portraits = PortraitLibrary.Load(AnpcFiles.PortraitsFolder);
             Portraits.WarnMissing(Catalog.ReferencedPortraits());
             Names = NameLists.Load(Path.Combine(AnpcFiles.Root, NameLists.FolderName));
+            Names.WarnMissing(Catalog.Generics);
             List<NpcDefinition> all = new List<NpcDefinition>(Catalog.ById.Values);
             all.AddRange(Catalog.Generics);
             Sprites = SpriteLibrary.Load(AnpcFiles.Root, all);

@@ -38,7 +38,7 @@ namespace AdvancedNPCs
             PortraitLibrary library = new PortraitLibrary();
             if (!Directory.Exists(folder))
                 return library;
-            foreach (string path in Directory.GetFiles(folder, "*.png"))
+            foreach (string path in AnpcFiles.FilesWithExtension(folder, ".png"))
             {
                 string file = AnpcFiles.PortraitsName + "/" + Path.GetFileName(path);
                 try

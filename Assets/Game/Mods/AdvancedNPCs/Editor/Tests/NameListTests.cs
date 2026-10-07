@@ -52,6 +52,13 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void NullSets_IsRejected()
+        {
+            NameListResult r = NameListParser.Parse("x", "{ \"style\": \"nord\", \"sets\": null }");
+            Assert.AreEqual("_Namelists/x.json: sets: must be a list of objects", r.Error);
+        }
+
+        [Test]
         public void EmptySet_IsRejected()
         {
             NameListResult r = NameListParser.Parse("x",

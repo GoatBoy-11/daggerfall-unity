@@ -27,6 +27,18 @@ namespace AdvancedNPCs
             get { return Path.Combine(Root, PortraitsName); }
         }
 
+        /// <summary>Files of a folder with an extension (".png"), in any case: "*.png" misses ".PNG" on Linux.</summary>
+        public static string[] FilesWithExtension(string folder, string extension)
+        {
+            List<string> found = new List<string>();
+            foreach (string path in Directory.GetFiles(folder))
+            {
+                if (string.Equals(Path.GetExtension(path), extension, StringComparison.OrdinalIgnoreCase))
+                    found.Add(path);
+            }
+            return found.ToArray();
+        }
+
         public static string NpcJsonPath(string folder)
         {
             return Path.Combine(Path.Combine(Root, folder), NpcFile);
@@ -60,7 +72,7 @@ namespace AdvancedNPCs
             string legacy = Path.Combine(Application.streamingAssetsPath, LegacyName);
             if (!Directory.Exists(legacy))
                 return;
-            string[] files = Directory.GetFiles(legacy, "*.json");
+            string[] files = FilesWithExtension(legacy, ".json");
             if (files.Length == 0)
                 return;
             Array.Sort(files, StringComparer.OrdinalIgnoreCase);

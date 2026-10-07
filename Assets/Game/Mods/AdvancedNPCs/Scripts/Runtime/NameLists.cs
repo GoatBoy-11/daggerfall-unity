@@ -45,6 +45,18 @@ namespace AdvancedNPCs
             return NameGenerator.Generate(list, gender, new SeededRandom(seed), NordSuffix());
         }
 
+        /// <summary>Warns at start about a template's nameList that names no list (instead of at its first use).</summary>
+        public void WarnMissing(IEnumerable<NpcDefinition> templates)
+        {
+            foreach (NpcDefinition t in templates)
+            {
+                if (string.IsNullOrEmpty(t.NameList) || lists.ContainsKey(t.NameList) || !warned.Add(t.NameList))
+                    continue;
+                AdvancedNpcsMod.Log(t.SourceFile + ": nameList \"" + t.NameList + "\": no such list in " + FolderName +
+                    " or default_<race>; the person's race list is used.");
+            }
+        }
+
         NameList Find(string listName, string race)
         {
             NameList list;
@@ -119,7 +131,7 @@ namespace AdvancedNPCs
             if (!Directory.Exists(folder))
                 return;
             int count = 0;
-            foreach (string path in Directory.GetFiles(folder, "*.json"))
+            foreach (string path in AnpcFiles.FilesWithExtension(folder, ".json"))
             {
                 string name = NameListParser.Normalize(Path.GetFileName(path));
                 if (name.StartsWith(DefaultPrefix, StringComparison.Ordinal))

@@ -111,6 +111,8 @@ namespace AdvancedNPCs.Core
             List<Dictionary<string, object>> sets;
             if ((problem = FieldReader.Objects(o, "sets", out sets)) != null)
                 return file + ": sets: " + problem;
+            if (sets == null)
+                return file + ": sets: must be a list of objects";
             for (int i = 0; i < sets.Count; i++)
             {
                 object raw;
