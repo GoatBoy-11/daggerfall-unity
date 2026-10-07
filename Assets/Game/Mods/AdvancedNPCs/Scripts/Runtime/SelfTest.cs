@@ -354,6 +354,84 @@ namespace AdvancedNPCs
             DiscardAll(soloPeople);
             mod.Portraits.Remove("selftest_solo");
 
+            // Enemy ANPCs (enemies spec): "attitude": "hostile" fights the player on sight; fighting or killing it is no crime.
+            NpcDefinition enemyDef = TestDefinition("selftest_enemy", Bravery.Brave, location, playerTransform, 3f);
+            enemyDef.Hostile = true;
+            NpcBrain enemy = SpawnDefinition(enemyDef, location);
+            yield return Settle;
+            DaggerfallEntity enemyEntity = enemy.EntityBehaviour.Entity;
+            MobileTeams ownTeam = ((EnemyEntity)enemyEntity).MobileEnemy.Team;
+            Check("a hostile ANPC is an enemy fighting the player, on its own team",
+                enemy.IsEnemy && enemy.CurrentMode == NpcMode.Fighting && enemy.Motor.IsHostile && enemy.State.hostile && enemyEntity.Team == ownTeam,
+                Describe(enemy) + ", enemy=" + enemy.IsEnemy + ", team=" + enemyEntity.Team + " (own " + ownTeam + ")");
+            int enemyAssaults = Count(PlayerEntity.Crimes.Assault);
+            int enemyMurders = Count(PlayerEntity.Crimes.Murder);
+            PlayerHit(enemy, playerBehaviour, 1);
+            yield return Settle;
+            Check("hitting an enemy is no crime", Count(PlayerEntity.Crimes.Assault) == enemyAssaults, CrimeList());
+            PlayerHit(enemy, playerBehaviour, 100000);
+            yield return new WaitForSeconds(0.5f);
+            Check("killing an enemy is no murder", enemy.State.dead && Count(PlayerEntity.Crimes.Murder) == enemyMurders,
+                "dead=" + enemy.State.dead + "; " + CrimeList());
+
+            NpcDefinition orcDef = TestDefinition("selftest_orc", Bravery.Brave, location, playerTransform, -3f);
+            orcDef.Hostile = true;
+            orcDef.BaseClass = "Orc";
+            orcDef.IsCreature = true;
+            NpcBrain orc = SpawnDefinition(orcDef, location);
+            yield return Settle;
+            MobileUnit orcUnit = orc != null ? orc.GetComponent<DaggerfallEnemy>().MobileUnit : null;
+            Check("a creature-based enemy (Orc) spawns and fights",
+                orc != null && orc.IsEnemy && orc.CurrentMode == NpcMode.Fighting && orcUnit != null && orcUnit.Enemy.ID == (int)MobileTypes.Orc,
+                orc == null ? "not spawned" : Describe(orc) + ", enemy id=" + (orcUnit != null ? orcUnit.Enemy.ID : -1));
+            NpcBrain.Discard(orc);
+
+            // On the go: anpc_hostile / SetHostile turns a calm ANPC into an enemy and back; the switch is saved.
+            NpcBrain townie = Make("selftest_townie", Bravery.Brave, location, playerTransform, 3f);
+            yield return Settle;
+            int townieAssaults = Count(PlayerEntity.Crimes.Assault);
+            bool switchedOn = mod.SetHostile(townie.Id, true);
+            yield return Settle;
+            bool townieEnemy = townie.IsEnemy && townie.CurrentMode == NpcMode.Fighting && townie.Motor.IsHostile;
+            PlayerHit(townie, playerBehaviour, 1);
+            yield return Settle;
+            bool townieNoCrime = Count(PlayerEntity.Crimes.Assault) == townieAssaults;
+            NpcSaveData switchSave = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, delegate { }).GetSaveData();
+            NpcSaveData switchBack = SaveLoadManager.Deserialize(typeof(NpcSaveData), SaveLoadManager.Serialize(typeof(NpcSaveData), switchSave)) as NpcSaveData;
+            NpcState switchState;
+            bool switchSaved = switchBack != null && switchBack.States.TryGetValue(townie.Id, out switchState) && switchState.enemyOn;
+            bool switchedOff = mod.SetHostile(townie.Id, false);
+            yield return Settle;
+            Check("anpc_hostile turns a calm ANPC into an enemy and back, and the switch is saved",
+                switchedOn && townieEnemy && townieNoCrime && switchSaved && switchedOff && !townie.IsEnemy &&
+                townie.CurrentMode == NpcMode.Calm && !townie.State.hostile && !mod.SetHostile("no_such_anpc", true),
+                "on=" + switchedOn + ", enemy=" + townieEnemy + ", no crime=" + townieNoCrime + ", saved=" + switchSaved + ", off=" + switchedOff +
+                ", now " + Describe(townie));
+            NpcBrain.Discard(townie);
+
+            // hostileHours: calm outside the hours, an enemy inside them, calm again after (when not provoked).
+            int hourNow = DaggerfallUnity.Instance.WorldTime.Now.Hour;
+            NpcDefinition nightlyDef = TestDefinition("selftest_nightly", Bravery.Brave, location, playerTransform, -3f);
+            nightlyDef.Hostile = true;
+            nightlyDef.HostileFrom = (hourNow + 1) % 24;
+            nightlyDef.HostileTo = (hourNow + 2) % 24;
+            NpcBrain nightly = SpawnDefinition(nightlyDef, location);
+            yield return Settle;
+            bool calmOutside = !nightly.IsEnemy && nightly.CurrentMode == NpcMode.Calm;
+            nightlyDef.HostileFrom = hourNow;
+            nightlyDef.HostileTo = (hourNow + 1) % 24;
+            nightly.RefreshEnemy();
+            yield return Settle;
+            bool enemyInside = nightly.IsEnemy && nightly.CurrentMode == NpcMode.Fighting;
+            nightlyDef.HostileFrom = (hourNow + 1) % 24;
+            nightlyDef.HostileTo = (hourNow + 2) % 24;
+            nightly.RefreshEnemy();
+            yield return Settle;
+            bool calmAfter = !nightly.IsEnemy && nightly.CurrentMode == NpcMode.Calm && !nightly.State.hostile;
+            Check("hostileHours: calm outside the hours, an enemy inside, calm again after",
+                calmOutside && enemyInside && calmAfter, "outside=" + calmOutside + ", inside=" + enemyInside + ", after=" + calmAfter);
+            NpcBrain.Discard(nightly);
+
             // anpc_spawn: new people from a generic template in front of the player, kept in the save game.
             List<NpcDefinition> spawnTemplates = new List<NpcDefinition>();
             spawnTemplates.Add(GenericTemplate(location, 1));
@@ -542,7 +620,7 @@ namespace AdvancedNPCs
             int landedBefore = swing != null ? swing.BlowsLanded : 0;
             float swingStart = -1f;
             float landedAt = -1f;
-            float giveUp = Time.time + 8f;
+            float giveUp = Time.time + 15f;   // DFU rolls when to swing; usually a few seconds
             while (Time.time < giveUp && (swingStart < 0 || Time.time - swingStart < 1.2f))
             {
                 yield return null;
@@ -554,12 +632,13 @@ namespace AdvancedNPCs
             Check("attack lands on its action frame, not DFU's",
                 swing != null && swingStart >= 0 && swing.BlowsLanded >= landedBefore + 1 && swing.BlowsDelivered >= 1 && swing.VanillaBlowsHeld >= 1 &&
                 landedAt >= 0.55f && landedAt < 0.85f,
-                swing == null ? "no NpcSprite" : "attacked=" + (swingStart >= 0) + ", landed " + (swing.BlowsLanded - landedBefore) + " after " + landedAt +
+                swing == null ? "no NpcSprite" : Describe(swinger) + ", target=" + (swinger.GetComponent<EnemySenses>().Target != null ? swinger.GetComponent<EnemySenses>().Target.name : "none") +
+                ", distance=" + Vector3.Distance(swinger.transform.position, playerTransform.position) + ", attacked=" + (swingStart >= 0) + ", landed " + (swing.BlowsLanded - landedBefore) + " after " + landedAt +
                 " s, delivered=" + swing.BlowsDelivered + ", DFU's own blows held back=" + swing.VanillaBlowsHeld);
 
             // A hit during a swing does not stop it (no stun-lock, as in vanilla): the blow lands on its action frame and the
             // hit sheet plays right after the attack sheet.
-            giveUp = Time.time + 8f;
+            giveUp = Time.time + 15f;
             while (Time.time < giveUp && swingUnit.EnemyState == MobileStates.PrimaryAttack)
                 yield return null;
             while (Time.time < giveUp && swingUnit.EnemyState != MobileStates.PrimaryAttack)
@@ -638,6 +717,12 @@ namespace AdvancedNPCs
 
         NpcBrain Make(string id, Bravery bravery, DaggerfallLocation location, Transform player, float side)
         {
+            return SpawnDefinition(TestDefinition(id, bravery, location, player, side), location);
+        }
+
+        /// <summary>A unique test definition beside the player; its id is cleaned up at the end of the run.</summary>
+        NpcDefinition TestDefinition(string id, Bravery bravery, DaggerfallLocation location, Transform player, float side)
+        {
             mod.States.Remove(id);
             ids.Add(id);
             Vector3 world = player.position + player.forward * 4f + player.right * side;
@@ -661,6 +746,11 @@ namespace AdvancedNPCs
             d.WanderRadius = 0f;
             d.Folder = id;
             d.SourceFile = "(selftest)";
+            return d;
+        }
+
+        NpcBrain SpawnDefinition(NpcDefinition d, DaggerfallLocation location)
+        {
             return spawner.SpawnTest(NpcInstance.ForUnique(d, "Breton"), location.transform);
         }
 

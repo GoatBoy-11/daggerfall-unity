@@ -17,6 +17,11 @@ namespace AdvancedNPCs.Core
         /// <summary>Portrait file shown at the first talk; kept for the rest of the game (null: not locked yet).</summary>
         public string portrait;
 
+        /// <summary>Switched to an enemy with anpc_hostile / SetHostile (overrides the definition).</summary>
+        public bool enemyOn;
+        /// <summary>Switched calm with anpc_hostile / SetHostile (overrides a hostile definition).</summary>
+        public bool enemyOff;
+
         public NpcState Clone()
         {
             NpcState c = new NpcState();
@@ -25,13 +30,15 @@ namespace AdvancedNPCs.Core
             c.hostileUntil = hostileUntil;
             c.healthFraction = healthFraction;
             c.portrait = portrait;
+            c.enemyOn = enemyOn;
+            c.enemyOff = enemyOff;
             return c;
         }
 
         /// <summary>Alive, calm, full health and no locked portrait: nothing worth saving (spec §8, v2.1 §6).</summary>
         public bool IsDefault()
         {
-            return !dead && !hostile && healthFraction >= 0.999f && string.IsNullOrEmpty(portrait);
+            return !dead && !hostile && healthFraction >= 0.999f && string.IsNullOrEmpty(portrait) && !enemyOn && !enemyOff;
         }
     }
 

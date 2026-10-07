@@ -45,6 +45,13 @@ namespace AdvancedNPCs.Core
         public float CalmDownMinHours;
         public float CalmDownMaxHours;
         public bool CrimeOnAttack;
+        /// <summary>"attitude": "hostile": an enemy (attacks the player on sight, no crime to fight).</summary>
+        public bool Hostile;
+        /// <summary>"hostileHours" [from, to): hostile only in those hours; -1 = always.</summary>
+        public int HostileFrom = -1;
+        public int HostileTo = -1;
+        /// <summary>BaseClass is a DFU creature (Creatures), not a human class.</summary>
+        public bool IsCreature;
         public float WanderRadius;
         /// <summary>Folder name under ANPCs (equals Id).</summary>
         public string Folder = "";

@@ -12,6 +12,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DefinitionCatalog.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DefinitionEditor.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DefinitionParser.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/Enemies.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/FieldReader.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/GenericSpawn.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HealthRules.cs",

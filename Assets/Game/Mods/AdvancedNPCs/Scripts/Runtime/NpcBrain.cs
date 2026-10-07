@@ -22,6 +22,8 @@ namespace AdvancedNPCs
         const float SafeDistance = 30f;
         const float CreatureGiveUpDistance = 40f;
         const float CalmCheckInterval = 2f;
+        /// <summary>hostileUntil of an enemy: never calms by time (enemy rules decide).</summary>
+        const ulong EnemyMarker = (ulong)long.MaxValue;     // the save serializer stores a long
         const float WanderPauseMin = 2f;
         const float WanderPauseMax = 6f;
 
@@ -44,6 +46,8 @@ namespace AdvancedNPCs
         Vector3 homeLocal;
         Vector3 wanderTargetLocal;
         bool hasWanderTarget;
+        bool enemy;             // an enemy of the player now (enemies spec)
+        bool provoked;          // the player hit it while it was an enemy
         float wanderPause;
         float calmCheckTimer;
         System.Random rng;
@@ -83,6 +87,72 @@ namespace AdvancedNPCs
         public NpcMode CurrentMode
         {
             get { return mode; }
+        }
+
+        /// <summary>An enemy of the player now (hostile attitude in its hours, or switched on the go).</summary>
+        public bool IsEnemy
+        {
+            get { return enemy; }
+        }
+
+        /// <summary>Re-reads the enemy rules now (normally every few seconds).</summary>
+        public void RefreshEnemy()
+        {
+            if (mode == NpcMode.Dead || entityBehaviour == null)
+                return;
+            bool want = EnemyRules.IsEnemyNow(def.Hostile, def.HostileFrom, def.HostileTo,
+                DaggerfallUnity.Instance.WorldTime.Now.Hour, state.enemyOn, state.enemyOff);
+            if (want && !enemy)
+                BecomeEnemy();
+            else if (!want && enemy)
+                StopBeingEnemy();
+        }
+
+        /// <summary>Switches this ANPC into an enemy or calms it (anpc_hostile, SetHostile). Saved in its state.</summary>
+        public void SwitchHostile(bool hostile)
+        {
+            state.enemyOn = hostile;
+            state.enemyOff = !hostile;
+            RefreshEnemy();
+            if (!hostile && state.hostile && mode != NpcMode.Dead)
+                CalmNow();
+        }
+
+        void BecomeEnemy()
+        {
+            enemy = true;
+            provoked = false;
+            state.hostile = true;
+            state.hostileUntil = EnemyMarker;
+            threat = GameManager.Instance.PlayerEntityBehaviour;
+            EnemyEntity entity = entityBehaviour.Entity as EnemyEntity;
+            if (entity != null)
+                entity.Team = entity.MobileEnemy.Team;       // its own side, like a vanilla enemy
+            motor.IsHostile = true;
+            AdvancedNpcsMod.Log(key + ": is an enemy now.");
+            EnterCombat();
+        }
+
+        void StopBeingEnemy()
+        {
+            enemy = false;
+            entityBehaviour.Entity.Team = MobileTeams.CityWatch;
+            if (provoked && !state.enemyOff)
+            {
+                // The player fought it: it calms down like provoked townsfolk.
+                state.hostileUntil = HostilityRules.NewCalmDeadline(Now(), def.CalmDownMinHours, def.CalmDownMaxHours, rng);
+                AdvancedNpcsMod.Log(key + ": no longer an enemy, still angry.");
+                return;
+            }
+            AdvancedNpcsMod.Log(key + ": no longer an enemy.");
+            CalmNow();
+        }
+
+        void CalmNow()
+        {
+            state.hostile = false;
+            motor.IsHostile = false;
+            SetMode(NpcMode.Calm);
         }
 
         public NpcState State
@@ -129,7 +199,7 @@ namespace AdvancedNPCs
             {
                 string text = mode.ToString();
                 if (state != null && state.hostile)
-                    text += ", hostile to player";
+                    text += enemy ? ", enemy" : ", hostile to player";
                 if (entityBehaviour != null && entityBehaviour.Entity != null)
                     text += ", health " + entityBehaviour.Entity.CurrentHealth + "/" + entityBehaviour.Entity.MaxHealth;
                 if (!gameObject.activeInHierarchy)
@@ -185,8 +255,8 @@ namespace AdvancedNPCs
             lastHealth = entityBehaviour.Entity.CurrentHealth;
             entityBehaviour.Entity.OnDeath += OnDeath;
 
-            if (state.hostile && HostilityRules.IsCalmDue(Now(), state.hostileUntil))
-                state.hostile = false;
+            if (state.hostile && (HostilityRules.IsCalmDue(Now(), state.hostileUntil) || state.hostileUntil == EnemyMarker))
+                state.hostile = false;      // an enemy's hostility is decided again by the enemy rules below
 
             if (state.hostile)
             {
@@ -197,6 +267,7 @@ namespace AdvancedNPCs
             {
                 SetMode(NpcMode.Calm);
             }
+            RefreshEnemy();
         }
 
         void OnDestroy()
@@ -236,6 +307,10 @@ namespace AdvancedNPCs
                 motor.IsHostile = false;
                 if (senses.Target == player)
                     senses.Target = null;
+            }
+            else if (healthDropped && state.hostile && threat == player && enemy)
+            {
+                provoked = true;    // fighting an enemy: no crime, no calm-down deadline
             }
             else if (healthDropped && state.hostile && threat == player)
             {
@@ -302,6 +377,7 @@ namespace AdvancedNPCs
             if (calmCheckTimer > 0f)
                 return;
             calmCheckTimer = CalmCheckInterval;
+            RefreshEnemy();
 
             if (state.hostile && HostilityRules.IsCalmDue(Now(), state.hostileUntil))
             {
@@ -431,6 +507,7 @@ namespace AdvancedNPCs
                 return;
 
             bool wasHostile = state.hostile;
+            bool wasEnemy = enemy;
             bool fightingCreature = threat != null && threat != GameManager.Instance.PlayerEntityBehaviour;
 
             mode = NpcMode.Dead;
@@ -443,16 +520,16 @@ namespace AdvancedNPCs
                 sprite.Hide();
 
             // DFU tells the victim who hit it only after OnDeath; decide the killer once that has happened.
-            AdvancedNpcsMod.Instance.StartCoroutine(ResolveKiller(def, key, motor, wasHostile, fightingCreature));
+            AdvancedNpcsMod.Instance.StartCoroutine(ResolveKiller(def, key, motor, wasHostile, fightingCreature, wasEnemy));
         }
 
-        static IEnumerator ResolveKiller(NpcDefinition def, string key, EnemyMotor motor, bool wasHostile, bool fightingCreature)
+        static IEnumerator ResolveKiller(NpcDefinition def, string key, EnemyMotor motor, bool wasHostile, bool fightingCreature, bool wasEnemy)
         {
             yield return null;
 
             bool motorHostile = motor != null && motor.IsHostile;
             bool byPlayer = HostilityRules.KilledByPlayer(wasHostile, fightingCreature, motorHostile);
-            if (byPlayer && def.CrimeOnAttack)
+            if (byPlayer && def.CrimeOnAttack && !wasEnemy)
             {
                 NpcCrime.Report(PlayerEntity.Crimes.Murder);
             }

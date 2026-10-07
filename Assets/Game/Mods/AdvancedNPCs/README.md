@@ -48,7 +48,9 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 | `position` | yes | — | from `anpc_pos` (relative to the town's origin corner) |
 | `race` | no | the region's people | `Breton`, `Redguard`, `Nord` |
 | `portrait` | no | vanilla face | portrait name, see [Portraits](#portraits) |
-| `baseClass` | no | `Spellsword` | Mage, Spellsword, Battlemage, Sorcerer, Healer, Nightblade, Bard, Burglar, Rogue, Acrobat, Thief, Assassin, Monk, Archer, Ranger, Barbarian, Warrior, Knight |
+| `baseClass` | no | `Spellsword` | Mage, Spellsword, Battlemage, Sorcerer, Healer, Nightblade, Bard, Burglar, Rogue, Acrobat, Thief, Assassin, Monk, Archer, Ranger, Barbarian, Warrior, Knight; for enemies also a creature, see [Enemies](#enemies) |
+| `attitude` | no | `calm` | `calm` (townsfolk) or `hostile` (an enemy), see [Enemies](#enemies) |
+| `hostileHours` | no | always | with `hostile`: `[from, to]` whole hours 0–23, e.g. `[20, 6]` |
 | `gender` | no | fixed random per ANPC | `Male`, `Female` |
 | `bravery` | no | `Normal` | `Coward` (always flees), `Normal` (flees at low health), `Brave` (fights to the death) |
 | `fleeHealthPercent` | no | `25` | 1–99, used by `Normal` |
@@ -111,6 +113,7 @@ folder name is the old id.
 - `anpc_summon <id or key>` — moves a spawned ANPC in front of you (testing only; not saved).
 - `anpc_spawn <template>` — makes a new person from a generic template (e.g. `anpc_spawn wench`) in front of you, rolled like the template's other people (name, portrait, sprite set). They stay at that spot in that town for the rest of this game, saved with it; their key is `<template>@<map id>+<n>`. This works in either GenericPeople mode.
 - `anpc_remove <key>` — removes a person made with `anpc_spawn` from the world and from your save.
+- `anpc_hostile <id or key> [on|off]` — turns an ANPC into an enemy or calms it (without on/off it toggles); saved with your game. See [Enemies](#enemies).
 - `anpc_selftest` — runs the behaviour checks with temporary ANPCs next to you (god mode on, crimes recorded instead of punished, game clock untouched); results on screen and in `Player.log`.
 
 ## Behaviour
@@ -118,6 +121,27 @@ folder name is the old id.
 - Calm ANPCs never stop you resting or travelling.
 - They only fight whoever attacked them; hitting one ANPC does not anger the others.
 - Killed ANPCs stay dead in that save. A new game brings them back.
+
+## Enemies
+
+`"attitude": "hostile"` (unique or generic) makes an enemy: it attacks you on sight with DFU's own enemy AI, never
+calms down, and fighting or killing it is no crime. It will not talk, and it blocks resting nearby like vanilla
+enemies. Bravery still applies (a Coward enemy runs).
+
+- `"hostileHours": [20, 6]` — an enemy only from 8 pm to 6 am (hours may wrap past midnight); calm townsfolk the
+  rest of the day. When its hours end it calms down, unless you fought it — then it stays angry like provoked
+  townsfolk until its `calmDownHours` pass.
+- Creatures: an enemy may use any DFU creature as `baseClass` — Rat, Imp, Spriggan, GiantBat, GrizzlyBear,
+  SabertoothTiger, Spider, Orc, Centaur, Werewolf, Nymph, Slaughterfish, OrcSergeant, Harpy, Wereboar,
+  SkeletalWarrior, Giant, Zombie, Ghost, Mummy, GiantScorpion, OrcShaman, Gargoyle, Wraith, OrcWarlord,
+  FrostDaedra, FireDaedra, Daedroth, Vampire, DaedraSeducer, VampireAncient, DaedraLord, Lich, AncientLich,
+  Dragonling, FireAtronach, IronAtronach, FleshAtronach, IceAtronach, Dragonling_Alternate, Dreugh, Lamia. It
+  gets that creature's stats, attacks and sounds (and its picture, unless the folder has sprites). Creatures are
+  always hostile (no `hostileHours`).
+- On the go: `anpc_hostile <id or key> on|off` turns any ANPC into an enemy or calms it (also a hostile one); the
+  switch is saved with your game. Other mods can do the same with `AdvancedNpcsMod.Instance.SetHostile(key, true)`
+  or the mod message `"SetHostile"` with data `"<key>|on"` / `"<key>|off"`.
+- Enemies spawn where any ANPC spawns: unique ones at their place, generic ones in towns, and with `anpc_spawn`.
 
 
 ## Talking and portraits

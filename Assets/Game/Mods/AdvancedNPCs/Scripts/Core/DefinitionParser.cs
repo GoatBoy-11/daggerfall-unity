@@ -27,7 +27,7 @@ namespace AdvancedNPCs.Core
         static readonly string[] SharedKeys =
         {
             "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "calmDownHours",
-            "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight",
+            "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight", "attitude", "hostileHours",
         };
         static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
         static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
@@ -337,12 +337,36 @@ namespace AdvancedNPCs.Core
         {
             string problem;
 
+            string rawAttitude;
+            if ((problem = FieldReader.Text(o, "attitude", "calm", out rawAttitude)) != null)
+                return Problem(r, file, "attitude", problem);
+            bool hostile;
+            if (string.Equals(rawAttitude.Trim(), "hostile", StringComparison.OrdinalIgnoreCase))
+                hostile = true;
+            else if (string.Equals(rawAttitude.Trim(), "calm", StringComparison.OrdinalIgnoreCase))
+                hostile = false;
+            else
+                return Problem(r, file, "attitude", "must be calm or hostile (got \"" + rawAttitude + "\")");
+
+            double[] hours;
+            if (!FieldReader.Numbers(o, "hostileHours", out hours) || (hours != null && !ValidHours(hours)))
+                return Problem(r, file, "hostileHours", "must be [from, to], whole hours 0-23");
+            if (hours != null && !hostile)
+                return Problem(r, file, "hostileHours", "only with \"attitude\": \"hostile\"");
+
             string rawClass;
             if ((problem = FieldReader.Text(o, "baseClass", "Spellsword", out rawClass)) != null)
                 return Problem(r, file, "baseClass", problem);
             string baseClass = HumanClasses.Canonical(rawClass);
-            if (baseClass == null)
+            string creature = baseClass == null ? Creatures.Canonical(rawClass) : null;
+            if (baseClass == null && creature == null)
                 return Problem(r, file, "baseClass", "unknown class \"" + rawClass + "\"");
+            if (creature != null && !hostile)
+                return Problem(r, file, "baseClass", "a creature (\"" + creature + "\") needs \"attitude\": \"hostile\"");
+            if (creature != null && hours != null)
+                return Problem(r, file, "baseClass", "a creature (\"" + creature + "\") is always hostile; remove hostileHours");
+            if (creature != null)
+                baseClass = creature;
 
             string rawGender;
             if ((problem = FieldReader.Text(o, "gender", "", out rawGender)) != null)
@@ -401,6 +425,10 @@ namespace AdvancedNPCs.Core
             }
 
             d.BaseClass = baseClass;
+            d.IsCreature = creature != null;
+            d.Hostile = hostile;
+            d.HostileFrom = hours != null ? (int)hours[0] : -1;
+            d.HostileTo = hours != null ? (int)hours[1] : -1;
             d.Gender = gender;
             d.Bravery = bravery;
             d.FleeHealthPercent = (int)flee;
@@ -420,6 +448,18 @@ namespace AdvancedNPCs.Core
             d.Race = race;
             d.NameList = NameListParser.Normalize(nameList);
             d.SpriteHeight = (float)spriteHeight;
+            return true;
+        }
+
+        static bool ValidHours(double[] hours)
+        {
+            if (hours.Length != 2)
+                return false;
+            foreach (double h in hours)
+            {
+                if (h != Math.Floor(h) || h < 0 || h > 23)
+                    return false;
+            }
             return true;
         }
 

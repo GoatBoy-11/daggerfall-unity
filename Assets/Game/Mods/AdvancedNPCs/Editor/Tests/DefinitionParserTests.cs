@@ -138,7 +138,7 @@ namespace AdvancedNPCs.Tests
 
         [TestCase("\"baseClass\": \"Spelsword\"", "f.json: baseClass: unknown class \"Spelsword\"")]
         [TestCase("\"baseClass\": \"Knight_CityWatch\"", "f.json: baseClass: unknown class \"Knight_CityWatch\"")]
-        [TestCase("\"baseClass\": \"Rat\"", "f.json: baseClass: unknown class \"Rat\"")]
+        [TestCase("\"baseClass\": \"Rat\"", "f.json: baseClass: a creature (\"Rat\") needs \"attitude\": \"hostile\"")]
         [TestCase("\"gender\": \"Other\"", "f.json: gender: must be Male or Female (got \"Other\")")]
         [TestCase("\"bravery\": \"Heroic\"", "f.json: bravery: must be Coward, Normal or Brave (got \"Heroic\")")]
         [TestCase("\"bravery\": \"1\"", "f.json: bravery: must be Coward, Normal or Brave (got \"1\")")]

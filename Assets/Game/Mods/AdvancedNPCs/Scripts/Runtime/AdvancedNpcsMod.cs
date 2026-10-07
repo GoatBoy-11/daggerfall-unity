@@ -45,6 +45,7 @@ namespace AdvancedNPCs
             GameObject go = new GameObject("AdvancedNPCs");
             Instance = go.AddComponent<AdvancedNpcsMod>();
             Instance.Config.Attach(mod);
+            mod.MessageReceiver = Instance.OnModMessage;
             mod.SaveDataInterface = new NpcSaveDataInterface(Instance.States, Instance.Placed, Instance.RaiseStateRestored);
             mod.IsReady = true;
         }
@@ -75,6 +76,9 @@ namespace AdvancedNPCs
                 "anpc_spawn <template>", SpawnCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_remove",
                 "Removes a person made with anpc_spawn (from the world and from your save).", "anpc_remove <id>", RemoveCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_hostile",
+                "Turns an ANPC into an enemy (no crime to fight) or calms it; saved with your game.",
+                "anpc_hostile <id or key> [on|off]", HostileCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_summon",
                 "Moves a spawned Advanced NPC in front of you (testing only, not saved).", "anpc_summon <id>", SummonCommand);
             spawner = new NpcSpawner(this);
@@ -391,6 +395,81 @@ namespace AdvancedNPCs
             if (brain != null)
                 NpcBrain.Discard(brain);
             return true;
+        }
+
+        /// <summary>
+        /// Turns an ANPC (by id or key) into an enemy of the player, or calms it (enemies spec §4). The switch is
+        /// saved. False if no ANPC has that id or key (spawned now, defined, placed, or remembered in the save).
+        /// </summary>
+        public bool SetHostile(string key, bool hostile)
+        {
+            if (string.IsNullOrEmpty(key))
+                return false;
+            NpcBrain brain = NpcBrain.Find(key);
+            if (brain != null)
+            {
+                brain.SwitchHostile(hostile);
+                return true;
+            }
+            if (!Catalog.ById.ContainsKey(key) && Placed.Find(key) == null && !States.Has(key))
+                return false;
+            NpcState s = States.GetOrCreate(key);
+            s.enemyOn = hostile;
+            s.enemyOff = !hostile;
+            if (!hostile)
+                s.hostile = false;
+            return true;
+        }
+
+        static string HostileCommand(params string[] args)
+        {
+            if (args == null || args.Length == 0 || args.Length > 2)
+                return "Usage: anpc_hostile <id or key> [on|off]   (ids from anpc_list; without on/off it toggles)";
+            bool hostile;
+            if (args.Length == 2)
+            {
+                if (args[1] == "on")
+                    hostile = true;
+                else if (args[1] == "off")
+                    hostile = false;
+                else
+                    return "Second word must be on or off.";
+            }
+            else
+            {
+                NpcBrain b = NpcBrain.Find(args[0]);
+                if (b == null)
+                    return "No spawned ANPC \"" + args[0] + "\" to toggle; give on or off. Try anpc_list.";
+                hostile = !b.IsEnemy;
+            }
+            if (!Instance.SetHostile(args[0], hostile))
+                return "No ANPC \"" + args[0] + "\". Try anpc_list.";
+            string message = args[0] + (hostile ? " is now an enemy." : " is calm now.") + " Saved with your game.";
+            Log(message);
+            return message;
+        }
+
+        /// <summary>
+        /// Messages from other mods: "SetHostile" with data "key|on" or "key|off"; the callback gets true when the
+        /// ANPC was found.
+        /// </summary>
+        void OnModMessage(string message, object data, DFModMessageCallback callBack)
+        {
+            if (message != "SetHostile")
+                return;
+            string text = data as string;
+            int bar = text != null ? text.LastIndexOf('|') : -1;
+            bool done = false;
+            if (bar > 0)
+            {
+                string mode = text.Substring(bar + 1).Trim();
+                if (mode == "on" || mode == "off")
+                    done = SetHostile(text.Substring(0, bar).Trim(), mode == "on");
+            }
+            if (!done)
+                Log("SetHostile message not understood or no such ANPC: \"" + text + "\" (use \"<id or key>|on\" or \"|off\").");
+            if (callBack != null)
+                callBack(message, done);
         }
 
         static string SummonCommand(params string[] args)
