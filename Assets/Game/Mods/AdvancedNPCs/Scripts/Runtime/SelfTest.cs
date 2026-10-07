@@ -440,6 +440,21 @@ namespace AdvancedNPCs
             Check("sprite uses DFU's texture filter setting", spriteTexture != null && spriteTexture.filterMode == DaggerfallUnity.Instance.MaterialReader.MainFilterMode,
                 "sprite=" + (spriteTexture != null ? spriteTexture.filterMode.ToString() : "none") + ", DFU=" + DaggerfallUnity.Instance.MaterialReader.MainFilterMode);
 
+            // Texture-replacement packs put emission maps on the vanilla billboard material; the sprite's copy must not
+            // carry them (they belong to the vanilla picture).
+            NpcBrain glowing = Make("selftest_glow", Bravery.Normal, location, playerTransform, -4f);
+            yield return Settle;
+            MeshRenderer glowVanilla = glowing.GetComponentInChildren<DaggerfallMobileUnit>().GetComponent<MeshRenderer>();
+            glowVanilla.material.SetTexture("_EmissionMap", SolidTexture(4, 4, new Color32(255, 255, 255, 255)));
+            glowVanilla.material.EnableKeyword("_EMISSION");
+            NpcSprite glowSprite = glowing.gameObject.AddComponent<NpcSprite>();
+            glowSprite.Init(TestSpriteSet(false), 1.8f);
+            Material glowMaterial = glowSprite.MaterialTemplate;
+            Check("sprite material drops the vanilla picture's emission map",
+                glowMaterial != null && glowMaterial.GetTexture("_EmissionMap") == null && !glowMaterial.IsKeywordEnabled("_EMISSION"),
+                glowMaterial == null ? "no material" : "emission map=" + glowMaterial.GetTexture("_EmissionMap") + ", keyword=" + glowMaterial.IsKeywordEnabled("_EMISSION"));
+            NpcBrain.Discard(glowing);
+
             // A floating-origin shift moves the whole town; a standing NPC must not start walking.
             yield return new WaitForSeconds(1f);
             Transform spriteTown = sprited.transform.parent;

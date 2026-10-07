@@ -150,6 +150,8 @@ namespace AdvancedNPCs
         }
 
         static Mesh billboardMesh;
+        static readonly string[] ExtraMaps = { "_EmissionMap", "_BumpMap", "_MetallicGlossMap", "_ParallaxMap" };
+        static readonly string[] ExtraMapKeywords = { "_EMISSION", "_NORMALMAP", "_METALLICGLOSSMAP", "_PARALLAXMAP" };
 
         /// <summary>
         /// A camera-facing quad (its -Z side) lit like DFU's own billboards: every normal points 45 degrees up toward the
@@ -205,6 +207,14 @@ namespace AdvancedNPCs
             quadRenderer = quad.GetComponent<MeshRenderer>();
             // A copy of the vanilla billboard material keeps DFU's shader, lighting and fog.
             material = vanilla != null && vanilla.sharedMaterial != null ? new Material(vanilla.sharedMaterial) : new Material(Shader.Find("Sprites/Default"));
+            // Texture-replacement packs add emission/normal maps of the vanilla picture to that material: not ours.
+            foreach (string map in ExtraMaps)
+            {
+                if (material.HasProperty(map))
+                    material.SetTexture(map, null);
+            }
+            foreach (string keyword in ExtraMapKeywords)
+                material.DisableKeyword(keyword);
             quadRenderer.sharedMaterial = material;
             if (vanilla != null)
             {

@@ -43,6 +43,7 @@ namespace AdvancedNPCs
         public static SpriteLibrary Load(string root, IEnumerable<NpcDefinition> defs)
         {
             SpriteLibrary library = new SpriteLibrary();
+            System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
             foreach (NpcDefinition def in defs)
             {
                 string dir = Path.Combine(root, def.Folder);
@@ -62,7 +63,7 @@ namespace AdvancedNPCs
                         library.Add(def.Folder, set);
                 }
             }
-            AdvancedNpcsMod.Log("Loaded " + library.Count + " sprite set(s).");
+            AdvancedNpcsMod.Log("Loaded " + library.Count + " sprite set(s) in " + watch.ElapsedMilliseconds + " ms.");
             return library;
         }
 
