@@ -25,6 +25,8 @@ namespace AdvancedNPCs
 
         public DefinitionCatalog Catalog { get; private set; }
         public NpcStateTable States { get; private set; }
+        /// <summary>People placed with anpc_spawn in this game (saved with it).</summary>
+        public PlacedNpcList Placed { get; private set; }
         public PortraitLibrary Portraits { get; private set; }
         public NameLists Names { get; private set; }
         public SpriteLibrary Sprites { get; private set; }
@@ -43,7 +45,7 @@ namespace AdvancedNPCs
             GameObject go = new GameObject("AdvancedNPCs");
             Instance = go.AddComponent<AdvancedNpcsMod>();
             Instance.Config.Attach(mod);
-            mod.SaveDataInterface = new NpcSaveDataInterface(Instance.States, Instance.RaiseStateRestored);
+            mod.SaveDataInterface = new NpcSaveDataInterface(Instance.States, Instance.Placed, Instance.RaiseStateRestored);
             mod.IsReady = true;
         }
 
@@ -51,6 +53,7 @@ namespace AdvancedNPCs
         {
             Config = new ModConfig();
             States = new NpcStateTable();
+            Placed = new PlacedNpcList();
             AnpcFiles.MigrateLegacy();
             Catalog = LoadCatalog();
             Portraits = PortraitLibrary.Load(AnpcFiles.PortraitsFolder);
@@ -66,6 +69,11 @@ namespace AdvancedNPCs
                 "Lists spawned Advanced NPCs with distance, direction and state.", "anpc_list", ListCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_place",
                 "Saves your current spot as an NPC's home (rewrites its definition file) and moves it here.", "anpc_place <id>", PlaceCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_spawn",
+                "Makes a new person from a generic ANPC template in front of you; they stay in this town (saved with your game).",
+                "anpc_spawn <template>", SpawnCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_remove",
+                "Removes a person made with anpc_spawn (from the world and from your save).", "anpc_remove <id>", RemoveCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_summon",
                 "Moves a spawned Advanced NPC in front of you (testing only, not saved).", "anpc_summon <id>", SummonCommand);
             spawner = new NpcSpawner(this);
@@ -88,6 +96,7 @@ namespace AdvancedNPCs
         void OnNewGame()
         {
             States.Clear();
+            Placed.Clear();
             RaiseStateRestored();
         }
 
@@ -290,6 +299,86 @@ namespace AdvancedNPCs
             return gm != null && gm.StateManager.CurrentState == StateManager.StateTypes.Game &&
                    !SaveLoadManager.Instance.LoadInProgress && !gm.PlayerEnterExit.IsPlayerInside &&
                    gm.StreamingWorld.CurrentPlayerLocationObject != null;
+        }
+
+        static string SpawnCommand(params string[] args)
+        {
+            List<string> ids = new List<string>();
+            foreach (NpcDefinition g in Instance.Catalog.Generics)
+                ids.Add(g.Id);
+            ids.Sort(StringComparer.Ordinal);
+            string known = ids.Count > 0 ? string.Join(", ", ids.ToArray()) : "none";
+            if (args == null || args.Length == 0)
+                return "Usage: anpc_spawn <template>   (generic templates: " + known + ")";
+            NpcDefinition template = Instance.Catalog.Generics.Find(delegate (NpcDefinition g) { return g.Id == args[0]; });
+            if (template == null)
+            {
+                if (Instance.Catalog.ById.ContainsKey(args[0]))
+                    return "\"" + args[0] + "\" is a unique ANPC: there is only one. Use anpc_summon or anpc_place.";
+                return "No generic template \"" + args[0] + "\" (generic templates: " + known + ").";
+            }
+            string error;
+            NpcBrain brain = Instance.SpawnInFront(template, Instance.Catalog.Generics, out error);
+            if (brain == null)
+                return error;
+            string message = brain.Id + " (" + brain.DisplayName + ") spawned; saved with your game. Undo: anpc_remove " + brain.Id;
+            Log(message);
+            return message;
+        }
+
+        /// <summary>
+        /// Adds a person from a generic template two steps in front of the player, facing them, and records it in the
+        /// save (anpc_spawn; also the self-test). Null with an error if the player is not outdoors in a town.
+        /// </summary>
+        public NpcBrain SpawnInFront(NpcDefinition template, IList<NpcDefinition> templates, out string error)
+        {
+            GameManager gm = GameManager.Instance;
+            DaggerfallLocation location = gm.StreamingWorld.CurrentPlayerLocationObject;
+            error = null;
+            if (gm.PlayerEnterExit.IsPlayerInside || location == null)
+            {
+                error = "Stand outdoors inside a town first.";
+                return null;
+            }
+            Transform player = gm.PlayerObject.transform;
+            Vector3 ahead = player.forward;
+            ahead.y = 0;
+            ahead = ahead.sqrMagnitude > 0.0001f ? ahead.normalized : Vector3.forward;
+            Vector3 local = location.transform.InverseTransformPoint(player.position + ahead * 2f);
+            PlacedNpc placed = Placed.Add(template.Id, location.Summary.MapID, location.Summary.RegionName, location.Summary.LocationName,
+                local.x, local.y, local.z);
+            NpcBrain brain = spawner.SpawnPlaced(location, placed, templates);
+            if (brain == null)
+            {
+                Placed.Remove(placed.Key());
+                error = "Could not spawn " + template.Id + " here (see Player.log).";
+                return null;
+            }
+            brain.transform.rotation = Quaternion.LookRotation(-ahead);
+            return brain;
+        }
+
+        static string RemoveCommand(params string[] args)
+        {
+            if (args == null || args.Length == 0)
+                return "Usage: anpc_remove <id>   (ids from anpc_list; only people made with anpc_spawn)";
+            if (!Instance.RemovePlaced(args[0]))
+                return "\"" + args[0] + "\" was not made with anpc_spawn. Try anpc_list.";
+            string message = args[0] + " removed.";
+            Log(message);
+            return message;
+        }
+
+        /// <summary>Forgets a person made with anpc_spawn and takes it out of the world. False if the key is not one.</summary>
+        public bool RemovePlaced(string key)
+        {
+            if (!Placed.Remove(key))
+                return false;
+            States.Remove(key);
+            NpcBrain brain = NpcBrain.Find(key);
+            if (brain != null)
+                NpcBrain.Discard(brain);
+            return true;
         }
 
         static string SummonCommand(params string[] args)

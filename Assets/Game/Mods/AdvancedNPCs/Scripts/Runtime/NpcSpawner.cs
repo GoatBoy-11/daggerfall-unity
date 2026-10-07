@@ -88,6 +88,41 @@ namespace AdvancedNPCs
                 NpcInstance instance = NpcInstance.ForUnique(def, defaultRace);
                 SpawnChecked(instance, owner.States.GetOrCreate(instance.Key), location);
             }
+            SpawnPlaced(location, owner.Catalog.Generics);
+        }
+
+        readonly HashSet<string> missingTemplates = new HashSet<string>();
+
+        /// <summary>Spawns the town's people placed with anpc_spawn (their spots are fixed, like unique ANPCs).</summary>
+        public List<NpcBrain> SpawnPlaced(DaggerfallLocation location, IList<NpcDefinition> templates)
+        {
+            List<NpcBrain> spawned = new List<NpcBrain>();
+            foreach (PlacedNpc placed in owner.Placed.ForTown(location.Summary.MapID))
+            {
+                NpcBrain brain = SpawnPlaced(location, placed, templates);
+                if (brain != null)
+                    spawned.Add(brain);
+            }
+            return spawned;
+        }
+
+        /// <summary>One placed person, or null if dead, already here, or its template is gone (logged once).</summary>
+        public NpcBrain SpawnPlaced(DaggerfallLocation location, PlacedNpc placed, IList<NpcDefinition> templates)
+        {
+            NpcDefinition template = null;
+            foreach (NpcDefinition t in templates)
+            {
+                if (t.Id == placed.template)
+                    template = t;
+            }
+            if (template == null)
+            {
+                if (missingTemplates.Add(placed.template))
+                    AdvancedNpcsMod.Log(placed.Key() + ": no generic template \"" + placed.template + "\" any more; not spawned (kept in the save).");
+                return null;
+            }
+            NpcInstance instance = PopulationPlanner.ForPlaced(template, placed, DefaultRace(location), owner.Names);
+            return SpawnChecked(instance, owner.States.GetOrCreate(instance.Key), location);
         }
 
         /// <summary>Spawns an ANPC that is not in the catalog (self-test). Its state lives in the normal table.</summary>

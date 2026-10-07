@@ -78,13 +78,7 @@ namespace AdvancedNPCs.Core
                     i.Seed = same ? StableHash.Of(i.Key) : visit.NextUInt();
 
                     // Fixed order: gender, name, portrait, face, position.
-                    SeededRandom rng = new SeededRandom(i.Seed);
-                    i.Gender = NpcInstance.PickGender(t.Gender, rng);
-                    i.Race = string.IsNullOrEmpty(t.Race) ? town.DefaultRace : t.Race;
-                    i.Name = PickName(t, i, rng, names);
-                    i.PortraitName = t.Portraits.Count > 0 ? rng.Pick(t.Portraits) : null;
-                    i.FaceOutfit = rng.Next(VanillaFaces.OutfitVariants);
-                    i.FaceVariant = rng.Next(VanillaFaces.FaceVariants);
+                    SeededRandom rng = RollPerson(t, i, town.DefaultRace, names);
 
                     if (place != null && n < place.Positions.Count)
                     {
@@ -102,6 +96,38 @@ namespace AdvancedNPCs.Core
                 }
             }
             return result;
+        }
+
+        /// <summary>
+        /// A person placed with anpc_spawn: rolled from its own key like a "Same people" person, at its saved spot,
+        /// and always kept (whatever the GenericPeople setting).
+        /// </summary>
+        public static NpcInstance ForPlaced(NpcDefinition t, PlacedNpc placed, string defaultRace, INameSource names)
+        {
+            NpcInstance i = new NpcInstance();
+            i.Key = placed.Key();
+            i.Definition = t;
+            i.Persistent = true;
+            i.Seed = StableHash.Of(i.Key);
+            RollPerson(t, i, defaultRace, names);
+            i.HasFixedPosition = true;
+            i.X = placed.x;
+            i.Y = placed.y;
+            i.Z = placed.z;
+            return i;
+        }
+
+        /// <summary>Gender, race, name, portrait and face from the person's seed; returns the generator for what follows.</summary>
+        static SeededRandom RollPerson(NpcDefinition t, NpcInstance i, string defaultRace, INameSource names)
+        {
+            SeededRandom rng = new SeededRandom(i.Seed);
+            i.Gender = NpcInstance.PickGender(t.Gender, rng);
+            i.Race = string.IsNullOrEmpty(t.Race) ? defaultRace : t.Race;
+            i.Name = PickName(t, i, rng, names);
+            i.PortraitName = t.Portraits.Count > 0 ? rng.Pick(t.Portraits) : null;
+            i.FaceOutfit = rng.Next(VanillaFaces.OutfitVariants);
+            i.FaceVariant = rng.Next(VanillaFaces.FaceVariants);
+            return rng;
         }
 
         static string PickName(NpcDefinition t, NpcInstance i, SeededRandom rng, INameSource names)

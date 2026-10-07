@@ -109,6 +109,8 @@ folder name is the old id.
 - `anpc_list` — spawned ANPCs (unique and generic) with key, name, distance, direction, height and state.
 - `anpc_place <id>` — makes your current spot that unique ANPC's home: rewrites `location` and `position` in its `npc.json` (nothing else) and moves it here.
 - `anpc_summon <id or key>` — moves a spawned ANPC in front of you (testing only; not saved).
+- `anpc_spawn <template>` — makes a new person from a generic template (e.g. `anpc_spawn wench`) in front of you, rolled like the template's other people (name, portrait, sprite set). They stay at that spot in that town for the rest of this game, saved with it; their key is `<template>@<map id>+<n>`. This works in either GenericPeople mode.
+- `anpc_remove <key>` — removes a person made with `anpc_spawn` from the world and from your save.
 - `anpc_selftest` — runs the behaviour checks with temporary ANPCs next to you (god mode on, crimes recorded instead of punished, game clock untouched); results on screen and in `Player.log`.
 
 ## Behaviour

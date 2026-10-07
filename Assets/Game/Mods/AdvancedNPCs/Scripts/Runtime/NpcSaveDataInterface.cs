@@ -10,17 +10,21 @@ namespace AdvancedNPCs
     public class NpcSaveData
     {
         public Dictionary<string, NpcState> States = new Dictionary<string, NpcState>();
+        /// <summary>People placed with anpc_spawn (missing in older saves).</summary>
+        public List<PlacedNpc> Placed = new List<PlacedNpc>();
     }
 
     /// <summary>Connects the NPC state table to DFU's per-mod save data.</summary>
     public class NpcSaveDataInterface : IHasModSaveData
     {
         readonly NpcStateTable table;
+        readonly PlacedNpcList placed;
         readonly Action onRestored;
 
-        public NpcSaveDataInterface(NpcStateTable table, Action onRestored)
+        public NpcSaveDataInterface(NpcStateTable table, PlacedNpcList placed, Action onRestored)
         {
             this.table = table;
+            this.placed = placed;
             this.onRestored = onRestored;
         }
 
@@ -38,6 +42,7 @@ namespace AdvancedNPCs
         {
             NpcSaveData data = new NpcSaveData();
             data.States = table.Snapshot();
+            data.Placed = placed.Snapshot();
             return data;
         }
 
@@ -45,6 +50,7 @@ namespace AdvancedNPCs
         {
             NpcSaveData data = saveData as NpcSaveData;
             table.Restore(data != null ? data.States : null);
+            placed.Restore(data != null ? data.Placed : null);
             onRestored();
         }
     }

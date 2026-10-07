@@ -204,7 +204,7 @@ namespace AdvancedNPCs
             Check("one-hit kill of a calm NPC by a creature is not murder",
                 victim.State.dead && Count(PlayerEntity.Crimes.Murder) == murders, "dead=" + victim.State.dead + "; " + CrimeList());
 
-            NpcSaveData data = (NpcSaveData)new NpcSaveDataInterface(mod.States, delegate { }).GetSaveData();
+            NpcSaveData data = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, delegate { }).GetSaveData();
             string text = SaveLoadManager.Serialize(typeof(NpcSaveData), data);
             NpcSaveData back = SaveLoadManager.Deserialize(typeof(NpcSaveData), text) as NpcSaveData;
             Check("save data survives a serialize/deserialize round trip",
@@ -244,7 +244,7 @@ namespace AdvancedNPCs
             yield return Settle;
             DiscardAll(second);
             yield return Settle;
-            NpcSaveData saved = (NpcSaveData)new NpcSaveDataInterface(mod.States, delegate { }).GetSaveData();
+            NpcSaveData saved = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, delegate { }).GetSaveData();
             NpcState savedState;
             Check("a generic ANPC's damage is saved under its key",
                 saved.States.TryGetValue(hurtKey, out savedState) && Mathf.Abs(savedState.healthFraction - 0.5f) < 0.1f, hurtKey);
@@ -353,6 +353,49 @@ namespace AdvancedNPCs
                 "talked=" + soloTalked + ", locked=" + mod.States.GetOrCreate(soloKey).portrait);
             DiscardAll(soloPeople);
             mod.Portraits.Remove("selftest_solo");
+
+            // anpc_spawn: new people from a generic template in front of the player, kept in the save game.
+            List<NpcDefinition> spawnTemplates = new List<NpcDefinition>();
+            spawnTemplates.Add(GenericTemplate(location, 1));
+            string spawnError;
+            NpcBrain placedOne = mod.SpawnInFront(spawnTemplates[0], spawnTemplates, out spawnError);
+            NpcBrain placedTwo = mod.SpawnInFront(spawnTemplates[0], spawnTemplates, out spawnError);
+            yield return Settle;
+            Vector3 toPlaced = placedOne != null ? placedOne.transform.position - playerTransform.position : Vector3.zero;
+            toPlaced.y = 0;
+            Check("anpc_spawn puts new people in front of the player",
+                placedOne != null && placedTwo != null && placedOne.Id != placedTwo.Id && mod.Placed.Find(placedOne.Id) != null &&
+                toPlaced.magnitude > 1f && toPlaced.magnitude < 3.5f,
+                placedOne == null ? "not spawned: " + spawnError : placedOne.Id + " at " + toPlaced.magnitude + " m, second=" + (placedTwo != null ? placedTwo.Id : "none"));
+
+            string oneId = placedOne != null ? placedOne.Id : "?";
+            string twoId = placedTwo != null ? placedTwo.Id : "?";
+            string oneName = placedOne != null ? placedOne.DisplayName : null;
+            Vector3 onePlace = placedOne != null ? placedOne.transform.localPosition : Vector3.zero;
+            NpcSaveData placedSave = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, delegate { }).GetSaveData();
+            string placedText = SaveLoadManager.Serialize(typeof(NpcSaveData), placedSave);
+            NpcSaveData placedBack = SaveLoadManager.Deserialize(typeof(NpcSaveData), placedText) as NpcSaveData;
+            NpcBrain.Discard(placedOne);
+            NpcBrain.Discard(placedTwo);
+            mod.Placed.Clear();
+            mod.Placed.Restore(placedBack != null ? placedBack.Placed : null);
+            yield return Settle;
+            List<NpcBrain> placedAgain = spawner.SpawnPlaced(location, spawnTemplates);
+            yield return Settle;
+            NpcBrain oneBack = NpcBrain.Find(oneId);
+            Vector3 drift = oneBack != null ? oneBack.transform.localPosition - onePlace : Vector3.one * 99f;
+            drift.y = 0;
+            Check("anpc_spawn people come back from the save as the same person in the same place",
+                placedAgain.Count == 2 && oneBack != null && oneBack.DisplayName == oneName && drift.magnitude < 0.5f,
+                "respawned " + placedAgain.Count + ", " + oneId + " name " + oneName + " -> " + (oneBack != null ? oneBack.DisplayName : "missing") +
+                ", moved " + drift.magnitude + " m; save: " + placedText);
+
+            bool removed = mod.RemovePlaced(twoId);
+            yield return Settle;
+            Check("anpc_remove takes a spawned person out of the world and the save",
+                removed && NpcBrain.Find(twoId) == null && mod.Placed.Find(twoId) == null && !mod.RemovePlaced(twoId) && NpcBrain.Find(oneId) != null,
+                "removed=" + removed + ", still spawned=" + (NpcBrain.Find(twoId) != null) + ", still saved=" + (mod.Placed.Find(twoId) != null));
+            mod.RemovePlaced(oneId);
 
             // Custom sprites (spec 1b): a generated 3-frame set on a calm, standing NPC.
             mod.Sprites.Add("selftest_sprite", TestSpriteSet(false));
