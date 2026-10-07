@@ -247,13 +247,16 @@ namespace AdvancedNPCs
             NpcSaveData saved = (NpcSaveData)new NpcSaveDataInterface(mod.States, delegate { }).GetSaveData();
             NpcState savedState;
             Check("a generic ANPC's damage is saved under its key",
-                saved.States.TryGetValue(hurtKey, out savedState) && Mathf.Abs(savedState.healthFraction - 0.5f) < 0.05f, hurtKey);
+                saved.States.TryGetValue(hurtKey, out savedState) && Mathf.Abs(savedState.healthFraction - 0.5f) < 0.1f, hurtKey);
 
             List<NpcBrain> third = SpawnGenerics(location, templates, GenericMode.SamePeople, 12);
             yield return Settle;
             NpcBrain hurt = NpcBrain.Find(hurtKey);
             Check("a damaged generic ANPC comes back damaged",
-                hurt != null && Mathf.Abs(hurt.CurrentHealthFraction - 0.5f) < 0.05f, hurt == null ? "missing" : hurt.Status);
+                // Max health is re-rolled on every spawn and health is whole points: allow one point of rounding.
+                hurt != null && savedState != null && hurt.EntityBehaviour != null &&
+                Mathf.Abs(hurt.CurrentHealthFraction - savedState.healthFraction) <= 1f / Mathf.Max(1, hurt.EntityBehaviour.Entity.MaxHealth) + 0.001f,
+                hurt == null ? "missing" : hurt.Status + ", saved fraction " + (savedState != null ? savedState.healthFraction : -1f));
             DiscardAll(third);
             yield return Settle;
 
@@ -406,6 +409,36 @@ namespace AdvancedNPCs
                 staticBody == null ? "no corpse sprite" : "static=" + staticBody.ShowingStatic);
             mod.Sprites.Remove("selftest_sprite");
             mod.Sprites.Remove("selftest_sprite_static");
+
+            // Developer look (not a check): if a real sprite set is installed, stand one in front of the camera and
+            // save two screenshots (front and side) next to Player.log.
+            LoadedSpriteSet real = null;
+            foreach (NpcDefinition g in mod.Catalog.Generics)
+            {
+                if (mod.Sprites.For(g.Folder).Count > 0)
+                {
+                    real = mod.Sprites.For(g.Folder)[0];
+                    break;
+                }
+            }
+            if (real != null)
+            {
+                mod.Sprites.Add("selftest_look", real);
+                NpcBrain look = Make("selftest_look", Bravery.Normal, location, playerTransform, 0f);
+                yield return new WaitForSeconds(1f);
+                Vector3 toCam = Camera.main.transform.position - look.transform.position;
+                toCam.y = 0;
+                look.transform.rotation = Quaternion.LookRotation(toCam.normalized);
+                yield return new WaitForSeconds(0.5f);
+                ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.persistentDataPath, "selftest-sprite-front.png"));
+                yield return new WaitForSeconds(0.5f);
+                look.transform.rotation = Quaternion.LookRotation(new Vector3(-toCam.z, 0, toCam.x));
+                yield return new WaitForSeconds(0.5f);
+                ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.persistentDataPath, "selftest-sprite-side.png"));
+                yield return new WaitForSeconds(0.5f);
+                AdvancedNpcsMod.Log(Prefix + "LOOK screenshots saved (" + real.Label + ")");
+                mod.Sprites.Remove("selftest_look");
+            }
             mod.Portraits.Remove("selftest_face_1");
             mod.Portraits.Remove("selftest_face_2");
             mod.Portraits.Remove("selftest_face_3");

@@ -130,6 +130,27 @@ folder name is the old id.
 - The face a person shows the first time you talk to them is kept for the rest of that game, even if you add or remove files later (*Random each visit* people are re-rolled anyway). This is only saved when the pool has more than one picture.
 - Without a portrait, or if no file matches, the ANPC shows a vanilla face matching its race and gender.
 
+## Sprites
+
+An ANPC folder can have its own 8-direction sprite sheets instead of the vanilla class sprite:
+
+```
+ANPCs/wench/
+  npc.json
+  sprites/            one sprite set; several as sprites_1/, sprites_2/, … (each person gets one)
+    sprites.json
+    idle_1.png  idle_2.png  walk_1.png  hit_1.png  attack_1.png  death.png
+    death_static.png  (optional)
+```
+
+- Make them with `Tools~/render-sprites.py` from a rigged, animated `.blend`: one sheet per Action, rows = directions (front, front_right, right, back_right, back, back_left, left, front_left), columns = frames, plus `sprites.json` (scale, frame sizes, feet row, fps). Run with `test` first to check light and size:
+  `blender -b character.blend --python render-sprites.py -- <out_dir> [test] [--rig NAME] [--mesh NAME]`
+- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `hit*` (hurt), `attack*` (attacking), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing walk/hit/attack sheets use idle; a set needs at least one idle sheet.
+- Size: the standing pose is as tall as the vanilla class sprite; set `"spriteHeight"` (world units) in `npc.json` to change it. Every animation uses the same scale.
+- Death: the death sheet plays and the body stays as the corpse. `death_static.png` (one picture, always facing you) replaces the last death frame; `"deathStatic": { "groundY": n }` in `sprites.json` sets its ground row. The loot pile stays clickable. After leaving the area or reloading, DFU shows its own corpse picture again.
+- Sheets may be edited in an image editor, but must keep the size `sprites.json` describes (checked at start; wrong sizes are reported in `Player.log`). Other files in the folder (`.psd`, backups) are ignored.
+- Combat timing (when a swing hits) stays DFU's own, so custom attack frames can look slightly early or late.
+
 ## Name lists
 
 - Generic people without `name`/`names` get generated names. `"nameList"` chooses the list: a custom file in `ANPCs/_Namelists/` (without `.json`) or a vanilla one: `default_breton`, `default_redguard`, `default_nord`, `default_darkelf`, `default_highelf`, `default_woodelf`, `default_khajiit`, `default_imperial`. Without `nameList` the person's own race is used.
