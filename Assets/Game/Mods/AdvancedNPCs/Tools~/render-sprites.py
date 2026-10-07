@@ -9,6 +9,8 @@
 #   blender -b character.blend --python render-sprites.py -- <out_dir> [test] [--rig NAME] [--mesh NAME]
 #   test: renders only the first frame of idle_1 and attack_2 (or the first two Actions), to check light and size.
 #   --rig / --mesh: armature and body mesh (default: the first armature and the meshes parented to it).
+# Action frame: a pose marker named "action" on an attack* Action (Action Editor > Marker > Add Marker, with
+# "Show Pose Markers" on) writes "actionFrame" for that sheet: the frame on which the blow lands, counted from 1.
 import bpy, math, sys, os, json
 import numpy as np
 from mathutils import Vector, Matrix
@@ -136,6 +138,14 @@ for act in [a for a in bpy.data.actions if not TEST or a.name in test_names]:
     cam.location = Vector(u) * centre_up - d * 20
     set_action(act)
     fs = frames(act)[:-1]                              # the last keyframe repeats the first: not rendered
+    entry = {"cellWidth": cw, "frames": len(fs)}
+    marks = [m.frame for m in act.pose_markers if m.name.lower() == "action"]
+    if marks and act.name.lower().startswith("attack"):
+        if marks[0] in fs:
+            entry["actionFrame"] = fs.index(marks[0]) + 1
+            print("ACTION %s frame %d (keyframe %d)" % (act.name, entry["actionFrame"], marks[0]))
+        else:
+            print("WARNING %s: the action marker (keyframe %d) is not on a rendered frame; no actionFrame" % (act.name, marks[0]))
     if TEST:
         fs = fs[:1]
     sheet = np.zeros((len(DIRS) * CELL_H, len(fs) * cw, 4), dtype=np.float32)
@@ -151,7 +161,9 @@ for act in [a for a in bpy.data.actions if not TEST or a.name in test_names]:
             bpy.data.images.remove(img)
             sheet[k * CELL_H:(k + 1) * CELL_H, i * cw:(i + 1) * cw] = px[::-1]
     save_sheet(sheet[::-1].copy(), os.path.join(OUT, act.name + ".png"))
-    meta["animations"][act.name] = {"cellWidth": cw, "frames": len(fs)}
+    if TEST:
+        entry = {"cellWidth": cw, "frames": len(fs)}
+    meta["animations"][act.name] = entry
     print("SHEET %s %dx%d cells, %d frames" % (act.name, cw, CELL_H, len(fs)))
 with open(os.path.join(OUT, "sprites.json"), "w") as fh:
     json.dump(meta, fh, indent=2)

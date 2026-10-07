@@ -42,6 +42,47 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual(12, r.Set.DeathStaticGroundY);
         }
 
+        const string IdleSheet = "\"idle_1\": { \"cellWidth\": 104, \"frames\": 10 }";
+
+        static string WithAttack(string attack)
+        {
+            return With(IdleSheet, IdleSheet + ", \"attack_1\": " + attack);
+        }
+
+        [Test]
+        public void ActionFrame_IsOptional()
+        {
+            SpriteSetResult r = SpriteSetParser.Parse(Label, WithAttack("{ \"cellWidth\": 272, \"frames\": 5 }"));
+            Assert.IsNull(r.Error, r.Error);
+            Assert.AreEqual(-1, r.Set.Animations["attack_1"].ActionFrame);
+            Assert.AreEqual(-1, r.Set.Animations["death"].ActionFrame);
+        }
+
+        [Test]
+        public void ActionFrame_CountsFromOne()
+        {
+            SpriteSetResult r = SpriteSetParser.Parse(Label, WithAttack("{ \"cellWidth\": 272, \"frames\": 5, \"actionFrame\": 3 }"));
+            Assert.IsNull(r.Error, r.Error);
+            Assert.AreEqual(2, r.Set.Animations["attack_1"].ActionFrame);
+        }
+
+        [TestCase("0")]
+        [TestCase("6")]
+        [TestCase("2.5")]
+        [TestCase("\"3\"")]
+        public void ActionFrame_OutOfRange_IsRejected(string value)
+        {
+            SpriteSetResult r = SpriteSetParser.Parse(Label, WithAttack("{ \"cellWidth\": 272, \"frames\": 5, \"actionFrame\": " + value + " }"));
+            Assert.AreEqual(Label + ": animations.attack_1.actionFrame: must be a whole number from 1 to 5", r.Error);
+        }
+
+        [Test]
+        public void ActionFrame_OnlyOnAttackSheets()
+        {
+            SpriteSetResult r = SpriteSetParser.Parse(Label, With("\"cellWidth\": 344, \"frames\": 6", "\"cellWidth\": 344, \"frames\": 6, \"actionFrame\": 2"));
+            Assert.AreEqual(Label + ": animations.death.actionFrame: only attack sheets have an action frame", r.Error);
+        }
+
         [TestCase("\"pixelsPerUnit\": 64.6018", "\"pixelsPerUnit\": 0", "pixelsPerUnit: must be a number above 0")]
         [TestCase("\"cellHeight\": 256", "\"cellHeight\": -1", "cellHeight: must be a whole number above 0")]
         [TestCase("\"groundY\": 32", "\"groundY\": 300", "groundY: must be a whole number from 0 to 255")]

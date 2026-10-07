@@ -444,6 +444,55 @@ namespace AdvancedNPCs
             NpcCorpseSprite staticBody = NpcCorpseSprite.All.Count > corpsesBefore ? NpcCorpseSprite.All[NpcCorpseSprite.All.Count - 1] : null;
             Check("death_static is used as the corpse", staticBody != null && staticBody.ShowingStatic,
                 staticBody == null ? "no corpse sprite" : "static=" + staticBody.ShowingStatic);
+            // Action frame: the blow lands when the attack sheet reaches it (frame 6 of 8 at 8 fps: 0.625 s), not on DFU's own
+            // blow frame (about 0.25 s into a class enemy's swing), even after DFU's own attack animation has ended.
+            // A real fight: hit it, then wait for DFU's own attack code to swing at the player.
+            NpcBrain swinger = Make("selftest_sprite", Bravery.Brave, location, playerTransform, 2f);
+            yield return Settle;
+            NpcSprite swing = swinger.GetComponent<NpcSprite>();
+            MobileUnit swingUnit = swinger.GetComponent<DaggerfallEnemy>().MobileUnit;
+            PlayerHit(swinger, playerBehaviour, 1);
+            int landedBefore = swing != null ? swing.BlowsLanded : 0;
+            float swingStart = -1f;
+            float landedAt = -1f;
+            float giveUp = Time.time + 8f;
+            while (Time.time < giveUp && (swingStart < 0 || Time.time - swingStart < 1.2f))
+            {
+                yield return null;
+                if (swingStart < 0 && swingUnit.EnemyState == MobileStates.PrimaryAttack)
+                    swingStart = Time.time;
+                if (swingStart >= 0 && landedAt < 0 && swing != null && swing.BlowsLanded > landedBefore)
+                    landedAt = Time.time - swingStart;
+            }
+            Check("attack lands on its action frame, not DFU's",
+                swing != null && swingStart >= 0 && swing.BlowsLanded >= landedBefore + 1 && swing.BlowsDelivered >= 1 && swing.VanillaBlowsHeld >= 1 &&
+                landedAt >= 0.55f && landedAt < 0.85f,
+                swing == null ? "no NpcSprite" : "attacked=" + (swingStart >= 0) + ", landed " + (swing.BlowsLanded - landedBefore) + " after " + landedAt +
+                " s, delivered=" + swing.BlowsDelivered + ", DFU's own blows held back=" + swing.VanillaBlowsHeld);
+
+            // A hit before the action frame interrupts the swing: that attack lands no blow.
+            giveUp = Time.time + 8f;
+            while (Time.time < giveUp && swingUnit.EnemyState == MobileStates.PrimaryAttack)
+                yield return null;
+            while (Time.time < giveUp && swingUnit.EnemyState != MobileStates.PrimaryAttack)
+                yield return null;
+            bool swungAgain = swingUnit.EnemyState == MobileStates.PrimaryAttack;
+            int landedBeforeHit = swing != null ? swing.BlowsLanded : 0;
+            yield return new WaitForSeconds(0.08f);
+            bool pendingBeforeHit = swing != null && swing.BlowPending;
+            swinger.EntityBehaviour.Entity.DecreaseHealth(1);
+            yield return null;
+            yield return null;
+            bool pendingAfterHit = swing != null && swing.BlowPending;
+            giveUp = Time.time + 3f;
+            while (Time.time < giveUp && swingUnit.EnemyState == MobileStates.PrimaryAttack)
+                yield return null;
+            Check("a hit before the action frame stops the blow",
+                swing != null && swungAgain && pendingBeforeHit && !pendingAfterHit && swing.BlowsLanded == landedBeforeHit,
+                swing == null ? "no NpcSprite" : "attacked again=" + swungAgain + ", pending " + pendingBeforeHit + " -> " + pendingAfterHit +
+                ", blows landed " + (swing.BlowsLanded - landedBeforeHit));
+            NpcBrain.Discard(swinger);
+
             mod.Sprites.Remove("selftest_sprite");
             mod.Sprites.Remove("selftest_sprite_static");
 
@@ -543,7 +592,7 @@ namespace AdvancedNPCs
             return string.Join("; ", parts.ToArray());
         }
 
-        /// <summary>A tiny generated sprite set: idle and hit (3 frames), walk and death (2 frames), 16x32 cells, feet 4 px up.</summary>
+        /// <summary>A tiny generated sprite set: idle and hit (3 frames), walk and death (2 frames), attack (8 frames, blow on the 6th), 16x32 cells, feet 4 px up.</summary>
         static LoadedSpriteSet TestSpriteSet(bool withDeathStatic)
         {
             SpriteSet set = new SpriteSet();
@@ -552,14 +601,16 @@ namespace AdvancedNPCs
             set.GroundY = 4;
             set.Fps = 8;
             Dictionary<string, Texture2D> sheets = new Dictionary<string, Texture2D>();
-            string[] names = { "idle", "walk", "death", "hit" };
-            int[] frames = { 3, 2, 2, 3 };
+            string[] names = { "idle", "walk", "death", "hit", "attack" };
+            int[] frames = { 3, 2, 2, 3, 8 };
             for (int i = 0; i < names.Length; i++)
             {
                 SpriteAnimation a = new SpriteAnimation();
                 a.Name = names[i];
                 a.CellWidth = 16;
                 a.Frames = frames[i];
+                if (a.Name == "attack")
+                    a.ActionFrame = 5;
                 set.Animations[a.Name] = a;
                 sheets[a.Name] = SolidTexture(16 * frames[i], 32 * 8, new Color32((byte)(80 * i), 120, 200, 255));
             }

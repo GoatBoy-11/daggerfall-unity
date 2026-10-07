@@ -9,6 +9,8 @@ namespace AdvancedNPCs.Core
         public string Name;
         public int CellWidth;
         public int Frames;
+        /// <summary>Attack sheets: the frame (from 0) on which the blow lands; -1 keeps DFU's own timing.</summary>
+        public int ActionFrame = -1;
     }
 
     /// <summary>A sprite set's sprites.json (spec 1b §5.1), as written by the Blender render script.</summary>
@@ -128,6 +130,15 @@ namespace AdvancedNPCs.Core
                     return label + ": " + field + ".cellWidth: must be a whole number above 0";
                 if (!WholeAbove(a, "frames", 0, out anim.Frames))
                     return label + ": " + field + ".frames: must be a whole number above 0";
+                if (a.ContainsKey("actionFrame"))
+                {
+                    if (SpriteStates.StateOf(kv.Key) != SpriteStates.Attack)
+                        return label + ": " + field + ".actionFrame: only attack sheets have an action frame";
+                    double action;
+                    if (FieldReader.Number(a, "actionFrame", 0, out action) != null || action != Math.Floor(action) || action < 1 || action > anim.Frames)
+                        return label + ": " + field + ".actionFrame: must be a whole number from 1 to " + anim.Frames;
+                    anim.ActionFrame = (int)action - 1;     // written from 1, like the sheet's columns
+                }
                 s.Animations[kv.Key] = anim;
             }
             if (s.Animations.Count == 0)

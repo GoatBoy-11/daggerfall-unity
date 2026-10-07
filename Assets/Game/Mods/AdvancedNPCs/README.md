@@ -150,7 +150,10 @@ ANPCs/wench/
 - Size: the standing pose is as tall as the vanilla class sprite; set `"spriteHeight"` (world units) in `npc.json` to change it. Every animation uses the same scale.
 - Death: the death sheet plays and the body stays as the corpse. `death_static.png` (one picture, always facing you) replaces the last death frame; `"deathStatic": { "groundY": n }` in `sprites.json` sets its ground row. The loot pile stays clickable. After leaving the area or reloading, DFU shows its own corpse picture again.
 - Sheets may be edited in an image editor, but must keep the size `sprites.json` describes (checked at start; wrong sizes are reported in `Player.log`). Other files in the folder (`.psd`, backups) are ignored.
-- Combat timing (when a swing hits) stays DFU's own, so custom attack frames can look slightly early or late.
+- Every attack plays its attack sheet from the first frame to the last.
+- Action frame (optional): `"actionFrame": n` on an attack sheet in `sprites.json` makes the blow (melee damage, or the arrow for archers) land when the sheet shows frame `n`, counted from 1 like the sheet's columns:
+  `"attack_1": { "cellWidth": 272, "frames": 6, "actionFrame": 4 }`
+  Without it, DFU's own timing is kept, which can look slightly early or late. A hit before the action frame interrupts the swing (no blow). Spells keep DFU's timing. The render script writes `actionFrame` itself from a pose marker named `action` on the attack Action, so it survives re-rendering.
 
 ## Name lists
 
