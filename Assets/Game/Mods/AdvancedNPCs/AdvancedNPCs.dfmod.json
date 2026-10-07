@@ -30,6 +30,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/PositionFormat.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/SeededRandom.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/SpawnRules.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/SpriteSet.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/StableHash.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/VanillaFaces.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/AnpcFiles.cs",
