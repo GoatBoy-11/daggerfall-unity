@@ -63,10 +63,7 @@ namespace AdvancedNPCs
             corpse.facing = from.transform.forward;
             corpse.behaviour = behaviour;
 
-            corpse.quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            corpse.quad.name = "AnpcCorpseSprite";
-            Destroy(corpse.quad.GetComponent<Collider>());
-            corpse.quad.transform.SetParent(go.transform, false);
+            corpse.quad = NpcSprite.CreateQuad(go.transform, "AnpcCorpseSprite");
             corpse.material = new Material(from.MaterialTemplate);
             corpse.quad.GetComponent<MeshRenderer>().sharedMaterial = corpse.material;
             corpse.ShowDeathSheet();
@@ -99,7 +96,7 @@ namespace AdvancedNPCs
                 if (set.DeathStatic != null)
                 {
                     showingStatic = true;
-                    material.mainTexture = set.DeathStatic;
+                    material.mainTexture = NpcSprite.Filtered(set.DeathStatic);
                     material.mainTextureScale = Vector2.one;
                     material.mainTextureOffset = Vector2.zero;
                 }
@@ -114,7 +111,7 @@ namespace AdvancedNPCs
 
         void ShowDeathSheet()
         {
-            material.mainTexture = set.Sheets[anim.Name];
+            material.mainTexture = NpcSprite.Filtered(set.Sheets[anim.Name]);
             material.mainTextureScale = new Vector2(1f / anim.Frames, 1f / SpriteSetParser.Directions.Length);
         }
 

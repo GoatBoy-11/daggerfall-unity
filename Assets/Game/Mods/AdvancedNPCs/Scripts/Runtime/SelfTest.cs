@@ -389,6 +389,25 @@ namespace AdvancedNPCs
             }
             Check("sprite walks while moving", walking == "walk", "animation while moving=" + walking);
 
+            // Lit and filtered like vanilla billboards (normals 45 degrees up toward the camera, DFU's filter setting).
+            Transform quadChild = sprited.transform.Find("AnpcSprite");
+            Vector3 quadNormal = quadChild != null ? quadChild.GetComponent<MeshFilter>().sharedMesh.normals[0] : Vector3.zero;
+            Check("sprite quad is lit like vanilla billboards", Vector3.Distance(quadNormal, new Vector3(0, 1, -1).normalized) < 0.01f, "normal=" + quadNormal);
+            Texture spriteTexture = sprite != null && sprite.MaterialTemplate != null ? sprite.MaterialTemplate.mainTexture : null;
+            Check("sprite uses DFU's texture filter setting", spriteTexture != null && spriteTexture.filterMode == DaggerfallUnity.Instance.MaterialReader.MainFilterMode,
+                "sprite=" + (spriteTexture != null ? spriteTexture.filterMode.ToString() : "none") + ", DFU=" + DaggerfallUnity.Instance.MaterialReader.MainFilterMode);
+
+            // A floating-origin shift moves the whole town; a standing NPC must not start walking.
+            yield return new WaitForSeconds(1f);
+            Transform spriteTown = sprited.transform.parent;
+            spriteTown.position += new Vector3(500f, 0f, 0f);
+            yield return null;
+            yield return null;
+            string afterShift = sprite != null ? sprite.CurrentState : null;
+            spriteTown.position -= new Vector3(500f, 0f, 0f);
+            yield return new WaitForSeconds(1f);
+            Check("world shift does not make a standing sprite walk", afterShift == SpriteStates.Idle, "state after shift=" + afterShift);
+
             // Death (spec 1b §6.4): the death sheet plays, the body stays, the loot pile's own picture is hidden.
             int corpsesBefore = NpcCorpseSprite.All.Count;
             PlayerHit(sprited, playerBehaviour, 100000);

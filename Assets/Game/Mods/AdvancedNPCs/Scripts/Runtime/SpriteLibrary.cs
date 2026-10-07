@@ -215,10 +215,10 @@ namespace AdvancedNPCs
             return null;
         }
 
-        /// <summary>Point filtering, no wrapping, compressed and released from CPU memory.</summary>
+        /// <summary>DFU's filter setting, no wrapping, compressed and released from CPU memory.</summary>
         static void Finish(Texture2D texture)
         {
-            texture.filterMode = FilterMode.Point;
+            NpcSprite.Filtered(texture);
             texture.wrapMode = TextureWrapMode.Clamp;
             if (texture.width % 4 == 0 && texture.height % 4 == 0)
                 texture.Compress(true);

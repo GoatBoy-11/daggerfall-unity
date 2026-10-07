@@ -106,6 +106,40 @@ namespace AdvancedNPCs
             set = null;
         }
 
+        static Mesh billboardMesh;
+
+        /// <summary>
+        /// A camera-facing quad (its -Z side) lit like DFU's own billboards: every normal points 45 degrees up toward the
+        /// camera (DaggerfallMobileUnit uses up + forward), so sprites brighten and darken with the sun like vanilla ones.
+        /// </summary>
+        public static GameObject CreateQuad(Transform parent, string name)
+        {
+            if (billboardMesh == null)
+            {
+                billboardMesh = new Mesh();
+                billboardMesh.name = "AnpcBillboard";
+                billboardMesh.vertices = new Vector3[] { new Vector3(-0.5f, -0.5f, 0), new Vector3(0.5f, -0.5f, 0), new Vector3(-0.5f, 0.5f, 0), new Vector3(0.5f, 0.5f, 0) };
+                billboardMesh.uv = new Vector2[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1), new Vector2(1, 1) };
+                billboardMesh.triangles = new int[] { 0, 3, 1, 3, 0, 2 };
+                Vector3 n = new Vector3(0, 1, -1).normalized;
+                billboardMesh.normals = new Vector3[] { n, n, n, n };
+                billboardMesh.RecalculateBounds();
+            }
+            GameObject go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.AddComponent<MeshFilter>().sharedMesh = billboardMesh;
+            go.AddComponent<MeshRenderer>();
+            return go;
+        }
+
+        /// <summary>The texture with DFU's global filter setting (Point, Bilinear or Trilinear), as vanilla billboards use.</summary>
+        public static Texture2D Filtered(Texture2D texture)
+        {
+            if (texture != null && DaggerfallUnity.Instance != null && DaggerfallUnity.Instance.MaterialReader != null)
+                texture.filterMode = DaggerfallUnity.Instance.MaterialReader.MainFilterMode;
+            return texture;
+        }
+
         /// <summary>The vanilla class sprite's height: the default world height of a custom sprite (spec 1b §5.2).</summary>
         public static float DefaultHeight(GameObject npc)
         {
@@ -124,10 +158,7 @@ namespace AdvancedNPCs
             controller = GetComponent<CharacterController>();
             entityBehaviour = GetComponent<DaggerfallEntityBehaviour>();
 
-            quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            quad.name = "AnpcSprite";
-            Destroy(quad.GetComponent<Collider>());
-            quad.transform.SetParent(transform, false);
+            quad = CreateQuad(transform, "AnpcSprite");
             quadRenderer = quad.GetComponent<MeshRenderer>();
             // A copy of the vanilla billboard material keeps DFU's shader, lighting and fog.
             material = vanilla != null && vanilla.sharedMaterial != null ? new Material(vanilla.sharedMaterial) : new Material(Shader.Find("Sprites/Default"));
@@ -139,7 +170,7 @@ namespace AdvancedNPCs
                 // Not "enabled = false": DFU's EntityConcealmentBehaviour sets enabled every frame for invisibility.
                 vanilla.forceRenderingOff = true;
             }
-            lastPosition = transform.position;
+            lastPosition = transform.localPosition;
             SetState(SpriteStates.Idle);
             Draw();
         }
@@ -149,7 +180,8 @@ namespace AdvancedNPCs
             if (set == null)
                 return;
             float dt = Time.deltaTime;
-            Vector3 p = transform.position;
+            // Relative to the town: DFU's floating-origin shifts move the whole town, which is not walking.
+            Vector3 p = transform.localPosition;
             Vector3 moved = p - lastPosition;
             moved.y = 0;
             lastPosition = p;
@@ -197,7 +229,7 @@ namespace AdvancedNPCs
             state = wanted;
             anim = variants[Random.Range(0, variants.Count)];
             time = 0;
-            material.mainTexture = set.Sheets[anim.Name];
+            material.mainTexture = Filtered(set.Sheets[anim.Name]);
             material.mainTextureScale = new Vector2(1f / anim.Frames, 1f / SpriteSetParser.Directions.Length);
         }
 
