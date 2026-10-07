@@ -616,7 +616,12 @@ namespace AdvancedNPCs
             yield return Settle;
             NpcSprite swing = swinger.GetComponent<NpcSprite>();
             MobileUnit swingUnit = swinger.GetComponent<DaggerfallEnemy>().MobileUnit;
+            string beforeHit = Describe(swinger) + " motor=" + swinger.Motor.IsHostile + "/" + swinger.Motor.enabled;
             PlayerHit(swinger, playerBehaviour, 1);
+            string rightAfterHit = "motor=" + swinger.Motor.IsHostile + ", target=" + (swinger.GetComponent<EnemySenses>().Target != null) + ", giveUp=" + swinger.Motor.GiveUpTimer;
+            yield return null;
+            yield return null;
+            string afterHit = Describe(swinger) + " motor=" + swinger.Motor.IsHostile;
             int landedBefore = swing != null ? swing.BlowsLanded : 0;
             float swingStart = -1f;
             float landedAt = -1f;
@@ -632,7 +637,7 @@ namespace AdvancedNPCs
             Check("attack lands on its action frame, not DFU's",
                 swing != null && swingStart >= 0 && swing.BlowsLanded >= landedBefore + 1 && swing.BlowsDelivered >= 1 && swing.VanillaBlowsHeld >= 1 &&
                 landedAt >= 0.55f && landedAt < 0.85f,
-                swing == null ? "no NpcSprite" : Describe(swinger) + ", target=" + (swinger.GetComponent<EnemySenses>().Target != null ? swinger.GetComponent<EnemySenses>().Target.name : "none") +
+                swing == null ? "no NpcSprite" : "before hit [" + beforeHit + "], right after [" + rightAfterHit + "], 2 frames later [" + afterHit + "], now " + Describe(swinger) + ", target=" + (swinger.GetComponent<EnemySenses>().Target != null ? swinger.GetComponent<EnemySenses>().Target.name : "none") +
                 ", distance=" + Vector3.Distance(swinger.transform.position, playerTransform.position) + ", attacked=" + (swingStart >= 0) + ", landed " + (swing.BlowsLanded - landedBefore) + " after " + landedAt +
                 " s, delivered=" + swing.BlowsDelivered + ", DFU's own blows held back=" + swing.VanillaBlowsHeld);
 
