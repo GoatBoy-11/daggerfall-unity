@@ -16,6 +16,9 @@ namespace AdvancedNPCs.Core
         public readonly List<string> Male = new List<string>();
         public readonly List<string> Female = new List<string>();
         public readonly List<string> Surnames = new List<string>();
+        /// <summary>Simple lists: text put before the surname by gender, e.g. Orsimer "gro-" / "gra-".</summary>
+        public string MaleSurnamePrefix = "";
+        public string FemaleSurnamePrefix = "";
 
         public bool IsSimple
         {
@@ -152,6 +155,12 @@ namespace AdvancedNPCs.Core
             }
             if (list.Male.Count == 0 && list.Female.Count == 0)
                 return file + ": male: needs at least one name in male or female";
+
+            string problem;
+            if ((problem = FieldReader.Text(o, "maleSurnamePrefix", "", out list.MaleSurnamePrefix)) != null)
+                return file + ": maleSurnamePrefix: " + problem;
+            if ((problem = FieldReader.Text(o, "femaleSurnamePrefix", "", out list.FemaleSurnamePrefix)) != null)
+                return file + ": femaleSurnamePrefix: " + problem;
             return null;
         }
     }
@@ -168,7 +177,10 @@ namespace AdvancedNPCs.Core
                 List<string> firsts = female ? (list.Female.Count > 0 ? list.Female : list.Male)
                                              : (list.Male.Count > 0 ? list.Male : list.Female);
                 string first = rng.Pick(firsts);
-                return list.Surnames.Count > 0 ? first + " " + rng.Pick(list.Surnames) : first;
+                if (list.Surnames.Count == 0)
+                    return first;
+                string prefix = female ? list.FemaleSurnamePrefix : list.MaleSurnamePrefix;
+                return first + " " + prefix + rng.Pick(list.Surnames);
             }
 
             List<string[]> s = list.Sets;

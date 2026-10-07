@@ -147,5 +147,21 @@ namespace AdvancedNPCs.Tests
             NameList noSurname = Simple("{ \"female\": [\"Astrid\"] }");
             Assert.AreEqual("Astrid", NameGenerator.Generate(noSurname, "Male", new SeededRandom(1), "sen"));
         }
+
+        [Test]
+        public void Generate_SimpleWithGenderedSurnamePrefix()
+        {
+            NameList l = Simple("{ \"male\": [\"Gharol\"], \"female\": [\"Shel\"], \"surnames\": [\"Rugdush\"], " +
+                                "\"maleSurnamePrefix\": \"gro-\", \"femaleSurnamePrefix\": \"gra-\" }");
+            Assert.AreEqual("Gharol gro-Rugdush", NameGenerator.Generate(l, "Male", new SeededRandom(1), "sen"));
+            Assert.AreEqual("Shel gra-Rugdush", NameGenerator.Generate(l, "Female", new SeededRandom(1), "sen"));
+        }
+
+        [Test]
+        public void SurnamePrefix_MustBeText()
+        {
+            NameListResult r = NameListParser.Parse("x", "{ \"male\": [\"Gharol\"], \"maleSurnamePrefix\": 3 }");
+            Assert.AreEqual("_Namelists/x.json: maleSurnamePrefix: must be text", r.Error);
+        }
     }
 }

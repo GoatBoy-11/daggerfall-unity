@@ -22,5 +22,9 @@ Two formats:
      "female": ["Astrid", "Sigrid"],
      "surnames": ["Stormborn", "Ironhand"]
    }
+   Optional "maleSurnamePrefix" / "femaleSurnamePrefix" go in front of the surname by gender, e.g. Orsimer
+   "gro-" (son of) and "gra-" (daughter of): "Gharol gro-Rugdush", "Shel gra-Rugdush".
+
+Ready-made lists in this folder: orsimer.json ("nameList": "orsimer") and argonian.json ("nameList": "argonian").
 
 Names starting with default_ are reserved. Problems are reported in Player.log.
