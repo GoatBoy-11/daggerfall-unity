@@ -19,6 +19,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HumanClasses.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/Json.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/Migration.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NameList.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NavCells.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcDefinition.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcInstance.cs",
