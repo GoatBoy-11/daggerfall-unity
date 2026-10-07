@@ -10,13 +10,15 @@ and save/load.
 ```
 DaggerfallUnity_Data/StreamingAssets/ANPCs/
   _Portraits/        shared portrait PNGs
-  bram/              one folder per ANPC; the folder name is its id
+  _Namelists/        custom name lists
+  commoner/          one folder per ANPC; the folder name is its id
     npc.json
 ```
 
 - Folder names use lowercase letters, digits and `_`. Never rename a folder after release: the name keys save data.
 - Folders starting with `_` hold shared data and are not ANPCs.
 - Unknown fields in `npc.json` are reported in `Player.log` and ignored (catches typos).
+- Every ANPC is a **generic** template (people that add life to towns) unless its `npc.json` says `"kind": "unique"`.
 
 ## Making a unique ANPC
 
@@ -26,6 +28,7 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 
 ```json
 {
+  "kind": "unique",
   "name": "My NPC",
   "location": { "region": "Daggerfall", "place": "Daggerfall" },
   "position": [12.5, 1, -3.25]
@@ -39,12 +42,12 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 
 | Field | Required | Default | Allowed values |
 |---|---|---|---|
-| `kind` | no | `unique` | `unique` (one fixed person) |
+| `kind` | yes | `generic` | must be `unique` for a unique ANPC |
 | `name` | yes | — | any text |
 | `location` | yes | — | from `anpc_pos` |
 | `position` | yes | — | from `anpc_pos` (relative to the town's origin corner) |
 | `race` | no | the region's people | `Breton`, `Redguard`, `Nord` |
-| `portrait` | no | vanilla face | name of a PNG in `ANPCs/_Portraits/` without `.png` (any case) |
+| `portrait` | no | vanilla face | portrait name, see [Portraits](#portraits) |
 | `baseClass` | no | `Spellsword` | Mage, Spellsword, Battlemage, Sorcerer, Healer, Nightblade, Bard, Burglar, Rogue, Acrobat, Thief, Assassin, Monk, Archer, Ranger, Barbarian, Warrior, Knight |
 | `gender` | no | fixed random per ANPC | `Male`, `Female` |
 | `bravery` | no | `Normal` | `Coward` (always flees), `Normal` (flees at low health), `Brave` (fights to the death) |
@@ -74,7 +77,8 @@ A generic template makes several different people per town, alongside vanilla ci
 | Field | Default | Meaning |
 |---|---|---|
 | `name` / `names` | generated | every instance has `name`, or one of `names` is picked; neither: a DFU-style name for its race and gender |
-| `portrait` / `portraits` | vanilla face | one portrait, or a list to pick from |
+| `portrait` / `portraits` | vanilla face | one portrait name, or several whose pools are joined, see [Portraits](#portraits) |
+| `nameList` | `default_<race>` | name list for generated names, see [Name lists](#name-lists) |
 | `spawn.locationTypes` | `TownCity`, `TownHamlet`, `TownVillage` | location types the template appears in |
 | `spawn.places` | all matching towns | list of `{ "region", "place" }`; only those towns. Add `"positions": [[x, y, z], …]` (from `anpc_pos`) for fixed spots |
 | `spawn.count` | `[1, 3]` | instances per town, `0 <= min <= max <= 20` |
@@ -95,7 +99,7 @@ Changes apply the next time a town loads.
 ## Upgrading from 0.1
 
 On the first start, every valid `StreamingAssets/AdvancedNPCs/<name>.json` is copied to
-`StreamingAssets/ANPCs/<id>/npc.json` (without its `id` line) and the old file is renamed to
+`StreamingAssets/ANPCs/<id>/npc.json` (its `id` line becomes `"kind": "unique"`) and the old file is renamed to
 `<name>.json.migrated`. Existing folders are never overwritten. Saves keep each NPC's state because the
 folder name is the old id.
 
@@ -118,13 +122,25 @@ folder name is the old id.
 
 - Click a calm ANPC in Talk or Grab mode to open DFU's citizen talk window with its name and portrait; vanilla topics work as for any citizen.
 - Hostile or fleeing ANPCs refuse to talk. Info mode shows "You see <name>.".
-- Portraits are PNG files in `ANPCs/_Portraits/`, shared by all ANPCs; 64 × 64 pixels recommended. Without one (or if the file is missing) the ANPC shows a vanilla face matching its race and gender.
+
+## Portraits
+
+- PNG files in `ANPCs/_Portraits/`, shared by all ANPCs; 64 × 64 pixels recommended.
+- `"portrait": "bram"` uses `bram.png` and every `bram_<number>.png` (`bram_1.png`, `bram_2.png`, …) as a pool: each person gets one of them. A lone `bram_1.png` works too.
+- The face a person shows the first time you talk to them is kept for the rest of that game, even if you add or remove files later (*Random each visit* people are re-rolled anyway).
+- Without a portrait, or if no file matches, the ANPC shows a vanilla face matching its race and gender.
+
+## Name lists
+
+- Generic people without `name`/`names` get generated names. `"nameList"` chooses the list: a custom file in `ANPCs/_Namelists/` (without `.json`) or a vanilla one: `default_breton`, `default_redguard`, `default_nord`, `default_highelf`, `default_woodelf`, `default_khajiit`, `default_imperial`. Without `nameList` the person's own race is used.
+- Custom lists come in two formats, described in `Examples/ANPCs/_Namelists/README.txt`: a bank copied from DFU's `NameGen.txt` plus a `"style"`, or plain `male`/`female`/`surnames` lists.
+- A missing or broken list falls back to the race's vanilla list (one warning in `Player.log`).
 
 ## Examples
 
-`Examples/ANPCs/` holds three Daggerfall city ANPCs: Bram (Normal), Cora (Coward) and Bors (Brave). They
-stand next to each other at Daggerfall's north-west gate; use `anpc_list` or `anpc_summon` if they are not
-in view. `Examples/ANPCs/commoner` is a generic template that adds one to three cowardly commoners to every city, town and village.
+`Examples/ANPCs/` holds four generic templates for cities, towns and villages: `commoner` (one to three
+cowardly commoners per town) and `cooper` (Normal, uses portrait `bram`), `baker` (Coward) and `smith` (Brave),
+each at most once per town. Use `anpc_list` to find them.
 
 ## Building (developers)
 

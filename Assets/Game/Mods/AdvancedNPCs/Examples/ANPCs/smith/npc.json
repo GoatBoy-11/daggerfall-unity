@@ -1,0 +1,10 @@
+{
+  "spawn": {
+    "locationTypes": ["TownCity", "TownHamlet", "TownVillage"],
+    "count": [0, 1]
+  },
+  "gender": "Male",
+  "baseClass": "Spellsword",
+  "bravery": "Brave",
+  "wanderRadius": 10
+}

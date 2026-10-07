@@ -1,0 +1,11 @@
+{
+  "spawn": {
+    "locationTypes": ["TownCity", "TownHamlet", "TownVillage"],
+    "count": [0, 1]
+  },
+  "portrait": "bram",
+  "gender": "Male",
+  "baseClass": "Spellsword",
+  "bravery": "Normal",
+  "wanderRadius": 10
+}
