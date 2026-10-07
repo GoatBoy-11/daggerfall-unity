@@ -30,6 +30,7 @@ namespace AdvancedNPCs
         NpcBrain brain;
         Texture2D portrait;
         string displayName;
+        string portraitFile;
 
         /// <summary>The last mid-screen text this ANPC showed (read by the self-test).</summary>
         public string LastMessage { get; private set; }
@@ -39,13 +40,19 @@ namespace AdvancedNPCs
             get { return proxy; }
         }
 
+        /// <summary>Portrait file name (in _Portraits) this person shows, or null for a vanilla face.</summary>
+        public string PortraitFile
+        {
+            get { return portraitFile; }
+        }
+
         public Texture2D Portrait
         {
             get { return portrait; }
             set { portrait = value; }
         }
 
-        public void Init(NpcInstance instance, Texture2D portraitTexture)
+        public void Init(NpcInstance instance, Texture2D portraitTexture, string portraitFileName)
         {
             GameObject proxyObject = new GameObject("TalkProxy");
             proxyObject.transform.SetParent(transform, false);
@@ -56,6 +63,7 @@ namespace AdvancedNPCs
             proxy.PersonFaceRecordId = instance.FaceRecord();
             displayName = instance.Name;
             portrait = portraitTexture;
+            portraitFile = portraitFileName;
             brain = GetComponent<NpcBrain>();
         }
 
@@ -91,6 +99,10 @@ namespace AdvancedNPCs
             TalkManager.Instance.TalkToMobileNPC(proxy);
             if (portrait != null)
                 ApplyPortrait(DaggerfallUI.Instance.TalkWindow, portrait);
+            // The face shown at the first talk is kept for the rest of the game (spec v2.1 §6.2).
+            if (portraitFile != null && brain != null && brain.Instance != null && brain.Instance.Persistent &&
+                string.IsNullOrEmpty(brain.State.portrait))
+                brain.State.portrait = portraitFile;
             return true;
         }
 

@@ -16,6 +16,23 @@ namespace AdvancedNPCs
             get { return byName.Count; }
         }
 
+        /// <summary>Loaded portrait names (normalised), for pools.</summary>
+        public ICollection<string> Names
+        {
+            get { return byName.Keys; }
+        }
+
+        /// <summary>Adds or replaces a portrait (self-test).</summary>
+        public void Add(string name, Texture2D texture)
+        {
+            byName[PortraitNames.Normalize(name)] = texture;
+        }
+
+        public void Remove(string name)
+        {
+            byName.Remove(PortraitNames.Normalize(name));
+        }
+
         public static PortraitLibrary Load(string folder)
         {
             PortraitLibrary library = new PortraitLibrary();
@@ -60,7 +77,7 @@ namespace AdvancedNPCs
         {
             foreach (string name in referenced)
             {
-                if (!byName.ContainsKey(name))
+                if (PortraitPools.Pool(byName.Keys, name).Count == 0)
                     AdvancedNpcsMod.Log(AnpcFiles.PortraitsName + "/" + name + ".png: file: portrait not found; using a vanilla face");
             }
         }

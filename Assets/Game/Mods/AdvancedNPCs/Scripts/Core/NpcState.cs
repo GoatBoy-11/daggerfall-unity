@@ -14,6 +14,9 @@ namespace AdvancedNPCs.Core
         /// <summary>Current health as a fraction of max (DFU re-rolls max health on every spawn).</summary>
         public float healthFraction = 1f;
 
+        /// <summary>Portrait file shown at the first talk; kept for the rest of the game (null: not locked yet).</summary>
+        public string portrait;
+
         public NpcState Clone()
         {
             NpcState c = new NpcState();
@@ -21,13 +24,14 @@ namespace AdvancedNPCs.Core
             c.hostile = hostile;
             c.hostileUntil = hostileUntil;
             c.healthFraction = healthFraction;
+            c.portrait = portrait;
             return c;
         }
 
-        /// <summary>Alive, calm and at full health: nothing worth saving (spec §8).</summary>
+        /// <summary>Alive, calm, full health and no locked portrait: nothing worth saving (spec §8, v2.1 §6).</summary>
         public bool IsDefault()
         {
-            return !dead && !hostile && healthFraction >= 0.999f;
+            return !dead && !hostile && healthFraction >= 0.999f && string.IsNullOrEmpty(portrait);
         }
     }
 

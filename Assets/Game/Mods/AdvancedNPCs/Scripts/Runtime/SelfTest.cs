@@ -302,6 +302,38 @@ namespace AdvancedNPCs
                 vanillaOne == null ? "missing" : vanillaOne.DisplayName);
             DiscardAll(named);
             yield return Settle;
+
+            // Portrait pools (spec v2.1 §6): the face shown at the first talk is kept, even when the pool grows.
+            mod.Portraits.Add("selftest_face_1", TestPortrait());
+            mod.Portraits.Add("selftest_face_2", TestPortrait());
+            NpcDefinition faced = GenericTemplate(location, 1);
+            faced.Id = "selftest_faces";
+            faced.Portraits.Add("selftest_face");
+            List<NpcBrain> facedFirst = SpawnGenerics(location, new List<NpcDefinition> { faced }, GenericMode.SamePeople, 12);
+            yield return Settle;
+            string facedKey = facedFirst.Count > 0 ? facedFirst[0].Id : "?";
+            NpcTalk facedTalk = facedFirst.Count > 0 ? facedFirst[0].GetComponent<NpcTalk>() : null;
+            string shown = facedTalk != null ? facedTalk.PortraitFile : null;
+            bool talked = facedTalk != null && facedTalk.TryTalk();
+            for (int wait = 0; wait < 10 && !TalkWindowOpen(); wait++)
+                yield return new WaitForSeconds(0.1f);
+            CloseTalkWindow();
+            yield return Settle;
+            string locked = mod.States.GetOrCreate(facedKey).portrait;
+            mod.Portraits.Add("selftest_face_3", TestPortrait());
+            DiscardAll(facedFirst);
+            yield return Settle;
+            List<NpcBrain> facedBack = SpawnGenerics(location, new List<NpcDefinition> { faced }, GenericMode.SamePeople, 12);
+            yield return Settle;
+            NpcBrain facedPerson = NpcBrain.Find(facedKey);
+            string shownBack = facedPerson != null ? facedPerson.GetComponent<NpcTalk>().PortraitFile : null;
+            Check("talked-to person keeps its portrait", talked && shown != null && locked == shown && shownBack == shown,
+                "shown=" + shown + ", locked=" + locked + ", after pool grew=" + shownBack);
+            DiscardAll(facedBack);
+            mod.Portraits.Remove("selftest_face_1");
+            mod.Portraits.Remove("selftest_face_2");
+            mod.Portraits.Remove("selftest_face_3");
+            yield return Settle;
         }
 
         NpcBrain Make(string id, Bravery bravery, DaggerfallLocation location, Transform player, float side)
