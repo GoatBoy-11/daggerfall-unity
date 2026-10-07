@@ -281,6 +281,15 @@ namespace AdvancedNPCs
             string portraitFile = ResolvePortrait(instance, state, pool);
             instance.PortraitName = portraitFile;
             go.AddComponent<NpcTalk>().Init(instance, owner.Portraits.Get(portraitFile), portraitFile, PortraitPools.IsLockable(pool));
+
+            // Custom sprites (spec 1b): one of the folder's sprite sets, chosen by the person's seed.
+            List<LoadedSpriteSet> spriteSets = owner.Sprites.For(def.Folder);
+            if (spriteSets.Count > 0)
+            {
+                LoadedSpriteSet spriteSet = spriteSets[SpriteStates.PickSet(spriteSets.Count, instance.Seed)];
+                float height = def.SpriteHeight > 0 ? def.SpriteHeight : NpcSprite.DefaultHeight(go);
+                go.AddComponent<NpcSprite>().Init(spriteSet, height);
+            }
             AdvancedNpcsMod.Log(instance.Key + " (" + instance.Name + "): spawned.");
             return brain;
         }

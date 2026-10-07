@@ -350,6 +350,41 @@ namespace AdvancedNPCs
                 "talked=" + soloTalked + ", locked=" + mod.States.GetOrCreate(soloKey).portrait);
             DiscardAll(soloPeople);
             mod.Portraits.Remove("selftest_solo");
+
+            // Custom sprites (spec 1b): a generated 3-frame set on a calm, standing NPC.
+            mod.Sprites.Add("selftest_sprite", TestSpriteSet(false));
+            NpcBrain sprited = Make("selftest_sprite", Bravery.Normal, location, playerTransform, 2f);
+            yield return Settle;
+            NpcSprite sprite = sprited.GetComponent<NpcSprite>();
+            Check("sprite NPC hides the vanilla billboard and shows its own",
+                sprite != null && sprite.VanillaHidden && sprite.Showing, sprite == null ? "no NpcSprite" : "vanilla hidden=" + sprite.VanillaHidden + ", showing=" + sprite.Showing);
+
+            Vector3 toCamera = Camera.main.transform.position - sprited.transform.position;
+            toCamera.y = 0;
+            toCamera.Normalize();
+            sprited.transform.rotation = Quaternion.LookRotation(toCamera);
+            yield return null;
+            yield return null;
+            int facingRow = sprite != null ? sprite.CurrentRow : -1;
+            sprited.transform.rotation = Quaternion.LookRotation(new Vector3(-toCamera.z, 0, toCamera.x));   // camera on its right
+            yield return null;
+            yield return null;
+            int rightRow = sprite != null ? sprite.CurrentRow : -1;
+            Check("sprite direction follows the camera", facingRow == 0 && rightRow == 2, "facing camera row=" + facingRow + ", camera on right row=" + rightRow);
+
+            int changes = sprite != null ? sprite.FrameChanges : 0;
+            yield return new WaitForSeconds(0.6f);
+            Check("sprite frames advance", sprite != null && sprite.FrameChanges > changes, "frame changes " + changes + " -> " + (sprite != null ? sprite.FrameChanges : 0));
+
+            string walking = null;
+            for (int step = 0; step < 20; step++)
+            {
+                sprited.transform.position += sprited.transform.forward * 0.08f;
+                yield return null;
+                if (sprite != null && sprite.CurrentState == SpriteStates.Walk)
+                    walking = sprite.CurrentAnimation;
+            }
+            Check("sprite walks while moving", walking == "walk", "animation while moving=" + walking);
             mod.Portraits.Remove("selftest_face_1");
             mod.Portraits.Remove("selftest_face_2");
             mod.Portraits.Remove("selftest_face_3");
@@ -415,6 +450,41 @@ namespace AdvancedNPCs
             }
             parts.Sort(StringComparer.Ordinal);
             return string.Join("; ", parts.ToArray());
+        }
+
+        /// <summary>A tiny generated sprite set: idle (3 frames), walk and death (2 frames), 16x32 cells, feet 4 px up.</summary>
+        static LoadedSpriteSet TestSpriteSet(bool withDeathStatic)
+        {
+            SpriteSet set = new SpriteSet();
+            set.PixelsPerUnit = 10f;
+            set.CellHeight = 32;
+            set.GroundY = 4;
+            set.Fps = 8;
+            Dictionary<string, Texture2D> sheets = new Dictionary<string, Texture2D>();
+            string[] names = { "idle", "walk", "death" };
+            int[] frames = { 3, 2, 2 };
+            for (int i = 0; i < names.Length; i++)
+            {
+                SpriteAnimation a = new SpriteAnimation();
+                a.Name = names[i];
+                a.CellWidth = 16;
+                a.Frames = frames[i];
+                set.Animations[a.Name] = a;
+                sheets[a.Name] = SolidTexture(16 * frames[i], 32 * 8, new Color32((byte)(80 * i), 120, 200, 255));
+            }
+            Texture2D deathStatic = withDeathStatic ? SolidTexture(24, 12, new Color32(160, 0, 0, 255)) : null;
+            return SpriteLibrary.FromTextures("selftest", set, sheets, deathStatic);
+        }
+
+        static Texture2D SolidTexture(int width, int height, Color32 colour)
+        {
+            Texture2D t = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            Color32[] px = new Color32[width * height];
+            for (int i = 0; i < px.Length; i++)
+                px[i] = colour;
+            t.SetPixels32(px);
+            t.Apply();
+            return t;
         }
 
         static NpcDefinition GenericTemplate(DaggerfallLocation location, int count)
