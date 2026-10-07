@@ -408,6 +408,24 @@ namespace AdvancedNPCs
             yield return new WaitForSeconds(1f);
             Check("world shift does not make a standing sprite walk", afterShift == SpriteStates.Idle, "state after shift=" + afterShift);
 
+            // Every hit plays the hit sheet from its first frame, even a second hit while the first still plays.
+            int hitsBefore = sprite != null ? sprite.HitStarts : 0;
+            PlayerHit(sprited, playerBehaviour, 1);
+            yield return null;
+            yield return null;
+            string firstHit = sprite != null ? sprite.CurrentState : null;
+            yield return new WaitForSeconds(0.2f);
+            int frameBeforeSecond = sprite != null ? sprite.CurrentFrame : -1;
+            PlayerHit(sprited, playerBehaviour, 1);
+            yield return null;
+            yield return null;      // coroutines resume before LateUpdate draws the frame
+            string secondHit = sprite != null ? sprite.CurrentState : null;
+            int frameAfterSecond = sprite != null ? sprite.CurrentFrame : -1;
+            int hitStarts = sprite != null ? sprite.HitStarts - hitsBefore : 0;
+            Check("every hit plays the hit sheet from the start",
+                firstHit == SpriteStates.Hit && secondHit == SpriteStates.Hit && hitStarts == 2 && frameAfterSecond < frameBeforeSecond,
+                "first hit=" + firstHit + ", second hit=" + secondHit + ", hit starts=" + hitStarts + ", frame " + frameBeforeSecond + " -> " + frameAfterSecond);
+
             // Death (spec 1b §6.4): the death sheet plays, the body stays, the loot pile's own picture is hidden.
             int corpsesBefore = NpcCorpseSprite.All.Count;
             PlayerHit(sprited, playerBehaviour, 100000);
@@ -525,7 +543,7 @@ namespace AdvancedNPCs
             return string.Join("; ", parts.ToArray());
         }
 
-        /// <summary>A tiny generated sprite set: idle (3 frames), walk and death (2 frames), 16x32 cells, feet 4 px up.</summary>
+        /// <summary>A tiny generated sprite set: idle and hit (3 frames), walk and death (2 frames), 16x32 cells, feet 4 px up.</summary>
         static LoadedSpriteSet TestSpriteSet(bool withDeathStatic)
         {
             SpriteSet set = new SpriteSet();
@@ -534,8 +552,8 @@ namespace AdvancedNPCs
             set.GroundY = 4;
             set.Fps = 8;
             Dictionary<string, Texture2D> sheets = new Dictionary<string, Texture2D>();
-            string[] names = { "idle", "walk", "death" };
-            int[] frames = { 3, 2, 2 };
+            string[] names = { "idle", "walk", "death", "hit" };
+            int[] frames = { 3, 2, 2, 3 };
             for (int i = 0; i < names.Length; i++)
             {
                 SpriteAnimation a = new SpriteAnimation();

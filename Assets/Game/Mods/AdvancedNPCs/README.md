@@ -146,6 +146,7 @@ ANPCs/wench/
 - Make them with `Tools~/render-sprites.py` from a rigged, animated `.blend`: one sheet per Action, rows = directions (front, front_right, right, back_right, back, back_left, left, front_left), columns = frames, plus `sprites.json` (scale, frame sizes, feet row, fps). Run with `test` first to check light and size:
   `blender -b character.blend --python render-sprites.py -- <out_dir> [test] [--rig NAME] [--mesh NAME]`
 - Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `hit*` (hurt), `attack*` (attacking), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing walk/hit/attack sheets use idle; a set needs at least one idle sheet.
+- Every hit (any health loss) plays a hit sheet from its first frame to its last, also when the person is hit again while it plays.
 - Size: the standing pose is as tall as the vanilla class sprite; set `"spriteHeight"` (world units) in `npc.json` to change it. Every animation uses the same scale.
 - Death: the death sheet plays and the body stays as the corpse. `death_static.png` (one picture, always facing you) replaces the last death frame; `"deathStatic": { "groundY": n }` in `sprites.json` sets its ground row. The loot pile stays clickable. After leaving the area or reloading, DFU shows its own corpse picture again.
 - Sheets may be edited in an image editor, but must keep the size `sprites.json` describes (checked at start; wrong sizes are reported in `Player.log`). Other files in the folder (`.psd`, backups) are ignored.

@@ -33,6 +33,9 @@ namespace AdvancedNPCs
         int frameChanges;
         Vector3 lastPosition;
         float speed;
+        int lastHealth = -1;
+        float oneShotLeft;      // seconds a hit (or attack) sheet keeps playing whatever DFU's own state says
+        int hitStarts;
 
         public LoadedSpriteSet Set
         {
@@ -68,6 +71,12 @@ namespace AdvancedNPCs
         public int FrameChanges
         {
             get { return frameChanges; }
+        }
+
+        /// <summary>How often a hit sheet has started (self-test).</summary>
+        public int HitStarts
+        {
+            get { return hitStarts; }
         }
 
         public bool Showing
@@ -188,7 +197,17 @@ namespace AdvancedNPCs
             if (dt > 0)
                 speed = Mathf.Lerp(speed, moved.magnitude / dt, 0.5f);
 
-            SetState(WantedState());
+            // DFU only shows its hurt state on a hard knockback and never restarts it, so every health drop
+            // plays a hit sheet from its first frame, to its end.
+            int health = entityBehaviour != null && entityBehaviour.Entity != null ? entityBehaviour.Entity.CurrentHealth : -1;
+            if (lastHealth >= 0 && health >= 0 && health < lastHealth && health > 0)
+                StartOneShot(SpriteStates.Hit);
+            lastHealth = health;
+
+            if (oneShotLeft > 0)
+                oneShotLeft -= dt;
+            else
+                SetState(WantedState());
             time += dt;
         }
 
@@ -217,6 +236,16 @@ namespace AdvancedNPCs
             if (s == MobileStates.PrimaryAttack || s == MobileStates.RangedAttack1 || s == MobileStates.RangedAttack2 || s == MobileStates.Spell)
                 return SpriteStates.Attack;
             return speed > WalkSpeed ? SpriteStates.Walk : SpriteStates.Idle;
+        }
+
+        /// <summary>Plays a state's sheet from its first frame and keeps it until its last frame has shown.</summary>
+        void StartOneShot(string wanted)
+        {
+            state = null;
+            SetState(wanted);
+            oneShotLeft = (float)anim.Frames / set.Set.Fps;
+            if (wanted == SpriteStates.Hit)
+                hitStarts++;
         }
 
         void SetState(string wanted)
