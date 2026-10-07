@@ -344,7 +344,17 @@ namespace AdvancedNPCs
             Vector3 ahead = player.forward;
             ahead.y = 0;
             ahead = ahead.sqrMagnitude > 0.0001f ? ahead.normalized : Vector3.forward;
-            Vector3 local = location.transform.InverseTransformPoint(player.position + ahead * 2f);
+            // Two steps ahead, or short of a wall or door in the way.
+            float distance = 2f;
+            RaycastHit wall;
+            if (Physics.Raycast(player.position, ahead, out wall, distance + 0.5f, ~0, QueryTriggerInteraction.Ignore))
+                distance = Mathf.Min(distance, wall.distance - 0.5f);
+            if (distance < 0.7f)
+            {
+                error = "No room in front of you; step back or turn around.";
+                return null;
+            }
+            Vector3 local = location.transform.InverseTransformPoint(player.position + ahead * distance);
             PlacedNpc placed = Placed.Add(template.Id, location.Summary.MapID, location.Summary.RegionName, location.Summary.LocationName,
                 local.x, local.y, local.z);
             NpcBrain brain = spawner.SpawnPlaced(location, placed, templates);
@@ -375,6 +385,7 @@ namespace AdvancedNPCs
             if (!Placed.Remove(key))
                 return false;
             States.Remove(key);
+            NpcCorpseSprite.RemoveFor(key);
             NpcBrain brain = NpcBrain.Find(key);
             if (brain != null)
                 NpcBrain.Discard(brain);

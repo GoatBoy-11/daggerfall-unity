@@ -141,11 +141,12 @@ for act in [a for a in bpy.data.actions if not TEST or a.name in test_names]:
     entry = {"cellWidth": cw, "frames": len(fs)}
     marks = [m.frame for m in act.pose_markers if m.name.lower() == "action"]
     if marks and act.name.lower().startswith("attack"):
-        if marks[0] in fs:
-            entry["actionFrame"] = fs.index(marks[0]) + 1
-            print("ACTION %s frame %d (keyframe %d)" % (act.name, entry["actionFrame"], marks[0]))
+        mark = min(marks)
+        if mark in fs:
+            entry["actionFrame"] = fs.index(mark) + 1
+            print("ACTION %s frame %d (keyframe %d)" % (act.name, entry["actionFrame"], mark))
         else:
-            print("WARNING %s: the action marker (keyframe %d) is not on a rendered frame; no actionFrame" % (act.name, marks[0]))
+            print("WARNING %s: the action marker (keyframe %d) is not on a rendered frame; no actionFrame" % (act.name, mark))
     if TEST:
         fs = fs[:1]
     sheet = np.zeros((len(DIRS) * CELL_H, len(fs) * cw, 4), dtype=np.float32)

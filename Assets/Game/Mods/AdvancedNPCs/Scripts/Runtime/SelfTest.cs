@@ -357,6 +357,7 @@ namespace AdvancedNPCs
             // anpc_spawn: new people from a generic template in front of the player, kept in the save game.
             List<NpcDefinition> spawnTemplates = new List<NpcDefinition>();
             spawnTemplates.Add(GenericTemplate(location, 1));
+            mod.Sprites.Add(spawnTemplates[0].Folder, TestSpriteSet(false));
             string spawnError;
             NpcBrain placedOne = mod.SpawnInFront(spawnTemplates[0], spawnTemplates, out spawnError);
             NpcBrain placedTwo = mod.SpawnInFront(spawnTemplates[0], spawnTemplates, out spawnError);
@@ -390,12 +391,40 @@ namespace AdvancedNPCs
                 "respawned " + placedAgain.Count + ", " + oneId + " name " + oneName + " -> " + (oneBack != null ? oneBack.DisplayName : "missing") +
                 ", moved " + drift.magnitude + " m; save: " + placedText);
 
+            // Killed in mid-air, the body lies on the ground by DFU's loot pile; anpc_remove clears body and pile too.
+            NpcBrain twoBack = NpcBrain.Find(twoId);
+            int bodiesBefore = NpcCorpseSprite.All.Count;
+            if (twoBack != null)
+            {
+                twoBack.transform.position += Vector3.up * 1.5f;
+                PlayerHit(twoBack, playerBehaviour, 100000);
+            }
+            yield return new WaitForSeconds(1.5f);
+            NpcCorpseSprite twoBody = NpcCorpseSprite.All.Count > bodiesBefore ? NpcCorpseSprite.All[NpcCorpseSprite.All.Count - 1] : null;
+            DaggerfallLoot twoLoot = twoBody != null ? twoBody.Loot : null;
+            float bodyAboveGround = 99f;
+            string groundName = "nothing";
+            RaycastHit groundHit;
+            if (twoBody != null && Physics.Raycast(twoBody.transform.position + Vector3.up * 0.5f, Vector3.down, out groundHit, 20f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                bodyAboveGround = twoBody.transform.position.y - groundHit.point.y;
+                groundName = groundHit.collider.name;
+            }
+            Check("a body killed in mid-air lies on the ground by its loot pile",
+                twoBody != null && twoLoot != null && Mathf.Abs(bodyAboveGround) < 0.3f,
+                twoBody == null ? "no corpse sprite" : "loot=" + (twoLoot != null) + ", body above ground (" + groundName + ") " + bodyAboveGround + " m, body y " + twoBody.transform.position.y +
+                (twoLoot != null ? ", loot y " + twoLoot.transform.position.y : ""));
+
             bool removed = mod.RemovePlaced(twoId);
             yield return Settle;
+            Check("anpc_remove also clears that person's body and loot pile",
+                twoBody == null && twoLoot == null,
+                "body left=" + (twoBody != null) + ", loot left=" + (twoLoot != null));
             Check("anpc_remove takes a spawned person out of the world and the save",
                 removed && NpcBrain.Find(twoId) == null && mod.Placed.Find(twoId) == null && !mod.RemovePlaced(twoId) && NpcBrain.Find(oneId) != null,
                 "removed=" + removed + ", still spawned=" + (NpcBrain.Find(twoId) != null) + ", still saved=" + (mod.Placed.Find(twoId) != null));
             mod.RemovePlaced(oneId);
+            mod.Sprites.Remove(spawnTemplates[0].Folder);
 
             // Custom sprites (spec 1b): a generated 3-frame set on a calm, standing NPC.
             mod.Sprites.Add("selftest_sprite", TestSpriteSet(false));

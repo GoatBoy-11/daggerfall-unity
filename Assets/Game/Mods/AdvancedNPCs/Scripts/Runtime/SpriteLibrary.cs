@@ -149,6 +149,12 @@ namespace AdvancedNPCs
             List<string> skipped = new List<string>();
             foreach (SpriteAnimation a in set.Animations.Values)
             {
+                if (SpriteStates.StateOf(a.Name) == null)
+                {
+                    AdvancedNpcsMod.Log(label + "/" + a.Name + ".png: not an idle*, walk*, hit*, attack* or death* sheet; not loaded");
+                    skipped.Add(a.Name);
+                    continue;
+                }
                 Texture2D texture = LoadPng(label + "/" + a.Name + ".png", Path.Combine(dir, a.Name + ".png"), true);
                 if (texture == null)
                 {

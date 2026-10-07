@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using DaggerfallWorkshop;
+using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
 using AdvancedNPCs.Core;
 
@@ -17,6 +18,7 @@ namespace AdvancedNPCs
         /// <summary>Every corpse sprite currently in the world (self-test).</summary>
         public static readonly List<NpcCorpseSprite> All = new List<NpcCorpseSprite>();
 
+        string key;
         LoadedSpriteSet set;
         float worldPerPixel;
         SpriteAnimation anim;
@@ -31,6 +33,7 @@ namespace AdvancedNPCs
         bool searching = true;
         bool hidLoot;
         float searchTime;
+        float lootGroundY;      // where DFU meant the loot pile to stand
 
         public bool Finished
         {
@@ -47,6 +50,12 @@ namespace AdvancedNPCs
             get { return hidLoot; }
         }
 
+        /// <summary>DFU's loot pile for this body, once found (self-test).</summary>
+        public DaggerfallLoot Loot
+        {
+            get { return loot; }
+        }
+
         /// <summary>Starts a body where the NPC stands; null if its sprite set has no death sheet.</summary>
         public static NpcCorpseSprite Spawn(NpcSprite from, DaggerfallEntityBehaviour behaviour)
         {
@@ -55,13 +64,20 @@ namespace AdvancedNPCs
                 return null;
             GameObject go = new GameObject("AnpcCorpse");
             go.transform.SetParent(from.transform.parent, true);     // the town: unloads with it
-            go.transform.position = from.Feet;
+            // On the ground, also when killed in mid-air. DFU drops the loot pile at EnemyMotor.FindGroundPosition, whose
+            // ray can hit the dying NPC itself; the pile is moved down to the same ground when it turns up.
+            Vector3 feet = GroundBelow(from.Feet, from.transform);
+            EnemyMotor motor = from.GetComponent<EnemyMotor>();
+            go.transform.position = feet;
             NpcCorpseSprite corpse = go.AddComponent<NpcCorpseSprite>();
             corpse.set = from.Set;
             corpse.worldPerPixel = from.WorldPerPixel;
             corpse.anim = deaths[Random.Range(0, deaths.Count)];
             corpse.facing = from.transform.forward;
             corpse.behaviour = behaviour;
+            corpse.lootGroundY = motor != null ? motor.FindGroundPosition().y : feet.y;
+            NpcBrain brain = from.GetComponent<NpcBrain>();
+            corpse.key = brain != null ? brain.Id : null;
 
             corpse.quad = NpcSprite.CreateQuad(go.transform, "AnpcCorpseSprite");
             corpse.material = new Material(from.MaterialTemplate);
@@ -85,6 +101,43 @@ namespace AdvancedNPCs
         {
             if (material != null)
                 Destroy(material);
+            // The body went first (e.g. anpc_remove): never leave a loot pile without any picture.
+            if (hidLoot && loot != null)
+            {
+                foreach (MeshRenderer r in loot.GetComponentsInChildren<MeshRenderer>(true))
+                    r.forceRenderingOff = false;
+            }
+        }
+
+        /// <summary>The first ground below a point that is not part of the NPC itself; the point if there is none.</summary>
+        static Vector3 GroundBelow(Vector3 point, Transform npc)
+        {
+            RaycastHit[] hits = Physics.RaycastAll(point + Vector3.up * 0.1f, Vector3.down, 50f, ~0, QueryTriggerInteraction.Ignore);
+            float best = float.MaxValue;
+            Vector3 ground = point;
+            foreach (RaycastHit hit in hits)
+            {
+                if (hit.collider.transform.IsChildOf(npc) || hit.distance >= best)
+                    continue;
+                best = hit.distance;
+                ground = hit.point;
+            }
+            return ground;
+        }
+
+        /// <summary>Removes the bodies and loot piles of a person (anpc_remove).</summary>
+        public static void RemoveFor(string key)
+        {
+            foreach (NpcCorpseSprite corpse in new List<NpcCorpseSprite>(All))
+            {
+                if (corpse.key != key)
+                    continue;
+                DaggerfallLoot pile = corpse.loot != null ? corpse.loot : (corpse.behaviour != null ? corpse.behaviour.CorpseLootContainer : null);
+                if (pile != null)
+                    Destroy(pile.gameObject);
+                corpse.hidLoot = false;
+                Destroy(corpse.gameObject);
+            }
         }
 
         void Update()
@@ -123,6 +176,7 @@ namespace AdvancedNPCs
                 loot = behaviour != null ? behaviour.CorpseLootContainer : null;
                 if (loot != null)
                 {
+                    loot.transform.position += Vector3.up * (transform.position.y - lootGroundY);
                     foreach (MeshRenderer r in loot.GetComponentsInChildren<MeshRenderer>(true))
                         r.forceRenderingOff = true;
                     hidLoot = true;
