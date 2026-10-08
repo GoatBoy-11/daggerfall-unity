@@ -1159,10 +1159,11 @@ namespace AdvancedNPCs
             return DaggerfallUI.UIManager.TopWindow is DaggerfallTalkWindow;
         }
 
+        /// <summary>Closes the talk window and anything opened over it (a reply picker).</summary>
         static void CloseTalkWindow()
         {
-            if (TalkWindowOpen())
-                DaggerfallUI.UIManager.PopWindow();
+            if (DaggerfallUI.Instance.TalkWindow != null && DaggerfallUI.UIManager.ContainsWindow(DaggerfallUI.Instance.TalkWindow))
+                DaggerfallUI.Instance.PopToHUD();
         }
 
         static Texture2D TestPortrait()
