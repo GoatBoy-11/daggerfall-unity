@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using DaggerfallWorkshop.Game.Items;
 using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
@@ -110,9 +111,62 @@ namespace AdvancedNPCs
                     }
                 }
             }
+            foreach (string item in GiveItems(library, all))
+            {
+                ItemGroups group;
+                int index;
+                if (!GameFacts.FindItemTemplate(item, out group, out index))
+                    messages.Add("dialogue: giveItem \"" + item + "\": no DFU item with this name (use an item's plain name, e.g. Ruby, Dagger)");
+            }
             foreach (string m in messages)
                 Report(m, problems);
             return messages.Count;
+        }
+
+        /// <summary>Every giveItem name in the library and the folders' own files, once each.</summary>
+        static List<string> GiveItems(DialogueLibrary library, List<NpcDefinition> all)
+        {
+            List<string> names = new List<string>();
+            List<DialogueFile> files = new List<DialogueFile>(library.Files);
+            foreach (NpcDefinition d in all)
+            {
+                if (d.OwnDialogue != null)
+                    files.Add(d.OwnDialogue);
+            }
+            foreach (DialogueFile f in files)
+            {
+                foreach (DialogueTopic t in f.Topics)
+                {
+                    Collect(t.Actions, names);
+                    foreach (DialogueAnswer a in t.Answers)
+                        CollectAnswer(a, names);
+                    foreach (DialogueReply r in t.Replies)
+                        CollectReply(r, names);
+                }
+            }
+            return names;
+        }
+
+        static void CollectAnswer(DialogueAnswer a, List<string> names)
+        {
+            Collect(a.Actions, names);
+            foreach (DialogueReply r in a.Replies)
+                CollectReply(r, names);
+        }
+
+        static void CollectReply(DialogueReply r, List<string> names)
+        {
+            Collect(r.Actions, names);
+            foreach (DialogueAnswer a in r.Answers)
+                CollectAnswer(a, names);
+            foreach (DialogueReply next in r.Replies)
+                CollectReply(next, names);
+        }
+
+        static void Collect(DialogueActions a, List<string> names)
+        {
+            if (a.GiveItem != null && !names.Contains(a.GiveItem))
+                names.Add(a.GiveItem);
         }
 
         static IEnumerable<Condition> Conditions(DialogueFile f)

@@ -10,6 +10,7 @@ using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Questing;
 using DaggerfallWorkshop.Utility;
 using DaggerfallConnect.Arena2;
+using DaggerfallConnect.FallExe;
 using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
@@ -18,8 +19,12 @@ namespace AdvancedNPCs
     /// The live game as dialogue conditions see it (spec C1 §5), for one conversation with one ANPC, and what asking
     /// a topic changes (player-wide flags, the person's asked topics).
     /// </summary>
-    public class GameFacts : IDialogueFacts, IDialogueState
+    public class GameFacts : IDialogueFacts, IDialogueState, IDialogueActions
     {
+        /// <summary>Set by the talk window code: turn the ANPC into an enemy / close the conversation.</summary>
+        public Action OnBecomeEnemy;
+        public Action OnEndConversation;
+
         static readonly FieldInfo ReactionField =
             typeof(TalkManager).GetField("reactionToPlayer", BindingFlags.Instance | BindingFlags.NonPublic);
         static bool warnedReaction;
@@ -208,6 +213,118 @@ namespace AdvancedNPCs
         {
             if (state != null)
                 state.MarkAsked(topicId);
+        }
+
+        // --- Actions (C2 spec §4)
+
+        public void GiveGold(int amount)
+        {
+            Player.GoldPieces += amount;
+        }
+
+        public void TakeGold(int amount)
+        {
+            Player.GoldPieces = Math.Max(0, Player.GoldPieces - amount);
+        }
+
+        public void GiveItem(string name)
+        {
+            ItemGroups group;
+            int templateIndex;
+            if (!FindItemTemplate(name, out group, out templateIndex))
+            {
+                AdvancedNpcsMod.Log("giveItem \"" + name + "\": no DFU item with this name; nothing given.");
+                return;
+            }
+            Player.Items.AddItem(ItemBuilder.CreateItem(group, templateIndex));
+        }
+
+        public void TakeItem(string name)
+        {
+            ItemCollection items = Player.Items;
+            ItemHelper helper = DaggerfallUnity.Instance.ItemHelper;
+            for (int i = 0; i < items.Count; i++)
+            {
+                DaggerfallUnityItem item = items.GetItem(i);
+                if (item != null && (SameName(helper.ResolveItemName(item), name) || SameName(helper.ResolveItemLongName(item), name)))
+                {
+                    if (item.stackCount > 1)
+                        item.stackCount--;
+                    else
+                        items.RemoveItem(item);
+                    return;
+                }
+            }
+        }
+
+        /// <summary>The player's standing with the region's people (what DFU's reaction, and so "reaction", is based on).</summary>
+        public void ChangeReputation(int amount)
+        {
+            try
+            {
+                Player.FactionData.ChangeReputation(GameManager.Instance.PlayerGPS.GetPeopleOfCurrentRegion(), amount);
+            }
+            catch (Exception e)
+            {
+                AdvancedNpcsMod.Log("reputation: could not change the region's standing (" + e.Message + ").");
+            }
+        }
+
+        public void StartQuest(string name)
+        {
+            try
+            {
+                QuestMachine.Instance.StartQuest(name);
+            }
+            catch (Exception e)
+            {
+                AdvancedNpcsMod.LogError("startQuest \"" + name + "\": could not start (" + e.Message + ").");
+            }
+        }
+
+        public void BecomeEnemy()
+        {
+            if (OnBecomeEnemy != null)
+                OnBecomeEnemy();
+        }
+
+        public void EndConversation()
+        {
+            if (OnEndConversation != null)
+                OnEndConversation();
+        }
+
+        /// <summary>A DFU item template by name (case ignored), e.g. "Ruby", "Dagger", "Holy water".</summary>
+        public static bool FindItemTemplate(string name, out ItemGroups group, out int templateIndex)
+        {
+            group = ItemGroups.None;
+            templateIndex = -1;
+            ItemHelper helper = DaggerfallUnity.Instance.ItemHelper;
+            foreach (ItemGroups g in Enum.GetValues(typeof(ItemGroups)))
+            {
+                Array values;
+                try
+                {
+                    values = helper.GetEnumArray(g);
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+                if (values == null)
+                    continue;
+                for (int i = 0; i < values.Length; i++)
+                {
+                    ItemTemplate t = helper.GetItemTemplate(g, i);
+                    if (SameName(t.name, name))
+                    {
+                        group = g;
+                        templateIndex = Convert.ToInt32(values.GetValue(i));
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         /// <summary>Values for {player}, {npc}, {town} and {region}.</summary>
