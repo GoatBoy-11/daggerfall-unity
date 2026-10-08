@@ -139,7 +139,7 @@ namespace AdvancedNPCs
             for (int i = 0; i < items.Count; i++)
             {
                 DaggerfallUnityItem item = items.GetItem(i);
-                if (item == null)
+                if (item == null || item.IsQuestItem)
                     continue;
                 if (SameName(helper.ResolveItemName(item), name) || SameName(helper.ResolveItemLongName(item), name))
                     return true;
@@ -239,22 +239,30 @@ namespace AdvancedNPCs
             Player.Items.AddItem(ItemBuilder.CreateItem(group, templateIndex));
         }
 
+        /// <summary>One matching item: never a quest item; an unequipped one first, else one unequipped like DFU does it.</summary>
         public void TakeItem(string name)
+        {
+            DaggerfallUnityItem item = FindTakeable(name, false) ?? FindTakeable(name, true);
+            if (item == null)
+                return;
+            if (item.IsEquipped && Player.ItemEquipTable.UnequipItem(item))
+                Player.UpdateEquippedArmorValues(item, false);
+            Player.Items.RemoveOne(item);
+        }
+
+        static DaggerfallUnityItem FindTakeable(string name, bool equipped)
         {
             ItemCollection items = Player.Items;
             ItemHelper helper = DaggerfallUnity.Instance.ItemHelper;
             for (int i = 0; i < items.Count; i++)
             {
                 DaggerfallUnityItem item = items.GetItem(i);
-                if (item != null && (SameName(helper.ResolveItemName(item), name) || SameName(helper.ResolveItemLongName(item), name)))
-                {
-                    if (item.stackCount > 1)
-                        item.stackCount--;
-                    else
-                        items.RemoveItem(item);
-                    return;
-                }
+                if (item == null || item.IsQuestItem || item.IsEquipped != equipped)
+                    continue;
+                if (SameName(helper.ResolveItemName(item), name) || SameName(helper.ResolveItemLongName(item), name))
+                    return item;
             }
+            return null;
         }
 
         /// <summary>The player's standing with the region's people (what DFU's reaction, and so "reaction", is based on).</summary>
@@ -270,15 +278,27 @@ namespace AdvancedNPCs
             }
         }
 
+        /// <summary>Last action problem (self-test).</summary>
+        public static string LastProblem;
+
+        /// <summary>Through DFU's quest lists, so quests shipped in mods and quest packs are found too.</summary>
         public void StartQuest(string name)
         {
             try
             {
-                QuestMachine.Instance.StartQuest(name);
+                Quest quest = GameManager.Instance.QuestListsManager.GetQuest(name);
+                if (quest == null)
+                {
+                    LastProblem = "startQuest \"" + name + "\": no such quest (check its file name and that its quest pack is installed)";
+                    AdvancedNpcsMod.LogError(LastProblem);
+                    return;
+                }
+                QuestMachine.Instance.StartQuest(quest);
             }
             catch (Exception e)
             {
-                AdvancedNpcsMod.LogError("startQuest \"" + name + "\": could not start (" + e.Message + ").");
+                LastProblem = "startQuest \"" + name + "\": could not start (" + e.Message + ")";
+                AdvancedNpcsMod.LogError(LastProblem);
             }
         }
 

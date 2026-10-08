@@ -126,6 +126,22 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void AnswerWithUnaffordableTake_NotGiven_TopicHiddenIfNoneLeft()
+        {
+            DialogueTopic t = Topic("{ \"caption\": \"Toll\", \"answers\": [ { \"text\": \"That'll be 10.\", \"takeGold\": 10 } ] }");
+            Assert.AreEqual("no answer applies", Conversation.WhyHidden(t, new FakeFacts { GoldValue = 4 }));
+            Assert.IsNull(Conversation.WhyHidden(t, new FakeFacts { GoldValue = 10 }));
+        }
+
+        [Test]
+        public void ReplyWhoseAnswersAllFail_NotOffered()
+        {
+            DialogueTopic t = Topic("{ \"caption\": \"A\", \"answers\": [\"x\"], \"replies\": [ { \"text\": \"Night only\", \"answers\": [ { \"when\": { \"time\": \"night\" }, \"text\": \"n\" } ] } ] }");
+            Assert.IsFalse(Conversation.CanSay(t.Replies[0], new FakeFacts()));
+            Assert.IsTrue(Conversation.CanSay(t.Replies[0], new FakeFacts { Night = true }));
+        }
+
+        [Test]
         public void Ask_TopicActionsRun()
         {
             DialogueTopic t = Topic("{ \"caption\": \"Job\", \"startQuest\": \"A0C00Y00\", \"answers\": [ { \"text\": \"Coin.\", \"giveGold\": 5 } ] }");

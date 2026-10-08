@@ -65,6 +65,9 @@ namespace AdvancedNPCs.Core
             List<DialogueAnswer> plain = new List<DialogueAnswer>();
             foreach (DialogueAnswer a in answers)
             {
+                // An answer that takes gold or an item the player does not have is never given (C2 review I3).
+                if (Needs(a.Actions, facts) != null)
+                    continue;
                 if (a.When == null || a.When.IsEmpty)
                     plain.Add(a);
                 else if (a.When.Holds(f))
@@ -134,7 +137,7 @@ namespace AdvancedNPCs.Core
         /// <summary>The reply may be said now (checked again when picked: gold may have changed meanwhile).</summary>
         public static bool CanSay(DialogueReply r, IDialogueFacts facts)
         {
-            return Condition.Check(r.When, facts) && Needs(r.Actions, facts) == null;
+            return Condition.Check(r.When, facts) && Needs(r.Actions, facts) == null && PickAnswer(r.Answers, facts, null, false) != null;
         }
 
         /// <summary>

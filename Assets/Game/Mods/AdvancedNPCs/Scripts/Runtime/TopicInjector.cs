@@ -220,6 +220,9 @@ namespace AdvancedNPCs
             }
         }
 
+        /// <summary>The last line shown in a message box when the conversation ended (self-test).</summary>
+        public string FinalMessage { get; private set; }
+
         /// <summary>endConversation / becomeEnemy: close the talk window first, then turn hostile (never talk to an enemy).</summary>
         void FinishConversation()
         {
@@ -228,10 +231,18 @@ namespace AdvancedNPCs
             endRequested = false;
             enemyRequested = false;
             pendingReplies = null;
+            string lastLine = LastAnswer;
             DaggerfallUI.Instance.PopToHUD();
             End();
             if (enemy && npc != null)
                 npc.SwitchHostile(true);
+            // The parting (or threatening) line was on screen for one frame only: show it once more.
+            FinalMessage = null;
+            if (!string.IsNullOrEmpty(lastLine))
+            {
+                DaggerfallUI.MessageBox(lastLine);
+                FinalMessage = lastLine;
+            }
         }
 
         /// <summary>Captions of our topics in TalkManager's list, in list order.</summary>

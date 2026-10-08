@@ -71,7 +71,10 @@ namespace AdvancedNPCs
             yield return null;
             yield return null;
             yield return null;
-            Check("endConversation closes the talk window", !TalkWindowOpen() && !topics.Active, "talk window open " + TalkWindowOpen());
+            Check("endConversation closes the talk window and shows the last line", !TalkWindowOpen() && !topics.Active && TopMessage() == "Farewell.",
+                "talk window open " + TalkWindowOpen() + ", message \"" + TopMessage() + "\"");
+            DaggerfallUI.Instance.PopToHUD();
+            yield return null;
 
             yield return OpenTalk(npc);
             yield return UseTopic("Selftest insult");
@@ -81,6 +84,20 @@ namespace AdvancedNPCs
             yield return null;
             Check("becomeEnemy closes the window, then the ANPC is an enemy", !TalkWindowOpen() && npc.IsEnemy,
                 "talk window open " + TalkWindowOpen() + ", enemy " + npc.IsEnemy);
+            DaggerfallUI.Instance.PopToHUD();
+            yield return null;
+
+            // Items: given by name, taken back; quests: a missing name is reported.
+            GameFacts facts = new GameFacts(null, mod.Flags, "", null);
+            int rubies = CountNamed("Ruby");
+            facts.GiveItem("Ruby");
+            bool given = CountNamed("Ruby") == rubies + 1 && facts.HasItem("Ruby");
+            facts.TakeItem("Ruby");
+            Check("giveItem and takeItem by name", given && CountNamed("Ruby") == rubies, "rubies " + rubies + " -> " + CountNamed("Ruby"));
+            GameFacts.LastProblem = null;
+            facts.StartQuest("ANPC_NO_SUCH_QUEST");
+            Check("startQuest with a missing quest is reported", GameFacts.LastProblem != null && GameFacts.LastProblem.Contains("no such quest"),
+                "problem: " + GameFacts.LastProblem);
 
             npc.SwitchHostile(false);
             gm.PlayerEntity.FactionData.ChangeReputation(region, repBefore - Reputation(region));
@@ -98,6 +115,24 @@ namespace AdvancedNPCs
             {
                 GameManager.Instance.PlayerEntity.GoldPieces = before;
             }
+        }
+
+        string TopMessage()
+        {
+            return DaggerfallUI.UIManager.TopWindow is DaggerfallMessageBox ? mod.Topics.FinalMessage : null;
+        }
+
+        static int CountNamed(string name)
+        {
+            int n = 0;
+            DaggerfallWorkshop.Game.Items.ItemCollection items = GameManager.Instance.PlayerEntity.Items;
+            for (int i = 0; i < items.Count; i++)
+            {
+                DaggerfallWorkshop.Game.Items.DaggerfallUnityItem item = items.GetItem(i);
+                if (item != null && string.Equals(DaggerfallUnity.Instance.ItemHelper.ResolveItemName(item), name, System.StringComparison.OrdinalIgnoreCase))
+                    n += item.stackCount;
+            }
+            return n;
         }
 
         static int Reputation(int factionId)
