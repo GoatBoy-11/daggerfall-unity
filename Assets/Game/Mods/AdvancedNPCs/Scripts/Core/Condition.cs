@@ -495,12 +495,21 @@ namespace AdvancedNPCs.Core
             return true;
         }
 
-        /// <summary>The known key closest to a typo (same letters ignoring case, or at most 2 edits), or null.</summary>
         public static string Suggest(string key)
+        {
+            return Typos.Closest(key, KnownKeys);
+        }
+    }
+
+    /// <summary>"Did you mean" help for misspelt field names.</summary>
+    public static class Typos
+    {
+        /// <summary>The known name closest to a typo (same letters ignoring case, or at most 2 edits), or null.</summary>
+        public static string Closest(string key, string[] knownNames)
         {
             string best = null;
             int bestDistance = 3;
-            foreach (string known in KnownKeys)
+            foreach (string known in knownNames)
             {
                 int d = string.Equals(known, key, StringComparison.OrdinalIgnoreCase) ? 0 : Distance(known.ToLowerInvariant(), key.ToLowerInvariant());
                 if (d < bestDistance)
