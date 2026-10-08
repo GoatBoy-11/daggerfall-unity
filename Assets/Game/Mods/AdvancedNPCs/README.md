@@ -294,6 +294,44 @@ any topic of any ANPC can react to it (`"when": { "flags": "heard_sailor" }`). T
 unlocks a topic with someone else. `anpc_flag` lists them and sets or clears one for testing. Other mods can send
 the messages `SetFlag` (`"name|on"` / `"name|off"`) and `HasFlag` (`"name"`, the callback gets true or false).
 
+### Replies and actions
+
+After an answer, the player can be given **replies** to choose from (a list over the talk window, always with
+"(Say nothing.)" last). A reply adds the player's line and the ANPC's answer to the conversation, and can lead to
+more replies, so small dialogue trees are easy:
+
+```json
+{
+  "caption": "The house ale",
+  "answers": ["Two coppers a mug. Want one?"],
+  "replies": [
+    { "text": "A mug, please. (2 gold)", "takeGold": 2, "reputation": 1,
+      "answers": ["Here you go, love."],
+      "replies": [ { "text": "Another round!", "takeGold": 2, "answers": ["Steady now."] } ] },
+    { "text": "Not today.", "answers": ["Suit yourself."] }
+  ]
+}
+```
+
+- A reply has `text` (what the player says) and `answers` (same as a topic's: texts, or `{ "when", "text" }`).
+  Optional: `when` (the conditions above; `tone` works here), `replies`, `sets` / `clears`, `id`, and actions.
+- `replies` can also sit on one answer object; then that answer's replies are offered instead of the topic's.
+- Replies nest up to 8 deep. `"asked": "The house ale/A mug, please. (2 gold)"` checks whether a reply was chosen.
+
+**Actions** work on topics, answers and replies and happen when that line is said:
+
+| Action | Example | Effect |
+|---|---|---|
+| `giveGold` / `takeGold` | `5` | the player gets / pays that much gold (1–100000) |
+| `giveItem` / `takeItem` | `"Ruby"` | the player gets / gives up one item by its name |
+| `reputation` | `-2` | how this region's people regard the player (−20 to 20); this is what `reaction` reads |
+| `startQuest` | `"A0C00Y00"` | starts a DFU quest by its file name |
+| `becomeEnemy` | `true` | the talk window closes and the ANPC becomes an enemy (like `anpc_hostile <id> on`) |
+| `endConversation` | `true` | the talk window closes after the line |
+
+A reply or topic that takes gold or an item is only offered when the player has it. An unknown `giveItem` name is
+reported in `Player.log` when the game starts.
+
 ### When something doesn't show up
 
 - Look in `Player.log` for `[AdvancedNPCs]` lines: every problem names the file, the topic and the field, and
@@ -303,7 +341,9 @@ the messages `SetFlag` (`"name|on"` / `"name|off"`) and `HasFlag` (`"name"`, the
 - Stand in front of the ANPC and type `anpc_topics`: it lists each topic as `shown` or with the condition that
   hides it (`hidden, when: time`, `hidden, once (already asked)`).
 - `Examples/ANPCs/_Dialogue/tavern_wench.json` uses every feature: greetings, tone answers, follow-ups, flags,
-  `once`, time, weather, season, gold and guild topics.
+  `once`, time, weather, season, gold and guild topics, replies and actions.
+- Two topics or reply keys repeated in one JSON object, or a topic replaced by a later file with the same id, are
+  noted in `Player.log` too.
 
 ## Portraits
 

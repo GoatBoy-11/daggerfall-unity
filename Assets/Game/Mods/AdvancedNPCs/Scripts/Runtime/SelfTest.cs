@@ -690,6 +690,10 @@ namespace AdvancedNPCs
             while (dialogueSteps.MoveNext())
                 yield return dialogueSteps.Current;
 
+            IEnumerator replySteps = ReplySteps(location, playerTransform);
+            while (replySteps.MoveNext())
+                yield return replySteps.Current;
+
             // Developer look (not a check): if a real sprite set is installed, stand one in front of the camera and
             // save two screenshots (front and side) next to Player.log.
             LoadedSpriteSet real = null;

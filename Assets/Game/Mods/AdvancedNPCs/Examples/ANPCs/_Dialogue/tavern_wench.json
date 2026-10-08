@@ -1,74 +1,212 @@
 {
   "greetings": [
-    { "when": { "reaction": "dislikes" }, "text": "You again. Drink or leave, {player}, I've tables to clear." },
-    { "when": { "weather": ["rain", "storm"] }, "text": "Come in out of that rain before you catch your death!" },
-    { "when": { "time": "night" }, "text": "Evening, love. Busy night. What'll it be?" },
+    {
+      "when": {
+        "reaction": "dislikes"
+      },
+      "text": "You again. Drink or leave, {player}, I've tables to clear."
+    },
+    {
+      "when": {
+        "weather": [
+          "rain",
+          "storm"
+        ]
+      },
+      "text": "Come in out of that rain before you catch your death!"
+    },
+    {
+      "when": {
+        "time": "night"
+      },
+      "text": "Evening, love. Busy night. What'll it be?"
+    },
     "Welcome in! Mind the floor, it's been mopped. Mostly."
   ],
   "topics": [
     {
       "caption": "The house ale",
-      "question": { "polite": "What would you recommend to drink?", "blunt": "Is the ale any good?" },
+      "question": {
+        "polite": "What would you recommend to drink?",
+        "blunt": "Is the ale any good?"
+      },
       "answers": [
-        { "when": { "tone": "blunt" }, "text": "It's wet and it's cheap. What more do you want?" },
+        {
+          "when": {
+            "tone": "blunt"
+          },
+          "text": "It's wet and it's cheap. What more do you want?"
+        },
         "Brewed out back. Tastes of barley and regret, but it's the cheapest in {town}.",
         "Two coppers a mug. Three if you want it cold."
+      ],
+      "replies": [
+        {
+          "text": "A mug, please. (2 gold)",
+          "takeGold": 2,
+          "reputation": 1,
+          "answers": [
+            "Here you go, love. Mind the foam."
+          ],
+          "replies": [
+            {
+              "text": "Another round!",
+              "takeGold": 2,
+              "answers": [
+                "Steady now. That's your last one from me tonight."
+              ]
+            }
+          ]
+        },
+        {
+          "text": "Not today.",
+          "answers": [
+            "Suit yourself. The rats drink for free anyway."
+          ]
+        }
       ]
     },
     {
       "caption": "Any rumours?",
       "id": "rumours",
-      "question": { "polite": "Have you heard any interesting rumours?", "normal": "Heard any rumours?", "blunt": "Spill the gossip." },
+      "question": {
+        "polite": "Have you heard any interesting rumours?",
+        "normal": "Heard any rumours?",
+        "blunt": "Spill the gossip."
+      },
       "answers": [
         "Rumours? I hear plenty. A sailor's gone missing from the docks, for one. Jory. Ask me about him if you care."
       ],
-      "sets": ["heard_sailor_rumour"]
+      "sets": [
+        "heard_sailor_rumour"
+      ]
     },
     {
       "caption": "The missing sailor",
-      "when": { "asked": "rumours" },
+      "when": {
+        "asked": "rumours"
+      },
       "answers": [
-        { "when": { "reaction": ["dislikes", "neutral"] }, "text": "Why should I tell you? ...Fine. Last seen heading for the old warehouse." },
+        {
+          "when": {
+            "reaction": [
+              "dislikes",
+              "neutral"
+            ]
+          },
+          "text": "Why should I tell you? ...Fine. Last seen heading for the old warehouse."
+        },
         "Jory drank here every night, then nothing. Last seen near the old warehouse, poor soul. If you go looking, be careful."
       ],
-      "sets": ["heard_sailor"]
+      "sets": [
+        "heard_sailor"
+      ],
+      "replies": [
+        {
+          "text": "I'll look for him.",
+          "sets": [
+            "promised_wench"
+          ],
+          "answers": [
+            "Would you? Bless you, {player}. Try the old warehouse first."
+          ]
+        },
+        {
+          "text": "What aren't you telling me? (10 gold)",
+          "takeGold": 10,
+          "sets": [
+            "knows_skeffing"
+          ],
+          "answers": [
+            "Jory owed money to a man called Skeffing. Nasty sort. If Jory's anywhere, Skeffing knows."
+          ]
+        },
+        {
+          "text": "Not my problem.",
+          "when": {
+            "tone": "blunt"
+          },
+          "reputation": -1,
+          "answers": [
+            "Charming. I'll remember that."
+          ]
+        }
+      ]
     },
     {
       "caption": "A favour",
       "once": true,
-      "when": { "flags": "heard_sailor" },
+      "when": {
+        "flags": "heard_sailor"
+      },
       "question": "Is there anything I can do about Jory?",
       "answers": [
         "If you find him, tell him his tab's forgiven. I'd just like to know he's alive. Thank you, {player}."
       ],
-      "sets": ["promised_wench"]
+      "sets": [
+        "promised_wench"
+      ]
     },
     {
       "caption": "Late hours",
-      "when": { "time": "night" },
-      "answers": ["The night crowd's rougher. Keep your purse close and your back to the wall."]
+      "when": {
+        "time": "night"
+      },
+      "answers": [
+        "The night crowd's rougher. Keep your purse close and your back to the wall."
+      ]
     },
     {
       "caption": "Rainy days",
-      "when": { "weather": ["rain", "storm"] },
-      "answers": ["Rain's good for business. Nobody wants to drink in a puddle."]
+      "when": {
+        "weather": [
+          "rain",
+          "storm"
+        ]
+      },
+      "answers": [
+        "Rain's good for business. Nobody wants to drink in a puddle."
+      ]
     },
     {
       "caption": "Winter",
-      "when": { "season": "winter" },
-      "answers": ["Cold enough to freeze the ale in the barrels. Sit by the fire, {player}."]
+      "when": {
+        "season": "winter"
+      },
+      "answers": [
+        "Cold enough to freeze the ale in the barrels. Sit by the fire, {player}."
+      ]
     },
     {
       "caption": "Your coin purse",
-      "when": { "minGold": 500 },
-      "answers": ["That's a heavy purse you're carrying. I'd keep it out of sight in here."]
+      "when": {
+        "minGold": 500
+      },
+      "answers": [
+        "That's a heavy purse you're carrying. I'd keep it out of sight in here."
+      ]
     },
     {
       "caption": "Guild business",
-      "when": { "guild": ["Fighters Guild", "Mages Guild"] },
+      "when": {
+        "guild": [
+          "Fighters Guild",
+          "Mages Guild"
+        ]
+      },
       "answers": [
-        { "when": { "guild": "Fighters Guild" }, "text": "A guild sword! Good. I'm glad of someone who can stop a brawl." },
-        { "when": { "guild": "Mages Guild" }, "text": "A mage? Don't set anything on fire. The last one singed my eyebrows." }
+        {
+          "when": {
+            "guild": "Fighters Guild"
+          },
+          "text": "A guild sword! Good. I'm glad of someone who can stop a brawl."
+        },
+        {
+          "when": {
+            "guild": "Mages Guild"
+          },
+          "text": "A mage? Don't set anything on fire. The last one singed my eyebrows."
+        }
       ]
     }
   ]
