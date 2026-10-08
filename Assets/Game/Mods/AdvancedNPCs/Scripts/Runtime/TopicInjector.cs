@@ -39,6 +39,15 @@ namespace AdvancedNPCs
         DaggerfallTalkWindow hookedWindow;
         ComposedDialogue dialogue;
         GameFacts facts;
+        NpcBrain brain;
+        // Reply choices (C2): the picker over the talk window, what it offers, and what to open next frame.
+        public const string SayNothing = "(Say nothing.)";
+        DaggerfallListPickerWindow picker;
+        List<DialogueReply> offered = new List<DialogueReply>();
+        List<DialogueReply> pendingReplies;
+        string replyTopicId;
+        bool endRequested;
+        bool enemyRequested;
         Dictionary<string, string> macros;
         List<TalkManager.ListItem> injectedInto;
         int waitFrames;
@@ -75,7 +84,7 @@ namespace AdvancedNPCs
             get { return facts; }
         }
 
-        public void Begin(DaggerfallTalkWindow talkWindow, NpcState state, FlagSet flags, string npcName, ComposedDialogue composed)
+        public void Begin(DaggerfallTalkWindow talkWindow, NpcBrain npc, FlagSet flags, string npcName, ComposedDialogue composed)
         {
             End();
             // DFU may refuse to talk (bad reaction, rejected before, racial override) without opening the window.
@@ -95,7 +104,13 @@ namespace AdvancedNPCs
             lastRecheck = Time.realtimeSinceStartup;
             window = talkWindow;
             dialogue = composed;
-            facts = new GameFacts(state, flags, npcName, CurrentTone);
+            brain = npc;
+            facts = new GameFacts(npc != null ? npc.State : null, flags, npcName, CurrentTone);
+            facts.OnEndConversation = delegate { endRequested = true; };
+            facts.OnBecomeEnemy = delegate { enemyRequested = true; };
+            pendingReplies = null;
+            endRequested = false;
+            enemyRequested = false;
             macros = facts.Macros();
             started = false;
             waitFrames = 0;
@@ -115,9 +130,108 @@ namespace AdvancedNPCs
             injectedInto = null;
             items.Clear();
             byKey.Clear();
+            ClosePicker();
+            pendingReplies = null;
             window = null;
             facts = null;
+            brain = null;
             DaggerfallUI.UIManager.OnWindowChange -= OnWindowChange;
+        }
+
+        /// <summary>The reply picker is open (self-test).</summary>
+        public bool PickerOpen
+        {
+            get { return picker != null && DaggerfallUI.UIManager.ContainsWindow(picker); }
+        }
+
+        /// <summary>What the open picker offers, without "(Say nothing.)" (self-test).</summary>
+        public List<string> OfferedTexts()
+        {
+            return offered.ConvertAll(delegate (DialogueReply r) { return TextMacros.Expand(r.Text, macros); });
+        }
+
+        public int RepliesSaid { get; private set; }
+
+        void OpenPicker()
+        {
+            offered = pendingReplies;
+            pendingReplies = null;
+            picker = new DaggerfallListPickerWindow(DaggerfallUI.UIManager, window);
+            foreach (DialogueReply r in offered)
+                picker.ListBox.AddItem(TextMacros.Expand(r.Text, macros));
+            picker.ListBox.AddItem(SayNothing);
+            picker.OnItemPicked += OnReplyPicked;
+            DaggerfallUI.UIManager.PushWindow(picker);
+        }
+
+        void ClosePicker()
+        {
+            if (picker == null)
+                return;
+            picker.OnItemPicked -= OnReplyPicked;
+            if (DaggerfallUI.UIManager.ContainsWindow(picker))
+                picker.CloseWindow();
+            picker = null;
+        }
+
+        void OnReplyPicked(int index, string text)
+        {
+            try
+            {
+                PickReply(index);
+            }
+            catch (Exception e)
+            {
+                Fail("answering a reply", e);
+            }
+        }
+
+        /// <summary>
+        /// The player chose offered reply index (the last entry, or anything out of range, is "(Say nothing.)"): the
+        /// player's line and the ANPC's answer go into the conversation, its actions run, and its own replies follow.
+        /// </summary>
+        public void PickReply(int index)
+        {
+            ClosePicker();
+            if (window == null || index < 0 || index >= offered.Count)
+                return;
+            DialogueReply r = offered[index];
+            string line = TextMacros.Expand(r.Text, macros);
+            string answer;
+            DialogueAnswer next = null;
+            // Checked again: the player's gold or items may have changed since the list was made.
+            if (!Conversation.CanSay(r, facts))
+                answer = "(You cannot do that now.)";
+            else
+                answer = TextMacros.Expand(Conversation.Say(r, replyTopicId, facts, rng, facts, facts, out next), macros);
+            AddPairMethod.Invoke(window, new object[] { line, answer });
+            ListBox conversation = ConversationList;
+            if (conversation != null)
+                conversationCount = conversation.Count;
+            RepliesSaid++;
+            LastQuestion = line;
+            LastAnswer = answer;
+            refreshNext = true;
+            if (next != null)
+            {
+                List<DialogueReply> more = Conversation.Replies(next, r.Replies, facts);
+                if (more.Count > 0)
+                    pendingReplies = more;
+            }
+        }
+
+        /// <summary>endConversation / becomeEnemy: close the talk window first, then turn hostile (never talk to an enemy).</summary>
+        void FinishConversation()
+        {
+            bool enemy = enemyRequested;
+            NpcBrain npc = brain;
+            endRequested = false;
+            enemyRequested = false;
+            pendingReplies = null;
+            DaggerfallUI.Instance.PopToHUD();
+            End();
+            if (enemy && npc != null)
+                npc.SwitchHostile(true);
         }
 
         /// <summary>Captions of our topics in TalkManager's list, in list order.</summary>
@@ -199,6 +313,14 @@ namespace AdvancedNPCs
             }
             if (ConversationList.Count != conversationCount)
                 Use(false);
+            if (endRequested || enemyRequested)
+            {
+                FinishConversation();
+                return;
+            }
+            // Open replies one frame after the line that offered them (never inside a UI event).
+            if (pendingReplies != null && !PickerOpen)
+                OpenPicker();
             UpdatePlayerLine();
         }
 
@@ -279,7 +401,8 @@ namespace AdvancedNPCs
 
             // Work out everything first, so a problem leaves the conversation as it was.
             string question = TextMacros.Expand(Conversation.Question(topic, CurrentTone()), macros);
-            string answer = TextMacros.Expand(Conversation.Ask(topic, facts, rng, facts), macros);
+            DialogueAnswer chosen;
+            string answer = TextMacros.Expand(Conversation.Ask(topic, facts, rng, facts, facts, out chosen), macros);
             if (blankPair)
             {
                 conversation.RemoveItem(count - 1);
@@ -291,6 +414,9 @@ namespace AdvancedNPCs
             LastQuestion = question;
             LastAnswer = answer;
             refreshNext = true;
+            List<DialogueReply> replies = Conversation.Replies(chosen, topic.Replies, facts);
+            replyTopicId = topic.Id;
+            pendingReplies = replies.Count > 0 ? replies : null;
         }
 
         static bool Blank(ListBox list, int index)

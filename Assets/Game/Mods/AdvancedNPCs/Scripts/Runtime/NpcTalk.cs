@@ -103,7 +103,7 @@ namespace AdvancedNPCs
                 ApplyPortrait(DaggerfallUI.Instance.TalkWindow, portrait);
             AdvancedNpcsMod mod = AdvancedNpcsMod.Instance;
             if (mod != null && brain != null && brain.Instance != null)
-                mod.Topics.Begin(DaggerfallUI.Instance.TalkWindow, brain.State, mod.Flags, displayName, mod.DialogueFor(brain.Instance.Definition));
+                mod.Topics.Begin(DaggerfallUI.Instance.TalkWindow, brain, mod.Flags, displayName, mod.DialogueFor(brain.Instance.Definition));
             // The face shown at the first talk is kept for the rest of the game (spec v2.1 §6.2).
             if (lockPortrait && portraitFile != null && brain != null && brain.Instance != null && brain.Instance.Persistent &&
                 string.IsNullOrEmpty(brain.State.portrait))
