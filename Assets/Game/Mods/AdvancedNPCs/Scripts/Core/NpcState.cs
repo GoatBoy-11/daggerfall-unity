@@ -22,6 +22,22 @@ namespace AdvancedNPCs.Core
         /// <summary>Switched calm with anpc_hostile / SetHostile (overrides a hostile definition).</summary>
         public bool enemyOff;
 
+        /// <summary>Dialogue topic ids asked of this person (null in older saves).</summary>
+        public List<string> asked;
+
+        public bool HasAsked(string topicId)
+        {
+            return asked != null && asked.Contains(topicId);
+        }
+
+        public void MarkAsked(string topicId)
+        {
+            if (asked == null)
+                asked = new List<string>();
+            if (!asked.Contains(topicId))
+                asked.Add(topicId);
+        }
+
         public NpcState Clone()
         {
             NpcState c = new NpcState();
@@ -32,13 +48,15 @@ namespace AdvancedNPCs.Core
             c.portrait = portrait;
             c.enemyOn = enemyOn;
             c.enemyOff = enemyOff;
+            c.asked = asked != null ? new List<string>(asked) : null;
             return c;
         }
 
-        /// <summary>Alive, calm, full health and no locked portrait: nothing worth saving (spec §8, v2.1 §6).</summary>
+        /// <summary>Alive, calm, full health, no locked portrait, nothing asked: nothing worth saving (spec §8, v2.1 §6).</summary>
         public bool IsDefault()
         {
-            return !dead && !hostile && healthFraction >= 0.999f && string.IsNullOrEmpty(portrait) && !enemyOn && !enemyOff;
+            return !dead && !hostile && healthFraction >= 0.999f && string.IsNullOrEmpty(portrait) && !enemyOn && !enemyOff &&
+                   (asked == null || asked.Count == 0);
         }
     }
 

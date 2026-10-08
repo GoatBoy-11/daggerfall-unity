@@ -19,6 +19,31 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void Asked_IsSaved_AndCopied()
+        {
+            NpcStateTable t = new NpcStateTable();
+            NpcState s = t.GetOrCreate("bram");
+            Assert.IsTrue(s.IsDefault());
+            s.MarkAsked("ale");
+            s.MarkAsked("ale");
+            Assert.IsFalse(s.IsDefault());
+            Assert.IsTrue(s.HasAsked("ale"));
+            Dictionary<string, NpcState> snap = t.Snapshot();
+            s.MarkAsked("bread");
+            CollectionAssert.AreEqual(new[] { "ale" }, snap["bram"].asked);
+        }
+
+        [Test]
+        public void Asked_MissingInOldSave_IsEmpty()
+        {
+            NpcState old = new NpcState();
+            old.asked = null;
+            Assert.IsFalse(old.HasAsked("ale"));
+            Assert.IsTrue(old.IsDefault());
+            Assert.IsNull(old.Clone().asked);
+        }
+
+        [Test]
         public void GetOrCreate_ReturnsSameInstance()
         {
             NpcStateTable t = new NpcStateTable();
