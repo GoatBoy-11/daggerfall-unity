@@ -17,6 +17,8 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/TextMacros.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/OutsideSpawn.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/OutOfTownPlanner.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/EncounterRules.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/SpotPicker.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DefinitionCatalog.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DefinitionEditor.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DefinitionParser.cs",
