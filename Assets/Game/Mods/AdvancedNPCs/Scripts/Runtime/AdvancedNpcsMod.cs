@@ -88,7 +88,7 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_place",
                 "Saves your current spot as an NPC's home (rewrites its definition file) and moves it here.", "anpc_place <id>", PlaceCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_spawn",
-                "Makes a new person from a generic ANPC template in front of you; they stay in this town (saved with your game).",
+                "Makes a new person from a generic ANPC template in front of you; they stay here (town, building or dungeon; saved with your game).",
                 "anpc_spawn <template>", SpawnCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_remove",
                 "Removes a person made with anpc_spawn (from the world and from your save).", "anpc_remove <id>", RemoveCommand);
@@ -103,6 +103,9 @@ namespace AdvancedNPCs
                 "anpc_reload_dialogue", ReloadDialogueCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_flag",
                 "Lists dialogue flags, or sets / clears one (saved with your game).", "anpc_flag [name on|off]", FlagCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_here",
+                "Shows which ANPC templates can appear here (dungeon, building or wilderness) and what was rolled.",
+                "anpc_here", HereCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_summon",
                 "Moves a spawned Advanced NPC in front of you (testing only, not saved).", "anpc_summon <id>", SummonCommand);
             spawner = new NpcSpawner(this);
@@ -471,18 +474,45 @@ namespace AdvancedNPCs
 
         /// <summary>
         /// Adds a person from a generic template two steps in front of the player, facing them, and records it in the
-        /// save (anpc_spawn; also the self-test). Null with an error if the player is not outdoors in a town.
+        /// save (anpc_spawn; also the self-test): outdoors in a town, inside a building or inside a dungeon. Null with
+        /// an error in the wilderness or with no room ahead.
         /// </summary>
         public NpcBrain SpawnInFront(NpcDefinition template, IList<NpcDefinition> templates, out string error)
         {
             GameManager gm = GameManager.Instance;
+            PlayerEnterExit pee = gm.PlayerEnterExit;
             DaggerfallLocation location = gm.StreamingWorld.CurrentPlayerLocationObject;
             error = null;
-            if (gm.PlayerEnterExit.IsPlayerInside || location == null)
+
+            Transform parent;
+            PlaceInfo place = null;
+            if (pee.IsPlayerInsideBuilding && pee.Interior != null)
             {
-                error = "Stand outdoors inside a town first.";
+                place = IndoorSpawner.InteriorPlace(pee.Interior);
+                parent = pee.Interior.transform;
+            }
+            else if (pee.IsPlayerInsideDungeon && pee.Dungeon != null)
+            {
+                DaggerfallDungeon.DungeonSummary d = pee.Dungeon.Summary;
+                place = PlaceInfo.Dungeon(d.ID, d.RegionName, d.LocationName, NpcSpawner.DefaultRace(d.LocationData.Climate.WorldClimate),
+                    d.DungeonType.ToString());
+                parent = pee.Dungeon.transform;
+            }
+            else if (!pee.IsPlayerInside && location != null && gm.PlayerGPS.IsPlayerInLocationRect)
+            {
+                parent = location.transform;
+            }
+            else
+            {
+                error = "Wilderness encounters are not kept; stand in a town, a building or a dungeon.";
                 return null;
             }
+            if (pee.IsPlayerInside && place == null)
+            {
+                error = "Could not tell which building this is; anpc_spawn did nothing.";
+                return null;
+            }
+
             Transform player = gm.PlayerObject.transform;
             Vector3 ahead = player.forward;
             ahead.y = 0;
@@ -497,10 +527,20 @@ namespace AdvancedNPCs
                 error = "No room in front of you; step back or turn around.";
                 return null;
             }
-            Vector3 local = location.transform.InverseTransformPoint(player.position + ahead * distance);
-            PlacedNpc placed = Placed.Add(template.Id, location.Summary.MapID, location.Summary.RegionName, location.Summary.LocationName,
-                local.x, local.y, local.z);
-            NpcBrain brain = spawner.SpawnPlaced(location, placed, templates);
+            Vector3 local = parent.InverseTransformPoint(player.position + ahead * distance);
+            NpcBrain brain;
+            PlacedNpc placed;
+            if (place == null)
+            {
+                placed = Placed.Add(template.Id, location.Summary.MapID, location.Summary.RegionName, location.Summary.LocationName,
+                    local.x, local.y, local.z);
+                brain = spawner.SpawnPlaced(location, placed, templates);
+            }
+            else
+            {
+                placed = Placed.Add(template.Id, place.MapId, place.Region, place.Place, local.x, local.y, local.z, place.Context);
+                brain = Indoors.SpawnPlaced(placed, parent, place.DefaultRace, place.IsDungeon ? float.MaxValue : IndoorSpawner.IndoorWander);
+            }
             if (brain == null)
             {
                 Placed.Remove(placed.Key());
@@ -509,6 +549,52 @@ namespace AdvancedNPCs
             }
             brain.transform.rotation = Quaternion.LookRotation(-ahead);
             return brain;
+        }
+
+        /// <summary>What can appear where the player stands, and why it did or did not (anpc_here).</summary>
+        static string HereCommand(params string[] args)
+        {
+            GameManager gm = GameManager.Instance;
+            PlayerEnterExit pee = gm.PlayerEnterExit;
+            StringBuilder sb = new StringBuilder();
+            if (pee.IsPlayerInside)
+            {
+                PlaceInfo p = Instance.Indoors.LastPlace;
+                if (p == null)
+                    return "Nothing was planned for this place yet.";
+                if (p.IsDungeon)
+                    sb.Append(p.Place).Append(" dungeon (type ").Append(p.DungeonType).Append(")");
+                else
+                    sb.Append(p.Place).Append(": ").Append(p.Building).Append(p.Guild != null ? " (" + p.Guild + ")" : "")
+                      .Append(", building key ").Append(p.BuildingKey);
+                sb.Append(", ").Append(Instance.Config.Mode).Append('\n');
+                if (Instance.Indoors.LastExplain.Count == 0)
+                    sb.Append("  no generic template has a \"").Append(p.IsDungeon ? "dungeons" : "interiors").Append("\" block\n");
+                foreach (string line in Instance.Indoors.LastExplain)
+                    sb.Append("  ").Append(line).Append('\n');
+                sb.Append("  spawned on entry: ").Append(Instance.Indoors.LastSpawned).Append("; placed with anpc_spawn here: ")
+                  .Append(Instance.Placed.ForPlace(p.MapId, p.Context).Count);
+            }
+            else if (!gm.PlayerGPS.IsPlayerInLocationRect)
+            {
+                sb.Append("Wilderness: ").Append(Instance.Config.Wilderness ? "encounters on" : "encounters turned off in the mod settings")
+                  .Append(", at most ").Append(Instance.Config.MaxWildernessAround).Append(" around you, ")
+                  .Append(Instance.Wilderness.Alive.Count).Append(" now\n");
+                List<string> lines = Instance.Wilderness.Explain();
+                if (lines.Count == 0)
+                    sb.Append("  no generic template has a \"wilderness\" block\n");
+                foreach (string line in lines)
+                    sb.Append("  ").Append(line).Append('\n');
+            }
+            else
+            {
+                DaggerfallLocation town = gm.StreamingWorld.CurrentPlayerLocationObject;
+                sb.Append(town != null ? town.Summary.LocationName : "This place").Append(" (outdoors): town people come from spawn.locationTypes / places; ")
+                  .Append("see anpc_list. Enter a building or dungeon, or leave the town, to see the other rules.");
+            }
+            string text = sb.ToString().TrimEnd('\n');
+            Log("anpc_here\n" + text);
+            return text;
         }
 
         static string RemoveCommand(params string[] args)

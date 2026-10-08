@@ -98,8 +98,9 @@ namespace AdvancedNPCs
             GameObject marker = dungeon.StartMarker != null ? dungeon.StartMarker : dungeon.EnterMarker;
             Vector3 entrance = marker != null ? marker.transform.position : GameManager.Instance.PlayerObject.transform.position;
             Vector3 local = parent.InverseTransformPoint(entrance);
+            // Group members stand up to ~4.5 m from their spot, so spots keep 5 m more than the 20 m rule.
             return SpawnPlace(place, parent, SpotFinder.DungeonCandidates(dungeon), new float[] { local.x, local.y, local.z },
-                DungeonEntranceDistance, owner.Config.Dungeons, MaxPerDungeon, float.MaxValue);
+                DungeonEntranceDistance + 5f, owner.Config.Dungeons, MaxPerDungeon, float.MaxValue);
         }
 
         List<NpcBrain> SpawnPlace(PlaceInfo place, Transform parent, List<float[]> candidates, float[] avoid, float avoidRadius,
@@ -182,7 +183,7 @@ namespace AdvancedNPCs
             return spawned;
         }
 
-        NpcBrain SpawnPlaced(PlacedNpc placed, Transform parent, string defaultRace, float wanderCap)
+        public NpcBrain SpawnPlaced(PlacedNpc placed, Transform parent, string defaultRace, float wanderCap)
         {
             NpcDefinition template = owner.Catalog.Generics.Find(delegate (NpcDefinition t) { return t.Id == placed.template; });
             if (template == null)
