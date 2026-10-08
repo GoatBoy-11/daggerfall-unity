@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Utility;
 using AdvancedNPCs.Core;
@@ -94,18 +95,59 @@ namespace AdvancedNPCs
             return Reachable(anchor, anchor, out feet);
         }
 
+        /// <summary>
+        /// Only fixed geometry decides a spot: monsters, people and loot move (and after a load DFU puts them back
+        /// where they had wandered to), so the same place must give the same spots whoever happens to stand there.
+        /// </summary>
         static bool Reachable(Vector3 anchor, Vector3 target, out Vector3 feet)
         {
             feet = target;
             Vector3 from = anchor + Vector3.up;
             Vector3 to = target + Vector3.up;
-            if ((to - from).sqrMagnitude > 0.0001f && Physics.Linecast(from, to, Mask, QueryTriggerInteraction.Ignore))
+            Vector3 along = to - from;
+            if (along.sqrMagnitude > 0.0001f && AnyFixed(Physics.RaycastAll(from, along.normalized, along.magnitude, Mask, QueryTriggerInteraction.Ignore)))
                 return false;
             RaycastHit floor;
-            if (!Physics.Raycast(to, Vector3.down, out floor, 3f, Mask, QueryTriggerInteraction.Ignore))
+            if (!NearestFixed(Physics.RaycastAll(to, Vector3.down, 3f, Mask, QueryTriggerInteraction.Ignore), out floor))
                 return false;
             feet = floor.point;
-            return !Physics.CheckCapsule(feet + Vector3.up * 0.5f, feet + Vector3.up * 1.6f, PersonRadius, Mask, QueryTriggerInteraction.Ignore);
+            foreach (Collider c in Physics.OverlapCapsule(feet + Vector3.up * 0.5f, feet + Vector3.up * 1.6f, PersonRadius, Mask, QueryTriggerInteraction.Ignore))
+            {
+                if (IsFixed(c))
+                    return false;
+            }
+            return true;
+        }
+
+        static bool IsFixed(Collider c)
+        {
+            return c.GetComponentInParent<DaggerfallEntityBehaviour>() == null && c.GetComponentInParent<DaggerfallLoot>() == null &&
+                   c.GetComponentInParent<NpcBrain>() == null;
+        }
+
+        static bool AnyFixed(RaycastHit[] hits)
+        {
+            foreach (RaycastHit h in hits)
+            {
+                if (IsFixed(h.collider))
+                    return true;
+            }
+            return false;
+        }
+
+        static bool NearestFixed(RaycastHit[] hits, out RaycastHit nearest)
+        {
+            nearest = new RaycastHit();
+            bool found = false;
+            foreach (RaycastHit h in hits)
+            {
+                if (IsFixed(h.collider) && (!found || h.distance < nearest.distance))
+                {
+                    nearest = h;
+                    found = true;
+                }
+            }
+            return found;
         }
 
         static float[] Local(Transform parent, Vector3 world)
