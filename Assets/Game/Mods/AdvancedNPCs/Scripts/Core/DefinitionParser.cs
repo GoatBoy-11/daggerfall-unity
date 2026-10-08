@@ -33,7 +33,7 @@ namespace AdvancedNPCs.Core
         static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
         static readonly string[] GenericOnlyKeys = { "names", "portraits", "spawn" };
         static readonly string[] RaceNames = { "Breton", "Redguard", "Nord" };
-        static readonly string[] SpawnKeys = { "locationTypes", "places", "count" };
+        static readonly string[] SpawnKeys = { "locationTypes", "places", "count", "dungeons", "interiors", "wilderness" };
         static readonly string[] PlaceKeys = { "region", "place", "positions" };
 
         /// <summary>A 1a flat file from StreamingAssets/AdvancedNPCs (the id is inside the file). Used by migration.</summary>
@@ -233,7 +233,12 @@ namespace AdvancedNPCs.Core
             if (spawn == null)
                 return true;
             foreach (string key in FieldReader.UnknownKeys(spawn, SpawnKeys))
-                r.Warnings.Add(file + ": spawn." + key + ": unknown field, ignored");
+            {
+                string hint = Typos.Closest(key, SpawnKeys);
+                r.Warnings.Add(file + ": spawn." + key + ": unknown field" + (hint != null ? " (did you mean \"" + hint + "\"?)" : "") + ", ignored");
+            }
+            if (!ReadOutsideBlocks(file, spawn, d.Spawn, r))
+                return true;
 
             List<string> types;
             if ((problem = FieldReader.Texts(spawn, "locationTypes", out types)) != null)
@@ -275,6 +280,45 @@ namespace AdvancedNPCs.Core
                         FieldReader.Num(count[0]) + ", " + FieldReader.Num(count[1]) + "])");
                 d.Spawn.CountMin = (int)count[0];
                 d.Spawn.CountMax = (int)count[1];
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// spawn.dungeons / interiors / wilderness (outside-towns spec §3). With any of them and no locationTypes or
+        /// places, the template is not a town template. Returns false when town fields need not be read.
+        /// </summary>
+        static bool ReadOutsideBlocks(string file, Dictionary<string, object> spawn, GenericSpawn s, ParseResult r)
+        {
+            bool anyBlock = false;
+            Dictionary<string, object> block;
+            if (FieldReader.Object(spawn, "dungeons", out block) != null)
+                r.Warnings.Add(file + ": spawn.dungeons: must be an object, ignored");
+            else if (block != null)
+            {
+                anyBlock = true;
+                s.Dungeons = OutsideSpawnParser.Dungeons(file, block, r.Warnings);
+            }
+            if (FieldReader.Object(spawn, "interiors", out block) != null)
+                r.Warnings.Add(file + ": spawn.interiors: must be an object, ignored");
+            else if (block != null)
+            {
+                anyBlock = true;
+                s.Interiors = OutsideSpawnParser.Interiors(file, block, r.Warnings);
+            }
+            if (FieldReader.Object(spawn, "wilderness", out block) != null)
+                r.Warnings.Add(file + ": spawn.wilderness: must be an object, ignored");
+            else if (block != null)
+            {
+                anyBlock = true;
+                s.Wilderness = OutsideSpawnParser.Wilderness(file, block, r.Warnings);
+            }
+            if (anyBlock && !spawn.ContainsKey("locationTypes") && !spawn.ContainsKey("places"))
+            {
+                s.HasTownRules = false;
+                if (spawn.ContainsKey("count"))
+                    r.Warnings.Add(file + ": spawn.count: only for towns (add \"locationTypes\" to spawn in towns too), ignored");
+                return false;
             }
             return true;
         }

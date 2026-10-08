@@ -39,6 +39,11 @@ namespace AdvancedNPCs.Core
         public readonly List<SpawnPlace> Places = new List<SpawnPlace>();
         public int CountMin = 1;
         public int CountMax = 3;
+        /// <summary>False when only outside-town blocks were given (no locationTypes / places): never in towns.</summary>
+        public bool HasTownRules = true;
+        public DungeonSpawn Dungeons;
+        public InteriorSpawn Interiors;
+        public WildernessSpawn Wilderness;
 
         /// <summary>
         /// True if the template spawns in this town. When spawn.places is given only those towns match (and
@@ -47,6 +52,8 @@ namespace AdvancedNPCs.Core
         public bool Matches(TownInfo town, out SpawnPlace place)
         {
             place = null;
+            if (!HasTownRules)
+                return false;
             if (Places.Count > 0)
             {
                 foreach (SpawnPlace p in Places)

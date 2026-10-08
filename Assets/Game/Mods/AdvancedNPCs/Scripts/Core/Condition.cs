@@ -125,6 +125,12 @@ namespace AdvancedNPCs.Core
         /// <param name="where">Message prefix, e.g. "_Dialogue/tavern_wench.json: topic \"Ale\"".</param>
         public static Condition Parse(Dictionary<string, object> o, string where, List<string> messages, bool allowTone)
         {
+            return Parse(o, where, messages, allowTone, true);
+        }
+
+        /// <param name="allowConversation">False outside dialogue (spawn rules): asked, notAsked and reaction are rejected.</param>
+        public static Condition Parse(Dictionary<string, object> o, string where, List<string> messages, bool allowTone, bool allowConversation)
+        {
             Condition c = new Condition();
             if (o == null)
                 return c;
@@ -148,18 +154,18 @@ namespace AdvancedNPCs.Core
                     case "minGold": problem = Minimum(c, key, raw, delegate (IDialogueFacts f) { return f.Gold; }); break;
                     case "playerRace": problem = OneOf(c, key, raw, Races, true, delegate (IDialogueFacts f) { return f.PlayerRace; }); break;
                     case "playerGender": problem = OneOf(c, key, raw, Genders, false, delegate (IDialogueFacts f) { return f.PlayerGender; }); break;
-                    case "reaction": problem = OneOf(c, key, raw, Reactions, false, delegate (IDialogueFacts f) { return f.Reaction; }); break;
+                    case "reaction": problem = !allowConversation ? OnlyDialogue : OneOf(c, key, raw, Reactions, false, delegate (IDialogueFacts f) { return f.Reaction; }); break;
                     case "hasItem": problem = HasItem(c, raw); break;
                     case "guild": problem = Guild(c, raw, o); break;
                     case "minGuildRank": problem = o.ContainsKey("guild") ? null : "needs \"guild\""; break;
-                    case "asked": problem = Ids(c, key, raw, true, false); break;
-                    case "notAsked": problem = Ids(c, key, raw, true, true); break;
+                    case "asked": problem = !allowConversation ? OnlyDialogue : Ids(c, key, raw, true, false); break;
+                    case "notAsked": problem = !allowConversation ? OnlyDialogue : Ids(c, key, raw, true, true); break;
                     case "flags": problem = Ids(c, key, raw, false, false); break;
                     case "notFlags": problem = Ids(c, key, raw, false, true); break;
                     case "questGlobal": problem = QuestGlobal(c, key, raw, false); break;
                     case "notQuestGlobal": problem = QuestGlobal(c, key, raw, true); break;
                     case "tone": problem = allowTone ? Tone(c, raw) : "only allowed in answers"; break;
-                    case "any": problem = Any(c, raw, where, messages, allowTone); break;
+                    case "any": problem = Any(c, raw, where, messages, allowTone, allowConversation); break;
                     default:
                         string suggestion = Suggest(key);
                         problem = "unknown condition" + (suggestion != null ? " (did you mean \"" + suggestion + "\"?)" : "");
@@ -176,6 +182,7 @@ namespace AdvancedNPCs.Core
         }
 
         public const string NeverHolds = "; this condition never holds until fixed";
+        const string OnlyDialogue = "only allowed in dialogue";
 
         static string Hours(Condition c, object raw)
         {
@@ -438,7 +445,7 @@ namespace AdvancedNPCs.Core
             return null;
         }
 
-        static string Any(Condition c, object raw, string where, List<string> messages, bool allowTone)
+        static string Any(Condition c, object raw, string where, List<string> messages, bool allowTone, bool allowConversation)
         {
             List<object> list = raw as List<object>;
             if (list == null || list.Count == 0)
@@ -449,7 +456,7 @@ namespace AdvancedNPCs.Core
                 Dictionary<string, object> o = item as Dictionary<string, object>;
                 if (o == null)
                     return "must be a list of condition objects";
-                Condition option = Parse(o, where, messages, allowTone);
+                Condition option = Parse(o, where, messages, allowTone, allowConversation);
                 options.Add(option);
                 c.AskedIds.AddRange(option.AskedIds);
                 c.QuestGlobals.AddRange(option.QuestGlobals);
