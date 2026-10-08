@@ -16,6 +16,26 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void Dialogue_OneOrMoreTypes_Normalised()
+        {
+            ParseResult one = DefinitionParser.Parse("bram.json", With("\"dialogue\": \"Tavern Wench\""));
+            Assert.IsTrue(one.Ok, one.Error);
+            CollectionAssert.AreEqual(new[] { "tavern_wench" }, one.Definition.Dialogue);
+            ParseResult two = DefinitionParser.Parse("bram.json", With("\"dialogue\": [\"gossip\", \"tavern_wench\"]"));
+            CollectionAssert.AreEqual(new[] { "gossip", "tavern_wench" }, two.Definition.Dialogue);
+            CollectionAssert.IsEmpty(DefinitionParser.Parse("bram.json", Minimal).Definition.Dialogue);
+        }
+
+        [Test]
+        public void Dialogue_WrongType_WarnsAndNpcStillLoads()
+        {
+            ParseResult r = DefinitionParser.Parse("bram.json", With("\"dialogue\": 5"));
+            Assert.IsTrue(r.Ok, r.Error);
+            CollectionAssert.IsEmpty(r.Definition.Dialogue);
+            CollectionAssert.Contains(r.Warnings, "bram.json: dialogue: must be a dialogue type name or a list of names, ignored");
+        }
+
+        [Test]
         public void Minimal_AppliesDefaults()
         {
             ParseResult r = DefinitionParser.Parse("bram.json", Minimal);

@@ -24,6 +24,21 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void FolderDialogue_ParsedWithMessages_BadFileKeepsNpc()
+        {
+            DefinitionCatalog c = DefinitionCatalog.Build(new[]
+            {
+                new AnpcFolder("a", Unique("R", "P"), "{ \"topics\": [ { \"caption\": \"Ale\", \"answers\": [\"Hi {playr}\"] } ] }"),
+                new AnpcFolder("b", Unique("R", "P"), "{ broken"),
+            });
+            Assert.AreEqual("Ale", c.ById["a"].OwnDialogue.Topics[0].Caption);
+            Assert.IsNull(c.ById["b"].OwnDialogue);
+            Assert.IsTrue(c.ById.ContainsKey("b"));
+            Assert.IsTrue(c.Messages.Exists(delegate (string m) { return m.StartsWith("a/dialogue.json: topic \"Ale\": answers: answer 1: unknown placeholder {playr}"); }));
+            Assert.IsTrue(c.Messages.Exists(delegate (string m) { return m.StartsWith("b/dialogue.json: file: invalid JSON"); }));
+        }
+
+        [Test]
         public void ValidFolders_AreIndexedById()
         {
             DefinitionCatalog c = DefinitionCatalog.Build(new[]

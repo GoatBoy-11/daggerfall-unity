@@ -27,7 +27,7 @@ namespace AdvancedNPCs.Core
         static readonly string[] SharedKeys =
         {
             "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "calmDownHours",
-            "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight", "attitude", "hostileHours",
+            "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight", "attitude", "hostileHours", "dialogue",
         };
         static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
         static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
@@ -448,7 +448,32 @@ namespace AdvancedNPCs.Core
             d.Race = race;
             d.NameList = NameListParser.Normalize(nameList);
             d.SpriteHeight = (float)spriteHeight;
+            ReadDialogueTypes(file, o, d, r);
             return true;
+        }
+
+        /// <summary>"dialogue": a type id or a list of them. A bad value only warns: the NPC still loads.</summary>
+        static void ReadDialogueTypes(string file, Dictionary<string, object> o, NpcDefinition d, ParseResult r)
+        {
+            object raw;
+            if (!o.TryGetValue("dialogue", out raw) || raw == null)
+                return;
+            List<object> list = raw as List<object>;
+            if (list == null)
+                list = new List<object> { raw };
+            List<string> ids = new List<string>();
+            foreach (object item in list)
+            {
+                string id = DialogueIds.Normalize(item as string);
+                if (id.Length == 0)
+                {
+                    r.Warnings.Add(file + ": dialogue: must be a dialogue type name or a list of names, ignored");
+                    return;
+                }
+                if (!ids.Contains(id))
+                    ids.Add(id);
+            }
+            d.Dialogue.AddRange(ids);
         }
 
         static bool ValidHours(double[] hours)

@@ -53,6 +53,10 @@ namespace AdvancedNPCs.Core
         /// <summary>BaseClass is a DFU creature (Creatures), not a human class.</summary>
         public bool IsCreature;
         public float WanderRadius;
+        /// <summary>Dialogue type ids (files in _Dialogue), in the order given in npc.json.</summary>
+        public readonly List<string> Dialogue = new List<string>();
+        /// <summary>The folder's own dialogue.json, or null.</summary>
+        public DialogueFile OwnDialogue;
         /// <summary>Folder name under ANPCs (equals Id).</summary>
         public string Folder = "";
         /// <summary>Path used in messages, e.g. "bram/npc.json".</summary>

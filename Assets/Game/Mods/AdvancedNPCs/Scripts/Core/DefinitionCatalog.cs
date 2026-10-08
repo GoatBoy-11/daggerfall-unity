@@ -57,10 +57,9 @@ namespace AdvancedNPCs.Core
                 }
 
                 NpcDefinition d = result.Definition;
+                d.OwnDialogue = ParseOwnDialogue(folder.Name, folder.DialogueJson, catalog.Messages);
                 if (d.Kind == NpcKind.Generic)
                 {
-                    if (folder.DialogueJson != null)
-                        catalog.Messages.Add(folder.Name + "/dialogue.json: file: topics are for unique ANPCs only, ignored");
                     catalog.Generics.Add(d);
                 }
                 else if (catalog.ById.ContainsKey(d.Id))
@@ -75,6 +74,18 @@ namespace AdvancedNPCs.Core
 
             catalog.Messages.Add("Loaded " + catalog.ById.Count + " unique ANPC(s) and " + catalog.Generics.Count + " generic template(s).");
             return catalog;
+        }
+
+        /// <summary>A folder's dialogue.json (spec C1 §3), or null when it is missing or unusable.</summary>
+        public static DialogueFile ParseOwnDialogue(string folder, string json, List<string> messages)
+        {
+            if (json == null)
+                return null;
+            DialogueParseResult r = DialogueParser.Parse(folder + "/dialogue.json", json);
+            messages.AddRange(r.Messages);
+            if (r.File != null)
+                r.File.Name = folder;
+            return r.File;
         }
 
         /// <summary>Unique ANPCs that live in this town.</summary>

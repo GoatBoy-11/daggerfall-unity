@@ -104,15 +104,17 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
-        public void Catalog_PutsTemplatesInGenerics_AndWarnsAboutDialogue()
+        public void Catalog_PutsTemplatesInGenerics_WithTheirOwnDialogue()
         {
             DefinitionCatalog c = DefinitionCatalog.Build(new[]
             {
-                new AnpcFolder("commoner", "{ \"kind\": \"generic\", \"portraits\": [\"c1\"] }", "{ \"topics\": [] }"),
+                new AnpcFolder("commoner", "{ \"kind\": \"generic\", \"portraits\": [\"c1\"] }",
+                    "{ \"topics\": [ { \"caption\": \"Weather\", \"answers\": [\"Grey.\"] } ] }"),
             });
             Assert.AreEqual(0, c.ById.Count);
             Assert.AreEqual(1, c.Generics.Count);
-            CollectionAssert.Contains(c.Messages, "commoner/dialogue.json: file: topics are for unique ANPCs only, ignored");
+            Assert.AreEqual("Weather", c.Generics[0].OwnDialogue.Topics[0].Caption);
+            Assert.AreEqual("commoner", c.Generics[0].OwnDialogue.Name);
             CollectionAssert.Contains(c.Messages, "Loaded 0 unique ANPC(s) and 1 generic template(s).");
             CollectionAssert.AreEqual(new[] { "c1" }, c.ReferencedPortraits());
         }
