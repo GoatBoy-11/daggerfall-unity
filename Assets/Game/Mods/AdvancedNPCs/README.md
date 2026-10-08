@@ -11,8 +11,10 @@ and save/load.
 DaggerfallUnity_Data/StreamingAssets/ANPCs/
   _Portraits/        shared portrait PNGs
   _Namelists/        custom name lists
+  _Dialogue/         dialogue types: topics many ANPCs can share
   commoner/          one folder per ANPC; the folder name is its id
     npc.json
+    dialogue.json    optional: topics only this ANPC (or template) has
 ```
 
 - Folder names use lowercase letters, digits and `_`. Never rename a folder after release: the name keys save data.
@@ -57,6 +59,7 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 | `calmDownHours` | no | `[6, 48]` | `[min, max]` in-game hours before a hostile ANPC forgives the player |
 | `crimeOnAttack` | no | `true` | `true`: attacking is assault, killing is murder |
 | `wanderRadius` | no | `8` | metres around the spawn point; `0` stands still |
+| `dialogue` | no | none | dialogue type(s) from `_Dialogue/`, e.g. `"tavern_wench"` or `["gossip", "tavern_wench"]`, see [Dialogue topics](#dialogue-topics) |
 
 
 ## Generic townsfolk
@@ -85,8 +88,9 @@ A generic template makes several different people per town, alongside vanilla ci
 | `spawn.places` | all matching towns | list of `{ "region", "place" }`; only those towns. Add `"positions": [[x, y, z], …]` (from `anpc_pos`) for fixed spots |
 | `spawn.count` | `[1, 3]` | instances per town, `0 <= min <= max <= 20` |
 
-All behaviour fields of unique ANPCs (`race`, `baseClass`, `gender`, `bravery`, …) work the same. `location`,
-`position` and `dialogue.json` are for unique ANPCs only. Instances are named `<template>@<map id>#<n>` in
+All behaviour fields of unique ANPCs (`race`, `baseClass`, `gender`, `bravery`, `dialogue`, …) work the same, and
+a template's `dialogue.json` gives its topics to every person made from it. `location` and `position` are for
+unique ANPCs only. Instances are named `<template>@<map id>#<n>` in
 `anpc_list` and in save data.
 
 ## Settings
@@ -114,6 +118,9 @@ folder name is the old id.
 - `anpc_spawn <template>` — makes a new person from a generic template (e.g. `anpc_spawn wench`) in front of you, rolled like the template's other people (name, portrait, sprite set). They stay at that spot in that town for the rest of this game, saved with it; their key is `<template>@<map id>+<n>`. This works in either GenericPeople mode.
 - `anpc_remove <key>` — removes a person made with `anpc_spawn` from the world and from your save.
 - `anpc_hostile <id or key> [on|off]` — turns an ANPC into an enemy or calms it (without on/off it toggles); saved with your game. See [Enemies](#enemies).
+- `anpc_topics [id or key]` — the dialogue topics of the ANPC in front of you (within 5 m) or of that ANPC: which are shown, and for the others the condition that hides them. See [Dialogue topics](#dialogue-topics).
+- `anpc_reload_dialogue` — re-reads `_Dialogue/*.json` and every `dialogue.json` without restarting (a change to `npc.json` still needs a restart).
+- `anpc_flag` — lists the dialogue flags that are set; `anpc_flag <name> on|off` sets or clears one (saved with your game).
 - `anpc_selftest` — runs the behaviour checks with temporary ANPCs next to you (god mode on, crimes recorded instead of punished, game clock untouched); results on screen and in `Player.log`.
 
 ## Behaviour
@@ -148,6 +155,116 @@ enemies. Bravery still applies (a Coward enemy runs).
 
 - Click a calm ANPC in Talk or Grab mode to open DFU's citizen talk window with its name and portrait; vanilla topics work as for any citizen.
 - Hostile or fleeing ANPCs refuse to talk. Info mode shows "You see <name>.".
+
+## Dialogue topics
+
+ANPCs can have their own "Tell Me About" topics. They are listed right after "Where am I?", next to the vanilla
+topics, and answered in the talk window like any other topic.
+
+### Your first topic in two minutes
+
+1. Create `ANPCs/_Dialogue/tavern_wench.json` (the file name is the **dialogue type**):
+
+   ```json
+   {
+     "topics": [
+       { "caption": "The house ale", "answers": ["Two coppers a mug. Three if you want it cold."] }
+     ]
+   }
+   ```
+
+2. Add one line to the ANPC's `npc.json`: `"dialogue": "tavern_wench"`.
+3. Start the game and talk to her: **Tell Me About → The house ale**.
+4. Later edits: change the file, type `anpc_reload_dialogue` in the console, talk to her again. No restart.
+
+Every ANPC (unique or generic) with `"dialogue": "tavern_wench"` shares these topics. A list mixes types:
+`"dialogue": ["gossip", "tavern_wench"]`. A folder's own `dialogue.json` (same format) adds topics only that
+ANPC (or every person of that template) has. If two files have a topic with the same `id`, the later one wins:
+types in the order listed, then the folder's own file.
+
+### Topics
+
+```json
+{
+  "caption": "The missing sailor",
+  "id": "sailor",
+  "when": { "asked": "Any rumours?" },
+  "question": { "polite": "Could you tell me about the sailor?", "blunt": "The sailor. Talk." },
+  "answers": [
+    { "when": { "reaction": "dislikes" }, "text": "Why should I tell you?" },
+    "Jory drank here every night, then nothing.",
+    "Poor Jory. Last seen near the old warehouse."
+  ],
+  "sets": ["heard_sailor"],
+  "once": false
+}
+```
+
+| Field | Needed | Meaning |
+|---|---|---|
+| `caption` | yes | The text in the topic list. Keep it under 24 characters. |
+| `answers` | yes | What the ANPC says: one text, or a list. One is picked at random each time. |
+| `when` | no | Only list the topic while these conditions hold (see below). |
+| `question` | no | What the player says. Default by tone: "Could you tell me about…?", "Tell me about….", "What do you know about…?". One text for every tone, or `{ "polite", "normal", "blunt" }`. |
+| `id` | no | The name other topics use for this one. Default: the caption in lowercase with `_` for spaces and punctuation ("Any rumours?" → `any_rumours`). |
+| `sets` / `clears` | no | Flags to set / clear when the topic is asked (see Flags). |
+| `once` | no | `true`: the topic disappears for this person after it was asked. |
+
+**Answers that depend on something:** an answer can be `{ "when": {…}, "text": "…" }` (it may also have its own
+`sets` / `clears`). Answers whose `when` holds win over plain answers; among the winners one is picked at random.
+A topic whose answers all have a `when` and none holds is not listed. `"when": { "tone": "blunt" }` in an answer
+reacts to the tone the player chose.
+
+**Follow-up topics:** `"when": { "asked": "Any rumours?" }` lists the topic once "Any rumours?" was asked of this
+person, straight away in the same conversation. Name the topic by its caption or its `id`.
+
+**Greetings:** a file may have `"greetings": [ … ]` with the same answer format (no `tone`, `sets` or `clears`).
+When one qualifies it replaces the vanilla greeting; otherwise the vanilla greeting stays.
+
+**Placeholders:** `{player}`, `{npc}`, `{town}` and `{region}` in any text; `{topic}` (the caption) in questions.
+
+### Conditions (`when`)
+
+Every condition in a `when` must hold. For "or", use `"any": [ { … }, { … } ]`.
+
+| Condition | Example | Holds when |
+|---|---|---|
+| `hours` | `[20, 6]` | the hour is from 20:00 up to (not including) 6:00 |
+| `time` | `"night"` | it is `day` or `night` |
+| `season` | `["autumn", "winter"]` | it is one of these seasons (`spring`, `summer`, `autumn`/`fall`, `winter`) |
+| `weather` | `"rain"` | the weather is one of `clear`, `overcast`, `rain` (storms count), `storm`, `snow` |
+| `region` / `town` | `"Daggerfall"` | the player is in one of these regions / towns |
+| `minLevel` / `maxLevel` | `5` | the player's level is at least / at most this |
+| `playerRace` | `"Dark Elf"` | the player is one of these races |
+| `playerGender` | `"Female"` | the player is `Male` / `Female` |
+| `minGold` | `500` | the player carries at least this much gold |
+| `hasItem` | `"Ruby"` | the player carries an item with one of these names |
+| `guild` (+ `minGuildRank`) | `"Fighters Guild"` | the player is a member (of rank 0–10 at least): `Fighters Guild`, `Mages Guild`, `Thieves Guild`, `Dark Brotherhood`, `Temple`, `Knightly Order` |
+| `reaction` | `["likes", "loves"]` | how this person regards the player: `dislikes`, `neutral`, `likes`, `loves` (DFU's reaction to you in this region) |
+| `asked` / `notAsked` | `"Any rumours?"` | all / none of these topics were asked of this person |
+| `flags` / `notFlags` | `"heard_sailor"` | all / none of these flags are set |
+| `questGlobal` / `notQuestGlobal` | `"LiftedCurse"` | all / none of these DFU quest globals (names from `Quests-GlobalVars`, or numbers 0–63) are true |
+| `tone` | `"blunt"` | (answers only) the player's tone is one of `polite`, `normal`, `blunt` |
+| `any` | `[{ "time": "night" }, { "flags": "x" }]` | at least one of these condition groups holds |
+
+Values like seasons, races and names may be one text or a list of "any of these".
+
+### Flags
+
+Flags are named switches for the whole game, saved with it. A topic sets one (`"sets": ["heard_sailor"]`), and
+any topic of any ANPC can react to it (`"when": { "flags": "heard_sailor" }`). That's how one person's answer
+unlocks a topic with someone else. `anpc_flag` lists them and sets or clears one for testing. Other mods can send
+the messages `SetFlag` (`"name|on"` / `"name|off"`) and `HasFlag` (`"name"`, the callback gets true or false).
+
+### When something doesn't show up
+
+- Look in `Player.log` for `[AdvancedNPCs]` lines: every problem names the file, the topic and the field, and
+  misspelt field names get a suggestion (`when: tme: unknown condition (did you mean "time"?)`). A broken topic is
+  skipped; the rest of the file still works.
+- Stand in front of the ANPC and type `anpc_topics`: it lists each topic as `shown` or with the condition that
+  hides it (`hidden, when: time`, `hidden, once (already asked)`).
+- `Examples/ANPCs/_Dialogue/tavern_wench.json` uses every feature: greetings, tone answers, follow-ups, flags,
+  `once`, time, weather, season, gold and guild topics.
 
 ## Portraits
 
@@ -191,7 +308,8 @@ ANPCs/wench/
 
 `Examples/ANPCs/` holds four generic templates for cities, towns and villages: `commoner` (one to three
 cowardly commoners per town) and `cooper` (Normal, uses portrait `bram`), `baker` (Coward) and `smith` (Brave),
-each at most once per town. Use `anpc_list` to find them.
+each at most once per town. Use `anpc_list` to find them. `Examples/ANPCs/_Dialogue/tavern_wench.json` is a
+complete dialogue type; add `"dialogue": "tavern_wench"` to any ANPC to try it.
 
 ## Building (developers)
 

@@ -144,8 +144,10 @@ holds (for OR). A list value in a "one of" key means *any of these*; in `asked`/
 | `tone` | one of `polite`, `normal`, `blunt` | the player's tone (answers only; elsewhere a load warning and ignored) |
 | `any` | list of `when` objects | at least one holds |
 
-`asked`/`notAsked` accept an id or a caption (both are normalised the same way). An `asked` naming no topic of the
-composed set is a load warning when it can be checked (within one file; cross-file references are not checked).
+`asked`/`notAsked` accept an id or a caption (both are normalised the same way). An `asked`/`notAsked` naming no
+topic of an ANPC's **composed** set is a load warning (checked per ANPC after composition, so references across
+files are checked too, without false warnings). Default question lines lowercase a leading "The/A/An" of the
+caption ("Tell me about the house ale."); authored questions are used as written.
 Unknown keys and invalid values are load warnings naming the file, topic and key; an invalid key is ignored (the
 rest of the condition still applies). Flag names: lowercase letters, digits and `_` (normalised like ids).
 Quest-global names are checked against DFU's table when the game loads the files (Core only checks the syntax).

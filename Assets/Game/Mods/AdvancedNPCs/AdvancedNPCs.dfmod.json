@@ -1,10 +1,10 @@
 {
     "ModTitle": "Advanced NPCs",
-    "ModVersion": "0.3.0",
+    "ModVersion": "0.4.0",
     "ModAuthor": "GoatBoy-11",
     "ContactInfo": "https://github.com/GoatBoy-11/daggerfall-unity",
     "DFUnity_Version": "1.9.2",
-    "ModDescription": "Persistent, data-defined NPCs: unique people and generic townsfolk you can talk to, who fight or flee by bravery when attacked, report crimes and calm down over in-game time. One folder per NPC in StreamingAssets/ANPCs.",
+    "ModDescription": "Persistent, data-defined NPCs: unique people and generic townsfolk you can talk to, who fight or flee by bravery when attacked, report crimes and calm down over in-game time. Their own JSON dialogue topics with conditions, follow-ups and flags. One folder per NPC in StreamingAssets/ANPCs.",
     "GUID": "cdeaee86-3114-4004-b08e-e98f8db44241",
     "Files": [
         "Assets/Game/Mods/AdvancedNPCs/modsettings.json",
