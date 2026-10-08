@@ -3,8 +3,22 @@ using System.Collections.Generic;
 
 namespace AdvancedNPCs.Core
 {
+    /// <summary>What dialogue lines can do in the game (C2 spec §4); the runtime does it, Core decides when.</summary>
+    public interface IDialogueActions
+    {
+        void GiveGold(int amount);
+        void TakeGold(int amount);
+        void GiveItem(string name);
+        void TakeItem(string name);
+        void ChangeReputation(int amount);
+        void StartQuest(string name);
+        void BecomeEnemy();
+        void EndConversation();
+    }
+
     /// <summary>
-    /// Which topics an ANPC offers right now, which answer it gives and what asking changes (spec C1 §4.1, §5).
+    /// Which topics an ANPC offers right now, which answer it gives and what asking changes (spec C1 §4.1, §5;
+    /// replies and actions: C2 §3, §4).
     /// </summary>
     public static class Conversation
     {
@@ -29,6 +43,9 @@ namespace AdvancedNPCs.Core
         {
             if (t.Once && facts.Asked(t.Id))
                 return "once (already asked)";
+            string needs = Needs(t.Actions, facts);
+            if (needs != null)
+                return needs;
             string failing = t.When != null ? t.When.FirstFailing(facts) : null;
             if (failing != null)
                 return "when: " + failing;
@@ -83,17 +100,115 @@ namespace AdvancedNPCs.Core
         /// <summary>Picks the answer, applies the topic's and the answer's sets/clears and marks the topic asked.</summary>
         public static string Ask(DialogueTopic t, IDialogueFacts facts, Random rng, IDialogueState state)
         {
-            DialogueAnswer a = PickAnswer(t.Answers, facts, rng, false) ?? t.Answers[0];
-            foreach (string flag in t.Sets)
-                state.SetFlag(flag);
-            foreach (string flag in t.Clears)
-                state.ClearFlag(flag);
-            foreach (string flag in a.Sets)
-                state.SetFlag(flag);
-            foreach (string flag in a.Clears)
-                state.ClearFlag(flag);
+            DialogueAnswer chosen;
+            return Ask(t, facts, rng, state, null, out chosen);
+        }
+
+        /// <summary>As Ask, also running the topic's and the answer's actions; chosen = the answer given (for its replies).</summary>
+        public static string Ask(DialogueTopic t, IDialogueFacts facts, Random rng, IDialogueState state, IDialogueActions actions, out DialogueAnswer chosen)
+        {
+            chosen = PickAnswer(t.Answers, facts, rng, false) ?? t.Answers[0];
+            Run(state, actions, new[] { t.Sets, chosen.Sets }, new[] { t.Clears, chosen.Clears }, new[] { t.Actions, chosen.Actions });
             state.MarkAsked(t.Id);
-            return a.Text;
+            return chosen.Text;
+        }
+
+        /// <summary>
+        /// The replies to offer after an answer: the answer's own if it has any, else the fallback (the topic's, or the
+        /// reply's that led here); only those whose `when` holds and whose takeGold / takeItem the player can pay.
+        /// </summary>
+        public static List<DialogueReply> Replies(DialogueAnswer answer, List<DialogueReply> fallback, IDialogueFacts facts)
+        {
+            List<DialogueReply> source = answer != null && answer.Replies.Count > 0 ? answer.Replies : fallback;
+            List<DialogueReply> offered = new List<DialogueReply>();
+            if (source == null)
+                return offered;
+            foreach (DialogueReply r in source)
+            {
+                if (CanSay(r, facts))
+                    offered.Add(r);
+            }
+            return offered;
+        }
+
+        /// <summary>The reply may be said now (checked again when picked: gold may have changed meanwhile).</summary>
+        public static bool CanSay(DialogueReply r, IDialogueFacts facts)
+        {
+            return Condition.Check(r.When, facts) && Needs(r.Actions, facts) == null;
+        }
+
+        /// <summary>
+        /// The player says the reply: picks the ANPC's answer (next, for its replies), runs the reply's and the answer's
+        /// effects and marks "&lt;topic&gt;/&lt;reply&gt;" asked (normalised, so `"asked": "Ale/A mug, please."` matches).
+        /// </summary>
+        public static string Say(DialogueReply r, string topicId, IDialogueFacts facts, Random rng, IDialogueState state,
+            IDialogueActions actions, out DialogueAnswer next)
+        {
+            next = PickAnswer(r.Answers, facts, rng, false) ?? r.Answers[0];
+            Run(state, actions, new[] { r.Sets, next.Sets }, new[] { r.Clears, next.Clears }, new[] { r.Actions, next.Actions });
+            state.MarkAsked(DialogueIds.Normalize(topicId + "/" + r.Id));
+            return next.Text;
+        }
+
+        /// <summary>Null when the player can pay what the line takes, else "needs 50 gold" / "needs Ruby".</summary>
+        public static string Needs(DialogueActions a, IDialogueFacts facts)
+        {
+            if (a.TakeGold > 0 && facts.Gold < a.TakeGold)
+                return "needs " + a.TakeGold + " gold";
+            if (a.TakeItem != null && !facts.HasItem(a.TakeItem))
+                return "needs " + a.TakeItem;
+            return null;
+        }
+
+        /// <summary>
+        /// Effects of one line in a fixed order (C2 §4): takes, gives, reputation, flags, then quest, enemy and the end
+        /// of the conversation. Each phase runs for every part of the line (topic or reply first, then the answer).
+        /// </summary>
+        static void Run(IDialogueState state, IDialogueActions act, List<string>[] sets, List<string>[] clears, DialogueActions[] parts)
+        {
+            if (act != null)
+            {
+                foreach (DialogueActions a in parts)
+                {
+                    if (a.TakeGold > 0)
+                        act.TakeGold(a.TakeGold);
+                    if (a.TakeItem != null)
+                        act.TakeItem(a.TakeItem);
+                    if (a.GiveGold > 0)
+                        act.GiveGold(a.GiveGold);
+                    if (a.GiveItem != null)
+                        act.GiveItem(a.GiveItem);
+                }
+                foreach (DialogueActions a in parts)
+                {
+                    if (a.Reputation != 0)
+                        act.ChangeReputation(a.Reputation);
+                }
+            }
+            for (int i = 0; i < sets.Length; i++)
+            {
+                foreach (string flag in sets[i])
+                    state.SetFlag(flag);
+                foreach (string flag in clears[i])
+                    state.ClearFlag(flag);
+            }
+            if (act == null)
+                return;
+            foreach (DialogueActions a in parts)
+            {
+                if (a.StartQuest != null)
+                    act.StartQuest(a.StartQuest);
+            }
+            bool enemy = false, end = false;
+            foreach (DialogueActions a in parts)
+            {
+                enemy |= a.BecomeEnemy;
+                end |= a.EndConversation;
+            }
+            if (enemy)
+                act.BecomeEnemy();
+            if (end)
+                act.EndConversation();
         }
 
         /// <summary>The greeting to show instead of DFU's, or null to keep DFU's.</summary>
