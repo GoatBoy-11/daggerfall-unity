@@ -30,6 +30,8 @@ namespace AdvancedNPCs
                 "{ \"baseClass\": \"Bard\", \"wanderRadius\": 0, \"spawn\": { \"interiors\": { \"buildings\": [\"Tavern\"], \"chance\": 100, \"count\": [2, 2] } } }");
             NpcDefinition bandit = OutsideTemplate("selftest_bandit",
                 "{ \"baseClass\": \"Warrior\", \"wanderRadius\": 0, \"spawn\": { \"dungeons\": { \"chance\": 100, \"count\": [3, 3] }, \"wilderness\": { \"chance\": 100, \"max\": 1 } } }");
+            Check("every setting the mod reads is in its settings", mod.Config.MissingKeys.Count == 0,
+                "missing: " + string.Join(", ", mod.Config.MissingKeys.ToArray()));
             if (patron == null || bandit == null)
             {
                 mod.Config.RandomEachVisit = randomBefore;
@@ -137,6 +139,41 @@ namespace AdvancedNPCs
                 float entranceDistance = Closest(bandits, new List<Vector3> { entrance });
                 Check("no one appears within 20 m of the dungeon entrance", bandits.Count > 0 && entranceDistance >= 20f,
                     "closest " + entranceDistance.ToString("0.0") + " m");
+                // A real save and load inside the dungeon (DFU rebuilds it without its enemies, then restores them).
+                Dictionary<string, Vector3> spots = new Dictionary<string, Vector3>();
+                foreach (NpcBrain b in bandits)
+                    spots[b.Id] = b.transform.localPosition;
+                string killed = bandits.Count > 0 ? bandits[0].Id : null;
+                if (bandits.Count > 0)
+                    PlayerHit(bandits[0], gm.PlayerEntityBehaviour, 100000);
+                yield return new WaitForSecondsRealtime(0.5f);
+                SaveLoadManager.Instance.Save(gm.PlayerEntity.Name, "ANPC selftest", true);
+                float until = Time.realtimeSinceStartup + 60f;
+                while (Time.realtimeSinceStartup < until && !SaveLoadManager.Instance.LoadInProgress)
+                    yield return null;
+                while (Time.realtimeSinceStartup < until && SaveLoadManager.Instance.LoadInProgress)
+                    yield return null;
+                yield return new WaitForSecondsRealtime(2f);
+                DaggerfallUI.Instance.PopToHUD();
+                gm.PlayerEntity.GodMode = true;
+                List<NpcBrain> loaded = WithPrefix("selftest_bandit@");
+                Check("after a real save and load in a dungeon its people are back once, in their spots; a killed one stays dead",
+                    pee.IsPlayerInsideDungeon && SameSpots(loaded, spots, killed) && CountObjects("selftest_bandit@") == loaded.Count,
+                    "inside " + pee.IsPlayerInsideDungeon + "; before " + Join(new List<string>(spots.Keys)) + "; after " + Describe(loaded.ToArray()));
+
+                pee.TransitionDungeonExterior(false);
+                for (int i = 0; i < 180 && pee.IsPlayerInsideDungeon; i++)
+                    yield return null;
+                yield return new WaitForSecondsRealtime(1f);
+                pee.StartDungeonInterior(dungeonLocation);
+                for (int i = 0; i < 120 && !pee.IsPlayerInsideDungeon; i++)
+                    yield return null;
+                yield return null;
+                List<NpcBrain> again = WithPrefix("selftest_bandit@");
+                Check("re-entering a dungeon: the same people in the same spots; a killed one stays dead", SameSpots(again, spots, killed),
+                    "before " + Join(new List<string>(spots.Keys)) + "; now " + Describe(again.ToArray()));
+                bandits = again;
+
                 if (bandits.Count > 0)
                 {
                     yield return LookAt(bandits[0].transform.position, "selftest-dungeon-group.png");
@@ -214,6 +251,20 @@ namespace AdvancedNPCs
             return found;
         }
 
+        /// <summary>Everyone but the killed one is back, each within 10 cm of where they stood.</summary>
+        static bool SameSpots(List<NpcBrain> now, Dictionary<string, Vector3> before, string killed)
+        {
+            if (killed == null || NpcBrain.Find(killed) != null || now.Count != before.Count - 1)
+                return false;
+            foreach (NpcBrain b in now)
+            {
+                Vector3 p;
+                if (!before.TryGetValue(b.Id, out p) || Vector3.Distance(p, b.transform.localPosition) > 0.1f)
+                    return false;
+            }
+            return true;
+        }
+
         static int CountObjects(string prefix)
         {
             int n = 0;
@@ -268,6 +319,12 @@ namespace AdvancedNPCs
         {
             found = new DFLocation();
             PlayerGPS gps = GameManager.Instance.PlayerGPS;
+            // A real reload rebuilds the dungeon of the player's own map location, so prefer that one.
+            if (gps.HasCurrentLocation && gps.CurrentLocation.HasDungeon)
+            {
+                found = gps.CurrentLocation;
+                return true;
+            }
             DFRegion region = gps.CurrentRegion;
             for (int i = 0; i < region.MapTable.Length; i++)
             {

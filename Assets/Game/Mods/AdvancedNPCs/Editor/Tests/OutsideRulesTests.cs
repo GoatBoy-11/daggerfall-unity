@@ -65,6 +65,18 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void Sort_IgnoresFloatJitterBelowOneCentimetre()
+        {
+            // Same marker grid x, read back through a transform round trip: 12.00001 vs 11.99999.
+            List<float[]> visit1 = new List<float[]> { new float[] { 12.00001f, 0, 5 }, new float[] { 11.99999f, 0, 9 } };
+            List<float[]> visit2 = new List<float[]> { new float[] { 11.99999f, 0, 5 }, new float[] { 12.00001f, 0, 9 } };
+            SpotPicker.Sort(visit1);
+            SpotPicker.Sort(visit2);
+            Assert.AreEqual(5f, visit1[0][2]);
+            Assert.AreEqual(5f, visit2[0][2]);
+        }
+
+        [Test]
         public void Sort_StableOrder()
         {
             List<float[]> points = new List<float[]> { new float[] { 2, 0, 1 }, new float[] { 1, 5, 0 }, new float[] { 1, 0, 3 } };
@@ -77,6 +89,13 @@ namespace AdvancedNPCs.Tests
 
     public class EncounterRulesTests
     {
+        [Test]
+        public void RollClock_ResetsWhenTimeWentBack()
+        {
+            Assert.AreEqual(50UL, EncounterRules.RollClock(1000UL, 50UL), "an earlier save was loaded");
+            Assert.AreEqual(1000UL, EncounterRules.RollClock(1000UL, 1005UL));
+        }
+
         [TestCase(0UL, 9UL, 0)]
         [TestCase(0UL, 10UL, 1)]
         [TestCase(0UL, 600UL, 1)]

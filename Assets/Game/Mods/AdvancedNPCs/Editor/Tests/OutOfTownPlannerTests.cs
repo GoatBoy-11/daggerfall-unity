@@ -166,6 +166,19 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void GroupIndex_DoesNotDependOnOtherTemplatesWhen()
+        {
+            NpcDefinition a = Template("a_ghost", "{ \"dungeons\": { \"chance\": 100, \"when\": { \"time\": \"night\" } } }");
+            NpcDefinition b = Template("b_bandit", "{ \"dungeons\": { \"chance\": 100 } }");
+            List<NpcInstance> day = OutOfTownPlanner.Plan(new[] { a, b }, Crypt(1), GenericMode.SamePeople, 30, 0, new Names(), new FakeFacts(), new List<string>());
+            List<NpcInstance> night = OutOfTownPlanner.Plan(new[] { a, b }, Crypt(1), GenericMode.SamePeople, 30, 0, new Names(), new FakeFacts { Night = true }, new List<string>());
+            NpcInstance banditDay = day.Find(delegate (NpcInstance i) { return i.Definition == b; });
+            NpcInstance banditNight = night.Find(delegate (NpcInstance i) { return i.Definition == b; });
+            Assert.AreEqual(banditNight.Group, banditDay.Group);
+            Assert.AreEqual(1, banditDay.Group);
+        }
+
+        [Test]
         public void ForEncounter_KeyNeverSaved_RolledFromSeed()
         {
             NpcDefinition pilgrim = Template("pilgrim", "{ \"wilderness\": { \"chance\": 10 } }");

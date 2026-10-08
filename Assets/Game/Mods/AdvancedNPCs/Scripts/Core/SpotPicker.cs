@@ -66,18 +66,26 @@ namespace AdvancedNPCs.Core
             return offsets;
         }
 
-        /// <summary>Stable order (x, then y, then z), so the same place gives the same candidate list every visit.</summary>
+        /// <summary>
+        /// Stable order (x, then y, then z, each to the centimetre), so the same place gives the same candidate list every
+        /// visit even when its points come back through a transform with tiny float differences.
+        /// </summary>
         public static void Sort(List<float[]> points)
         {
             points.Sort(delegate (float[] a, float[] b)
             {
-                int c = a[0].CompareTo(b[0]);
+                int c = Cm(a[0]).CompareTo(Cm(b[0]));
                 if (c == 0)
-                    c = a[1].CompareTo(b[1]);
+                    c = Cm(a[1]).CompareTo(Cm(b[1]));
                 if (c == 0)
-                    c = a[2].CompareTo(b[2]);
+                    c = Cm(a[2]).CompareTo(Cm(b[2]));
                 return c;
             });
+        }
+
+        static long Cm(float v)
+        {
+            return (long)Math.Round(v * 100.0);
         }
 
         static double Distance(float[] a, float[] b)

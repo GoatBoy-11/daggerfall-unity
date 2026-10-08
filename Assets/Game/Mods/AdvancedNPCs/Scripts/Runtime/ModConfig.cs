@@ -49,18 +49,24 @@ namespace AdvancedNPCs
         public void Apply(DfuModSettings settings, ModSettingsChange change)
         {
             // Each key on its own: settings saved by an older version may lack the newer ones.
-            randomEachVisit = Read(delegate { return settings.GetInt(Section, "GenericPeople") == 1; }, false);
-            MaxGenericPerTown = Mathf.Clamp(Read(delegate { return settings.GetInt(Section, "MaxGenericPerTown"); }, 12), 0, 30);
-            Dungeons = Read(delegate { return settings.GetBool(Section, "Dungeons"); }, true);
-            Interiors = Read(delegate { return settings.GetBool(Section, "Interiors"); }, true);
-            Wilderness = Read(delegate { return settings.GetBool(Section, "Wilderness"); }, true);
-            MaxWildernessAround = Mathf.Clamp(Read(delegate { return settings.GetInt(Section, "MaxWildernessAround"); }, 4), 0, 10);
+            MissingKeys.Clear();
+            randomEachVisit = Read("GenericPeople", delegate { return settings.GetInt(Section, "GenericPeople") == 1; }, false);
+            MaxGenericPerTown = Mathf.Clamp(Read("MaxGenericPerTown", delegate { return settings.GetInt(Section, "MaxGenericPerTown"); }, 12), 0, 30);
+            Dungeons = Read("Dungeons", delegate { return settings.GetBool(Section, "Dungeons"); }, true);
+            Interiors = Read("Interiors", delegate { return settings.GetBool(Section, "Interiors"); }, true);
+            Wilderness = Read("Wilderness", delegate { return settings.GetBool(Section, "Wilderness"); }, true);
+            MaxWildernessAround = Mathf.Clamp(Read("MaxWildernessAround", delegate { return settings.GetInt(Section, "MaxWildernessAround"); }, 4), 0, 10);
+            if (MissingKeys.Count > 0)
+                AdvancedNpcsMod.LogError("Settings without " + string.Join(", ", MissingKeys.ToArray()) + " (modsettings.json out of date); using defaults for them.");
             FromSettings = true;
             AdvancedNpcsMod.Log("Settings: generic people " + Mode + ", at most " + MaxGenericPerTown + " per town; dungeons " + Dungeons +
                 ", interiors " + Interiors + ", wilderness " + Wilderness + " (at most " + MaxWildernessAround + " around you).");
         }
 
-        static T Read<T>(System.Func<T> get, T fallback)
+        /// <summary>Setting keys the mod reads that were not in its settings (should stay empty; checked by the self-test).</summary>
+        public readonly System.Collections.Generic.List<string> MissingKeys = new System.Collections.Generic.List<string>();
+
+        T Read<T>(string key, System.Func<T> get, T fallback)
         {
             try
             {
@@ -68,6 +74,7 @@ namespace AdvancedNPCs
             }
             catch (System.Exception)
             {
+                MissingKeys.Add(key);
                 return fallback;
             }
         }

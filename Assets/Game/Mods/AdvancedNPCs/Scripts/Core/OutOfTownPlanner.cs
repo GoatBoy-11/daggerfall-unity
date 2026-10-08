@@ -103,6 +103,9 @@ namespace AdvancedNPCs.Core
                     Explain(explain, t.Id + ": " + mismatch);
                     continue;
                 }
+                // Every template that may appear here keeps its own group (and so its own spot), whether or not its
+                // `when` holds today: in "Same people" mode the others then stand in the same places every visit.
+                int myGroup = group++;
                 if (facts != null && when != null)
                 {
                     string failing = when.FirstFailing(facts);
@@ -130,14 +133,12 @@ namespace AdvancedNPCs.Core
                     i.Definition = t;
                     i.Persistent = same;
                     i.Seed = same ? StableHash.Of(i.Key) : visit.NextUInt();
-                    i.Group = group;
+                    i.Group = myGroup;
                     PopulationPlanner.RollPerson(t, i, place.DefaultRace, names);
                     result.Add(i);
                     made++;
                 }
                 Explain(explain, head + (made == count ? count + " here" : made + " of " + count + " here (limit " + cap + " reached)"));
-                if (made > 0)
-                    group++;
             }
             return result;
         }

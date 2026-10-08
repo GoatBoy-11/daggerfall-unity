@@ -3,6 +3,7 @@ using UnityEngine;
 using DaggerfallConnect.Arena2;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Banking;
 using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
@@ -80,9 +81,12 @@ namespace AdvancedNPCs
             candidates.RemoveAll(delegate (float[] c)
             {
                 Vector3 w = SpotFinder.World(parent, c);
-                return doors.Exists(delegate (Vector3 d) { return Vector3.Distance(w, d) < DoorDistance; });
+                return doors.Exists(delegate (Vector3 d) { return Flat(w, d) < DoorDistance; });
             });
-            return SpawnPlace(place, parent, candidates, null, 0f, doors, DoorDistance, owner.Config.Interiors, owner.Config.MaxGenericPerTown, IndoorWander);
+            // The player's own house only holds the people they placed there themselves.
+            string off = !owner.Config.Interiors ? "(Interiors are turned off in the mod settings)" :
+                DaggerfallBankManager.IsHouseOwned(place.BuildingKey) ? "(this is your own house: only people you placed with anpc_spawn)" : null;
+            return SpawnPlace(place, parent, candidates, null, 0f, doors, DoorDistance, off, owner.Config.MaxGenericPerTown, IndoorWander);
         }
 
         public List<NpcBrain> SpawnDungeon()
@@ -100,12 +104,13 @@ namespace AdvancedNPCs
             Vector3 local = parent.InverseTransformPoint(entrance);
             // Group members stand up to ~4.5 m from their spot, so spots keep 5 m more than the 20 m rule.
             return SpawnPlace(place, parent, SpotFinder.DungeonCandidates(dungeon), new float[] { local.x, local.y, local.z },
-                DungeonEntranceDistance + 5f, new List<Vector3> { entrance }, DungeonEntranceDistance, owner.Config.Dungeons, MaxPerDungeon, float.MaxValue);
+                DungeonEntranceDistance + 5f, new List<Vector3> { entrance }, DungeonEntranceDistance,
+                owner.Config.Dungeons ? null : "(Dungeons are turned off in the mod settings)", MaxPerDungeon, float.MaxValue);
         }
 
         /// <param name="keepAway">World points no person may stand closer to than keepAwayRadius (doors, the dungeon entrance).</param>
         List<NpcBrain> SpawnPlace(PlaceInfo place, Transform parent, List<float[]> candidates, float[] avoid, float avoidRadius,
-            List<Vector3> keepAway, float keepAwayRadius, bool enabled, int cap, float wanderCap)
+            List<Vector3> keepAway, float keepAwayRadius, string off, int cap, float wanderCap)
         {
             List<NpcBrain> spawned = new List<NpcBrain>();
             LastPlace = place;
@@ -119,9 +124,9 @@ namespace AdvancedNPCs
                 if (b != null)
                     spawned.Add(b);
             }
-            if (!enabled)
+            if (off != null)
             {
-                LastExplain.Add("(" + (place.IsDungeon ? "Dungeons" : "Interiors") + " are turned off in the mod settings)");
+                LastExplain.Add(off);
                 return spawned;
             }
 
@@ -159,7 +164,7 @@ namespace AdvancedNPCs
                 Vector3 anchor = SpotFinder.World(parent, candidates[spot]);
                 Vector3 feet;
                 if (!SpotFinder.Near(anchor, anchor + new Vector3(offset[0], 0, offset[1]), out feet) ||
-                    keepAway.Exists(delegate (Vector3 k) { return Vector3.Distance(k, feet) < keepAwayRadius; }))
+                    keepAway.Exists(delegate (Vector3 k) { return Flat(k, feet) < keepAwayRadius; }))
                 {
                     skipped++;
                     continue;
@@ -221,6 +226,14 @@ namespace AdvancedNPCs
             string guild = building == BuildingKinds.GuildHall ? GuildKey(gm.GuildManager.GetGuildGroup(faction)) : null;
             return PlaceInfo.Interior(town.Summary.MapID, town.Summary.RegionName, town.Summary.LocationName, NpcSpawner.DefaultRace(town),
                 building, guild, key);
+        }
+
+        /// <summary>Distance across the floor (door centres sit about 1 m above it).</summary>
+        static float Flat(Vector3 a, Vector3 b)
+        {
+            a.y = 0;
+            b.y = 0;
+            return Vector3.Distance(a, b);
         }
 
         static string GuildKey(FactionFile.GuildGroups group)

@@ -3,6 +3,7 @@ using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Items;
+using DaggerfallWorkshop.Utility;
 using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
@@ -50,21 +51,26 @@ namespace AdvancedNPCs
             return doors;
         }
 
-        /// <summary>DFU's random and fixed enemies and its random treasure: always on walkable dungeon floor.</summary>
+        // DFU editor flats (TextureReader.EditorFlatsTextureArchive) that mark monster and treasure spots (RDBLayout).
+        const int RandomMonsterMarker = 15;
+        const int FixedMonsterMarker = 16;
+        const int RandomTreasureMarker = 19;
+
+        /// <summary>
+        /// DFU's random-monster, fixed-monster and random-treasure markers: always on walkable dungeon floor. They are
+        /// laid out whether or not DFU imports enemies, so a dungeon gives the same spots on entry and after a load
+        /// (a load rebuilds it without enemies and puts saved enemies back where they had moved to).
+        /// </summary>
         public static List<float[]> DungeonCandidates(DaggerfallDungeon dungeon)
         {
             List<float[]> points = new List<float[]>();
-            foreach (Transform t in dungeon.GetComponentsInChildren<Transform>(true))
+            foreach (Billboard flat in dungeon.GetComponentsInChildren<Billboard>(true))
             {
-                if (t.name != "Random Enemies" && t.name != "Fixed Enemies")
+                if (flat.Summary.Archive != TextureReader.EditorFlatsTextureArchive)
                     continue;
-                foreach (Transform child in t)
-                    points.Add(Local(dungeon.transform, child.position));
-            }
-            foreach (DaggerfallLoot loot in dungeon.GetComponentsInChildren<DaggerfallLoot>(true))
-            {
-                if (loot.ContainerType == LootContainerTypes.RandomTreasure)
-                    points.Add(Local(dungeon.transform, loot.transform.position));
+                int record = flat.Summary.Record;
+                if (record == RandomMonsterMarker || record == FixedMonsterMarker || record == RandomTreasureMarker)
+                    points.Add(Local(dungeon.transform, flat.transform.position));
             }
             SpotPicker.Sort(points);
             return points;

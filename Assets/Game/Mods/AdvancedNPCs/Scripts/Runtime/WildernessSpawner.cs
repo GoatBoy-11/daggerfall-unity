@@ -86,6 +86,7 @@ namespace AdvancedNPCs
             if (!EncounterRules.MayRoll(gm.PlayerGPS.IsPlayerInLocationRect, gm.IsPlayerOnHUD))
                 return;
             ulong now = NowMinute;
+            lastRollMinute = EncounterRules.RollClock(lastRollMinute, now);
             if (EncounterRules.DueRolls(lastRollMinute, now) == 0)
                 return;
             lastRollMinute = now;

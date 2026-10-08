@@ -18,6 +18,12 @@ namespace AdvancedNPCs.Core
             return nowMinute >= lastRollMinute + RollMinutes ? 1 : 0;
         }
 
+        /// <summary>The last roll time to keep: now, if the clock went back (an earlier save was loaded), else last.</summary>
+        public static ulong RollClock(ulong lastRollMinute, ulong nowMinute)
+        {
+            return nowMinute < lastRollMinute ? nowMinute : lastRollMinute;
+        }
+
         /// <summary>Only outside every location, with nothing but the HUD open (no rest, travel or other window).</summary>
         public static bool MayRoll(bool inLocationRect, bool onHud)
         {
