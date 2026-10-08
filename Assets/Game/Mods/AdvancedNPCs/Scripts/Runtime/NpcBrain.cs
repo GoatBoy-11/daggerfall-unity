@@ -249,6 +249,9 @@ namespace AdvancedNPCs
             mover = GetComponent<NpcMover>();
             homeLocal = transform.localPosition;
 
+            // No language pacification roll: it would turn a player's attack back off before Update sees it.
+            senses.HasEncounteredPlayer = true;
+
             int restored = HealthRules.Restore(entityBehaviour.Entity.MaxHealth, state.healthFraction);
             if (restored != entityBehaviour.Entity.CurrentHealth)
                 entityBehaviour.Entity.CurrentHealth = restored;

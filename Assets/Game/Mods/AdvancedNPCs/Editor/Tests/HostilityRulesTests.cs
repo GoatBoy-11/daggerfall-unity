@@ -87,6 +87,21 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual(HostileFlip.EngineSweep, HostilityRules.ClassifyHostileFlip(false, true, false, true, false));
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void ClassifyHostileFlip_PlayerHitUndoneByPacifyRoll_IsStillPlayerAttack(bool healthDropped)
+        {
+            // EnemySenses' language pacification roll can turn IsHostile off again before the brain looks,
+            // but the attacker signal and the player target are still there.
+            Assert.AreEqual(HostileFlip.PlayerAttack, HostilityRules.ClassifyHostileFlip(false, false, healthDropped, true, true));
+        }
+
+        [Test]
+        public void ClassifyHostileFlip_CalmWithPlayerTargetButNoSignal_IsNone()
+        {
+            Assert.AreEqual(HostileFlip.None, HostilityRules.ClassifyHostileFlip(false, false, true, true, false));
+        }
+
         // wasHostileToPlayer, fightingCreature, motorHostileAfterHit -> killed by player?
         [TestCase(false, false, true, true, TestName = "KilledByPlayer_OneHitOnCalmNpcByPlayer")]
         [TestCase(false, false, false, false, TestName = "KilledByPlayer_OneHitOnCalmNpcByCreature")]

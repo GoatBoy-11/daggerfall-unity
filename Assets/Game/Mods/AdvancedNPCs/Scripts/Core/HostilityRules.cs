@@ -51,13 +51,18 @@ namespace AdvancedNPCs.Core
         /// A real player attack damages the NPC, or runs EnemyMotor.MakeEnemyHostileToAttacker which both
         /// targets the player and raises the attacker signal (GiveUpTimer). GameManager.MakeEnemiesHostile()
         /// does neither; the NPC's own senses may target the player during the sweep, but without the signal.
+        /// The player target and the signal still count when something (EnemySenses' language pacification roll)
+        /// has already turned IsHostile off again before the brain looked.
         /// </summary>
         public static HostileFlip ClassifyHostileFlip(bool brainHostile, bool motorHostile, bool healthDropped,
             bool targetIsPlayer, bool attackerSignal)
         {
-            if (brainHostile || !motorHostile)
+            if (brainHostile)
                 return HostileFlip.None;
-            return (healthDropped || (targetIsPlayer && attackerSignal)) ? HostileFlip.PlayerAttack : HostileFlip.EngineSweep;
+            bool playerSignal = targetIsPlayer && attackerSignal;
+            if (!motorHostile)
+                return playerSignal ? HostileFlip.PlayerAttack : HostileFlip.None;
+            return (healthDropped || playerSignal) ? HostileFlip.PlayerAttack : HostileFlip.EngineSweep;
         }
 
         /// <summary>
