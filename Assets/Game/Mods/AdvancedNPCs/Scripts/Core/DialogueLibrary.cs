@@ -94,8 +94,23 @@ namespace AdvancedNPCs.Core
 
                 ComposedDialogue c = Compose(d);
                 HashSet<string> ids = new HashSet<string>();
+                Dictionary<string, DialogueTopic> captions = new Dictionary<string, DialogueTopic>(StringComparer.OrdinalIgnoreCase);
                 foreach (DialogueTopic t in c.Topics)
+                {
                     ids.Add(t.Id);
+                    DialogueTopic same;
+                    if (captions.TryGetValue(t.Caption, out same))
+                    {
+                        string m = t.Source + ": topic \"" + t.Caption + "\": " + d.Id + " already has a topic with this caption (id \"" + same.Id +
+                                   "\" in " + same.Source + "); give them different captions, or the same id to replace it";
+                        if (!messages.Contains(m))
+                            messages.Add(m);
+                    }
+                    else
+                    {
+                        captions[t.Caption] = t;
+                    }
+                }
                 foreach (DialogueTopic t in c.Topics)
                 {
                     List<string> named = new List<string>();

@@ -33,10 +33,11 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
-        public void Hours_Invalid_IsIgnoredWithMessage()
+        public void Hours_Invalid_NeverHoldsWithMessage()
         {
             Condition c = When("{ \"hours\": [9, 25] }");
-            Assert.IsTrue(c.IsEmpty);
+            Assert.IsFalse(c.Holds(new FakeFacts()));
+            Assert.AreEqual("hours (invalid)", c.FirstFailing(new FakeFacts()));
             StringAssert.Contains("f.json: topic \"T\": when: hours: must be [from, to]", messages[0]);
         }
 
@@ -125,9 +126,9 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
-        public void Guild_Unknown_IsIgnoredWithMessage()
+        public void Guild_Unknown_NeverHoldsWithMessage()
         {
-            Assert.IsTrue(When("{ \"guild\": \"Bakers Guild\" }").IsEmpty);
+            Assert.IsFalse(When("{ \"guild\": \"Bakers Guild\" }").Holds(new FakeFacts()));
             StringAssert.Contains("unknown guild \"Bakers Guild\"", messages[0]);
         }
 
@@ -191,7 +192,7 @@ namespace AdvancedNPCs.Tests
             Assert.IsTrue(c.Holds(f));
             CollectionAssert.AreEqual(new[] { "LiftedCurse" }, c.QuestGlobals);
             Assert.IsFalse(When("{ \"notQuestGlobal\": 7 }").Holds(f));
-            Assert.IsTrue(When("{ \"questGlobal\": 70 }").IsEmpty);
+            Assert.IsFalse(When("{ \"questGlobal\": 70 }").Holds(f));
         }
 
         [Test]
@@ -205,10 +206,10 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
-        public void Tone_NotAllowed_IsIgnoredWithMessage()
+        public void Tone_NotAllowed_NeverHoldsWithMessage()
         {
-            Assert.IsTrue(When("{ \"tone\": \"blunt\" }", false).IsEmpty);
-            StringAssert.Contains("when: tone: only allowed in answers, ignored", messages[0]);
+            Assert.IsFalse(When("{ \"tone\": \"blunt\" }", false).Holds(new FakeFacts()));
+            StringAssert.Contains("when: tone: only allowed in answers; this condition never holds until fixed", messages[0]);
         }
 
         [Test]
@@ -232,12 +233,13 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
-        public void UnknownKey_SuggestsAndRestStillApplies()
+        public void UnknownKey_Suggests_AndNeverHolds()
         {
             Condition c = When("{ \"tme\": \"night\", \"minGold\": 10 }");
-            StringAssert.Contains("when: tme: unknown condition (did you mean \"time\"?), ignored", messages[0]);
-            Assert.IsFalse(c.Holds(new FakeFacts { GoldValue = 5 }));
-            Assert.IsTrue(c.Holds(new FakeFacts { GoldValue = 10 }));
+            StringAssert.Contains("when: tme: unknown condition (did you mean \"time\"?); this condition never holds until fixed", messages[0]);
+            Assert.IsFalse(c.Holds(new FakeFacts { GoldValue = 10, Night = true }));
+            Assert.AreEqual("minGold", c.FirstFailing(new FakeFacts { GoldValue = 5 }));
+            Assert.AreEqual("tme (invalid)", c.FirstFailing(new FakeFacts { GoldValue = 10 }));
         }
 
         [Test]
@@ -251,7 +253,7 @@ namespace AdvancedNPCs.Tests
         public void BadValue_ListsAllowed()
         {
             When("{ \"season\": \"monsoon\" }");
-            StringAssert.Contains("season: \"monsoon\" is not one of spring, summer, autumn, fall, winter, ignored", messages[0]);
+            StringAssert.Contains("season: \"monsoon\" is not one of spring, summer, autumn, fall, winter; this condition never holds", messages[0]);
         }
 
         [Test]

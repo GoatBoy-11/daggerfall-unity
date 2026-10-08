@@ -240,7 +240,7 @@ Every condition in a `when` must hold. For "or", use `"any": [ { … }, { … } 
 | `minGold` | `500` | the player carries at least this much gold |
 | `hasItem` | `"Ruby"` | the player carries an item with one of these names |
 | `guild` (+ `minGuildRank`) | `"Fighters Guild"` | the player is a member (of rank 0–10 at least): `Fighters Guild`, `Mages Guild`, `Thieves Guild`, `Dark Brotherhood`, `Temple`, `Knightly Order` |
-| `reaction` | `["likes", "loves"]` | how this person regards the player: `dislikes`, `neutral`, `likes`, `loves` (DFU's reaction to you in this region) |
+| `reaction` | `["likes", "loves"]` | how people here regard the player: `dislikes`, `neutral`, `likes`, `loves`. This is DFU's reaction, from your standing with the region's people, so it is the same for every ANPC in a region (below about -20 DFU refuses to talk at all) |
 | `asked` / `notAsked` | `"Any rumours?"` | all / none of these topics were asked of this person |
 | `flags` / `notFlags` | `"heard_sailor"` | all / none of these flags are set |
 | `questGlobal` / `notQuestGlobal` | `"LiftedCurse"` | all / none of these DFU quest globals (names from `Quests-GlobalVars`, or numbers 0–63) are true |
@@ -260,7 +260,8 @@ the messages `SetFlag` (`"name|on"` / `"name|off"`) and `HasFlag` (`"name"`, the
 
 - Look in `Player.log` for `[AdvancedNPCs]` lines: every problem names the file, the topic and the field, and
   misspelt field names get a suggestion (`when: tme: unknown condition (did you mean "time"?)`). A broken topic is
-  skipped; the rest of the file still works.
+  skipped; the rest of the file still works. A condition that cannot be read never holds, so a typo hides the
+  topic (or answer) instead of showing what it was meant to lock away.
 - Stand in front of the ANPC and type `anpc_topics`: it lists each topic as `shown` or with the condition that
   hides it (`hidden, when: time`, `hidden, once (already asked)`).
 - `Examples/ANPCs/_Dialogue/tavern_wench.json` uses every feature: greetings, tone answers, follow-ups, flags,

@@ -148,8 +148,9 @@ holds (for OR). A list value in a "one of" key means *any of these*; in `asked`/
 topic of an ANPC's **composed** set is a load warning (checked per ANPC after composition, so references across
 files are checked too, without false warnings). Default question lines lowercase a leading "The/A/An" of the
 caption ("Tell me about the house ale."); authored questions are used as written.
-Unknown keys and invalid values are load warnings naming the file, topic and key; an invalid key is ignored (the
-rest of the condition still applies). Flag names: lowercase letters, digits and `_` (normalised like ids).
+Unknown keys and invalid values are load warnings naming the file, topic and key (with a "did you mean" hint for
+misspelt keys). After review: an invalid clause **never holds**, so a typo hides the topic or answer instead of
+unlocking what it was meant to lock; `anpc_topics` shows it as `hidden, when: <key> (invalid)`. Flag names: lowercase letters, digits and `_` (normalised like ids).
 Quest-global names are checked against DFU's table when the game loads the files (Core only checks the syntax).
 
 ## 6. State

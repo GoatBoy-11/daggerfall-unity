@@ -166,10 +166,16 @@ namespace AdvancedNPCs.Core
                         break;
                 }
                 if (problem != null)
-                    messages.Add(where + ": when: " + key + ": " + problem + ", ignored");
+                {
+                    // A broken condition must not unlock what it was meant to lock: it never holds until fixed.
+                    messages.Add(where + ": when: " + key + ": " + problem + NeverHolds);
+                    c.Add(key + " (invalid)", delegate (IDialogueFacts f) { return false; });
+                }
             }
             return c;
         }
+
+        public const string NeverHolds = "; this condition never holds until fixed";
 
         static string Hours(Condition c, object raw)
         {

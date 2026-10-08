@@ -26,7 +26,7 @@ namespace AdvancedNPCs.Core
             object value = ReadValue(text, ref pos);
             SkipWhitespace(text, ref pos);
             if (pos != text.Length)
-                throw Error("unexpected text after the end", pos);
+                throw Error("unexpected text after the end", text, pos);
             return value;
         }
 
@@ -34,7 +34,7 @@ namespace AdvancedNPCs.Core
         {
             SkipWhitespace(text, ref pos);
             if (pos >= text.Length)
-                throw Error("unexpected end of file", pos);
+                throw Error("unexpected end of file", text, pos);
 
             char c = text[pos];
             if (c == '{')
@@ -60,7 +60,7 @@ namespace AdvancedNPCs.Core
                 pos += 4;
                 return null;
             }
-            throw Error("unexpected character '" + c + "'", pos);
+            throw Error("unexpected character '" + c + "'", text, pos);
         }
 
         static Dictionary<string, object> ReadObject(string text, ref int pos)
@@ -77,11 +77,11 @@ namespace AdvancedNPCs.Core
             {
                 SkipWhitespace(text, ref pos);
                 if (pos >= text.Length || text[pos] != '"')
-                    throw Error("expected a quoted key", pos);
+                    throw Error("expected a quoted key", text, pos);
                 string key = ReadString(text, ref pos);
                 SkipWhitespace(text, ref pos);
                 if (pos >= text.Length || text[pos] != ':')
-                    throw Error("expected ':' after \"" + key + "\"", pos);
+                    throw Error("expected ':' after \"" + key + "\"", text, pos);
                 pos++;
                 result[key] = ReadValue(text, ref pos);
                 SkipWhitespace(text, ref pos);
@@ -95,7 +95,7 @@ namespace AdvancedNPCs.Core
                     pos++;
                     return result;
                 }
-                throw Error("expected ',' or '}'", pos);
+                throw Error("expected ',' or '}'", text, pos);
             }
         }
 
@@ -123,7 +123,7 @@ namespace AdvancedNPCs.Core
                     pos++;
                     return result;
                 }
-                throw Error("expected ',' or ']'", pos);
+                throw Error("expected ',' or ']'", text, pos);
             }
         }
 
@@ -134,19 +134,19 @@ namespace AdvancedNPCs.Core
             while (true)
             {
                 if (pos >= text.Length)
-                    throw Error("unterminated string", pos);
+                    throw Error("unterminated string", text, pos);
                 char c = text[pos++];
                 if (c == '"')
                     return sb.ToString();
                 if (c < ' ')
-                    throw Error("line break or control character inside a string", pos - 1);
+                    throw Error("line break or control character inside a string", text, pos - 1);
                 if (c != '\\')
                 {
                     sb.Append(c);
                     continue;
                 }
                 if (pos >= text.Length)
-                    throw Error("unterminated string", pos);
+                    throw Error("unterminated string", text, pos);
                 char e = text[pos++];
                 switch (e)
                 {
@@ -162,12 +162,12 @@ namespace AdvancedNPCs.Core
                         int code;
                         if (pos + 4 > text.Length ||
                             !int.TryParse(text.Substring(pos, 4), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out code))
-                            throw Error("bad \\u escape", pos);
+                            throw Error("bad \\u escape", text, pos);
                         sb.Append((char)code);
                         pos += 4;
                         break;
                     default:
-                        throw Error("bad escape '\\" + e + "'", pos - 1);
+                        throw Error("bad escape '\\" + e + "'", text, pos - 1);
                 }
             }
         }
@@ -179,7 +179,7 @@ namespace AdvancedNPCs.Core
                 pos++;
             double value;
             if (!double.TryParse(text.Substring(start, pos - start), NumberStyles.Float, CultureInfo.InvariantCulture, out value))
-                throw Error("bad number", start);
+                throw Error("bad number", text, start);
             return value;
         }
 
@@ -194,9 +194,24 @@ namespace AdvancedNPCs.Core
                 pos++;
         }
 
-        static JsonException Error(string message, int pos)
+        /// <summary>Position as line and column (1-based), which editors show, plus the character offset.</summary>
+        static JsonException Error(string message, string text, int pos)
         {
-            return new JsonException(message + " at character " + (pos + 1));
+            int line = 1;
+            int column = 1;
+            for (int i = 0; i < pos && i < text.Length; i++)
+            {
+                if (text[i] == '\n')
+                {
+                    line++;
+                    column = 1;
+                }
+                else
+                {
+                    column++;
+                }
+            }
+            return new JsonException(message + " at line " + line + ", column " + column + " (character " + (pos + 1) + ")");
         }
     }
 }

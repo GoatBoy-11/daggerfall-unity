@@ -80,6 +80,17 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void Check_SameCaptionDifferentIds_Warns()
+        {
+            library.Add(File("other", "{ \"topics\": [ { \"caption\": \"Weather\", \"id\": \"sky\", \"answers\": [\"x\"] } ] }"));
+            List<string> messages = library.Check(new[] { Npc("w", "gossip", "other") });
+            CollectionAssert.AreEqual(new[]
+            {
+                "other.json: topic \"Weather\": w already has a topic with this caption (id \"weather\" in gossip.json); give them different captions, or the same id to replace it",
+            }, messages);
+        }
+
+        [Test]
         public void Check_AskedMustNameAComposedTopic_AcrossFiles()
         {
             library.Add(File("followups", "{ \"topics\": [ " +

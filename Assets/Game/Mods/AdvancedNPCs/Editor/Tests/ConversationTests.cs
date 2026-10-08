@@ -170,6 +170,14 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual("Tell me about Theodor.", Conversation.Question(d.Topics[1], Tones.Normal));
             Assert.AreEqual("About The sailor?", Conversation.Question(d.Topics[2], Tones.Normal));
         }
+
+        [Test]
+        public void Question_DefaultDropsCaptionPunctuation()
+        {
+            ComposedDialogue d = Dialogue("{ \"topics\": [ { \"caption\": \"Any rumours?\", \"answers\": [\"x\"] } ] }");
+            Assert.AreEqual("Could you tell me about Any rumours?", Conversation.Question(d.Topics[0], Tones.Polite));
+            Assert.AreEqual("Tell me about Any rumours.", Conversation.Question(d.Topics[0], Tones.Normal));
+        }
     }
 
     public class FlagSetTests

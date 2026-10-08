@@ -45,7 +45,11 @@ namespace AdvancedNPCs
         bool started;
         bool refreshNext;
         bool warnedCap;
+        bool failed;
+        static bool warnedNoBlankPair;
+        float lastRecheck;
         int conversationCount;
+        const float RecheckSeconds = 1f;
 
         /// <summary>A conversation with topics is going on.</summary>
         public bool Active
@@ -74,17 +78,21 @@ namespace AdvancedNPCs
         public void Begin(DaggerfallTalkWindow talkWindow, NpcState state, FlagSet flags, string npcName, ComposedDialogue composed)
         {
             End();
-            if (talkWindow == null || composed == null || composed.IsEmpty)
+            // DFU may refuse to talk (bad reaction, rejected before, racial override) without opening the window.
+            if (talkWindow == null || composed == null || composed.IsEmpty || !DaggerfallUI.UIManager.ContainsWindow(talkWindow))
                 return;
-            if (!ReflectionWorks())
+            string missing = MissingMembers();
+            if (missing.Length > 0)
             {
                 if (!warnedMissing)
                 {
                     warnedMissing = true;
-                    AdvancedNpcsMod.Log("The talk window is not DFU's own (replaced by another mod?); ANPC dialogue topics are not shown.");
+                    AdvancedNpcsMod.Log("The talk window lacks " + missing + " (another mod replaced it, or a different DFU version); ANPC dialogue topics are not shown.");
                 }
                 return;
             }
+            failed = false;
+            lastRecheck = Time.realtimeSinceStartup;
             window = talkWindow;
             dialogue = composed;
             facts = new GameFacts(state, flags, npcName, CurrentTone);
@@ -133,6 +141,27 @@ namespace AdvancedNPCs
         {
             if (window == null)
                 return;
+            try
+            {
+                Step();
+            }
+            catch (Exception e)
+            {
+                Fail("updating the talk window", e);
+            }
+        }
+
+        /// <summary>Logs the problem once and stops showing topics for this conversation (no error every frame).</summary>
+        void Fail(string doing, Exception e)
+        {
+            if (!failed)
+                AdvancedNpcsMod.LogError("Dialogue topics stopped while " + doing + ": " + e);
+            failed = true;
+            End();
+        }
+
+        void Step()
+        {
             if (!started)
             {
                 // The window builds its controls in its first Update after being pushed (spike finding).
@@ -159,14 +188,32 @@ namespace AdvancedNPCs
             }
             // Refresh after an answer one frame later: changing the list inside the click handler re-triggers the
             // click (DFU comment in SelectTopicFromTopicList). DFU also replaces the list when a quest adds a topic.
-            if (refreshNext || !StillInList())
+            // Conditions can also change while talking (the hour, a flag set by another mod): recheck now and then.
+            bool recheck = Time.realtimeSinceStartup - lastRecheck >= RecheckSeconds;
+            if (recheck)
+                lastRecheck = Time.realtimeSinceStartup;
+            if (refreshNext || !StillInList() || (recheck && VisibleChanged()))
             {
                 refreshNext = false;
                 Inject();
             }
             if (ConversationList.Count != conversationCount)
-                HandleUse();
+                Use(false);
             UpdatePlayerLine();
+        }
+
+        bool VisibleChanged()
+        {
+            List<DialogueTopic> visible = Conversation.Visible(dialogue, facts, Conversation.MaxVisible);
+            if (visible.Count != items.Count)
+                return true;
+            for (int i = 0; i < visible.Count; i++)
+            {
+                DialogueTopic shown;
+                if (!byKey.TryGetValue(items[i].key, out shown) || shown != visible[i])
+                    return true;
+            }
+            return false;
         }
 
         void OnWindowChange(object sender, EventArgs e)
@@ -180,7 +227,7 @@ namespace AdvancedNPCs
             if (hookedWindow == window)
                 return;
             // The window subscribed in its Setup, so it handles the use first and these run after it.
-            TopicList.OnUseSelectedItem += HandleUse;
+            TopicList.OnUseSelectedItem += OnListUse;
             Button ok = OkButtonField.GetValue(window) as Button;
             if (ok != null)
                 ok.OnMouseClick += OnOkay;
@@ -189,14 +236,29 @@ namespace AdvancedNPCs
 
         void OnOkay(BaseScreenComponent sender, Vector2 position)
         {
-            HandleUse();
+            OnListUse();
+        }
+
+        void OnListUse()
+        {
+            if (window == null)
+                return;
+            try
+            {
+                Use(true);
+            }
+            catch (Exception e)
+            {
+                Fail("answering a topic", e);
+            }
         }
 
         /// <summary>
         /// If the window just answered one of our topics (it adds a blank question and a blank answer for it), puts
-        /// our question and answer there instead. Safe to call more than once per use.
+        /// our question and answer there instead. Safe to call more than once per use. fromEvent: called right after
+        /// the player used a topic; if the window added no blank pair for ours (a modified window), answer anyway.
         /// </summary>
-        void HandleUse()
+        void Use(bool fromEvent)
         {
             if (window == null || !started)
                 return;
@@ -204,16 +266,25 @@ namespace AdvancedNPCs
             DialogueTopic topic = SelectedTopic();
             int count = conversation.Count;
             bool blankPair = count >= conversationCount + 2 && count >= 2 && Blank(conversation, count - 1) && Blank(conversation, count - 2);
-            if (topic == null || !blankPair)
+            if (topic == null || (!blankPair && !fromEvent))
             {
                 conversationCount = count;
                 return;
             }
-            conversation.RemoveItem(count - 1);
-            conversation.RemoveItem(count - 2);
+            if (!blankPair && !warnedNoBlankPair)
+            {
+                warnedNoBlankPair = true;
+                AdvancedNpcsMod.Log("The talk window did not add its usual blank lines for a dialogue topic (modified window?); answering anyway.");
+            }
 
+            // Work out everything first, so a problem leaves the conversation as it was.
             string question = TextMacros.Expand(Conversation.Question(topic, CurrentTone()), macros);
             string answer = TextMacros.Expand(Conversation.Ask(topic, facts, rng, facts), macros);
+            if (blankPair)
+            {
+                conversation.RemoveItem(count - 1);
+                conversation.RemoveItem(count - 2);
+            }
             AddPairMethod.Invoke(window, new object[] { question, answer });
             conversationCount = conversation.Count;
             AnsweredCount++;
@@ -358,10 +429,18 @@ namespace AdvancedNPCs
             get { return window != null ? ConversationField.GetValue(window) as ListBox : null; }
         }
 
-        static bool ReflectionWorks()
+        /// <summary>Names of the talk-window members this needs that are missing, comma-separated ("" when all are there).</summary>
+        static string MissingMembers()
         {
-            return TopicListField != null && ConversationField != null && CurrentTopicsField != null && PlayerSaysField != null &&
-                   OkButtonField != null && ToneField != null && AddPairMethod != null;
+            List<string> missing = new List<string>();
+            if (TopicListField == null) missing.Add("listboxTopic");
+            if (ConversationField == null) missing.Add("listboxConversation");
+            if (CurrentTopicsField == null) missing.Add("listCurrentTopics");
+            if (PlayerSaysField == null) missing.Add("textlabelPlayerSays");
+            if (OkButtonField == null) missing.Add("buttonOkay");
+            if (ToneField == null) missing.Add("selectedTalkTone");
+            if (AddPairMethod == null) missing.Add("SetQuestionAnswerPairInConversationListbox");
+            return string.Join(", ", missing.ToArray());
         }
 
         // Self-test helpers: act like the player.

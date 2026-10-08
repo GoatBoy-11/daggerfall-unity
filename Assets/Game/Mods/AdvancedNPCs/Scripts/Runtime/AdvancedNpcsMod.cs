@@ -192,13 +192,21 @@ namespace AdvancedNPCs
 
         static string ReloadDialogueCommand(params string[] args)
         {
-            Instance.Dialogue = DialogueFiles.Load(AnpcFiles.Root);
-            DialogueFiles.ReloadOwn(Instance.Catalog);
+            const int Shown = 8;
+            List<string> problems = new List<string>();
+            Instance.Dialogue = DialogueFiles.Load(AnpcFiles.Root, problems);
+            DialogueFiles.ReloadOwn(Instance.Catalog, problems);
             Instance.composed.Clear();
-            int problems = DialogueFiles.Check(Instance.Dialogue, Instance.Catalog);
-            string message = "Reloaded " + Instance.Dialogue.Count + " dialogue type(s) and the folders' dialogue.json" +
-                             (problems > 0 ? "; see Player.log for problems ([AdvancedNPCs] lines)." : "; no problems found by the cross-file checks.") +
-                             " Talk to an ANPC again to see the changes.";
+            DialogueFiles.Check(Instance.Dialogue, Instance.Catalog, problems);
+            StringBuilder sb = new StringBuilder();
+            sb.Append("Reloaded ").Append(Instance.Dialogue.Count).Append(" dialogue type(s) and the folders' dialogue.json: ")
+              .Append(problems.Count == 0 ? "no problems." : problems.Count + " problem(s):");
+            for (int i = 0; i < problems.Count && i < Shown; i++)
+                sb.Append("\n  ").Append(problems[i]);
+            if (problems.Count > Shown)
+                sb.Append("\n  ... and ").Append(problems.Count - Shown).Append(" more in Player.log ([AdvancedNPCs] lines)");
+            sb.Append("\nTalk to an ANPC again to see the changes.");
+            string message = sb.ToString();
             Log(message);
             return message;
         }

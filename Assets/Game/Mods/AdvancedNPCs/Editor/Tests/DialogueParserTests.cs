@@ -108,7 +108,7 @@ namespace AdvancedNPCs.Tests
         public void TopicWhen_ToneNotAllowed()
         {
             DialogueParseResult r = Parse(Topics("{ \"caption\": \"Ale\", \"when\": { \"tone\": \"blunt\", \"time\": \"night\" }, \"answers\": [\"x\"] }"));
-            HasMessage(r, "topic \"Ale\": when: tone: only allowed in answers, ignored");
+            HasMessage(r, "topic \"Ale\": when: tone: only allowed in answers; this condition never holds until fixed");
             Assert.IsFalse(r.File.Topics[0].When.Holds(new FakeFacts { Night = false }));
         }
 
@@ -185,7 +185,7 @@ namespace AdvancedNPCs.Tests
             Assert.IsNotNull(r.File);
             Assert.AreEqual(2, r.File.Greetings.Count);
             Assert.AreEqual("Welcome, {player}!", r.File.Greetings[1].Text);
-            HasMessage(r, Src + ": greetings: greeting 1: when: tone: only allowed in answers, ignored");
+            HasMessage(r, Src + ": greetings: greeting 1: when: tone: only allowed in answers; this condition never holds until fixed");
         }
 
         [Test]

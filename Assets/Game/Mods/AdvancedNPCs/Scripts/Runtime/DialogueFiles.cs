@@ -10,9 +10,11 @@ namespace AdvancedNPCs
     {
         public const string FolderName = "_Dialogue";
 
-        public static DialogueLibrary Load(string root)
+        /// <summary>Reads every _Dialogue/*.json. Problems are logged and added to problems (when given).</summary>
+        public static DialogueLibrary Load(string root, List<string> problems = null)
         {
             DialogueLibrary library = new DialogueLibrary();
+            Dictionary<string, string> sources = new Dictionary<string, string>(StringComparer.Ordinal);
             string folder = Path.Combine(root, FolderName);
             if (!Directory.Exists(folder))
                 return library;
@@ -25,30 +27,44 @@ namespace AdvancedNPCs
                 string id = DialogueIds.Normalize(NameListParser.Normalize(fileName));
                 if (id.Length == 0)
                 {
-                    AdvancedNpcsMod.Log(source + ": file: the file name needs letters or digits, ignored");
+                    Report(source + ": file: the file name needs letters or digits, ignored", problems);
+                    continue;
+                }
+                string other;
+                if (sources.TryGetValue(id, out other))
+                {
+                    Report(source + ": file: same dialogue type name \"" + id + "\" as " + other + ", ignored (rename one of them)", problems);
                     continue;
                 }
                 try
                 {
                     DialogueParseResult r = DialogueParser.Parse(source, File.ReadAllText(path));
                     foreach (string m in r.Messages)
-                        AdvancedNpcsMod.Log(m);
+                        Report(m, problems);
                     if (r.File == null)
                         continue;
                     r.File.Name = id;
+                    sources[id] = source;
                     library.Add(r.File);
                 }
                 catch (Exception e)
                 {
-                    AdvancedNpcsMod.LogError(source + ": file: could not read (" + e.Message + ")");
+                    Report(source + ": file: could not read (" + e.Message + ")", problems);
                 }
             }
             AdvancedNpcsMod.Log("Loaded " + library.Count + " dialogue type(s).");
             return library;
         }
 
+        static void Report(string message, List<string> problems)
+        {
+            AdvancedNpcsMod.Log(message);
+            if (problems != null)
+                problems.Add(message);
+        }
+
         /// <summary>Re-reads every folder's dialogue.json into the catalog's definitions (anpc_reload_dialogue).</summary>
-        public static void ReloadOwn(DefinitionCatalog catalog)
+        public static void ReloadOwn(DefinitionCatalog catalog, List<string> problems)
         {
             Dictionary<string, NpcDefinition> byFolder = new Dictionary<string, NpcDefinition>(StringComparer.Ordinal);
             foreach (NpcDefinition d in All(catalog))
@@ -61,16 +77,17 @@ namespace AdvancedNPCs
                     d.OwnDialogue = DefinitionCatalog.ParseOwnDialogue(folder.Name, folder.DialogueJson, messages);
             }
             foreach (string m in messages)
-                AdvancedNpcsMod.Log(m);
+                Report(m, problems);
         }
 
         /// <summary>Logs problems found once files are combined, and quest-global names DFU does not know.</summary>
-        public static int Check(DialogueLibrary library, DefinitionCatalog catalog)
+        public static int Check(DialogueLibrary library, DefinitionCatalog catalog, List<string> problems = null)
         {
             List<NpcDefinition> all = All(catalog);
             List<string> messages = library.Check(all);
             List<string> unknownGlobals = new List<string>();
-            if (DaggerfallWorkshop.Game.Questing.QuestMachine.Instance != null)
+            // HasInstance: the Instance getter would create a QuestMachine if none exists yet.
+            if (DaggerfallWorkshop.Game.Questing.QuestMachine.HasInstance && DaggerfallWorkshop.Game.Questing.QuestMachine.Instance.GlobalVarsTable != null)
             {
                 List<DialogueFile> files = new List<DialogueFile>(library.Files);
                 foreach (NpcDefinition d in all)
@@ -94,7 +111,7 @@ namespace AdvancedNPCs
                 }
             }
             foreach (string m in messages)
-                AdvancedNpcsMod.Log(m);
+                Report(m, problems);
             return messages.Count;
         }
 

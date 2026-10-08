@@ -64,8 +64,9 @@ namespace AdvancedNPCs.Core
         {
             string line = t.Question.For(tone);
             Dictionary<string, string> values = new Dictionary<string, string>();
-            // Default lines read "Tell me about the house ale.", not "... The house ale."; authored lines are kept as written.
-            values[TextMacros.Topic] = line == QuestionText.Default(tone) ? LowerArticle(t.Caption) : t.Caption;
+            // Default lines read "Tell me about the house ale.", not "... The house ale.", and "Could you tell me about
+            // any rumours?" not "... Any rumours??"; authored lines are kept as written.
+            values[TextMacros.Topic] = line == QuestionText.Default(tone) ? LowerArticle(t.Caption).TrimEnd('?', '!', '.', ' ') : t.Caption;
             return TextMacros.Expand(line, values);
         }
 
