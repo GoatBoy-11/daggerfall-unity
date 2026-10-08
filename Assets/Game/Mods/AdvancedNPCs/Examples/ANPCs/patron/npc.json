@@ -1,0 +1,12 @@
+{
+  "baseClass": "Bard",
+  "bravery": "Coward",
+  "wanderRadius": 2,
+  "spawn": {
+    "interiors": {
+      "buildings": ["Tavern"],
+      "chance": 60,
+      "count": [1, 3]
+    }
+  }
+}

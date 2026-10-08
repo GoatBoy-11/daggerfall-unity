@@ -18,7 +18,7 @@ namespace AdvancedNPCs
     /// Uses temporary NPCs next to the player, records crimes instead of punishing, turns god mode on
     /// for the run and never touches the game clock. Results go to Player.log as "SELFTEST ..." lines.
     /// </summary>
-    public class SelfTest
+    public partial class SelfTest
     {
         public const string Prefix = "SELFTEST ";
         static readonly WaitForSeconds Settle = new WaitForSeconds(0.3f);
@@ -723,6 +723,11 @@ namespace AdvancedNPCs
             mod.Portraits.Remove("selftest_face_2");
             mod.Portraits.Remove("selftest_face_3");
             yield return Settle;
+
+            // Last: these move the player into buildings, a dungeon and finally the wilderness.
+            IEnumerator outside = OutsideSteps(location);
+            while (outside.MoveNext())
+                yield return outside.Current;
         }
 
         /// <summary>Dialogue topics in DFU's talk window (spec C1 §10), acting like the player through the window.</summary>

@@ -1,0 +1,18 @@
+{
+  "baseClass": "Rogue",
+  "attitude": "hostile",
+  "bravery": "Brave",
+  "wanderRadius": 6,
+  "spawn": {
+    "dungeons": {
+      "chance": 25,
+      "count": [2, 4],
+      "dungeonTypes": ["HumanStronghold", "Prison", "BarbarianStronghold", "RuinedCastle"]
+    },
+    "wilderness": {
+      "chance": 5,
+      "max": 2,
+      "when": { "time": "night" }
+    }
+  }
+}

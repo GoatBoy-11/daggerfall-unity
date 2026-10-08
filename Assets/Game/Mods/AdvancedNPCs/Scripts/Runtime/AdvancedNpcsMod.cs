@@ -246,7 +246,8 @@ namespace AdvancedNPCs
             return message;
         }
 
-        void RaiseStateRestored()
+        /// <summary>Also the self-test, to act out a load.</summary>
+        internal void RaiseStateRestored()
         {
             if (OnStateRestored != null)
                 OnStateRestored();

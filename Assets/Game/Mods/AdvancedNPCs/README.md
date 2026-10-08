@@ -98,7 +98,9 @@ unique ANPCs only. Instances are named `<template>@<map id>#<n>` in
 In DFU's mod list, select Advanced NPCs → Settings → **Population**:
 
 - **Generic people** — *Same people every visit* (default): each town keeps the same generic people, and what happens to them (killed, angry, hurt) is saved. *Random each visit*: re-rolled whenever the town loads; nothing about them is saved.
-- **Max generic per town** — 0 to 30 (default 12); 0 turns generic ANPCs off.
+- **Max generic per town** — 0 to 30 (default 12); 0 turns generic ANPCs off. Also the most generic ANPCs in one building.
+- **Dungeons / Interiors / Wilderness** — on (default) or off: generic ANPCs with a `dungeons`, `interiors` or `wilderness` spawn block, see [Spawning outside towns](#spawning-outside-towns).
+- **Max wilderness ANPCs around you** — 0 to 10 (default 4).
 
 Changes apply the next time a town loads.
 
@@ -115,12 +117,13 @@ folder name is the old id.
 - `anpc_list` — spawned ANPCs (unique and generic) with key, name, distance, direction, height and state.
 - `anpc_place <id>` — makes your current spot that unique ANPC's home: rewrites `location` and `position` in its `npc.json` (nothing else) and moves it here.
 - `anpc_summon <id or key>` — moves a spawned ANPC in front of you (testing only; not saved).
-- `anpc_spawn <template>` — makes a new person from a generic template (e.g. `anpc_spawn wench`) in front of you, rolled like the template's other people (name, portrait, sprite set). They stay at that spot in that town for the rest of this game, saved with it; their key is `<template>@<map id>+<n>`. This works in either GenericPeople mode.
+- `anpc_spawn <template>` — makes a new person from a generic template (e.g. `anpc_spawn wench`) in front of you, rolled like the template's other people (name, portrait, sprite set). They stay at that spot for the rest of this game, saved with it: outdoors in a town (key `<template>@<map id>+<n>`), inside a building (`<template>@<map id>:b<building>+<n>`) or inside a dungeon (`<template>@<map id>:dungeon+<n>`). Not in the wilderness. This works in either GenericPeople mode.
 - `anpc_remove <key>` — removes a person made with `anpc_spawn` from the world and from your save.
 - `anpc_hostile <id or key> [on|off]` — turns an ANPC into an enemy or calms it (without on/off it toggles); saved with your game. See [Enemies](#enemies).
 - `anpc_topics [id or key]` — the dialogue topics of the ANPC in front of you (within 5 m) or of that ANPC: which are shown, and for the others the condition that hides them. See [Dialogue topics](#dialogue-topics).
 - `anpc_reload_dialogue` — re-reads `_Dialogue/*.json` and every `dialogue.json` without restarting (a change to `npc.json` still needs a restart).
 - `anpc_flag` — lists the dialogue flags that are set; `anpc_flag <name> on|off` sets or clears one (saved with your game).
+- `anpc_here` — in a dungeon, building or the wilderness: which templates can appear there and what happened (filter, `when`, the chance roll, how many came). See [Spawning outside towns](#spawning-outside-towns).
 - `anpc_selftest` — runs the behaviour checks with temporary ANPCs next to you (god mode on, crimes recorded instead of punished, game clock untouched); results on screen and in `Player.log`.
 
 ## Behaviour
@@ -150,6 +153,41 @@ enemies. Bravery still applies (a Coward enemy runs).
   or the mod message `"SetHostile"` with data `"<key>|on"` / `"<key>|off"`.
 - Enemies spawn where any ANPC spawns: unique ones at their place, generic ones in towns, and with `anpc_spawn`.
 
+
+## Spawning outside towns
+
+A generic template can also appear in dungeons, in buildings and in the wilderness. Add a block for each place to
+its `spawn`:
+
+```json
+"spawn": {
+  "dungeons":   { "chance": 25, "count": [2, 4], "dungeonTypes": ["HumanStronghold", "Prison"] },
+  "interiors":  { "buildings": ["Tavern", "Fighters Guild"], "chance": 60, "count": [1, 3], "when": { "time": "night" } },
+  "wilderness": { "chance": 5, "max": 2, "when": { "time": "night" } }
+}
+```
+
+- **`chance`** (0–100): on each visit, how likely the template is there at all. **`count`** `[min, max]` (1–10):
+  how many come when it is. A group stands together.
+- **`dungeonTypes`** (optional): Crypt, OrcStronghold, HumanStronghold, Prison, DesecratedTemple, Mine, NaturalCave,
+  Coven, VampireHaunt, Laboratory, HarpyNest, RuinedCastle, SpiderNest, GiantStronghold, DragonsDen,
+  BarbarianStronghold, VolcanicCaves, ScorpionNest, Cemetery. Without it, every dungeon.
+- **`buildings`**: Alchemist, Armorer, Bank, Bookseller, ClothingStore, FurnitureStore, GemStore, GeneralStore,
+  Library, PawnShop, WeaponSmith, Temple, Tavern, Palace, House (any house), GuildHall (any guild), or a guild:
+  Fighters Guild, Mages Guild, Thieves Guild, Dark Brotherhood, Knightly Order.
+- **Wilderness**: every 10 in-game minutes outside any town or dungeon (not while resting or travelling), the
+  chance is rolled; one person appears out of sight 40–80 m away, on dry land. **`max`** (1–10) caps how many of the
+  template are around you at once. They leave when far behind you, when you enter a town or building, or travel.
+- **`when`** (optional): the [dialogue conditions](#conditions-when) (time, weather, season, place, player, flags,
+  quest globals), except `asked`, `notAsked`, `tone` and `reaction`.
+- People stand on DFU's own monster, treasure and furniture spots: never within 2 m of a door, never within 20 m of
+  a dungeon's entrance. A building holds at most "Max generic per town" of them.
+- With **Same people every visit**, a dungeon or building always has the same people (or none) in the same spots,
+  and a killed one stays dead. With **Random each visit**, every entry rolls again. Wilderness people are never kept.
+- A template with only these blocks never appears in towns. To have it in towns too, add `locationTypes`.
+- Attitude, bravery, sprites, portraits and dialogue work as in towns: a hostile bandit attacks on sight, a calm
+  patron can be talked to. Indoors people wander at most 3 m.
+- Not sure why someone is (or isn't) there? Type `anpc_here`.
 
 ## Talking and portraits
 
@@ -310,7 +348,9 @@ ANPCs/wench/
 `Examples/ANPCs/` holds four generic templates for cities, towns and villages: `commoner` (one to three
 cowardly commoners per town) and `cooper` (Normal, uses portrait `bram`), `baker` (Coward) and `smith` (Brave),
 each at most once per town. Use `anpc_list` to find them. `Examples/ANPCs/_Dialogue/tavern_wench.json` is a
-complete dialogue type; add `"dialogue": "tavern_wench"` to any ANPC to try it.
+complete dialogue type; add `"dialogue": "tavern_wench"` to any ANPC to try it. `bandit` (hostile; human
+strongholds, prisons, barbarian strongholds and ruined castles, and the wilderness at night) and `patron` (calm;
+taverns) show spawning outside towns.
 
 ## Building (developers)
 

@@ -82,7 +82,7 @@ namespace AdvancedNPCs
                 Vector3 w = SpotFinder.World(parent, c);
                 return doors.Exists(delegate (Vector3 d) { return Vector3.Distance(w, d) < DoorDistance; });
             });
-            return SpawnPlace(place, parent, candidates, null, 0f, owner.Config.Interiors, owner.Config.MaxGenericPerTown, IndoorWander);
+            return SpawnPlace(place, parent, candidates, null, 0f, doors, DoorDistance, owner.Config.Interiors, owner.Config.MaxGenericPerTown, IndoorWander);
         }
 
         public List<NpcBrain> SpawnDungeon()
@@ -100,11 +100,12 @@ namespace AdvancedNPCs
             Vector3 local = parent.InverseTransformPoint(entrance);
             // Group members stand up to ~4.5 m from their spot, so spots keep 5 m more than the 20 m rule.
             return SpawnPlace(place, parent, SpotFinder.DungeonCandidates(dungeon), new float[] { local.x, local.y, local.z },
-                DungeonEntranceDistance + 5f, owner.Config.Dungeons, MaxPerDungeon, float.MaxValue);
+                DungeonEntranceDistance + 5f, new List<Vector3> { entrance }, DungeonEntranceDistance, owner.Config.Dungeons, MaxPerDungeon, float.MaxValue);
         }
 
+        /// <param name="keepAway">World points no person may stand closer to than keepAwayRadius (doors, the dungeon entrance).</param>
         List<NpcBrain> SpawnPlace(PlaceInfo place, Transform parent, List<float[]> candidates, float[] avoid, float avoidRadius,
-            bool enabled, int cap, float wanderCap)
+            List<Vector3> keepAway, float keepAwayRadius, bool enabled, int cap, float wanderCap)
         {
             List<NpcBrain> spawned = new List<NpcBrain>();
             LastPlace = place;
@@ -157,7 +158,8 @@ namespace AdvancedNPCs
                 float[] offset = SpotPicker.GroupOffsets(sizes[g], groupSeed)[m];
                 Vector3 anchor = SpotFinder.World(parent, candidates[spot]);
                 Vector3 feet;
-                if (!SpotFinder.Near(anchor, anchor + new Vector3(offset[0], 0, offset[1]), out feet))
+                if (!SpotFinder.Near(anchor, anchor + new Vector3(offset[0], 0, offset[1]), out feet) ||
+                    keepAway.Exists(delegate (Vector3 k) { return Vector3.Distance(k, feet) < keepAwayRadius; }))
                 {
                     skipped++;
                     continue;
@@ -207,16 +209,16 @@ namespace AdvancedNPCs
             if (town == null)
                 return null;
             int key = interior.EntryDoor.buildingKey;
-            string building = BuildingNames.FromBuildingType(gm.PlayerEnterExit.BuildingType.ToString());
+            string building = BuildingKinds.FromBuildingType(gm.PlayerEnterExit.BuildingType.ToString());
             int faction = gm.PlayerEnterExit.BuildingDiscoveryData.factionID;
             BuildingDirectory dir = town.GetComponent<BuildingDirectory>();
             BuildingSummary summary;
             if (dir != null && dir.GetBuildingSummary(key, out summary))
             {
-                building = BuildingNames.FromBuildingType(summary.BuildingType.ToString());
+                building = BuildingKinds.FromBuildingType(summary.BuildingType.ToString());
                 faction = summary.FactionId;
             }
-            string guild = building == BuildingNames.GuildHall ? GuildKey(gm.GuildManager.GetGuildGroup(faction)) : null;
+            string guild = building == BuildingKinds.GuildHall ? GuildKey(gm.GuildManager.GetGuildGroup(faction)) : null;
             return PlaceInfo.Interior(town.Summary.MapID, town.Summary.RegionName, town.Summary.LocationName, NpcSpawner.DefaultRace(town),
                 building, guild, key);
         }

@@ -20,6 +20,13 @@ namespace AdvancedNPCs
             get { return randomEachVisit ? GenericMode.RandomEachVisit : GenericMode.SamePeople; }
         }
 
+        /// <summary>The GenericPeople setting as a switch (the self-test sets it for its own run).</summary>
+        public bool RandomEachVisit
+        {
+            get { return randomEachVisit; }
+            set { randomEachVisit = value; }
+        }
+
         public int MaxGenericPerTown = 12;
         public bool Dungeons = true;
         public bool Interiors = true;
@@ -41,15 +48,28 @@ namespace AdvancedNPCs
 
         public void Apply(DfuModSettings settings, ModSettingsChange change)
         {
-            randomEachVisit = settings.GetInt(Section, "GenericPeople") == 1;
-            MaxGenericPerTown = Mathf.Clamp(settings.GetInt(Section, "MaxGenericPerTown"), 0, 30);
-            Dungeons = settings.GetBool(Section, "Dungeons");
-            Interiors = settings.GetBool(Section, "Interiors");
-            Wilderness = settings.GetBool(Section, "Wilderness");
-            MaxWildernessAround = Mathf.Clamp(settings.GetInt(Section, "MaxWildernessAround"), 0, 10);
+            // Each key on its own: settings saved by an older version may lack the newer ones.
+            randomEachVisit = Read(delegate { return settings.GetInt(Section, "GenericPeople") == 1; }, false);
+            MaxGenericPerTown = Mathf.Clamp(Read(delegate { return settings.GetInt(Section, "MaxGenericPerTown"); }, 12), 0, 30);
+            Dungeons = Read(delegate { return settings.GetBool(Section, "Dungeons"); }, true);
+            Interiors = Read(delegate { return settings.GetBool(Section, "Interiors"); }, true);
+            Wilderness = Read(delegate { return settings.GetBool(Section, "Wilderness"); }, true);
+            MaxWildernessAround = Mathf.Clamp(Read(delegate { return settings.GetInt(Section, "MaxWildernessAround"); }, 4), 0, 10);
             FromSettings = true;
             AdvancedNpcsMod.Log("Settings: generic people " + Mode + ", at most " + MaxGenericPerTown + " per town; dungeons " + Dungeons +
                 ", interiors " + Interiors + ", wilderness " + Wilderness + " (at most " + MaxWildernessAround + " around you).");
+        }
+
+        static T Read<T>(System.Func<T> get, T fallback)
+        {
+            try
+            {
+                return get();
+            }
+            catch (System.Exception)
+            {
+                return fallback;
+            }
         }
     }
 }

@@ -3,7 +3,7 @@
     "Sections": [
         {
             "Name": "Population",
-            "Description": "Generic Advanced NPCs: townsfolk, and people in dungeons, buildings and the wilderness made from generic templates.",
+            "Description": "Generic Advanced NPCs: townsfolk made from generic templates.",
             "IsAdvanced": false,
             "Keys": [
                 {
@@ -23,36 +23,6 @@
                     "Value": 12,
                     "Name": "MaxGenericPerTown",
                     "Description": "Most generic NPCs in one town (0 turns them off).",
-                    "$version": "v1",
-                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderIntKey"
-                },
-                {
-                    "Value": true,
-                    "Name": "Dungeons",
-                    "Description": "Generic ANPCs with a \"dungeons\" spawn block appear in dungeons.",
-                    "$version": "v1",
-                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
-                },
-                {
-                    "Value": true,
-                    "Name": "Interiors",
-                    "Description": "Generic ANPCs with an \"interiors\" spawn block appear in taverns, guild halls, temples, shops and houses.",
-                    "$version": "v1",
-                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
-                },
-                {
-                    "Value": true,
-                    "Name": "Wilderness",
-                    "Description": "Generic ANPCs with a \"wilderness\" spawn block appear around you in the wilderness.",
-                    "$version": "v1",
-                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
-                },
-                {
-                    "Min": 0,
-                    "Max": 10,
-                    "Value": 4,
-                    "Name": "MaxWildernessAround",
-                    "Description": "Most wilderness ANPCs around you at once (0 turns them off).",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderIntKey"
                 }

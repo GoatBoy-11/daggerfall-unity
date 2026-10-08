@@ -25,17 +25,17 @@ namespace AdvancedNPCs.Core
         public int Chance;
         public int CountMin = 1;
         public int CountMax = 1;
-        /// <summary>BuildingNames keys.</summary>
+        /// <summary>BuildingKinds keys.</summary>
         public readonly List<string> Buildings = new List<string>();
         public Condition When;
 
-        /// <param name="building">The building's BuildingNames key ("tavern", "guildhall", "house", ...).</param>
+        /// <param name="building">The building's BuildingKinds key ("tavern", "guildhall", "house", ...).</param>
         /// <param name="guild">For guild halls, the guild's key ("fightersguild", ...), else null.</param>
         public bool Matches(string building, string guild)
         {
             if (Buildings.Contains(building))
                 return true;
-            return building == BuildingNames.GuildHall && guild != null && Buildings.Contains(guild);
+            return building == BuildingKinds.GuildHall && guild != null && Buildings.Contains(guild);
         }
     }
 
@@ -76,7 +76,7 @@ namespace AdvancedNPCs.Core
     }
 
     /// <summary>Building and guild names authors may write in spawn.interiors.buildings, as lowercase keys.</summary>
-    public static class BuildingNames
+    public static class BuildingKinds
     {
         public const string GuildHall = "guildhall";
         public const string House = "house";
@@ -185,11 +185,11 @@ namespace AdvancedNPCs.Core
                 {
                     foreach (string n in names)
                     {
-                        string key = BuildingNames.Canonical(n);
+                        string key = BuildingKinds.Canonical(n);
                         if (key == null)
                         {
                             field = "buildings";
-                            problem = "unknown building \"" + n + "\" (use " + string.Join(", ", BuildingNames.Display) + ")";
+                            problem = "unknown building \"" + n + "\" (use " + string.Join(", ", BuildingKinds.Display) + ")";
                             break;
                         }
                         if (!s.Buildings.Contains(key))

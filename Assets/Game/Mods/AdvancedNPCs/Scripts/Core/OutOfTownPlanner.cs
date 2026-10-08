@@ -17,7 +17,7 @@ namespace AdvancedNPCs.Core
         public string DefaultRace;
         /// <summary>Dungeons: a DungeonTypeNames name.</summary>
         public string DungeonType;
-        /// <summary>Interiors: a BuildingNames key ("tavern", "guildhall", "house", ...).</summary>
+        /// <summary>Interiors: a BuildingKinds key ("tavern", "guildhall", "house", ...).</summary>
         public string Building;
         /// <summary>Interiors: for guild halls the guild's key ("fightersguild", ...), else null.</summary>
         public string Guild;
