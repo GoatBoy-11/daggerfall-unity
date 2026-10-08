@@ -76,6 +76,18 @@ namespace AdvancedNPCs.Core
             c.Greetings.AddRange(file.Greetings);
         }
 
+        /// <summary>Asked keys of replies: Normalize(topic + "/" + reply), at any depth.</summary>
+        static void AddReplyIds(string topicId, List<DialogueReply> replies, HashSet<string> ids)
+        {
+            foreach (DialogueReply r in replies)
+            {
+                ids.Add(DialogueIds.Normalize(topicId + "/" + r.Id));
+                AddReplyIds(topicId, r.Replies, ids);
+                foreach (DialogueAnswer a in r.Answers)
+                    AddReplyIds(topicId, a.Replies, ids);
+            }
+        }
+
         /// <summary>
         /// Problems only visible once files are combined: dialogue types that do not exist, and asked / notAsked
         /// naming no topic of the ANPC's composed set. One line each.
@@ -92,12 +104,42 @@ namespace AdvancedNPCs.Core
                         messages.Add(m);
                 }
 
+                // Same-id overrides are legal; a note tells the author it happened.
+                Dictionary<string, DialogueTopic> seen = new Dictionary<string, DialogueTopic>(StringComparer.Ordinal);
+                List<DialogueFile> order = new List<DialogueFile>();
+                foreach (string type in d.Dialogue)
+                {
+                    DialogueFile f;
+                    if (files.TryGetValue(type, out f))
+                        order.Add(f);
+                }
+                if (d.OwnDialogue != null)
+                    order.Add(d.OwnDialogue);
+                foreach (DialogueFile f in order)
+                {
+                    foreach (DialogueTopic t in f.Topics)
+                    {
+                        DialogueTopic earlier;
+                        if (seen.TryGetValue(t.Id, out earlier) && earlier.Source != t.Source)
+                        {
+                            string note = "note: " + t.Source + ": topic \"" + t.Caption + "\" replaces the one in " + earlier.Source + " for " + d.Id +
+                                          " (same id \"" + t.Id + "\")";
+                            if (!messages.Contains(note))
+                                messages.Add(note);
+                        }
+                        seen[t.Id] = t;
+                    }
+                }
+
                 ComposedDialogue c = Compose(d);
                 HashSet<string> ids = new HashSet<string>();
                 Dictionary<string, DialogueTopic> captions = new Dictionary<string, DialogueTopic>(StringComparer.OrdinalIgnoreCase);
                 foreach (DialogueTopic t in c.Topics)
                 {
                     ids.Add(t.Id);
+                    AddReplyIds(t.Id, t.Replies, ids);
+                    foreach (DialogueAnswer a in t.Answers)
+                        AddReplyIds(t.Id, a.Replies, ids);
                     DialogueTopic same;
                     if (captions.TryGetValue(t.Caption, out same))
                     {

@@ -20,6 +20,22 @@ namespace AdvancedNPCs.Core
     /// </summary>
     public static class Json
     {
+        [ThreadStatic] static List<string> duplicates;
+
+        /// <summary>As Parse; every key repeated inside one object is added to found as "\"key\" (line N)".</summary>
+        public static object Parse(string text, List<string> found)
+        {
+            duplicates = found;
+            try
+            {
+                return Parse(text);
+            }
+            finally
+            {
+                duplicates = null;
+            }
+        }
+
         public static object Parse(string text)
         {
             int pos = 0;
@@ -78,11 +94,14 @@ namespace AdvancedNPCs.Core
                 SkipWhitespace(text, ref pos);
                 if (pos >= text.Length || text[pos] != '"')
                     throw Error("expected a quoted key", text, pos);
+                int keyAt = pos;
                 string key = ReadString(text, ref pos);
                 SkipWhitespace(text, ref pos);
                 if (pos >= text.Length || text[pos] != ':')
                     throw Error("expected ':' after \"" + key + "\"", text, pos);
                 pos++;
+                if (duplicates != null && result.ContainsKey(key))
+                    duplicates.Add("\"" + key + "\" (line " + LineOf(text, keyAt) + ")");
                 result[key] = ReadValue(text, ref pos);
                 SkipWhitespace(text, ref pos);
                 if (pos < text.Length && text[pos] == ',')
@@ -186,6 +205,17 @@ namespace AdvancedNPCs.Core
         static bool Matches(string text, int pos, string word)
         {
             return string.CompareOrdinal(text, pos, word, 0, word.Length) == 0;
+        }
+
+        static int LineOf(string text, int pos)
+        {
+            int line = 1;
+            for (int i = 0; i < pos && i < text.Length; i++)
+            {
+                if (text[i] == '\n')
+                    line++;
+            }
+            return line;
         }
 
         static void SkipWhitespace(string text, ref int pos)

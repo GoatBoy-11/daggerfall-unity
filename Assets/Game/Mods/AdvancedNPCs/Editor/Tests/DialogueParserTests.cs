@@ -197,6 +197,14 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void DuplicateKeys_Reported_LastWins()
+        {
+            DialogueParseResult r = Parse("{ \"topics\": [ { \"caption\": \"A\",\n \"answers\": [\"first\"],\n \"answers\": [\"second\"] } ] }");
+            Assert.AreEqual("second", r.File.Topics[0].Answers[0].Text);
+            HasMessage(r, Src + ": \"answers\" (line 3) appears twice in one object; the last one is used");
+        }
+
+        [Test]
         public void InvalidJson_NoFile()
         {
             DialogueParseResult r = Parse("{ \"topics\": [ ");

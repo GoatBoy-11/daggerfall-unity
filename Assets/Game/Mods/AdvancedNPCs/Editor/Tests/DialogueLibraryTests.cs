@@ -91,6 +91,21 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void Check_NotesSameIdOverrides()
+        {
+            List<string> messages = library.Check(new[] { Npc("w", "gossip", "tavern_wench") });
+            CollectionAssert.Contains(messages, "note: tavern_wench.json: topic \"rumours\" replaces the one in gossip.json for w (same id \"rumours\")");
+        }
+
+        [Test]
+        public void Check_AskedMayNameAReply()
+        {
+            library.Add(File("deals", "{ \"topics\": [ { \"caption\": \"Ale\", \"answers\": [\"x\"], \"replies\": [ { \"text\": \"Buy one\", \"answers\": [\"y\"] } ] }, " +
+                "{ \"caption\": \"Refill\", \"when\": { \"asked\": \"Ale/Buy one\" }, \"answers\": [\"z\"] } ] }"));
+            CollectionAssert.IsEmpty(library.Check(new[] { Npc("w", "deals") }));
+        }
+
+        [Test]
         public void Check_AskedMustNameAComposedTopic_AcrossFiles()
         {
             library.Add(File("followups", "{ \"topics\": [ " +

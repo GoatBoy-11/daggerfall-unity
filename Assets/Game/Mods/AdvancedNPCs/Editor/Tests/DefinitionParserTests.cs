@@ -16,6 +16,15 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void DuplicateKeys_Warn()
+        {
+            ParseResult r = DefinitionParser.ParseFolder("bram", "{ \"kind\": \"generic\", \"bravery\": \"Brave\", \"bravery\": \"Coward\" }");
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.AreEqual(Bravery.Coward, r.Definition.Bravery);
+            CollectionAssert.Contains(r.Warnings, "bram/npc.json: \"bravery\" (line 1) appears twice in one object; the last one is used");
+        }
+
+        [Test]
         public void Dialogue_OneOrMoreTypes_Normalised()
         {
             ParseResult one = DefinitionParser.Parse("bram.json", With("\"dialogue\": \"Tavern Wench\""));

@@ -44,7 +44,10 @@ namespace AdvancedNPCs.Core
             object root;
             try
             {
-                root = Json.Parse(json);
+                List<string> repeated = new List<string>();
+                root = Json.Parse(json, repeated);
+                foreach (string d in repeated)
+                    r.Messages.Add(source + ": " + d + " appears twice in one object; the last one is used");
             }
             catch (JsonException e)
             {
