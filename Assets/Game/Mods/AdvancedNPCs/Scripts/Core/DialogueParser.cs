@@ -19,8 +19,19 @@ namespace AdvancedNPCs.Core
         public const int LongCaption = 24;
 
         static readonly string[] FileKeys = { "topics", "greetings" };
-        static readonly string[] TopicKeys = { "caption", "id", "answers", "when", "question", "sets", "clears", "once" };
-        static readonly string[] AnswerKeys = { "text", "when", "sets", "clears" };
+        public const int MaxReplyDepth = 8;
+
+        static readonly string[] ActionKeys = { "giveGold", "takeGold", "giveItem", "takeItem", "reputation", "startQuest", "becomeEnemy", "endConversation" };
+        static readonly string[] TopicKeys = Join(new[] { "caption", "id", "answers", "when", "question", "sets", "clears", "once", "replies" }, ActionKeys);
+        static readonly string[] AnswerKeys = Join(new[] { "text", "when", "sets", "clears", "replies" }, ActionKeys);
+        static readonly string[] ReplyKeys = Join(new[] { "text", "id", "when", "answers", "replies", "sets", "clears" }, ActionKeys);
+
+        static string[] Join(string[] a, string[] b)
+        {
+            List<string> all = new List<string>(a);
+            all.AddRange(b);
+            return all.ToArray();
+        }
 
         public static DialogueParseResult Parse(string source, string json)
         {
@@ -141,6 +152,8 @@ namespace AdvancedNPCs.Core
             ReadQuestion(where, t, topic.Question, messages);
             ReadNames(where, t, "sets", topic.Sets, messages);
             ReadNames(where, t, "clears", topic.Clears, messages);
+            ReadActions(where, t, topic.Actions, messages);
+            ReadReplies(where + ": replies", t, topic.Replies, 1, messages);
 
             object rawOnce;
             if (t.TryGetValue("once", out rawOnce) && rawOnce != null)
@@ -153,7 +166,7 @@ namespace AdvancedNPCs.Core
 
             object rawAnswers;
             t.TryGetValue("answers", out rawAnswers);
-            ReadAnswers(where + ": answers", "answer", rawAnswers, topic.Answers, true, messages);
+            ReadAnswers(where + ": answers", "answer", rawAnswers, topic.Answers, true, messages, 1);
             if (topic.Answers.Count == 0)
             {
                 messages.Add(where + ": answers: required (one or more texts), topic skipped");
@@ -212,11 +225,12 @@ namespace AdvancedNPCs.Core
             object raw;
             if (!o.TryGetValue("greetings", out raw) || raw == null)
                 return;
-            ReadAnswers(source + ": greetings", "greeting", raw, file.Greetings, false, messages);
+            ReadAnswers(source + ": greetings", "greeting", raw, file.Greetings, false, messages, 0);
         }
 
         /// <param name="isAnswer">False for greetings: no tone, no sets/clears.</param>
-        static void ReadAnswers(string where, string noun, object raw, List<DialogueAnswer> into, bool isAnswer, List<string> messages)
+        /// <param name="depth">Reply nesting level of these answers (replies on them are one deeper).</param>
+        static void ReadAnswers(string where, string noun, object raw, List<DialogueAnswer> into, bool isAnswer, List<string> messages, int depth)
         {
             if (raw == null)
                 return;
@@ -250,10 +264,14 @@ namespace AdvancedNPCs.Core
                     {
                         ReadNames(at, obj, "sets", a.Sets, messages);
                         ReadNames(at, obj, "clears", a.Clears, messages);
+                        ReadActions(at, obj, a.Actions, messages);
+                        ReadReplies(at + ": replies", obj, a.Replies, depth + 1, messages);
                     }
                     else
                     {
-                        foreach (string key in new[] { "sets", "clears" })
+                        List<string> notHere = new List<string> { "sets", "clears", "replies" };
+                        notHere.AddRange(ActionKeys);
+                        foreach (string key in notHere)
                         {
                             if (obj.ContainsKey(key))
                                 messages.Add(at + ": " + key + ": not allowed in greetings, ignored");
@@ -278,6 +296,130 @@ namespace AdvancedNPCs.Core
                 Placeholders(a.Text, false, at, messages);
                 into.Add(a);
             }
+        }
+
+        /// <summary>The "replies" list of a topic, answer or reply (C2 spec §3).</summary>
+        static void ReadReplies(string where, Dictionary<string, object> o, List<DialogueReply> into, int depth, List<string> messages)
+        {
+            object raw;
+            if (!o.TryGetValue("replies", out raw) || raw == null)
+                return;
+            List<object> list = raw as List<object>;
+            if (list == null)
+            {
+                messages.Add(where + ": must be a list of reply objects, ignored");
+                return;
+            }
+            if (depth > MaxReplyDepth)
+            {
+                messages.Add(where + ": nested deeper than " + MaxReplyDepth + " levels, the deeper ones are ignored");
+                return;
+            }
+            for (int i = 0; i < list.Count; i++)
+            {
+                string at = where + ": reply " + (i + 1);
+                Dictionary<string, object> r = list[i] as Dictionary<string, object>;
+                if (r == null)
+                {
+                    messages.Add(at + ": must be an object with \"text\" and \"answers\", reply skipped");
+                    continue;
+                }
+                string text = r.ContainsKey("text") ? r["text"] as string : null;
+                if (text == null || text.Trim().Length == 0)
+                {
+                    messages.Add(at + ": text: required, reply skipped");
+                    continue;
+                }
+                UnknownKeys(r, ReplyKeys, at, messages);
+                DialogueReply reply = new DialogueReply();
+                reply.Text = text;
+                Placeholders(text, false, at + ": text", messages);
+                reply.Id = DialogueIds.Normalize(text);
+                object rawId;
+                if (r.TryGetValue("id", out rawId) && rawId != null)
+                {
+                    string id = DialogueIds.Normalize(rawId as string);
+                    if (id.Length > 0)
+                        reply.Id = id;
+                    else
+                        messages.Add(at + ": id: must be a name with letters or digits, using \"" + reply.Id + "\"");
+                }
+                object rawWhen;
+                if (r.TryGetValue("when", out rawWhen) && rawWhen != null)
+                {
+                    Dictionary<string, object> when = rawWhen as Dictionary<string, object>;
+                    if (when == null)
+                        messages.Add(at + ": when: must be an object, ignored");
+                    else
+                        reply.When = ConditionParser.Parse(when, at, messages, true);
+                }
+                ReadNames(at, r, "sets", reply.Sets, messages);
+                ReadNames(at, r, "clears", reply.Clears, messages);
+                ReadActions(at, r, reply.Actions, messages);
+                object rawAnswers;
+                r.TryGetValue("answers", out rawAnswers);
+                ReadAnswers(at + ": answers", "answer", rawAnswers, reply.Answers, true, messages, depth);
+                if (reply.Answers.Count == 0)
+                {
+                    messages.Add(at + ": answers: required (one or more texts), reply skipped");
+                    continue;
+                }
+                ReadReplies(at + ": replies", r, reply.Replies, depth + 1, messages);
+                into.Add(reply);
+            }
+        }
+
+        /// <summary>giveGold, takeGold, giveItem, takeItem, reputation, startQuest, becomeEnemy, endConversation (C2 spec §4).</summary>
+        static void ReadActions(string where, Dictionary<string, object> o, DialogueActions a, List<string> messages)
+        {
+            a.GiveGold = Amount(where, o, "giveGold", 1, 100000, "a whole number 1-100000", messages);
+            a.TakeGold = Amount(where, o, "takeGold", 1, 100000, "a whole number 1-100000", messages);
+            a.Reputation = Amount(where, o, "reputation", -20, 20, "a whole number -20 to 20 (not 0)", messages);
+            a.GiveItem = Name(where, o, "giveItem", "an item name", messages);
+            a.TakeItem = Name(where, o, "takeItem", "an item name", messages);
+            a.StartQuest = Name(where, o, "startQuest", "a quest name", messages);
+            a.BecomeEnemy = Flag(where, o, "becomeEnemy", messages);
+            a.EndConversation = Flag(where, o, "endConversation", messages);
+        }
+
+        static int Amount(string where, Dictionary<string, object> o, string key, int min, int max, string rule, List<string> messages)
+        {
+            object raw;
+            if (!o.TryGetValue(key, out raw) || raw == null)
+                return 0;
+            if (!(raw is double) || (double)raw != System.Math.Floor((double)raw) || (double)raw < min || (double)raw > max || (double)raw == 0)
+            {
+                messages.Add(where + ": " + key + ": must be " + rule + ", ignored");
+                return 0;
+            }
+            return (int)(double)raw;
+        }
+
+        static string Name(string where, Dictionary<string, object> o, string key, string rule, List<string> messages)
+        {
+            object raw;
+            if (!o.TryGetValue(key, out raw) || raw == null)
+                return null;
+            string s = raw as string;
+            if (s == null || s.Trim().Length == 0)
+            {
+                messages.Add(where + ": " + key + ": must be " + rule + ", ignored");
+                return null;
+            }
+            return s.Trim();
+        }
+
+        static bool Flag(string where, Dictionary<string, object> o, string key, List<string> messages)
+        {
+            object raw;
+            if (!o.TryGetValue(key, out raw) || raw == null)
+                return false;
+            if (!(raw is bool))
+            {
+                messages.Add(where + ": " + key + ": must be true or false, ignored");
+                return false;
+            }
+            return (bool)raw;
         }
 
         /// <summary>Flag names (a name or a list) into names, normalised.</summary>

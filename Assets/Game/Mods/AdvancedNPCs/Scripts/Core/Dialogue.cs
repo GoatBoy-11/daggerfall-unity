@@ -91,6 +91,29 @@ namespace AdvancedNPCs.Core
         }
     }
 
+    /// <summary>What saying a line does besides flags (C2 spec §4). Zero / null / false = nothing.</summary>
+    public class DialogueActions
+    {
+        public int GiveGold;
+        public int TakeGold;
+        public string GiveItem;
+        public string TakeItem;
+        /// <summary>Change of the player's standing with the region's people, -20..20.</summary>
+        public int Reputation;
+        public string StartQuest;
+        public bool BecomeEnemy;
+        public bool EndConversation;
+
+        public bool IsEmpty
+        {
+            get
+            {
+                return GiveGold == 0 && TakeGold == 0 && GiveItem == null && TakeItem == null && Reputation == 0 && StartQuest == null &&
+                       !BecomeEnemy && !EndConversation;
+            }
+        }
+    }
+
     public class DialogueAnswer
     {
         public string Text;
@@ -98,6 +121,23 @@ namespace AdvancedNPCs.Core
         public Condition When;
         public readonly List<string> Sets = new List<string>();
         public readonly List<string> Clears = new List<string>();
+        public readonly DialogueActions Actions = new DialogueActions();
+        /// <summary>The player's choices after this answer (win over the topic's or reply's own).</summary>
+        public readonly List<DialogueReply> Replies = new List<DialogueReply>();
+    }
+
+    /// <summary>A line the player can choose after an answer (C2 spec §3).</summary>
+    public class DialogueReply
+    {
+        public string Id;
+        public string Text;
+        public Condition When;
+        public readonly List<DialogueAnswer> Answers = new List<DialogueAnswer>();
+        /// <summary>Choices after this reply's answer when that answer has none of its own.</summary>
+        public readonly List<DialogueReply> Replies = new List<DialogueReply>();
+        public readonly List<string> Sets = new List<string>();
+        public readonly List<string> Clears = new List<string>();
+        public readonly DialogueActions Actions = new DialogueActions();
     }
 
     public class DialogueTopic
@@ -113,6 +153,9 @@ namespace AdvancedNPCs.Core
         public readonly List<string> Sets = new List<string>();
         public readonly List<string> Clears = new List<string>();
         public bool Once;
+        public readonly DialogueActions Actions = new DialogueActions();
+        /// <summary>The player's choices after this topic's answer, unless that answer has its own.</summary>
+        public readonly List<DialogueReply> Replies = new List<DialogueReply>();
     }
 
     /// <summary>What asking a topic changes: player-wide flags and the person's asked topics.</summary>
