@@ -21,6 +21,10 @@ namespace AdvancedNPCs
         }
 
         public int MaxGenericPerTown = 12;
+        public bool Dungeons = true;
+        public bool Interiors = true;
+        public bool Wilderness = true;
+        public int MaxWildernessAround = 4;
         /// <summary>True once values were read from the mod's settings (false: defaults).</summary>
         public bool FromSettings;
 
@@ -39,8 +43,13 @@ namespace AdvancedNPCs
         {
             randomEachVisit = settings.GetInt(Section, "GenericPeople") == 1;
             MaxGenericPerTown = Mathf.Clamp(settings.GetInt(Section, "MaxGenericPerTown"), 0, 30);
+            Dungeons = settings.GetBool(Section, "Dungeons");
+            Interiors = settings.GetBool(Section, "Interiors");
+            Wilderness = settings.GetBool(Section, "Wilderness");
+            MaxWildernessAround = Mathf.Clamp(settings.GetInt(Section, "MaxWildernessAround"), 0, 10);
             FromSettings = true;
-            AdvancedNpcsMod.Log("Settings: generic people " + Mode + ", at most " + MaxGenericPerTown + " per town.");
+            AdvancedNpcsMod.Log("Settings: generic people " + Mode + ", at most " + MaxGenericPerTown + " per town; dungeons " + Dungeons +
+                ", interiors " + Interiors + ", wilderness " + Wilderness + " (at most " + MaxWildernessAround + " around you).");
         }
     }
 }

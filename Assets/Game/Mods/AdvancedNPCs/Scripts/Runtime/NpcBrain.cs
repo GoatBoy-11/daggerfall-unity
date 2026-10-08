@@ -84,6 +84,9 @@ namespace AdvancedNPCs
             return result;
         }
 
+        /// <summary>Most metres this person wanders from its spot (indoors 3 m, spec outside-towns §7).</summary>
+        public float WanderCap = float.MaxValue;
+
         public NpcMode CurrentMode
         {
             get { return mode; }
@@ -398,7 +401,8 @@ namespace AdvancedNPCs
 
         void UpdateCalm()
         {
-            if (def.WanderRadius <= 0f)
+            float wanderRadius = Mathf.Min(def.WanderRadius, WanderCap);
+            if (wanderRadius <= 0f)
             {
                 mover.Stop();
                 return;
@@ -410,7 +414,7 @@ namespace AdvancedNPCs
                 mover.Stop();
                 if (wanderPause > 0f)
                     return;
-                Vector2 offset = Random.insideUnitCircle * def.WanderRadius;
+                Vector2 offset = Random.insideUnitCircle * wanderRadius;
                 wanderTargetLocal = homeLocal + new Vector3(offset.x, 0f, offset.y);
                 hasWanderTarget = true;
             }

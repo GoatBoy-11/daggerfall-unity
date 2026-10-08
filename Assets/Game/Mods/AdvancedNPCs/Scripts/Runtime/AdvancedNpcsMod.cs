@@ -37,6 +37,8 @@ namespace AdvancedNPCs
         public FlagSet Flags { get; private set; }
         /// <summary>Puts dialogue topics into the talk window.</summary>
         public TopicInjector Topics { get; private set; }
+        /// <summary>People in dungeons and buildings.</summary>
+        public IndoorSpawner Indoors { get; private set; }
 
         readonly Dictionary<NpcDefinition, ComposedDialogue> composed = new Dictionary<NpcDefinition, ComposedDialogue>();
 
@@ -103,6 +105,9 @@ namespace AdvancedNPCs
                 "Moves a spawned Advanced NPC in front of you (testing only, not saved).", "anpc_summon <id>", SummonCommand);
             spawner = new NpcSpawner(this);
             spawner.Enable();
+            // After the town spawner: on a load its handler clears every ANPC first, then this one refills the place inside.
+            Indoors = new IndoorSpawner(this, spawner);
+            Indoors.Enable();
             ConsoleCommandsDatabase.RegisterCommand("anpc_selftest",
                 "Runs the Advanced NPCs in-game self-test next to you (god mode during the run; results in Player.log).", "anpc_selftest", SelfTestCommand);
 
@@ -116,6 +121,8 @@ namespace AdvancedNPCs
             StartGameBehaviour.OnNewGame -= OnNewGame;
             if (spawner != null)
                 spawner.Disable();
+            if (Indoors != null)
+                Indoors.Disable();
         }
 
         void OnNewGame()

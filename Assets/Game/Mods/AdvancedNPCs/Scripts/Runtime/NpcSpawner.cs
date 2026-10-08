@@ -244,7 +244,12 @@ namespace AdvancedNPCs
         /// <summary>The people of the town's own climate, used when an ANPC does not set its race.</summary>
         public static string DefaultRace(DaggerfallLocation location)
         {
-            FactionFile.FactionRaces people = MapsFile.GetWorldClimateSettings((int)location.Summary.WorldClimate).People;
+            return DefaultRace((int)location.Summary.WorldClimate);
+        }
+
+        public static string DefaultRace(int worldClimate)
+        {
+            FactionFile.FactionRaces people = MapsFile.GetWorldClimateSettings(worldClimate).People;
             if (people == FactionFile.FactionRaces.Redguard)
                 return "Redguard";
             if (people == FactionFile.FactionRaces.Nord)
@@ -255,8 +260,14 @@ namespace AdvancedNPCs
         /// <summary>Spawns unless dead or already spawned in this town (SpawnRules). Returns the new brain or null.</summary>
         NpcBrain SpawnChecked(NpcInstance instance, NpcState state, DaggerfallLocation location)
         {
+            return SpawnChecked(instance, state, location.transform);
+        }
+
+        /// <summary>Spawns under parent (a town, interior or dungeon object) unless dead or already there.</summary>
+        public NpcBrain SpawnChecked(NpcInstance instance, NpcState state, Transform parent)
+        {
             NpcBrain existing = NpcBrain.Find(instance.Key);
-            bool existingHere = existing != null && existing.transform.parent == location.transform;
+            bool existingHere = existing != null && existing.transform.parent == parent;
             SpawnAction action = SpawnRules.Decide(state.dead, existing != null, existingHere);
             if (action == SpawnAction.Skip)
                 return null;
@@ -264,7 +275,7 @@ namespace AdvancedNPCs
                 NpcBrain.Discard(existing);
             try
             {
-                return Spawn(instance, state, location.transform);
+                return Spawn(instance, state, parent);
             }
             catch (Exception e)
             {
