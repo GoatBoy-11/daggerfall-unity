@@ -146,6 +146,17 @@ namespace AdvancedNPCs.Tests
             Assert.IsFalse(c.Holds(new FakeFacts { ReactionValue = "neutral" }));
         }
 
+        [TestCase(-1, "dislikes")]
+        [TestCase(0, "neutral")]
+        [TestCase(9, "neutral")]
+        [TestCase(10, "likes")]
+        [TestCase(29, "likes")]
+        [TestCase(30, "loves")]
+        public void ReactionBands(int reaction, string band)
+        {
+            Assert.AreEqual(band, ConditionParser.ReactionBand(reaction));
+        }
+
         [Test]
         public void Asked_AllOf_NotAsked_NoneOf_AcceptsCaptions()
         {

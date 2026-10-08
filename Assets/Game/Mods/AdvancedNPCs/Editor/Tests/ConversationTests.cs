@@ -159,6 +159,17 @@ namespace AdvancedNPCs.Tests
             ComposedDialogue d = Dialogue("{ \"topics\": [ { \"caption\": \"Ale\", \"answers\": [\"x\"] } ] }");
             Assert.AreEqual("What do you know about Ale?", Conversation.Question(d.Topics[0], Tones.Blunt));
         }
+
+        [Test]
+        public void Question_DefaultLowercasesLeadingArticle_AuthoredKept()
+        {
+            ComposedDialogue d = Dialogue("{ \"topics\": [ { \"caption\": \"The house ale\", \"answers\": [\"x\"] }, " +
+                "{ \"caption\": \"Theodor\", \"answers\": [\"x\"] }, " +
+                "{ \"caption\": \"The sailor\", \"question\": \"About {topic}?\", \"answers\": [\"x\"] } ] }");
+            Assert.AreEqual("Tell me about the house ale.", Conversation.Question(d.Topics[0], Tones.Normal));
+            Assert.AreEqual("Tell me about Theodor.", Conversation.Question(d.Topics[1], Tones.Normal));
+            Assert.AreEqual("About The sailor?", Conversation.Question(d.Topics[2], Tones.Normal));
+        }
     }
 
     public class FlagSetTests

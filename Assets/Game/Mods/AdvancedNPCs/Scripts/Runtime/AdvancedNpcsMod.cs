@@ -31,6 +31,14 @@ namespace AdvancedNPCs
         public NameLists Names { get; private set; }
         public SpriteLibrary Sprites { get; private set; }
         public ModConfig Config { get; private set; }
+        /// <summary>Dialogue types from ANPCs/_Dialogue.</summary>
+        public DialogueLibrary Dialogue { get; private set; }
+        /// <summary>Player-wide dialogue flags (saved with the game).</summary>
+        public FlagSet Flags { get; private set; }
+        /// <summary>Puts dialogue topics into the talk window.</summary>
+        public TopicInjector Topics { get; private set; }
+
+        readonly Dictionary<NpcDefinition, ComposedDialogue> composed = new Dictionary<NpcDefinition, ComposedDialogue>();
 
         /// <summary>Raised after save data is restored or a new game starts.</summary>
         public event Action OnStateRestored;
@@ -46,7 +54,7 @@ namespace AdvancedNPCs
             Instance = go.AddComponent<AdvancedNpcsMod>();
             Instance.Config.Attach(mod);
             mod.MessageReceiver = Instance.OnModMessage;
-            mod.SaveDataInterface = new NpcSaveDataInterface(Instance.States, Instance.Placed, Instance.RaiseStateRestored);
+            mod.SaveDataInterface = new NpcSaveDataInterface(Instance.States, Instance.Placed, Instance.Flags, Instance.RaiseStateRestored);
             mod.IsReady = true;
         }
 
@@ -64,6 +72,10 @@ namespace AdvancedNPCs
             List<NpcDefinition> all = new List<NpcDefinition>(Catalog.ById.Values);
             all.AddRange(Catalog.Generics);
             Sprites = SpriteLibrary.Load(AnpcFiles.Root, all);
+            Flags = new FlagSet();
+            Dialogue = DialogueFiles.Load(AnpcFiles.Root);
+            DialogueFiles.Check(Dialogue, Catalog);
+            Topics = gameObject.AddComponent<TopicInjector>();
             StartGameBehaviour.OnNewGame += OnNewGame;
             ConsoleCommandsDatabase.RegisterCommand("anpc_pos",
                 "Prints your position as Advanced NPC definition JSON (also written to Player.log).", "anpc_pos", PosCommand);
@@ -79,6 +91,14 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_hostile",
                 "Turns an ANPC into an enemy (no crime to fight) or calms it; saved with your game.",
                 "anpc_hostile <id or key> [on|off]", HostileCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_topics",
+                "Shows the dialogue topics of the ANPC in front of you (or <id>): which are shown, and why the others are hidden.",
+                "anpc_topics [id]", TopicsCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_reload_dialogue",
+                "Re-reads ANPCs/_Dialogue/*.json and every dialogue.json (changes to npc.json need a restart).",
+                "anpc_reload_dialogue", ReloadDialogueCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_flag",
+                "Lists dialogue flags, or sets / clears one (saved with your game).", "anpc_flag [name on|off]", FlagCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_summon",
                 "Moves a spawned Advanced NPC in front of you (testing only, not saved).", "anpc_summon <id>", SummonCommand);
             spawner = new NpcSpawner(this);
@@ -102,7 +122,106 @@ namespace AdvancedNPCs
         {
             States.Clear();
             Placed.Clear();
+            Flags.ClearAll();
             RaiseStateRestored();
+        }
+
+        /// <summary>The topics and greetings an ANPC definition uses (its types, then its folder's dialogue.json).</summary>
+        public ComposedDialogue DialogueFor(NpcDefinition def)
+        {
+            if (def == null)
+                return new ComposedDialogue();
+            ComposedDialogue c;
+            if (!composed.TryGetValue(def, out c))
+            {
+                c = Dialogue.Compose(def);
+                composed[def] = c;
+            }
+            return c;
+        }
+
+        /// <summary>Adds or replaces a dialogue type (self-test).</summary>
+        public void AddDialogueType(DialogueFile file)
+        {
+            Dialogue.Add(file);
+            composed.Clear();
+        }
+
+        static string TopicsCommand(params string[] args)
+        {
+            NpcBrain b = args != null && args.Length > 0 ? NpcBrain.Find(args[0]) : Nearest(5f);
+            if (b == null || b.Instance == null)
+                return args != null && args.Length > 0 ? "No spawned ANPC \"" + args[0] + "\". Try anpc_list." : "No ANPC within 5 m. Stand in front of one or give an id (anpc_list).";
+            NpcDefinition def = b.Instance.Definition;
+            ComposedDialogue d = Instance.DialogueFor(def);
+            StringBuilder sb = new StringBuilder();
+            sb.Append(b.Id).Append(" (").Append(b.DisplayName).Append("): dialogue ")
+              .Append(def.Dialogue.Count > 0 ? string.Join(", ", def.Dialogue.ToArray()) : "none")
+              .Append(def.OwnDialogue != null ? " + " + def.Folder + "/dialogue.json" : "").Append('\n');
+            if (d.Topics.Count == 0)
+                sb.Append("  no topics\n");
+            GameFacts facts = new GameFacts(b.State, Instance.Flags, b.DisplayName, null);
+            foreach (DialogueTopic t in d.Topics)
+            {
+                string why = Conversation.WhyHidden(t, facts);
+                sb.Append("  ").Append(t.Caption).Append(" [").Append(t.Id).Append("]: ").Append(why == null ? "shown" : "hidden, " + why).Append('\n');
+            }
+            sb.Append("  asked: ").Append(b.State.asked != null && b.State.asked.Count > 0 ? string.Join(", ", b.State.asked.ToArray()) : "nothing").Append('\n');
+            sb.Append("  (\"reaction\" uses the last conversation's value: ").Append(facts.Reaction).Append(')');
+            string text = sb.ToString();
+            Log("anpc_topics\n" + text);
+            return text;
+        }
+
+        static NpcBrain Nearest(float maxDistance)
+        {
+            Vector3 player = GameManager.Instance.PlayerObject.transform.position;
+            NpcBrain best = null;
+            float bestDistance = maxDistance;
+            foreach (NpcBrain b in NpcBrain.All())
+            {
+                float d = Vector3.Distance(b.transform.position, player);
+                if (d <= bestDistance)
+                {
+                    best = b;
+                    bestDistance = d;
+                }
+            }
+            return best;
+        }
+
+        static string ReloadDialogueCommand(params string[] args)
+        {
+            Instance.Dialogue = DialogueFiles.Load(AnpcFiles.Root);
+            DialogueFiles.ReloadOwn(Instance.Catalog);
+            Instance.composed.Clear();
+            int problems = DialogueFiles.Check(Instance.Dialogue, Instance.Catalog);
+            string message = "Reloaded " + Instance.Dialogue.Count + " dialogue type(s) and the folders' dialogue.json" +
+                             (problems > 0 ? "; see Player.log for problems ([AdvancedNPCs] lines)." : "; no problems found by the cross-file checks.") +
+                             " Talk to an ANPC again to see the changes.";
+            Log(message);
+            return message;
+        }
+
+        static string FlagCommand(params string[] args)
+        {
+            if (args == null || args.Length == 0)
+            {
+                List<string> names = Instance.Flags.Names();
+                return names.Count == 0 ? "No dialogue flags are set." : "Dialogue flags: " + string.Join(", ", names.ToArray());
+            }
+            if (args.Length != 2 || (args[1] != "on" && args[1] != "off"))
+                return "Usage: anpc_flag <name> on|off   (or anpc_flag alone to list them)";
+            string name = DialogueIds.Normalize(args[0]);
+            if (name.Length == 0)
+                return "Flag names need letters or digits.";
+            if (args[1] == "on")
+                Instance.Flags.Set(name);
+            else
+                Instance.Flags.Clear(name);
+            string message = "Flag " + name + (args[1] == "on" ? " set." : " cleared.") + " Saved with your game.";
+            Log(message);
+            return message;
         }
 
         void RaiseStateRestored()
@@ -451,10 +570,16 @@ namespace AdvancedNPCs
 
         /// <summary>
         /// Messages from other mods: "SetHostile" with data "key|on" or "key|off"; the callback gets true when the
-        /// ANPC was found.
+        /// ANPC was found. "SetFlag" with data "name|on" / "name|off" (or object[] { name, bool }); "HasFlag" with data
+        /// "name", the callback gets whether the dialogue flag is set.
         /// </summary>
         void OnModMessage(string message, object data, DFModMessageCallback callBack)
         {
+            if (message == "SetFlag" || message == "HasFlag")
+            {
+                OnFlagMessage(message, data, callBack);
+                return;
+            }
             if (message != "SetHostile")
                 return;
             string text = data as string;
@@ -470,6 +595,60 @@ namespace AdvancedNPCs
                 Log("SetHostile message not understood or no such ANPC: \"" + text + "\" (use \"<id or key>|on\" or \"|off\").");
             if (callBack != null)
                 callBack(message, done);
+        }
+
+        void OnFlagMessage(string message, object data, DFModMessageCallback callBack)
+        {
+            string name = null;
+            bool on = true;
+            bool understood = false;
+            object[] pair = data as object[];
+            string text = data as string;
+            if (pair != null && pair.Length == 2 && pair[0] is string && pair[1] is bool)
+            {
+                name = (string)pair[0];
+                on = (bool)pair[1];
+                understood = true;
+            }
+            else if (text != null && message == "HasFlag")
+            {
+                name = text;
+                understood = true;
+            }
+            else if (text != null)
+            {
+                int bar = text.LastIndexOf('|');
+                string mode = bar > 0 ? text.Substring(bar + 1).Trim() : null;
+                if (mode == "on" || mode == "off")
+                {
+                    name = text.Substring(0, bar);
+                    on = mode == "on";
+                    understood = true;
+                }
+            }
+            understood &= DialogueIds.Normalize(name).Length > 0;
+            if (!understood)
+            {
+                Log(message + " message not understood: use \"name|on\", \"name|off\" or object[] { name, bool } (HasFlag: \"name\").");
+                if (callBack != null)
+                    callBack(message, false);
+                return;
+            }
+            bool result;
+            if (message == "HasFlag")
+            {
+                result = Flags.Has(name);
+            }
+            else
+            {
+                if (on)
+                    Flags.Set(name);
+                else
+                    Flags.Clear(name);
+                result = true;
+            }
+            if (callBack != null)
+                callBack(message, result);
         }
 
         static string SummonCommand(params string[] args)

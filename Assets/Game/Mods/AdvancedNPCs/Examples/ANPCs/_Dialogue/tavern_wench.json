@@ -1,0 +1,75 @@
+{
+  "greetings": [
+    { "when": { "reaction": "dislikes" }, "text": "You again. Drink or leave, {player}, I've tables to clear." },
+    { "when": { "weather": ["rain", "storm"] }, "text": "Come in out of that rain before you catch your death!" },
+    { "when": { "time": "night" }, "text": "Evening, love. Busy night. What'll it be?" },
+    "Welcome in! Mind the floor, it's been mopped. Mostly."
+  ],
+  "topics": [
+    {
+      "caption": "The house ale",
+      "question": { "polite": "What would you recommend to drink?", "blunt": "Is the ale any good?" },
+      "answers": [
+        { "when": { "tone": "blunt" }, "text": "It's wet and it's cheap. What more do you want?" },
+        "Brewed out back. Tastes of barley and regret, but it's the cheapest in {town}.",
+        "Two coppers a mug. Three if you want it cold."
+      ]
+    },
+    {
+      "caption": "Any rumours?",
+      "id": "rumours",
+      "question": { "polite": "Have you heard any interesting rumours?", "normal": "Heard any rumours?", "blunt": "Spill the gossip." },
+      "answers": [
+        "Rumours? I hear plenty. A sailor's gone missing from the docks, for one. Jory. Ask me about him if you care."
+      ],
+      "sets": ["heard_sailor_rumour"]
+    },
+    {
+      "caption": "The missing sailor",
+      "when": { "asked": "rumours" },
+      "answers": [
+        { "when": { "reaction": ["dislikes", "neutral"] }, "text": "Why should I tell you? ...Fine. Last seen heading for the old warehouse." },
+        "Jory drank here every night, then nothing. Last seen near the old warehouse, poor soul. If you go looking, be careful."
+      ],
+      "sets": ["heard_sailor"]
+    },
+    {
+      "caption": "A favour",
+      "once": true,
+      "when": { "flags": "heard_sailor" },
+      "question": "Is there anything I can do about Jory?",
+      "answers": [
+        "If you find him, tell him his tab's forgiven. I'd just like to know he's alive. Thank you, {player}."
+      ],
+      "sets": ["promised_wench"]
+    },
+    {
+      "caption": "Late hours",
+      "when": { "time": "night" },
+      "answers": ["The night crowd's rougher. Keep your purse close and your back to the wall."]
+    },
+    {
+      "caption": "Rainy days",
+      "when": { "weather": ["rain", "storm"] },
+      "answers": ["Rain's good for business. Nobody wants to drink in a puddle."]
+    },
+    {
+      "caption": "Winter",
+      "when": { "season": "winter" },
+      "answers": ["Cold enough to freeze the ale in the barrels. Sit by the fire, {player}."]
+    },
+    {
+      "caption": "Your coin purse",
+      "when": { "minGold": 500 },
+      "answers": ["That's a heavy purse you're carrying. I'd keep it out of sight in here."]
+    },
+    {
+      "caption": "Guild business",
+      "when": { "guild": ["Fighters Guild", "Mages Guild"] },
+      "answers": [
+        { "when": { "guild": "Fighters Guild" }, "text": "A guild sword! Good. I'm glad of someone who can stop a brawl." },
+        { "when": { "guild": "Mages Guild" }, "text": "A mage? Don't set anything on fire. The last one singed my eyebrows." }
+      ]
+    }
+  ]
+}

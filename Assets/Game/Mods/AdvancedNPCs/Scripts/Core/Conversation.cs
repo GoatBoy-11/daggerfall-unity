@@ -62,9 +62,21 @@ namespace AdvancedNPCs.Core
         /// <summary>The player's line for the tone, with {topic} filled in (other placeholders are left for the caller).</summary>
         public static string Question(DialogueTopic t, int tone)
         {
+            string line = t.Question.For(tone);
             Dictionary<string, string> values = new Dictionary<string, string>();
-            values[TextMacros.Topic] = t.Caption;
-            return TextMacros.Expand(t.Question.For(tone), values);
+            // Default lines read "Tell me about the house ale.", not "... The house ale."; authored lines are kept as written.
+            values[TextMacros.Topic] = line == QuestionText.Default(tone) ? LowerArticle(t.Caption) : t.Caption;
+            return TextMacros.Expand(line, values);
+        }
+
+        static string LowerArticle(string caption)
+        {
+            foreach (string article in new[] { "The ", "A ", "An " })
+            {
+                if (caption.StartsWith(article, StringComparison.Ordinal))
+                    return article.ToLowerInvariant() + caption.Substring(article.Length);
+            }
+            return caption;
         }
 
         /// <summary>Picks the answer, applies the topic's and the answer's sets/clears and marks the topic asked.</summary>

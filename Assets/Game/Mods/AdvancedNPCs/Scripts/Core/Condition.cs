@@ -110,6 +110,18 @@ namespace AdvancedNPCs.Core
         static readonly string[] Genders = { "male", "female" };
         public static readonly string[] Reactions = { "dislikes", "neutral", "likes", "loves" };
 
+        /// <summary>DFU's reaction value as a band: below 0, 0-9, 10-29, 30 and up (TalkManager greeting thresholds).</summary>
+        public static string ReactionBand(int reaction)
+        {
+            if (reaction >= 30)
+                return "loves";
+            if (reaction >= 10)
+                return "likes";
+            if (reaction >= 0)
+                return "neutral";
+            return "dislikes";
+        }
+
         /// <param name="where">Message prefix, e.g. "_Dialogue/tavern_wench.json: topic \"Ale\"".</param>
         public static Condition Parse(Dictionary<string, object> o, string where, List<string> messages, bool allowTone)
         {

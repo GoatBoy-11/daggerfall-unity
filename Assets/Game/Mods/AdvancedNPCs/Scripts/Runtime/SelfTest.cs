@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
@@ -204,7 +205,7 @@ namespace AdvancedNPCs
             Check("one-hit kill of a calm NPC by a creature is not murder",
                 victim.State.dead && Count(PlayerEntity.Crimes.Murder) == murders, "dead=" + victim.State.dead + "; " + CrimeList());
 
-            NpcSaveData data = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, delegate { }).GetSaveData();
+            NpcSaveData data = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, mod.Flags, delegate { }).GetSaveData();
             string text = SaveLoadManager.Serialize(typeof(NpcSaveData), data);
             NpcSaveData back = SaveLoadManager.Deserialize(typeof(NpcSaveData), text) as NpcSaveData;
             Check("save data survives a serialize/deserialize round trip",
@@ -244,7 +245,7 @@ namespace AdvancedNPCs
             yield return Settle;
             DiscardAll(second);
             yield return Settle;
-            NpcSaveData saved = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, delegate { }).GetSaveData();
+            NpcSaveData saved = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, mod.Flags, delegate { }).GetSaveData();
             NpcState savedState;
             Check("a generic ANPC's damage is saved under its key",
                 saved.States.TryGetValue(hurtKey, out savedState) && Mathf.Abs(savedState.healthFraction - 0.5f) < 0.1f, hurtKey);
@@ -396,7 +397,7 @@ namespace AdvancedNPCs
             PlayerHit(townie, playerBehaviour, 1);
             yield return Settle;
             bool townieNoCrime = Count(PlayerEntity.Crimes.Assault) == townieAssaults;
-            NpcSaveData switchSave = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, delegate { }).GetSaveData();
+            NpcSaveData switchSave = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, mod.Flags, delegate { }).GetSaveData();
             NpcSaveData switchBack = SaveLoadManager.Deserialize(typeof(NpcSaveData), SaveLoadManager.Serialize(typeof(NpcSaveData), switchSave)) as NpcSaveData;
             NpcState switchState;
             bool switchSaved = switchBack != null && switchBack.States.TryGetValue(townie.Id, out switchState) && switchState.enemyOn;
@@ -451,7 +452,7 @@ namespace AdvancedNPCs
             string twoId = placedTwo != null ? placedTwo.Id : "?";
             string oneName = placedOne != null ? placedOne.DisplayName : null;
             Vector3 onePlace = placedOne != null ? placedOne.transform.localPosition : Vector3.zero;
-            NpcSaveData placedSave = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, delegate { }).GetSaveData();
+            NpcSaveData placedSave = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, mod.Flags, delegate { }).GetSaveData();
             string placedText = SaveLoadManager.Serialize(typeof(NpcSaveData), placedSave);
             NpcSaveData placedBack = SaveLoadManager.Deserialize(typeof(NpcSaveData), placedText) as NpcSaveData;
             NpcBrain.Discard(placedOne);
@@ -685,6 +686,10 @@ namespace AdvancedNPCs
             mod.Sprites.Remove("selftest_sprite");
             mod.Sprites.Remove("selftest_sprite_static");
 
+            IEnumerator dialogueSteps = DialogueSteps(location, playerTransform);
+            while (dialogueSteps.MoveNext())
+                yield return dialogueSteps.Current;
+
             // Developer look (not a check): if a real sprite set is installed, stand one in front of the camera and
             // save two screenshots (front and side) next to Player.log.
             LoadedSpriteSet real = null;
@@ -718,6 +723,237 @@ namespace AdvancedNPCs
             mod.Portraits.Remove("selftest_face_2");
             mod.Portraits.Remove("selftest_face_3");
             yield return Settle;
+        }
+
+        /// <summary>Dialogue topics in DFU's talk window (spec C1 §10), acting like the player through the window.</summary>
+        IEnumerator DialogueSteps(DaggerfallLocation location, Transform playerTransform)
+        {
+            int hour = DaggerfallUnity.Instance.WorldTime.Now.Hour;
+            string json = "{ \"greetings\": [\"Selftest greeting for {player}.\"], \"topics\": [" +
+                "{ \"caption\": \"Selftest ale\", \"question\": { \"blunt\": \"Ale. Now.\" }, \"answers\": [\"Plain ale.\", { \"when\": { \"flags\": \"selftest_specific\" }, \"text\": \"Specific ale.\" }] }," +
+                "{ \"caption\": \"Selftest rumours\", \"id\": \"st_rumours\", \"answers\": [\"A rumour.\"], \"sets\": \"selftest_heard\" }," +
+                "{ \"caption\": \"Selftest follow-up\", \"when\": { \"asked\": \"st_rumours\" }, \"answers\": [\"The follow-up.\"] }," +
+                "{ \"caption\": \"Selftest once\", \"once\": true, \"answers\": [\"Only once.\"] }," +
+                "{ \"caption\": \"Selftest hour\", \"when\": { \"hours\": [" + hour + ", " + (hour + 1) % 24 + "] }, \"answers\": [\"Now.\"] }," +
+                "{ \"caption\": \"Selftest never\", \"when\": { \"hours\": [" + (hour + 2) % 24 + ", " + (hour + 3) % 24 + "] }, \"answers\": [\"Never.\"] } ] }";
+            DialogueParseResult parsed = DialogueParser.Parse("(selftest)", json);
+            DialogueParseResult other = DialogueParser.Parse("(selftest)",
+                "{ \"topics\": [ { \"caption\": \"Selftest heard\", \"when\": { \"flags\": \"selftest_heard\" }, \"answers\": [\"Heard it.\"] } ] }");
+            Check("test dialogue files parse without problems", parsed.File != null && other.File != null && parsed.Messages.Count == 0 && other.Messages.Count == 0,
+                Join(parsed.Messages) + " " + Join(other.Messages));
+            if (parsed.File == null || other.File == null)
+                yield break;
+            parsed.File.Name = "selftest_talk";
+            other.File.Name = "selftest_talk2";
+            mod.AddDialogueType(parsed.File);
+            mod.AddDialogueType(other.File);
+            mod.Flags.Clear("selftest_heard");
+            mod.Flags.Clear("selftest_specific");
+
+            NpcDefinition talkerDef = TestDefinition("selftest_talker", Bravery.Normal, location, playerTransform, -2f);
+            talkerDef.Dialogue.Add("selftest_talk");
+            NpcBrain talker = SpawnDefinition(talkerDef, location);
+            NpcDefinition listenerDef = TestDefinition("selftest_listener", Bravery.Normal, location, playerTransform, 2f);
+            listenerDef.Dialogue.Add("selftest_talk2");
+            NpcBrain listener = SpawnDefinition(listenerDef, location);
+            yield return Settle;
+
+            TopicInjector topics = mod.Topics;
+            talker.GetComponent<NpcTalk>().TryTalk();
+            for (int wait = 0; wait < 60 && !topics.Started; wait++)
+                yield return null;
+            yield return null;
+            DaggerfallTalkWindow window = DaggerfallUI.Instance.TalkWindow;
+            List<TalkManager.ListItem> list = TalkManager.Instance.ListTopicTellMeAbout;
+            int first = topics.FirstIndexInList();
+            List<string> shown = topics.ShownCaptions();
+            Check("dialogue topics are listed right after \"Where am I?\"",
+                first >= 1 && list[first - 1].questionType == TalkManager.QuestionType.WhereAmI, "first index=" + first + ", list=" + Captions(list));
+            Check("topics without conditions, and with conditions that hold, are listed",
+                shown.Contains("Selftest ale") && shown.Contains("Selftest rumours") && shown.Contains("Selftest once") && shown.Contains("Selftest hour"),
+                "shown=" + Join(shown));
+            Check("topics whose conditions do not hold are not listed",
+                !shown.Contains("Selftest never") && !shown.Contains("Selftest follow-up"), "shown=" + Join(shown));
+            List<string> lines = topics.ConversationLines();
+            string playerName = GameManager.Instance.PlayerEntity.Name;
+            Check("the dialogue type's greeting replaces DFU's", lines.Count == 1 && lines[0] == "Selftest greeting for " + playerName + ".",
+                "lines=" + Join(lines));
+
+            CallWindow(window, "SetTalkModeTellMeAbout");
+            yield return null;
+            topics.Select("Selftest ale");
+            yield return null;
+            yield return null;
+            string normalLine = topics.PlayerLine();
+            SetTone(window, DaggerfallTalkWindow.TalkTone.Blunt);
+            yield return null;
+            yield return null;
+            string bluntLine = topics.PlayerLine();
+            SetTone(window, DaggerfallTalkWindow.TalkTone.Normal);
+            yield return null;
+            Check("the player's line follows the tone buttons", normalLine == "Tell me about Selftest ale." && bluntLine == "Ale. Now.",
+                "normal=\"" + normalLine + "\", blunt=\"" + bluntLine + "\"");
+
+            // OK button: only the window's own handler runs here; the injector notices the blank pair on its next frame.
+            int answered = topics.AnsweredCount;
+            CallWindow(window, "ButtonOkay_OnMouseClick", null, Vector2.zero);
+            yield return null;
+            yield return null;
+            lines = topics.ConversationLines();
+            Check("choosing a topic (OK button) shows its question and the authored answer",
+                topics.AnsweredCount == answered + 1 && lines.Count >= 3 && lines[lines.Count - 2] == "Tell me about Selftest ale." && lines[lines.Count - 1] == "Plain ale.",
+                "lines=" + Join(lines));
+
+            // Double-click / Enter: the list box's use event (the window's handler, then ours).
+            topics.Select("Selftest rumours");
+            TopicListBox(window).UseSelectedItem();
+            yield return null;
+            yield return null;
+            yield return null;
+            shown = topics.ShownCaptions();
+            Check("a follow-up topic appears in the same conversation after its parent is asked",
+                topics.LastAnswer == "A rumour." && shown.Contains("Selftest follow-up") && mod.Flags.Has("selftest_heard"),
+                "last answer=" + topics.LastAnswer + ", shown=" + Join(shown) + ", flags=" + Join(mod.Flags.Names()));
+
+            topics.Select("Selftest once");
+            TopicListBox(window).UseSelectedItem();
+            yield return null;
+            yield return null;
+            yield return null;
+            Check("a once topic disappears after it is asked",
+                topics.LastAnswer == "Only once." && !topics.ShownCaptions().Contains("Selftest once") && talker.State.HasAsked("selftest_once"),
+                "last answer=" + topics.LastAnswer + ", shown=" + Join(topics.ShownCaptions()));
+
+            mod.Flags.Set("selftest_specific");
+            topics.Select("Selftest ale");
+            TopicListBox(window).UseSelectedItem();
+            yield return null;
+            yield return null;
+            Check("an answer whose condition holds wins over plain answers", topics.LastAnswer == "Specific ale.", "last answer=" + topics.LastAnswer);
+
+            int injections = topics.Injections;
+            TalkManager.Instance.ForceTopicListsUpdate();
+            window.UpdateListboxTopic();
+            yield return null;
+            yield return null;
+            Check("topics come back when DFU rebuilds its topic list", topics.Injections > injections && topics.FirstIndexInList() >= 1,
+                "injections " + injections + " -> " + topics.Injections + ", first index=" + topics.FirstIndexInList());
+
+            int whereAmI = IndexOfQuestion(window, TalkManager.QuestionType.WhereAmI);
+            int linesBefore = topics.ConversationLines().Count;
+            answered = topics.AnsweredCount;
+            if (whereAmI >= 0)
+            {
+                TopicListBox(window).SelectedIndex = whereAmI;
+                TopicListBox(window).UseSelectedItem();
+            }
+            yield return null;
+            yield return null;
+            lines = topics.ConversationLines();
+            Check("vanilla topics still answer",
+                whereAmI >= 0 && lines.Count == linesBefore + 2 && lines[lines.Count - 1].Trim().Length > 0 && topics.AnsweredCount == answered,
+                "where am I index=" + whereAmI + ", lines " + linesBefore + " -> " + lines.Count + ", last=\"" + (lines.Count > 0 ? lines[lines.Count - 1] : "") + "\"");
+
+            CloseTalkWindow();
+            yield return Settle;
+            Check("closing the window removes the topics from DFU's list", !topics.Active && CountOurs() == 0,
+                "active=" + topics.Active + ", left in list=" + CountOurs());
+
+            listener.GetComponent<NpcTalk>().TryTalk();
+            for (int wait = 0; wait < 60 && !topics.Started; wait++)
+                yield return null;
+            yield return null;
+            Check("a flag set by one ANPC's topic shows a topic on another ANPC", topics.ShownCaptions().Contains("Selftest heard"),
+                "shown=" + Join(topics.ShownCaptions()));
+            CloseTalkWindow();
+            yield return Settle;
+            NpcBrain.Discard(talker);
+            NpcBrain.Discard(listener);
+            mod.Flags.Clear("selftest_heard");
+            mod.Flags.Clear("selftest_specific");
+
+            // Developer look (not a check): the user's wench, if installed with dialogue, mid-conversation.
+            NpcDefinition wench = mod.Catalog.Generics.Find(delegate (NpcDefinition g) { return g.Folder == "wench" && g.Dialogue.Count > 0; });
+            if (wench != null)
+            {
+                List<string> flagsBefore = mod.Flags.Names();
+                NpcDefinition lookDef = TestDefinition("selftest_wench", Bravery.Coward, location, playerTransform, 0f);
+                lookDef.Name = "Selftest Wench";
+                lookDef.Gender = "Female";
+                lookDef.Portraits.AddRange(wench.Portraits);
+                lookDef.Dialogue.AddRange(wench.Dialogue);
+                NpcBrain w = SpawnDefinition(lookDef, location);
+                yield return Settle;
+                w.GetComponent<NpcTalk>().TryTalk();
+                for (int wait = 0; wait < 60 && !topics.Started; wait++)
+                    yield return null;
+                yield return null;
+                window = DaggerfallUI.Instance.TalkWindow;
+                CallWindow(window, "SetTalkModeTellMeAbout");
+                yield return null;
+                foreach (string caption in new[] { "Any rumours?", "The missing sailor" })
+                {
+                    topics.Select(caption);
+                    TopicListBox(window).UseSelectedItem();
+                    yield return null;
+                    yield return null;
+                    yield return null;
+                }
+                topics.Select("The house ale");
+                yield return new WaitForSecondsRealtime(0.5f);
+                ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.persistentDataPath, "selftest-wench-talk.png"));
+                yield return new WaitForSecondsRealtime(0.5f);
+                AdvancedNpcsMod.Log(Prefix + "LOOK wench talk window saved: topics " + Join(topics.ShownCaptions()) + "; conversation " + Join(topics.ConversationLines()));
+                CloseTalkWindow();
+                yield return Settle;
+                NpcBrain.Discard(w);
+                mod.Flags.Restore(flagsBefore);
+            }
+        }
+
+        static void CallWindow(DaggerfallTalkWindow window, string method, params object[] args)
+        {
+            MethodInfo m = typeof(DaggerfallTalkWindow).GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            m.Invoke(window, args.Length == 0 ? null : args);
+        }
+
+        static void SetTone(DaggerfallTalkWindow window, DaggerfallTalkWindow.TalkTone tone)
+        {
+            typeof(DaggerfallTalkWindow).GetField("selectedTalkTone", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(window, tone);
+        }
+
+        static ListBox TopicListBox(DaggerfallTalkWindow window)
+        {
+            return typeof(DaggerfallTalkWindow).GetField("listboxTopic", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(window) as ListBox;
+        }
+
+        static int IndexOfQuestion(DaggerfallTalkWindow window, TalkManager.QuestionType type)
+        {
+            List<TalkManager.ListItem> current = typeof(DaggerfallTalkWindow).GetField("listCurrentTopics", BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(window) as List<TalkManager.ListItem>;
+            return current == null ? -1 : current.FindIndex(delegate (TalkManager.ListItem i) { return i.questionType == type; });
+        }
+
+        static int CountOurs()
+        {
+            List<TalkManager.ListItem> list = TalkManager.Instance.ListTopicTellMeAbout;
+            return list == null ? 0 : list.FindAll(delegate (TalkManager.ListItem i)
+            {
+                return i.key != null && i.key.StartsWith(TopicInjector.KeyPrefix, StringComparison.Ordinal);
+            }).Count;
+        }
+
+        static string Captions(List<TalkManager.ListItem> list)
+        {
+            List<string> captions = new List<string>();
+            foreach (TalkManager.ListItem i in list)
+                captions.Add(i.caption);
+            return Join(captions);
+        }
+
+        static string Join(List<string> texts)
+        {
+            return "[" + string.Join(" | ", texts.ToArray()) + "]";
         }
 
         NpcBrain Make(string id, Bravery bravery, DaggerfallLocation location, Transform player, float side)
