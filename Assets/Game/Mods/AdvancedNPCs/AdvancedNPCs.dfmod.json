@@ -53,6 +53,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/DialogueFiles.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/GameFacts.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SpotFinder.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/WildernessSpawner.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/IndoorSpawner.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/TopicInjector.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcBrain.cs",

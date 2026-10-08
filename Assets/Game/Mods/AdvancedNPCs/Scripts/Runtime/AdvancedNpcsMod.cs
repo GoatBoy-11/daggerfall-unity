@@ -39,6 +39,8 @@ namespace AdvancedNPCs
         public TopicInjector Topics { get; private set; }
         /// <summary>People in dungeons and buildings.</summary>
         public IndoorSpawner Indoors { get; private set; }
+        /// <summary>Wilderness encounters around the player.</summary>
+        public WildernessSpawner Wilderness { get; private set; }
 
         readonly Dictionary<NpcDefinition, ComposedDialogue> composed = new Dictionary<NpcDefinition, ComposedDialogue>();
 
@@ -108,6 +110,8 @@ namespace AdvancedNPCs
             // After the town spawner: on a load its handler clears every ANPC first, then this one refills the place inside.
             Indoors = new IndoorSpawner(this, spawner);
             Indoors.Enable();
+            Wilderness = gameObject.AddComponent<WildernessSpawner>();
+            Wilderness.Init(this, spawner);
             ConsoleCommandsDatabase.RegisterCommand("anpc_selftest",
                 "Runs the Advanced NPCs in-game self-test next to you (god mode during the run; results in Player.log).", "anpc_selftest", SelfTestCommand);
 

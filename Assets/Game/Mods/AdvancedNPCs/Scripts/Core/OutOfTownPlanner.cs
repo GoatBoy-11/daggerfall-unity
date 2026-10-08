@@ -142,6 +142,18 @@ namespace AdvancedNPCs.Core
             return result;
         }
 
+        /// <summary>A wilderness encounter (spec §6): key template@wild#number, rolled from seed, never saved.</summary>
+        public static NpcInstance ForEncounter(NpcDefinition t, int number, uint seed, string defaultRace, INameSource names)
+        {
+            NpcInstance i = new NpcInstance();
+            i.Key = t.Id + "@wild#" + number.ToString(CultureInfo.InvariantCulture);
+            i.Definition = t;
+            i.Persistent = false;
+            i.Seed = seed;
+            PopulationPlanner.RollPerson(t, i, defaultRace, names);
+            return i;
+        }
+
         /// <summary>False if the template has no block for this kind of place; mismatch set when the filter fails.</summary>
         static bool Rules(NpcDefinition t, PlaceInfo place, out int chance, out int min, out int max, out Condition when, out string mismatch)
         {

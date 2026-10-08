@@ -166,6 +166,19 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void ForEncounter_KeyNeverSaved_RolledFromSeed()
+        {
+            NpcDefinition pilgrim = Template("pilgrim", "{ \"wilderness\": { \"chance\": 10 } }");
+            NpcInstance a = OutOfTownPlanner.ForEncounter(pilgrim, 17, 1234, "Nord", new Names());
+            NpcInstance b = OutOfTownPlanner.ForEncounter(pilgrim, 18, 1234, "Nord", new Names());
+            Assert.AreEqual("pilgrim@wild#17", a.Key);
+            Assert.IsFalse(a.Persistent);
+            Assert.AreEqual(a.Name, b.Name);
+            Assert.AreEqual("Nord", a.Race);
+            Assert.AreEqual(1234u, a.Seed);
+        }
+
+        [Test]
         public void PlacedKeys_PerContext_OldSavesUnchanged()
         {
             PlacedNpcList list = new PlacedNpcList();
