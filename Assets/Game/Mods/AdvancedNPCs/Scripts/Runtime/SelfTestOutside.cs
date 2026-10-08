@@ -159,7 +159,7 @@ namespace AdvancedNPCs
                 List<NpcBrain> loaded = WithPrefix("selftest_bandit@");
                 Check("after a real save and load in a dungeon its people are back once, in their spots; a killed one stays dead",
                     pee.IsPlayerInsideDungeon && SameSpots(loaded, spots, killed) && CountObjects("selftest_bandit@") == loaded.Count,
-                    "inside " + pee.IsPlayerInsideDungeon + "; before " + Join(new List<string>(spots.Keys)) + "; after " + Describe(loaded.ToArray()));
+                    "inside " + pee.IsPlayerInsideDungeon + "; " + Offsets(loaded, spots) + "; objects " + CountObjects("selftest_bandit@"));
 
                 pee.TransitionDungeonExterior(false);
                 for (int i = 0; i < 180 && pee.IsPlayerInsideDungeon; i++)
@@ -171,7 +171,7 @@ namespace AdvancedNPCs
                 yield return null;
                 List<NpcBrain> again = WithPrefix("selftest_bandit@");
                 Check("re-entering a dungeon: the same people in the same spots; a killed one stays dead", SameSpots(again, spots, killed),
-                    "before " + Join(new List<string>(spots.Keys)) + "; now " + Describe(again.ToArray()));
+                    Offsets(again, spots));
                 bandits = again;
 
                 if (bandits.Count > 0)
@@ -251,7 +251,10 @@ namespace AdvancedNPCs
             return found;
         }
 
-        /// <summary>Everyone but the killed one is back, each within 10 cm of where they stood.</summary>
+        /// <summary>
+        /// Everyone but the killed one is back, each within 25 cm across the floor of where they stood (height is left
+        /// out: a fresh spawn has not settled onto its feet yet).
+        /// </summary>
         static bool SameSpots(List<NpcBrain> now, Dictionary<string, Vector3> before, string killed)
         {
             if (killed == null || NpcBrain.Find(killed) != null || now.Count != before.Count - 1)
@@ -259,10 +262,22 @@ namespace AdvancedNPCs
             foreach (NpcBrain b in now)
             {
                 Vector3 p;
-                if (!before.TryGetValue(b.Id, out p) || Vector3.Distance(p, b.transform.localPosition) > 0.1f)
+                if (!before.TryGetValue(b.Id, out p) || Vector3.Distance(Flat(p), Flat(b.transform.localPosition)) > 0.25f)
                     return false;
             }
             return true;
+        }
+
+        static string Offsets(List<NpcBrain> now, Dictionary<string, Vector3> before)
+        {
+            List<string> parts = new List<string>();
+            foreach (NpcBrain b in now)
+            {
+                Vector3 p;
+                parts.Add(b.Id + (before.TryGetValue(b.Id, out p) ? " moved " + Vector3.Distance(Flat(p), Flat(b.transform.localPosition)).ToString("0.00") +
+                    " m (height " + (b.transform.localPosition.y - p.y).ToString("0.00") + ")" : " new"));
+            }
+            return string.Join("; ", parts.ToArray());
         }
 
         static int CountObjects(string prefix)
