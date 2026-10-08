@@ -28,6 +28,8 @@ namespace AdvancedNPCs.Core
         public int CellIndex = -1;
         /// <summary>False for "Random each visit" generic people: their state is never saved.</summary>
         public bool Persistent = true;
+        /// <summary>Outside towns: people of one template in one place stand together (index of the group), or -1.</summary>
+        public int Group = -1;
 
         public int FaceRecord()
         {

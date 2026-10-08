@@ -118,7 +118,7 @@ namespace AdvancedNPCs.Core
         }
 
         /// <summary>Gender, race, name, portrait and face from the person's seed; returns the generator for what follows.</summary>
-        static SeededRandom RollPerson(NpcDefinition t, NpcInstance i, string defaultRace, INameSource names)
+        internal static SeededRandom RollPerson(NpcDefinition t, NpcInstance i, string defaultRace, INameSource names)
         {
             SeededRandom rng = new SeededRandom(i.Seed);
             i.Gender = NpcInstance.PickGender(t.Gender, rng);

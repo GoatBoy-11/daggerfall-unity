@@ -18,13 +18,21 @@ namespace AdvancedNPCs.Core
         public float x;
         public float y;
         public float z;
-        /// <summary>1, 2, ... per template and town.</summary>
+        /// <summary>1, 2, ... per template and place.</summary>
         public int number;
+        /// <summary>Where inside the location: "" or null = outdoors in the town (older saves), "dungeon", "b&lt;buildingKey&gt;".</summary>
+        public string context;
 
-        /// <summary>template@mapId+number: never the same as a planned person's template@mapId#n.</summary>
+        public bool IsTown
+        {
+            get { return string.IsNullOrEmpty(context); }
+        }
+
+        /// <summary>template@mapId+number (town) or template@mapId:context+number; never a planned person's key (#n).</summary>
         public string Key()
         {
-            return template + "@" + mapId.ToString(CultureInfo.InvariantCulture) + "+" + number.ToString(CultureInfo.InvariantCulture);
+            string where = mapId.ToString(CultureInfo.InvariantCulture) + (IsTown ? "" : ":" + context);
+            return template + "@" + where + "+" + number.ToString(CultureInfo.InvariantCulture);
         }
 
         public PlacedNpc Clone()
@@ -40,10 +48,17 @@ namespace AdvancedNPCs.Core
 
         public PlacedNpc Add(string template, int mapId, string region, string place, float x, float y, float z)
         {
+            return Add(template, mapId, region, place, x, y, z, "");
+        }
+
+        /// <param name="context">"" for outdoors in a town, "dungeon", or "b&lt;buildingKey&gt;"; position relative to it.</param>
+        public PlacedNpc Add(string template, int mapId, string region, string place, float x, float y, float z, string context)
+        {
+            context = context ?? "";
             int number = 1;
             foreach (PlacedNpc p in placed)
             {
-                if (p.template == template && p.mapId == mapId && p.number >= number)
+                if (p.template == template && p.mapId == mapId && (p.context ?? "") == context && p.number >= number)
                     number = p.number + 1;
             }
             PlacedNpc added = new PlacedNpc();
@@ -55,13 +70,22 @@ namespace AdvancedNPCs.Core
             added.y = y;
             added.z = z;
             added.number = number;
+            added.context = context;
             placed.Add(added);
             return added;
         }
 
+        /// <summary>People placed outdoors in this town.</summary>
         public List<PlacedNpc> ForTown(int mapId)
         {
-            return placed.FindAll(delegate (PlacedNpc p) { return p.mapId == mapId; });
+            return ForPlace(mapId, "");
+        }
+
+        /// <summary>People placed in this town's dungeon ("dungeon"), a building ("b&lt;key&gt;") or outdoors ("").</summary>
+        public List<PlacedNpc> ForPlace(int mapId, string context)
+        {
+            context = context ?? "";
+            return placed.FindAll(delegate (PlacedNpc p) { return p.mapId == mapId && (p.context ?? "") == context; });
         }
 
         public PlacedNpc Find(string key)
