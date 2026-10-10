@@ -200,6 +200,8 @@ namespace AdvancedNPCs
                 return Races.Redguard;
             if (race == "Nord")
                 return Races.Nord;
+            if (race == "DarkElf")
+                return Races.DarkElf;
             return Races.Breton;
         }
     }

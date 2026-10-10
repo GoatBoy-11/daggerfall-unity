@@ -21,6 +21,7 @@ namespace AdvancedNPCs
         string key;
         LoadedSpriteSet set;
         float worldPerPixel;
+        float heightScale = 1f;
         SpriteAnimation anim;
         Vector3 facing;
         float time;
@@ -72,6 +73,7 @@ namespace AdvancedNPCs
             NpcCorpseSprite corpse = go.AddComponent<NpcCorpseSprite>();
             corpse.set = from.Set;
             corpse.worldPerPixel = from.WorldPerPixel;
+            corpse.heightScale = from.HeightScale;
             corpse.anim = deaths[Random.Range(0, deaths.Count)];
             corpse.facing = from.transform.forward;
             corpse.behaviour = behaviour;
@@ -210,8 +212,8 @@ namespace AdvancedNPCs
             if (showingStatic)
             {
                 Texture2D t = set.DeathStatic;
-                quad.transform.localScale = new Vector3(t.width * k, t.height * k, 1f);
-                quad.transform.position = feet + Vector3.up * ((t.height * 0.5f - set.Set.DeathStaticGroundY) * k);
+                quad.transform.localScale = new Vector3(t.width * k, t.height * k * heightScale, 1f);
+                quad.transform.position = feet + Vector3.up * ((t.height * 0.5f - set.Set.DeathStaticGroundY) * k * heightScale);
                 return;
             }
 
@@ -223,8 +225,8 @@ namespace AdvancedNPCs
             }
             int frame = Mathf.Min((int)(time * set.Set.Fps), anim.Frames - 1);
             int rows = SpriteSetParser.Directions.Length;
-            quad.transform.localScale = new Vector3(anim.CellWidth * k, set.Set.CellHeight * k, 1f);
-            quad.transform.position = feet + Vector3.up * ((set.Set.CellHeight * 0.5f - set.Set.GroundY) * k);
+            quad.transform.localScale = new Vector3(anim.CellWidth * k, set.Set.CellHeight * k * heightScale, 1f);
+            quad.transform.position = feet + Vector3.up * ((set.Set.CellHeight * 0.5f - set.Set.GroundY) * k * heightScale);
             material.mainTextureOffset = new Vector2((float)frame / anim.Frames, (float)(rows - 1 - row) / rows);
         }
     }

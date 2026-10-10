@@ -31,6 +31,7 @@ namespace AdvancedNPCs
         public NameLists Names { get; private set; }
         public SpriteLibrary Sprites { get; private set; }
         public ModConfig Config { get; private set; }
+        public NpcMagicWorld MagicWorld { get; private set; }
         /// <summary>Dialogue types from ANPCs/_Dialogue.</summary>
         public DialogueLibrary Dialogue { get; private set; }
         /// <summary>Player-wide dialogue flags (saved with the game).</summary>
@@ -64,6 +65,7 @@ namespace AdvancedNPCs
 
         void Awake()
         {
+            MagicWorld = gameObject.AddComponent<NpcMagicWorld>();
             Config = new ModConfig();
             States = new NpcStateTable();
             Placed = new PlacedNpcList();
@@ -103,6 +105,9 @@ namespace AdvancedNPCs
                 "anpc_reload_dialogue", ReloadDialogueCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_flag",
                 "Lists dialogue flags, or sets / clears one (saved with your game).", "anpc_flag [name on|off]", FlagCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_spells",
+                "Lists supported standard spell names for magic.spells, optionally filtered by name.",
+                "anpc_spells [name]", NpcSpellLibrary.ListSupported);
             ConsoleCommandsDatabase.RegisterCommand("anpc_here",
                 "Shows which ANPC templates can appear here (dungeon, building or wilderness) and what was rolled.",
                 "anpc_here", HereCommand);
@@ -134,6 +139,8 @@ namespace AdvancedNPCs
 
         void OnNewGame()
         {
+            MagicWorld.Area = "";
+            MagicWorld.Visit = 0;
             States.Clear();
             Placed.Clear();
             Flags.ClearAll();

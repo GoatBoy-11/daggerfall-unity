@@ -35,6 +35,8 @@ namespace AdvancedNPCs.Tests
         [TestCase("hit_1", "hit")]
         [TestCase("attack_10", "attack")]
         [TestCase("death", "death")]
+        [TestCase("cast", "cast")]
+        [TestCase("Cast_1", "cast")]
         [TestCase("idle_x", null)]
         [TestCase("death_static", null)]
         [TestCase("deathstatic", null)]
@@ -60,6 +62,15 @@ namespace AdvancedNPCs.Tests
             CollectionAssert.AreEqual(new[] { "idle_1" }, Names(SpriteStates.Variants(s, SpriteStates.Hit)));
             CollectionAssert.AreEqual(new[] { "idle_1" }, Names(SpriteStates.Variants(s, SpriteStates.Attack)));
             Assert.AreEqual(0, SpriteStates.Variants(s, SpriteStates.Death).Count);
+            // No cast and no attack sheet: the spell is released without an animation.
+            Assert.AreEqual(0, SpriteStates.Variants(s, SpriteStates.Cast).Count);
+        }
+
+        [Test]
+        public void Casting_PrefersDedicatedSheetThenFallsBackToAttack()
+        {
+            CollectionAssert.AreEqual(new[] { "cast_1" }, Names(SpriteStates.Variants(Set("idle_1", "attack_1", "cast_1"), SpriteStates.Cast)));
+            CollectionAssert.AreEqual(new[] { "attack_1", "attack_2" }, Names(SpriteStates.Variants(Set("idle_1", "attack_2", "attack_1"), SpriteStates.Cast)));
         }
 
         [Test]

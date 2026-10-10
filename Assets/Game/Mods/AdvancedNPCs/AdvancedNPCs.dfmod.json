@@ -1,6 +1,6 @@
 {
     "ModTitle": "Advanced NPCs",
-    "ModVersion": "0.6.0",
+    "ModVersion": "0.7.0",
     "ModAuthor": "GoatBoy-11",
     "ContactInfo": "https://github.com/GoatBoy-11/daggerfall-unity",
     "DFUnity_Version": "1.9.2",
@@ -68,7 +68,12 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SpriteLibrary.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTest.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestOutside.cs",
-        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestReplies.cs"
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestReplies.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcMagicDefinition.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcMagicWorld.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcMagic.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcSpellLibrary.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestMagic.cs"
     ],
     "Dependencies": []
 }

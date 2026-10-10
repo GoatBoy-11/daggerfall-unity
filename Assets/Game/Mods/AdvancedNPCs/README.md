@@ -48,7 +48,7 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 | `name` | yes | — | any text |
 | `location` | yes | — | from `anpc_pos` |
 | `position` | yes | — | from `anpc_pos` (relative to the town's origin corner) |
-| `race` | no | the region's people | `Breton`, `Redguard`, `Nord` |
+| `race` | no | the region's people | `Breton`, `Redguard`, `Nord`, `DarkElf` (or `Dunmer`) |
 | `portrait` | no | vanilla face | portrait name, see [Portraits](#portraits) |
 | `baseClass` | no | `Spellsword` | Mage, Spellsword, Battlemage, Sorcerer, Healer, Nightblade, Bard, Burglar, Rogue, Acrobat, Thief, Assassin, Monk, Archer, Ranger, Barbarian, Warrior, Knight; for enemies also a creature, see [Enemies](#enemies) |
 | `attitude` | no | `calm` | `calm` (townsfolk) or `hostile` (an enemy), see [Enemies](#enemies) |
@@ -153,6 +153,57 @@ enemies. Bravery still applies (a Coward enemy runs).
   or the mod message `"SetHostile"` with data `"<key>|on"` / `"<key>|off"`.
 - Enemies spawn where any ANPC spawns: unique ones at their place, generic ones in towns, and with `anpc_spawn`.
 
+
+## Spellcasting
+
+Add an optional `magic` block to any unique or generic ANPC:
+
+```json
+"magic": {
+  "spells": ["Fireball", "Heal", "Shield"],
+  "usesMagicka": true,
+  "maxMagicka": 150,
+  "recovery": "onAreaEntry",
+  "castCooldown": [4, 7]
+}
+```
+
+| Field | Default | Meaning |
+|---|---|---|
+| `spells` | required | Standard DFU spell names, case-insensitive (use the original English names). Replaces the class's inherited spells. `[]` disables spellcasting. |
+| `usesMagicka` | `true` | Require and spend the full spell cost. `false` permits casting even at zero magicka; cooldown, silence and paralysis still apply. |
+| `maxMagicka` | `150` | Maximum and initial magicka, whole number 0–1,000,000. |
+| `castCooldown` | `[4, 7]` | Random gameplay seconds between casts; both numbers must be at least 1, in ascending order, at most 3600. Shared by all spells. |
+| `recovery` | `onAreaEntry` | Fully replenish when the player returns to the NPC's town, building or dungeon. The outdoors around a town counts as the town: walking past its edge (or being chased out of the gate) is the same visit, and town casters keep casting there. A new visit starts after a building or dungeon, in another town, or once the town is far behind (unloaded) or after fast travel. Loading a save in the same visit preserves magicka and cooldown. |
+| `restHours` | `8` | With `"recovery": "rest"`, game hours to recover an empty pool. Recovery starts after one game minute without detecting a combat target, includes time away, and caps at maximum. Area entry does not instantly refill this mode. Above 0, at most 720. |
+| `skill` | `80` | The ANPC's proficiency in each of the six magic schools (1–100). DFU uses these skills to calculate casting costs; the player's skills do not affect them. |
+
+Omitting `magic` keeps the existing vanilla class behaviour. Existing saves initialize a newly configured caster at full magicka.
+Each instance has its own pool and cooldown. Rest recovery also applies after time passes while the player rests or travels.
+Random-each-visit and wilderness people are temporary, so their replacements start fresh as usual.
+Saves only keep a caster's magic while it matters: one at full magicka with no cooldown adds nothing, and an
+`onAreaEntry` caster's magic is dropped once you are in another area (it will start full there anyway).
+
+Configured ANPCs cast only while fighting, with a short random initial delay. They choose affordable, useful spells, heal
+below 60% health (prioritizing healing below 40%), and avoid reapplying active buffs or effects already on their target.
+Offensive spells require sight of a target; ranged spells additionally require a clear projectile path within 25 metres.
+Touch spells require melee distance. With no affordable/useful spells they continue their normal physical combat.
+Bravery still takes precedence: a fleeing ANPC does not cast.
+
+Effects, projectiles, resistance, reflection and spell costs come from DFU's spell system. Supported effects include damage
+to health/fatigue/magicka, continuous damage, attribute drains, paralysis and silence; self spells include healing,
+regeneration, shield, spell resistance/reflection/absorption, elemental resistance, invisibility and shadow. Player utility spells such as Recall,
+levitation and door manipulation are not supported. Unknown names or unsupported spells are skipped with a warning naming
+the `npc.json` and spell in `Player.log`; other valid spells still work. This list uses standard spells, not custom spells
+from the current player's spellbook. Casting releases the spell immediately through DFU and plays its spell animation; custom sprites use a `cast*`
+sheet when available, falling back to an `attack*` sheet; with neither, the spell is released without an animation.
+Melee action frames do not apply to spells. Only the Mage, Spellsword, Battlemage, Healer and Nightblade classes have a
+vanilla spell animation; other classes without a custom sprite still cast (with the cast sound and sparkles) but show no
+casting pose.
+
+`anpc_spells` lists all supported standard spell names (also written to `Player.log`); `anpc_spells fire` filters them.
+`anpc_list` shows each configured caster's magicka or unlimited mode. `Examples/ANPCs/spellcaster/npc.json` is a calm,
+manual-spawn example: use `anpc_spawn spellcaster`, then `anpc_hostile <key> on` to fight it.
 
 ## Spawning outside towns
 
@@ -367,9 +418,11 @@ ANPCs/wench/
 
 - Make them with `Tools~/render-sprites.py` from a rigged, animated `.blend`: one sheet per Action, rows = directions (front, front_right, right, back_right, back, back_left, left, front_left), columns = frames, plus `sprites.json` (scale, frame sizes, feet row, fps). The feet row is the lowest point of the idle poses, so the character may stand at any height. Run with `test` first to check light and size:
   `blender -b character.blend --python render-sprites.py -- <out_dir> [test] [--rig NAME] [--mesh NAME]`
-- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `hit*` (hurt), `attack*` (attacking), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing walk/hit/attack sheets use idle; a set needs at least one idle sheet.
+- For characters with a separate weapon mesh, `Tools~/render-character-sprites.py` includes both meshes in rendering and bounds: `--mesh body,sword`. `--keep-last death_1` keeps the final corpse pose. The Dunmer example documents a complete command.
+- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `hit*` (hurt), `attack*` (attacking), `cast*` (spellcasting), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing walk/hit/attack sheets use idle; a set needs at least one idle sheet.
 - Every hit (any health loss) plays a hit sheet from its first frame to its last, also when the person is hit again while it plays. A hit during an attack does not interrupt it (no stun-lock, as in vanilla): the hit sheet plays right after the attack sheet. Paralysis freezes the sprite.
 - Size: the standing pose is as tall as the vanilla class sprite; set `"spriteHeight"` (world units) in `npc.json` to change it. Every animation uses the same scale.
+- Proportions: `"spriteHeightScale"` defaults to `1`. Set it to `0.94` for a sprite that is 6% shorter with exactly the same width. It scales only the vertical dimension of all animations and the corpse, anchored at the feet; sprite sheets and timing remain unchanged.
 - Death: the death sheet plays and the body stays as the corpse. `death_static.png` (one picture, always facing you) replaces the last death frame; `"deathStatic": { "groundY": n }` in `sprites.json` sets its ground row. The loot pile stays clickable. After leaving the area or reloading, DFU shows its own corpse picture again.
 - Sheets may be edited in an image editor, but must keep the size `sprites.json` describes (checked at start; wrong sizes are reported in `Player.log`). Other files in the folder (`.psd`, backups) are ignored.
 - Every attack plays its attack sheet from the first frame to the last.
@@ -380,7 +433,7 @@ ANPCs/wench/
 ## Name lists
 
 - Generic people without `name`/`names` get generated names. `"nameList"` chooses the list: a custom file in `ANPCs/_Namelists/` (without `.json`) or a vanilla one: `default_breton`, `default_redguard`, `default_nord`, `default_darkelf`, `default_highelf`, `default_woodelf`, `default_khajiit`, `default_imperial`. Without `nameList` the person's own race is used.
-- Custom lists come in two formats, described in `Examples/ANPCs/_Namelists/README.txt`: a bank copied from DFU's `NameGen.txt` plus a `"style"`, or plain `male`/`female`/`surnames` lists. Simple lists can put a gendered prefix before the surname (`maleSurnamePrefix`/`femaleSurnamePrefix`, e.g. Orsimer `gro-`/`gra-`). Two ready-made lists ship: `orsimer` and `argonian`.
+- Custom lists come in two formats, described in `Examples/ANPCs/_Namelists/README.txt`: a bank copied from DFU's `NameGen.txt` plus a `"style"`, or plain `male`/`female`/`surnames` lists. Simple lists can put a gendered prefix before the surname (`maleSurnamePrefix`/`femaleSurnamePrefix`, e.g. Orsimer `gro-`/`gra-`). Ready-made lists include `orsimer`, `argonian`, and `dunmer_morrowind` (Morrowind-style Dunmer given names and family names).
 - A missing or broken list falls back to the race's vanilla list (one warning in `Player.log`).
 
 ## Examples
@@ -390,7 +443,7 @@ cowardly commoners per town) and `cooper` (Normal, uses portrait `bram`), `baker
 each at most once per town. Use `anpc_list` to find them. `Examples/ANPCs/_Dialogue/tavern_wench.json` is a
 complete dialogue type; add `"dialogue": "tavern_wench"` to any ANPC to try it. `bandit` (hostile; human
 strongholds, prisons, barbarian strongholds and ruined castles, and the wilderness at night) and `patron` (calm;
-taverns) show spawning outside towns.
+taverns) show spawning outside towns. `dunmer_spellblade` is a manual-spawn Dunmer Spellsword with eight-direction sprites, a casting sheet, a custom portrait, and the shared `dunmer_morrowind` namelist. Use `anpc_spawn dunmer_spellblade` to try him. `dunmer_mercenary` uses the iron-armoured model and axe, Fireball, Wizard's Fire and Resist Fire, with 80 magicka. Spawn him with `anpc_spawn dunmer_mercenary`.
 
 ## Building (developers)
 

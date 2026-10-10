@@ -323,6 +323,8 @@ namespace AdvancedNPCs
             go.AddComponent<NpcMover>();
             NpcBrain brain = go.AddComponent<NpcBrain>();
             brain.Init(instance, state);
+            if (def.Magic != null)
+                go.AddComponent<NpcMagic>().Init(brain);
             List<string> pool = PortraitPools.Joined(owner.Portraits.Names, instance.Definition.Portraits);
             string portraitFile = ResolvePortrait(instance, state, pool);
             instance.PortraitName = portraitFile;
@@ -334,7 +336,7 @@ namespace AdvancedNPCs
             {
                 LoadedSpriteSet spriteSet = spriteSets[SpriteStates.PickSet(spriteSets.Count, instance.Seed)];
                 float height = def.SpriteHeight > 0 ? def.SpriteHeight : NpcSprite.DefaultHeight(go);
-                go.AddComponent<NpcSprite>().Init(spriteSet, height);
+                go.AddComponent<NpcSprite>().Init(spriteSet, height, def.SpriteHeightScale);
             }
             AdvancedNpcsMod.Log(instance.Key + " (" + instance.Name + "): spawned.");
             return brain;

@@ -1,0 +1,31 @@
+{
+  "kind": "generic",
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Nightblade",
+  "bravery": "Normal",
+  "wanderRadius": 6,
+  "portrait": "breton_nightblade",
+  "nameList": "breton_oblivion_skyrim",
+  "spawn": {
+    "count": [
+      0,
+      0
+    ]
+  },
+  "magic": {
+    "spells": [
+      "Shock",
+      "Paralysis",
+      "Invisibility"
+    ],
+    "usesMagicka": true,
+    "maxMagicka": 110,
+    "recovery": "onAreaEntry",
+    "castCooldown": [
+      4,
+      7
+    ],
+    "skill": 80
+  }
+}

@@ -28,7 +28,7 @@ namespace AdvancedNPCs.Core
         public float Z;
         public string BaseClass;
         public string Gender;
-        /// <summary>"Breton", "Redguard", "Nord", or "" for the region's people.</summary>
+        /// <summary>"Breton", "Redguard", "Nord", "DarkElf", or "" for the region's people.</summary>
         public string Race = "";
         /// <summary>Normalised portrait names (PortraitNames); a unique ANPC has 0 or 1.</summary>
         public readonly List<string> Portraits = new List<string>();
@@ -38,6 +38,8 @@ namespace AdvancedNPCs.Core
         public string NameList = "";
         /// <summary>World height of a custom sprite's standing pose; 0 = the vanilla class sprite's height.</summary>
         public float SpriteHeight;
+        /// <summary>Vertical-only custom sprite scale, anchored at the feet; 1 keeps the original proportions.</summary>
+        public float SpriteHeightScale = 1f;
         /// <summary>Generic templates only: where and how many (null for unique ANPCs).</summary>
         public GenericSpawn Spawn;
         public Bravery Bravery;
@@ -53,6 +55,8 @@ namespace AdvancedNPCs.Core
         /// <summary>BaseClass is a DFU creature (Creatures), not a human class.</summary>
         public bool IsCreature;
         public float WanderRadius;
+        /// <summary>Optional spellcasting override; null keeps vanilla class behaviour.</summary>
+        public NpcMagicDefinition Magic;
         /// <summary>Dialogue type ids (files in _Dialogue), in the order given in npc.json.</summary>
         public readonly List<string> Dialogue = new List<string>();
         /// <summary>The folder's own dialogue.json, or null.</summary>

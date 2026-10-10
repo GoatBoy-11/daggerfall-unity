@@ -151,7 +151,7 @@ namespace AdvancedNPCs
             {
                 if (SpriteStates.StateOf(a.Name) == null)
                 {
-                    AdvancedNpcsMod.Log(label + "/" + a.Name + ".png: not an idle*, walk*, hit*, attack* or death* sheet; not loaded");
+                    AdvancedNpcsMod.Log(label + "/" + a.Name + ".png: not an idle*, walk*, hit*, attack*, cast* or death* sheet; not loaded");
                     skipped.Add(a.Name);
                     continue;
                 }

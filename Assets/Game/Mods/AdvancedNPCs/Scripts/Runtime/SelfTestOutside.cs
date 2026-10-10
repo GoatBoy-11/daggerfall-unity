@@ -38,6 +38,9 @@ namespace AdvancedNPCs
                 yield break;
             }
 
+            patron.Magic = new NpcMagicDefinition();
+            bandit.Magic = new NpcMagicDefinition();
+
             // --- A tavern in this town.
             DaggerfallStaticDoors doorOwner;
             StaticDoor door;
@@ -58,6 +61,10 @@ namespace AdvancedNPCs
                 float doorDistance = Closest(patrons, doors);
                 Check("no one appears within 2 m of a door", patrons.Count > 0 && doorDistance >= 2f,
                     "closest " + doorDistance.ToString("0.00") + " m from " + doors.Count + " door(s)");
+
+                yield return null; // allow magic's first LateUpdate in this area
+                foreach (NpcBrain b in patrons)
+                    b.EntityBehaviour.Entity.CurrentMagicka = 17;
 
                 Dictionary<string, Vector3> first = new Dictionary<string, Vector3>();
                 foreach (NpcBrain b in patrons)
@@ -81,6 +88,10 @@ namespace AdvancedNPCs
                 Check("same people at the same spots on re-entry; a killed one stays dead", samePlace && deadKey != null && NpcBrain.Find(deadKey) == null,
                     "before " + string.Join(", ", new List<string>(first.Keys).ToArray()) + "; now " + Describe(again.ToArray()));
 
+                yield return null;
+                Check("magic interior entry refills magicka", again.Count > 0 && again[0].EntityBehaviour.Entity.CurrentMagicka == 150,
+                    Describe(again.ToArray()));
+
                 if (again.Count > 0)
                 {
                     yield return LookAt(again[0].transform.position, "selftest-tavern-patron.png");
@@ -95,6 +106,11 @@ namespace AdvancedNPCs
                 Check("anpc_spawn places a person inside a building", placedKey != null && placedKey.Contains(":b") && mod.Placed.Find(placedKey) != null,
                     error ?? placedKey);
 
+                foreach (NpcBrain b in again)
+                {
+                    b.EntityBehaviour.Entity.CurrentMagicka = 18;
+                    b.State.magicCooldown = 10;
+                }
                 // A load inside: the save data goes through DFU's serializer, then the mod restores like a real load.
                 NpcSaveData data = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, mod.Flags, delegate { }).GetSaveData();
                 NpcSaveData back = SaveLoadManager.Deserialize(typeof(NpcSaveData), SaveLoadManager.Serialize(typeof(NpcSaveData), data)) as NpcSaveData;
@@ -105,6 +121,11 @@ namespace AdvancedNPCs
                 List<NpcBrain> afterLoad = WithPrefix("selftest_patron@");
                 Check("after a load inside a building its people come back once", afterLoad.Count == 2 && objects == 2,
                     "brains " + Describe(afterLoad.ToArray()) + ", objects " + objects);
+
+                NpcBrain restoredMage = again.Count > 0 ? NpcBrain.Find(again[0].Id) : null;
+                Check("magic interior load preserves magicka and cooldown", restoredMage != null &&
+                    restoredMage.EntityBehaviour.Entity.CurrentMagicka == 18 && restoredMage.State.magicCooldown > 0,
+                    Describe(afterLoad.ToArray()));
 
                 if (placedKey != null)
                     mod.RemovePlaced(placedKey);
@@ -128,6 +149,8 @@ namespace AdvancedNPCs
                 yield return null;
                 List<NpcBrain> bandits = WithPrefix("selftest_bandit@");
                 DaggerfallDungeon dungeon = pee.Dungeon;
+                mod.MagicWorld.Refresh();
+                Check("magic visit uses the actual dungeon identity", dungeon != null && mod.MagicWorld.Area == dungeon.Summary.ID + ":dungeon", mod.MagicWorld.Area);
                 GameObject marker = dungeon != null ? (dungeon.StartMarker != null ? dungeon.StartMarker : dungeon.EnterMarker) : null;
                 Vector3 entrance = marker != null ? marker.transform.position : gm.PlayerObject.transform.position;
                 float spread = 0f;
@@ -147,6 +170,12 @@ namespace AdvancedNPCs
                 if (bandits.Count > 0)
                     PlayerHit(bandits[0], gm.PlayerEntityBehaviour, 100000);
                 yield return new WaitForSecondsRealtime(0.5f);
+                foreach (NpcBrain b in bandits)
+                {
+                    if (b == null || b.CurrentMode == NpcMode.Dead) continue;
+                    b.EntityBehaviour.Entity.CurrentMagicka = 21;
+                    b.State.magicCooldown = 30;
+                }
                 SaveLoadManager.Instance.Save(gm.PlayerEntity.Name, "ANPC selftest", true);
                 float until = Time.realtimeSinceStartup + 60f;
                 while (Time.realtimeSinceStartup < until && !SaveLoadManager.Instance.LoadInProgress)
@@ -161,6 +190,10 @@ namespace AdvancedNPCs
                     pee.IsPlayerInsideDungeon && SameSpots(loaded, spots, killed) && CountObjects("selftest_bandit@") == loaded.Count,
                     "inside " + pee.IsPlayerInsideDungeon + "; " + Offsets(loaded, spots) + "; objects " + CountObjects("selftest_bandit@"));
 
+                Check("magic real dungeon save/load preserves magicka and cooldown", loaded.Count > 0 &&
+                    loaded.TrueForAll(delegate(NpcBrain b) { return b.EntityBehaviour.Entity.CurrentMagicka == 21 && b.State.magicCooldown > 0; }),
+                    Describe(loaded.ToArray()));
+
                 pee.TransitionDungeonExterior(false);
                 for (int i = 0; i < 180 && pee.IsPlayerInsideDungeon; i++)
                     yield return null;
@@ -172,6 +205,10 @@ namespace AdvancedNPCs
                 List<NpcBrain> again = WithPrefix("selftest_bandit@");
                 Check("re-entering a dungeon: the same people in the same spots; a killed one stays dead", SameSpots(again, spots, killed),
                     Offsets(again, spots));
+                yield return null;
+                Check("magic dungeon re-entry refills magicka", again.Count > 0 &&
+                    again.TrueForAll(delegate(NpcBrain b) { return b.EntityBehaviour.Entity.CurrentMagicka == 150; }),
+                    Describe(again.ToArray()));
                 bandits = again;
 
                 if (bandits.Count > 0)

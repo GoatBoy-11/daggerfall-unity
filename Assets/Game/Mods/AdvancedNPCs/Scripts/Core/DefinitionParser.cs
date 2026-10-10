@@ -27,12 +27,12 @@ namespace AdvancedNPCs.Core
         static readonly string[] SharedKeys =
         {
             "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "calmDownHours",
-            "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight", "attitude", "hostileHours", "dialogue",
+            "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight", "spriteHeightScale", "attitude", "hostileHours", "dialogue", "magic",
         };
         static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
         static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
         static readonly string[] GenericOnlyKeys = { "names", "portraits", "spawn" };
-        static readonly string[] RaceNames = { "Breton", "Redguard", "Nord" };
+        static readonly string[] RaceNames = { "Breton", "Redguard", "Nord", "DarkElf" };
         static readonly string[] SpawnKeys = { "locationTypes", "places", "count", "dungeons", "interiors", "wilderness" };
         static readonly string[] PlaceKeys = { "region", "place", "positions" };
 
@@ -383,6 +383,8 @@ namespace AdvancedNPCs.Core
         static bool ReadShared(string file, Dictionary<string, object> o, NpcDefinition d, ParseResult r)
         {
             string problem;
+            if ((problem = NpcMagicParser.Read(o, file, r.Warnings, out d.Magic)) != null)
+                return Problem(r, file, "magic", problem);
 
             string rawAttitude;
             if ((problem = FieldReader.Text(o, "attitude", "calm", out rawAttitude)) != null)
@@ -468,7 +470,7 @@ namespace AdvancedNPCs.Core
             {
                 race = CanonicalRace(rawRace);
                 if (race == null)
-                    return Problem(r, file, "race", "must be Breton, Redguard or Nord (got \"" + rawRace + "\")");
+                    return Problem(r, file, "race", "must be Breton, Redguard, Nord or DarkElf (Dunmer) (got \"" + rawRace + "\")");
             }
 
             d.BaseClass = baseClass;
@@ -494,7 +496,14 @@ namespace AdvancedNPCs.Core
 
             d.Race = race;
             d.NameList = NameListParser.Normalize(nameList);
+            double spriteHeightScale;
+            if ((problem = FieldReader.Number(o, "spriteHeightScale", 1, out spriteHeightScale)) != null ||
+                !(spriteHeightScale > 0) || (o.ContainsKey("spriteHeightScale") && o["spriteHeightScale"] == null) || double.IsInfinity(spriteHeightScale) ||
+                float.IsInfinity((float)spriteHeightScale) || (float)spriteHeightScale <= 0)
+                return Problem(r, file, "spriteHeightScale", "must be a finite number above 0");
+
             d.SpriteHeight = (float)spriteHeight;
+            d.SpriteHeightScale = (float)spriteHeightScale;
             ReadDialogueTypes(file, o, d, r);
             return true;
         }
@@ -537,6 +546,9 @@ namespace AdvancedNPCs.Core
 
         static string CanonicalRace(string raw)
         {
+            if (string.Equals(raw.Trim(), "Dunmer", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(raw.Trim(), "Dark Elf", StringComparison.OrdinalIgnoreCase))
+                return "DarkElf";
             foreach (string race in RaceNames)
             {
                 if (string.Equals(race, raw.Trim(), StringComparison.OrdinalIgnoreCase))

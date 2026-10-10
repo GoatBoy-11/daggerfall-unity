@@ -507,11 +507,23 @@ namespace AdvancedNPCs
 
             // Custom sprites (spec 1b): a generated 3-frame set on a calm, standing NPC.
             mod.Sprites.Add("selftest_sprite", TestSpriteSet(false));
-            NpcBrain sprited = Make("selftest_sprite", Bravery.Normal, location, playerTransform, 2f);
+            NpcDefinition shortDef = TestDefinition("selftest_sprite", Bravery.Normal, location, playerTransform, 2f);
+            shortDef.SpriteHeightScale = 0.94f;
+            NpcBrain sprited = SpawnDefinition(shortDef, location);
             yield return Settle;
             NpcSprite sprite = sprited.GetComponent<NpcSprite>();
             Check("sprite NPC hides the vanilla billboard and shows its own",
                 sprite != null && sprite.VanillaHidden && sprite.Showing, sprite == null ? "no NpcSprite" : "vanilla hidden=" + sprite.VanillaHidden + ", showing=" + sprite.Showing);
+
+            Transform shortQuad = sprited.transform.Find("AnpcSprite");
+            float pixelScale = sprite != null ? sprite.WorldPerPixel : 0f;
+            float groundPoint = shortQuad != null ? shortQuad.position.y - shortQuad.localScale.y * 0.5f + 4f * pixelScale * 0.94f : -999f;
+            Check("vertical sprite scale preserves width and feet alignment",
+                sprite != null && shortQuad != null && Mathf.Abs(sprite.HeightScale - 0.94f) < 0.0001f &&
+                Mathf.Abs(shortQuad.localScale.x - 16f * pixelScale) < 0.0001f &&
+                Mathf.Abs(shortQuad.localScale.y - 32f * pixelScale * 0.94f) < 0.0001f &&
+                Mathf.Abs(groundPoint - sprite.Feet.y) < 0.001f,
+                "quad=" + (shortQuad != null ? shortQuad.localScale.ToString() : "none") + ", ground=" + groundPoint);
 
             Vector3 toCamera = Camera.main.transform.position - sprited.transform.position;
             toCamera.y = 0;
@@ -558,6 +570,8 @@ namespace AdvancedNPCs
             NpcSprite glowSprite = glowing.gameObject.AddComponent<NpcSprite>();
             glowSprite.Init(TestSpriteSet(false), 1.8f);
             Material glowMaterial = glowSprite.MaterialTemplate;
+            Check("default sprite proportions remain unchanged", glowSprite.HeightScale == 1f,
+                "vertical scale=" + glowSprite.HeightScale);
             Check("sprite material drops the vanilla picture's emission map",
                 glowMaterial != null && glowMaterial.GetTexture("_EmissionMap") == null && !glowMaterial.IsKeywordEnabled("_EMISSION"),
                 glowMaterial == null ? "no material" : "emission map=" + glowMaterial.GetTexture("_EmissionMap") + ", keyword=" + glowMaterial.IsKeywordEnabled("_EMISSION"));
@@ -601,15 +615,29 @@ namespace AdvancedNPCs
                 body != null && body.Finished && body.HidLoot && !body.ShowingStatic,
                 body == null ? "no corpse sprite" : "finished=" + body.Finished + ", hid loot=" + body.HidLoot + ", static=" + body.ShowingStatic);
 
+            Transform shortCorpse = body != null ? body.transform.Find("AnpcCorpseSprite") : null;
+            Check("animated corpse retains vertical scale without narrowing",
+                shortCorpse != null && Mathf.Abs(shortCorpse.localScale.x - 16f * pixelScale) < 0.0001f &&
+                Mathf.Abs(shortCorpse.localScale.y - 32f * pixelScale * 0.94f) < 0.0001f,
+                "quad=" + (shortCorpse != null ? shortCorpse.localScale.ToString() : "none"));
+
             mod.Sprites.Add("selftest_sprite_static", TestSpriteSet(true));
-            NpcBrain staticDeath = Make("selftest_sprite_static", Bravery.Normal, location, playerTransform, -2f);
+            NpcDefinition staticShortDef = TestDefinition("selftest_sprite_static", Bravery.Normal, location, playerTransform, -2f);
+            staticShortDef.SpriteHeightScale = 0.94f;
+            NpcBrain staticDeath = SpawnDefinition(staticShortDef, location);
             yield return Settle;
+            float staticPixelScale = staticDeath.GetComponent<NpcSprite>().WorldPerPixel;
             corpsesBefore = NpcCorpseSprite.All.Count;
             PlayerHit(staticDeath, playerBehaviour, 100000);
             yield return new WaitForSeconds(1.5f);
             NpcCorpseSprite staticBody = NpcCorpseSprite.All.Count > corpsesBefore ? NpcCorpseSprite.All[NpcCorpseSprite.All.Count - 1] : null;
             Check("death_static is used as the corpse", staticBody != null && staticBody.ShowingStatic,
                 staticBody == null ? "no corpse sprite" : "static=" + staticBody.ShowingStatic);
+            Transform staticShortQuad = staticBody != null ? staticBody.transform.Find("AnpcCorpseSprite") : null;
+            Check("static corpse retains vertical scale without narrowing",
+                staticShortQuad != null && Mathf.Abs(staticShortQuad.localScale.x - 24f * staticPixelScale) < 0.0001f &&
+                Mathf.Abs(staticShortQuad.localScale.y - 12f * staticPixelScale * 0.94f) < 0.0001f,
+                "quad=" + (staticShortQuad != null ? staticShortQuad.localScale.ToString() : "none"));
             // Action frame: the blow lands when the attack sheet reaches it (frame 6 of 8 at 8 fps: 0.625 s), not on DFU's own
             // blow frame (about 0.25 s into a class enemy's swing), even after DFU's own attack animation has ended.
             // A real fight: hit it, then wait for DFU's own attack code to swing at the player.
@@ -721,12 +749,17 @@ namespace AdvancedNPCs
                 ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.persistentDataPath, "selftest-sprite-side.png"));
                 yield return new WaitForSeconds(0.5f);
                 AdvancedNpcsMod.Log(Prefix + "LOOK screenshots saved (" + real.Label + ")");
+                NpcBrain.Discard(look);
                 mod.Sprites.Remove("selftest_look");
             }
             mod.Portraits.Remove("selftest_face_1");
             mod.Portraits.Remove("selftest_face_2");
             mod.Portraits.Remove("selftest_face_3");
             yield return Settle;
+
+            IEnumerator magic = MagicSteps(location, playerTransform);
+            while (magic.MoveNext())
+                yield return magic.Current;
 
             // Last: these move the player into buildings, a dungeon and finally the wilderness.
             IEnumerator outside = OutsideSteps(location);

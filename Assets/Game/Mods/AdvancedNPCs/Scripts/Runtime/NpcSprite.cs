@@ -20,6 +20,7 @@ namespace AdvancedNPCs
 
         LoadedSpriteSet set;
         float worldPerPixel;
+        float heightScale = 1f;
         MobileUnit mobile;
         MeshRenderer vanilla;
         CharacterController controller;
@@ -57,6 +58,12 @@ namespace AdvancedNPCs
         public float WorldPerPixel
         {
             get { return worldPerPixel; }
+        }
+
+        /// <summary>Vertical-only scale shared with corpse rendering.</summary>
+        public float HeightScale
+        {
+            get { return heightScale; }
         }
 
         public string CurrentState
@@ -195,9 +202,10 @@ namespace AdvancedNPCs
             return unit != null ? unit.GetSize().y : 2f;
         }
 
-        public void Init(LoadedSpriteSet loaded, float worldHeight)
+        public void Init(LoadedSpriteSet loaded, float worldHeight, float verticalScale = 1f)
         {
             set = loaded;
+            heightScale = verticalScale;
             worldPerPixel = worldHeight / Mathf.Max(1f, loaded.StandingHeightPx);
             DaggerfallEnemy enemy = GetComponent<DaggerfallEnemy>();
             mobile = enemy != null ? enemy.MobileUnit : null;
@@ -253,7 +261,7 @@ namespace AdvancedNPCs
             int health = entityBehaviour != null && entityBehaviour.Entity != null ? entityBehaviour.Entity.CurrentHealth : -1;
             if (lastHealth >= 0 && health >= 0 && health < lastHealth && health > 0)
             {
-                if (state == SpriteStates.Attack && oneShotLeft > 0)
+                if ((state == SpriteStates.Attack || state == SpriteStates.Cast) && oneShotLeft > 0)
                     hitWaiting = true;
                 else
                     StartOneShot(SpriteStates.Hit);
@@ -303,9 +311,24 @@ namespace AdvancedNPCs
             return s == MobileStates.PrimaryAttack || s == MobileStates.RangedAttack1 || s == MobileStates.RangedAttack2 || s == MobileStates.Spell;
         }
 
+        /// <summary>Plays a cast sheet for a class without DFU spell frames, whose mobile state never shows Spell.</summary>
+        public void PlayCast()
+        {
+            if (set != null)
+                StartAttack(MobileStates.Spell);
+        }
+
+        /// <summary>A cast* or attack* sheet exists; without one a spell plays no animation.</summary>
+        bool HasCastSheet
+        {
+            get { return SpriteStates.Variants(set.Set, SpriteStates.Cast).Count > 0; }
+        }
+
         void StartAttack(MobileStates s)
         {
-            StartOneShot(SpriteStates.Attack);
+            if (s == MobileStates.Spell && !HasCastSheet)
+                return;
+            StartOneShot(s == MobileStates.Spell ? SpriteStates.Cast : SpriteStates.Attack);
             hitWaiting = false;
             // Only attack sheets with an action frame take over the timing; spells keep DFU's own.
             bool ours = anim.ActionFrame >= 0 && SpriteStates.StateOf(anim.Name) == SpriteStates.Attack && s != MobileStates.Spell;
@@ -361,7 +384,9 @@ namespace AdvancedNPCs
             MobileStates s = mobile != null ? mobile.EnemyState : MobileStates.Idle;
             if (s == MobileStates.Hurt)
                 return SpriteStates.Hit;
-            if (s == MobileStates.PrimaryAttack || s == MobileStates.RangedAttack1 || s == MobileStates.RangedAttack2 || s == MobileStates.Spell)
+            if (s == MobileStates.Spell && HasCastSheet)
+                return SpriteStates.Cast;
+            if (s == MobileStates.PrimaryAttack || s == MobileStates.RangedAttack1 || s == MobileStates.RangedAttack2)
                 return SpriteStates.Attack;
             return speed > WalkSpeed ? SpriteStates.Walk : SpriteStates.Idle;
         }
@@ -419,8 +444,8 @@ namespace AdvancedNPCs
             }
 
             float k = worldPerPixel;
-            quad.transform.localScale = new Vector3(anim.CellWidth * k, set.Set.CellHeight * k, 1f);
-            quad.transform.position = feet + Vector3.up * ((set.Set.CellHeight * 0.5f - set.Set.GroundY) * k);
+            quad.transform.localScale = new Vector3(anim.CellWidth * k, set.Set.CellHeight * k * heightScale, 1f);
+            quad.transform.position = feet + Vector3.up * ((set.Set.CellHeight * 0.5f - set.Set.GroundY) * k * heightScale);
             int rows = SpriteSetParser.Directions.Length;
             material.mainTextureOffset = new Vector2((float)frame / anim.Frames, (float)(rows - 1 - row) / rows);
         }

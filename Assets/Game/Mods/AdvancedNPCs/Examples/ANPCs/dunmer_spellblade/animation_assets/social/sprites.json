@@ -1,0 +1,27 @@
+{
+  "pixelsPerUnit": 61.6593,
+  "cellHeight": 256,
+  "groundY": 29,
+  "anchorX": "centre",
+  "fps": 8,
+  "directions": [
+    "front",
+    "front_right",
+    "right",
+    "back_right",
+    "back",
+    "back_left",
+    "left",
+    "front_left"
+  ],
+  "animations": {
+    "pray_1": {
+      "cellWidth": 288,
+      "frames": 32
+    },
+    "greet_1": {
+      "cellWidth": 192,
+      "frames": 12
+    }
+  }
+}

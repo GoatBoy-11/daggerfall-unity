@@ -207,6 +207,8 @@ namespace AdvancedNPCs
                     text += ", health " + entityBehaviour.Entity.CurrentHealth + "/" + entityBehaviour.Entity.MaxHealth;
                 if (!gameObject.activeInHierarchy)
                     text += ", inactive";
+                if (def != null && def.Magic != null && entityBehaviour != null)
+                    text += def.Magic.UsesMagicka ? ", magicka " + state.magicka + "/" + def.Magic.MaxMagicka : ", unlimited magicka";
                 return text;
             }
         }

@@ -68,6 +68,16 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual("bram.json", d.SourceFile);
         }
 
+        [TestCase("DarkElf")]
+        [TestCase("dunmer")]
+        [TestCase(" Dark Elf ")]
+        public void DunmerRace_IsCanonicalised(string race)
+        {
+            ParseResult r = DefinitionParser.Parse("dunmer.json", With("\"race\": \"" + race + "\""));
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.AreEqual("DarkElf", r.Definition.Race);
+        }
+
         [Test]
         public void AllFields_AreReadAndCanonicalised()
         {

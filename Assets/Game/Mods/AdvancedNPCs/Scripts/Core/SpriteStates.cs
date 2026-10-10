@@ -10,9 +10,10 @@ namespace AdvancedNPCs.Core
         public const string Walk = "walk";
         public const string Hit = "hit";
         public const string Attack = "attack";
+        public const string Cast = "cast";
         public const string Death = "death";
 
-        static readonly string[] All = { Idle, Walk, Hit, Attack, Death };
+        static readonly string[] All = { Idle, Walk, Hit, Attack, Cast, Death };
 
         /// <summary>The state of a sheet name ("walk" or "walk_&lt;number&gt;", any case), or null.</summary>
         public static string StateOf(string sheetName)
@@ -30,8 +31,21 @@ namespace AdvancedNPCs.Core
             return null;
         }
 
-        /// <summary>Sheets for a state, sorted by name; walk, hit and attack fall back to idle; death has no fallback.</summary>
+        /// <summary>
+        /// Sheets for a state, sorted by name; cast falls back to attack sheets only (none: the spell plays no animation);
+        /// walk, hit and attack fall back to idle; death has no fallback.
+        /// </summary>
         public static List<SpriteAnimation> Variants(SpriteSet set, string state)
+        {
+            List<SpriteAnimation> found = Own(set, state);
+            if (found.Count == 0 && state == Cast)
+                return Own(set, Attack);
+            if (found.Count == 0 && (state == Walk || state == Hit || state == Attack))
+                return Variants(set, Idle);
+            return found;
+        }
+
+        static List<SpriteAnimation> Own(SpriteSet set, string state)
         {
             List<SpriteAnimation> found = new List<SpriteAnimation>();
             foreach (SpriteAnimation a in set.Animations.Values)
@@ -40,8 +54,6 @@ namespace AdvancedNPCs.Core
                     found.Add(a);
             }
             found.Sort(delegate (SpriteAnimation x, SpriteAnimation y) { return string.CompareOrdinal(x.Name, y.Name); });
-            if (found.Count == 0 && (state == Walk || state == Hit || state == Attack))
-                return Variants(set, Idle);
             return found;
         }
 

@@ -1,0 +1,26 @@
+{
+  "kind": "generic",
+  "name": "Spellcaster",
+  "baseClass": "Mage",
+  "bravery": "Brave",
+  "spawn": {
+    "count": [
+      0,
+      0
+    ]
+  },
+  "magic": {
+    "spells": [
+      "Fireball",
+      "Heal",
+      "Shield"
+    ],
+    "usesMagicka": true,
+    "maxMagicka": 150,
+    "recovery": "onAreaEntry",
+    "castCooldown": [
+      4,
+      7
+    ]
+  }
+}

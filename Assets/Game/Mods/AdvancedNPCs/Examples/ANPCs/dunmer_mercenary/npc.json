@@ -1,0 +1,31 @@
+{
+  "kind": "generic",
+  "race": "Dunmer",
+  "gender": "Male",
+  "baseClass": "Spellsword",
+  "bravery": "Brave",
+  "wanderRadius": 6,
+  "portrait": "dunmer_mercenary",
+  "spawn": {
+    "count": [
+      0,
+      0
+    ]
+  },
+  "magic": {
+    "spells": [
+      "Fireball",
+      "Wizard's Fire",
+      "Resist Fire"
+    ],
+    "usesMagicka": true,
+    "maxMagicka": 80,
+    "recovery": "onAreaEntry",
+    "castCooldown": [
+      4,
+      7
+    ],
+    "skill": 80
+  },
+  "nameList": "dunmer_morrowind"
+}

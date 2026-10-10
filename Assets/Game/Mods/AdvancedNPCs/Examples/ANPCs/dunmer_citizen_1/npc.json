@@ -1,0 +1,21 @@
+{
+  "kind": "generic",
+  "race": "Dunmer",
+  "gender": "Male",
+  "baseClass": "Bard",
+  "bravery": "Coward",
+  "wanderRadius": 8,
+  "portrait": "dunmer_citizen_1",
+  "nameList": "dunmer_morrowind",
+  "spawn": {
+    "count": [
+      0,
+      0
+    ]
+  },
+  "magic": {
+    "spells": [],
+    "usesMagicka": true,
+    "maxMagicka": 0
+  }
+}

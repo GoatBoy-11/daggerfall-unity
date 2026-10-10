@@ -48,7 +48,7 @@ namespace AdvancedNPCs.Tests
         public void BadRace_IsRejected()
         {
             ParseResult r = DefinitionParser.ParseFolder("bram", With("\"race\": \"Khajiit\""));
-            Assert.AreEqual("bram/npc.json: race: must be Breton, Redguard or Nord (got \"Khajiit\")", r.Error);
+            Assert.AreEqual("bram/npc.json: race: must be Breton, Redguard, Nord or DarkElf (Dunmer) (got \"Khajiit\")", r.Error);
         }
 
         [Test]
@@ -169,6 +169,28 @@ namespace AdvancedNPCs.Tests
         {
             Assert.AreEqual("commoner/npc.json: spriteHeight: must be a number above 0",
                 DefinitionParser.ParseFolder("commoner", "{ \"spriteHeight\": " + value + " }").Error);
+        }
+        [Test]
+        public void SpriteHeightScale_DefaultsToOneAndAllowsVerticalAdjustment()
+        {
+            Assert.AreEqual(1f, DefinitionParser.ParseFolder("commoner", "{}").Definition.SpriteHeightScale);
+            ParseResult r = DefinitionParser.ParseFolder("commoner", "{\"spriteHeight\":1.75,\"spriteHeightScale\":0.94}");
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.AreEqual(1.75f, r.Definition.SpriteHeight);
+            Assert.AreEqual(0.94f, r.Definition.SpriteHeightScale);
+            Assert.AreEqual(0, r.Warnings.Count);
+        }
+
+        [TestCase("0")]
+        [TestCase("-1")]
+        [TestCase("\"short\"")]
+        [TestCase("null")]
+        [TestCase("1e100")]
+        [TestCase("1e-100")]
+        public void SpriteHeightScale_RejectsInvalidValues(string value)
+        {
+            Assert.AreEqual("commoner/npc.json: spriteHeightScale: must be a finite number above 0",
+                DefinitionParser.ParseFolder("commoner", "{\"spriteHeightScale\":" + value + "}").Error);
         }
     }
 }

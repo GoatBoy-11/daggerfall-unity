@@ -14,6 +14,8 @@ namespace AdvancedNPCs
         public List<PlacedNpc> Placed = new List<PlacedNpc>();
         /// <summary>Dialogue flags set by topics (missing in older saves).</summary>
         public List<string> Flags = new List<string>();
+        public string MagicArea = "";
+        public long MagicVisit;
     }
 
     /// <summary>Connects the NPC state table to DFU's per-mod save data.</summary>
@@ -45,6 +47,13 @@ namespace AdvancedNPCs
         public object GetSaveData()
         {
             NpcSaveData data = new NpcSaveData();
+            foreach (NpcBrain brain in NpcBrain.All())
+            {
+                NpcMagic magic = brain.GetComponent<NpcMagic>();
+                if (magic != null) magic.Capture();
+            }
+            data.MagicArea = AdvancedNpcsMod.Instance.MagicWorld.Area;
+            data.MagicVisit = AdvancedNpcsMod.Instance.MagicWorld.Visit;
             data.States = table.Snapshot();
             data.Placed = placed.Snapshot();
             data.Flags = flags.Names();
@@ -54,6 +63,8 @@ namespace AdvancedNPCs
         public void RestoreSaveData(object saveData)
         {
             NpcSaveData data = saveData as NpcSaveData;
+            AdvancedNpcsMod.Instance.MagicWorld.Area = data != null ? data.MagicArea : "";
+            AdvancedNpcsMod.Instance.MagicWorld.Visit = data != null ? data.MagicVisit : 0;
             table.Restore(data != null ? data.States : null);
             placed.Restore(data != null ? data.Placed : null);
             flags.Restore(data != null ? data.Flags : null);

@@ -25,6 +25,14 @@ Two formats:
    Optional "maleSurnamePrefix" / "femaleSurnamePrefix" go in front of the surname by gender, e.g. Orsimer
    "gro-" (son of) and "gra-" (daughter of): "Gharol gro-Rugdush", "Shel gra-Rugdush".
 
-Ready-made lists in this folder: orsimer.json ("nameList": "orsimer") and argonian.json ("nameList": "argonian").
+Ready-made lists in this folder: orsimer.json ("nameList": "orsimer"), argonian.json ("nameList": "argonian"), and dunmer_morrowind.json ("nameList": "dunmer_morrowind").
+The Dunmer list supplies Morrowind-style male/female given names and shared family names.
 
 Names starting with default_ are reserved. Problems are reported in Player.log.
+
+The expanded Dunmer list includes shorter and harsher given names, names with Ll-/Hl-
+clusters, and a wider range of family-name endings. Existing entries are retained.
+
+Breton Oblivion/Skyrim-style list: breton_oblivion_skyrim.json. Use
+  "nameList": "breton_oblivion_skyrim"
+157 male names, 159 female names and 212 shared surnames.
