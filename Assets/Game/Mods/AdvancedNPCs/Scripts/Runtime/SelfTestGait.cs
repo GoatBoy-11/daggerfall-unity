@@ -134,6 +134,56 @@ namespace AdvancedNPCs
             turret.SwitchHostile(false);
             NpcBrain.Discard(turret);
 
+            // Greetings: a calm ANPC with a greet sheet greets a liked player once per encounter, facing them.
+            mod.Sprites.Add("selftest_greeter", TestSpriteSet(false, "idle", "walk", "greet", "death"));
+            NpcGreeter.ReactionOverride = "likes";
+            NpcGreeter.ChanceOverride = 1f;
+            try
+            {
+                NpcDefinition greeterDef = TestDefinition("selftest_greeter", Bravery.Normal, location, player, 0f);
+                NpcBrain greeter = SpawnDefinition(greeterDef, location);
+                yield return Settle;
+                greeter.Teleport(player.position + open * 3f);
+                greeter.transform.rotation = Quaternion.LookRotation(open);     // its back to the player
+                NpcSprite greetSprite = greeter.GetComponent<NpcSprite>();
+                NpcGreeter greetBrain = greeter.GetComponent<NpcGreeter>();
+                float greetUntil = Time.time + 2f;
+                while (Time.time < greetUntil && (greetSprite == null || greetSprite.GreetStarts == 0))
+                    yield return null;
+                yield return new WaitForSeconds(0.4f);
+                Vector3 toGreeted = player.position - greeter.transform.position;
+                toGreeted.y = 0;
+                float greetFacing = Vector3.Angle(greeter.transform.forward, toGreeted);
+                Check("a calm ANPC greets a liked player and faces them", greetSprite != null && greetSprite.GreetStarts == 1 && greetFacing < 30f,
+                    "greets=" + (greetSprite != null ? greetSprite.GreetStarts : -1) + ", facing off by " + greetFacing);
+                // Leave and come back: still within the 2-hour cooldown.
+                greeter.Teleport(player.position + open * 9f);
+                yield return new WaitForSeconds(0.8f);
+                greeter.Teleport(player.position + open * 3f);
+                yield return new WaitForSeconds(1.2f);
+                Check("no second greeting within the cooldown", greetBrain != null && greetBrain.Greetings == 1,
+                    "greetings=" + (greetBrain != null ? greetBrain.Greetings : -1));
+                NpcBrain.Discard(greeter);
+
+                NpcGreeter.ReactionOverride = "dislikes";
+                NpcDefinition coldDef = TestDefinition("selftest_cold", Bravery.Normal, location, player, 0f);
+                coldDef.Folder = "selftest_greeter";
+                NpcBrain cold = SpawnDefinition(coldDef, location);
+                yield return Settle;
+                cold.Teleport(player.position + open * 3f);
+                yield return new WaitForSeconds(1.5f);
+                NpcSprite coldSprite = cold.GetComponent<NpcSprite>();
+                Check("a disliked player is not greeted", coldSprite != null && coldSprite.GreetStarts == 0,
+                    "greets=" + (coldSprite != null ? coldSprite.GreetStarts : -1));
+                NpcBrain.Discard(cold);
+            }
+            finally
+            {
+                NpcGreeter.ReactionOverride = null;
+                NpcGreeter.ChanceOverride = -1f;
+            }
+            mod.Sprites.Remove("selftest_greeter");
+
             mod.Sprites.Remove("selftest_runner");
             mod.Sprites.Remove("selftest_turret");
             yield return Settle;

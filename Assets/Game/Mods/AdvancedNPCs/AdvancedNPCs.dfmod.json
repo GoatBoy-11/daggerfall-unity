@@ -64,6 +64,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcCorpseSprite.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcCrime.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcGait.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcGreeter.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcMover.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcSaveDataInterface.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcSpawner.cs",

@@ -360,6 +360,8 @@ namespace AdvancedNPCs
                 sprite.RangedSheet = def.RangedAnimation;
                 sprite.UseGait(gait);
                 sprite.Init(spriteSet, height, def.SpriteHeightScale);
+                if (SpriteStates.Variants(spriteSet.Set, SpriteStates.Greet).Count > 0)
+                    go.AddComponent<NpcGreeter>();
                 if (def.RangedAnimation != null && !spriteSet.Sheets.ContainsKey(def.RangedAnimation))
                     AdvancedNpcsMod.Log(spriteSet.Label + ": no " + def.RangedAnimation + ".png for combat.rangedAnimation; bow shots play attack_range*/attack* sheets.");
             }

@@ -41,6 +41,7 @@ namespace AdvancedNPCs
         int lastHealth = -1;
         float oneShotLeft;      // seconds a hit (or attack) sheet keeps playing whatever DFU's own state says
         int hitStarts;
+        int greetStarts;
         MobileStates lastMobileState;
         int pendingBlow;        // MeleeBlow or ArrowBlow still to land on the attack sheet's action frame
         int sentBlow;           // the blow signalled last frame, for counting what DFU took
@@ -100,6 +101,12 @@ namespace AdvancedNPCs
         public int HitStarts
         {
             get { return hitStarts; }
+        }
+
+        /// <summary>How often a greet sheet has started (self-test).</summary>
+        public int GreetStarts
+        {
+            get { return greetStarts; }
         }
 
         /// <summary>Blows started on an attack sheet's action frame (self-test).</summary>
@@ -328,6 +335,27 @@ namespace AdvancedNPCs
         public void UseGait(NpcGait source)
         {
             gait = source;
+        }
+
+        /// <summary>Plays a greet sheet once; false when the set has none or an attack, cast or hit sheet is playing.</summary>
+        public bool PlayGreet()
+        {
+            if (set == null || SpriteStates.Variants(set.Set, SpriteStates.Greet).Count == 0 ||
+                (oneShotLeft > 0 && state != SpriteStates.Greet))
+                return false;
+            StartOneShot(SpriteStates.Greet);
+            greetStarts++;
+            return true;
+        }
+
+        /// <summary>Seconds a greet sheet plays (0 without one).</summary>
+        public float GreetSeconds
+        {
+            get
+            {
+                List<SpriteAnimation> greets = set != null ? SpriteStates.Variants(set.Set, SpriteStates.Greet) : null;
+                return greets != null && greets.Count > 0 ? (float)greets[0].Frames / set.Set.Fps : 0f;
+            }
         }
 
         /// <summary>A cast* or attack* sheet exists; without one a spell plays no animation.</summary>
