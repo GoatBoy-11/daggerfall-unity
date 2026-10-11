@@ -6,7 +6,7 @@
   "attitude": "hostile",
   "bravery": "Brave",
   "wanderRadius": 6,
-  "portrait": "barbarian",
+  "portrait": "nord_barbarian_1",
   "combat": {
     "health": 1.2
   },

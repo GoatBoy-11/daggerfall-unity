@@ -5,7 +5,7 @@
   "baseClass": "Knight",
   "bravery": "Brave",
   "wanderRadius": 4,
-  "portrait": "verdant_guard",
+  "portrait": "castle_guard_1",
   "spawn": {
     "locationTypes": [
       "TownCity",

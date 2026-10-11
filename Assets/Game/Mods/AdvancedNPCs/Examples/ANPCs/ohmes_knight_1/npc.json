@@ -5,7 +5,7 @@
   "baseClass": "Knight",
   "bravery": "Brave",
   "wanderRadius": 6,
-  "portrait": "feline_knight",
+  "portrait": "ohmes_knight_1",
   "nameList": "khajiit_skyrim",
   "combat": {
     "health": 1.1

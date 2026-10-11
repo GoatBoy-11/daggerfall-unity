@@ -469,11 +469,11 @@ Five fully animated characters with their own weapons (14 sheets each, hit/death
 - `iron_sentinel`: hostile Breton knight with a two-handed claymore. Dungeons only (ruined castles, human strongholds, prisons).
 - `orc_weakling`: a lower-tier orc with a crude club, on the `Orc` creature, made weaker and quicker with `"combat"`
   (70% health and damage, 1.3x attack speed). Orc strongholds, caves and mines.
-- `barbarian`: hostile Nord raider with a two-handed battle axe and 1.2x health. Barbarian and human strongholds,
+- `nord_barbarian_1`: hostile Nord raider with a two-handed battle axe and 1.2x health. Barbarian and human strongholds,
   rarely in the wilderness.
-- `verdant_guard`: a friendly town guard with a spear, after Daggerfall's city guard. His idle holds the spear above his
+- `castle_guard_1`: a friendly town guard with a spear, after Daggerfall's city guard. His idle holds the spear above his
   head, so his `sprites.json` carries `"standingHeight"`. One or two per town.
-- `feline_knight`: a calm Khajiit knight-errant with a longsword, in cities, taverns and Knightly Order halls and
+- `ohmes_knight_1`: a calm Khajiit knight-errant with a longsword, in cities, taverns and Knightly Order halls and
   rarely on the road by day. His tail is rigged and animated; `sprites.json` carries `"standingHeight"`.
 
 ## Building (developers)

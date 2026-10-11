@@ -1,6 +1,6 @@
 Verdant guard / friendly town guard with a spear (after the classic Daggerfall city guard)
 
-Manual spawn: anpc_spawn verdant_guard
+Manual spawn: anpc_spawn castle_guard_1
 Male Breton, Knight class, calm (fights back when attacked; attacking him is a
 crime), Brave, wander radius 4. No spells. Default Breton names; custom portrait.
 Spawns in cities, hamlets and villages: 1-2 per town.

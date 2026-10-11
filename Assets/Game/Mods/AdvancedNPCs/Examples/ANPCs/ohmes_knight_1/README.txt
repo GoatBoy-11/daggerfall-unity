@@ -1,6 +1,6 @@
-Feline Knight / Khajiit knight-errant with a longsword
+Ohmes knight / Khajiit knight-errant with a longsword
 
-Manual spawn: anpc_spawn feline_knight
+Manual spawn: anpc_spawn ohmes_knight_1
 Male Khajiit, Knight class, calm (fights back when attacked), Brave, wander
 radius 6, 1.1x health ("combat": { "health": 1.1 }). No spells. Khajiit names
 (khajiit_skyrim list); custom portrait.

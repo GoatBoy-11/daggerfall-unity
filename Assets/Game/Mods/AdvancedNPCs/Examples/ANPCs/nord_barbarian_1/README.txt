@@ -1,6 +1,6 @@
 Barbarian / hostile raider with a two-handed battle axe
 
-Manual spawn: anpc_spawn barbarian
+Manual spawn: anpc_spawn nord_barbarian_1
 Male Nord, Barbarian class, hostile, Brave, wander radius 6, 1.2x health
 ("combat": { "health": 1.2 }). No spells. Default Nord names; custom portrait.
 Spawns in barbarian and human strongholds (25% chance of 1-3) and, rarely, as
