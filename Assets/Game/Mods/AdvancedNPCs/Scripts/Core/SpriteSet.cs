@@ -20,6 +20,9 @@ namespace AdvancedNPCs.Core
         public int CellHeight;
         /// <summary>Feet row, counted from the bottom of a frame.</summary>
         public int GroundY;
+        /// <summary>Optional "standingHeight": the standing body's height in pixels above GroundY, without held weapons;
+        /// 0 = measure the tallest idle pixel (a spear or raised blade in idle would otherwise make the person look small).</summary>
+        public int StandingHeight;
         public int Fps;
         /// <summary>Ground row of death_static.png, counted from its bottom edge.</summary>
         public int DeathStaticGroundY;
@@ -90,6 +93,12 @@ namespace AdvancedNPCs.Core
             if (FieldReader.Number(o, "groundY", 0, out ground) != null || ground != Math.Floor(ground) || ground < 0 || ground >= cellHeight)
                 return label + ": groundY: must be a whole number from 0 to " + (cellHeight - 1);
             s.GroundY = (int)ground;
+
+            double standing;
+            if (FieldReader.Number(o, "standingHeight", 0, out standing) != null || standing != Math.Floor(standing) || standing < 0 ||
+                standing > cellHeight - s.GroundY)
+                return label + ": standingHeight: must be a whole number of pixels from 1 to " + (cellHeight - s.GroundY);
+            s.StandingHeight = (int)standing;
 
             double fps;
             if (FieldReader.Number(o, "fps", 0, out fps) != null || !(fps > 0))

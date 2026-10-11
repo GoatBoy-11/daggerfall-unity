@@ -117,5 +117,17 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual("wench/sprites/death.png: file: must be 2064 x 2048 (6 frames of 344 x 256, 8 directions), got 2000 x 2048",
                 SpriteSetParser.CheckSheetSize("wench/sprites", s.Animations["death"], s.CellHeight, 2000, 2048));
         }
+
+        [Test]
+        public void StandingHeight_IsOptionalAndChecked()
+        {
+            Assert.AreEqual(0, SpriteSetParser.Parse(Label, Wench).Set.StandingHeight);
+            SpriteSetResult ok = SpriteSetParser.Parse(Label, With("\"groundY\": 32,", "\"groundY\": 32, \"standingHeight\": 151,"));
+            Assert.IsNull(ok.Error, ok.Error);
+            Assert.AreEqual(151, ok.Set.StandingHeight);
+            Assert.AreEqual("wench/sprites/sprites.json: standingHeight: must be a whole number of pixels from 1 to 224",
+                SpriteSetParser.Parse(Label, With("\"groundY\": 32,", "\"groundY\": 32, \"standingHeight\": 300,")).Error);
+            Assert.IsNotNull(SpriteSetParser.Parse(Label, With("\"groundY\": 32,", "\"groundY\": 32, \"standingHeight\": 12.5,")).Error);
+        }
     }
 }

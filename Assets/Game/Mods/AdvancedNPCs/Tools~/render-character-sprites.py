@@ -13,6 +13,8 @@
 #   --actions: restrict the exported actions; underscore-prefixed setup actions are excluded by default.
 #   --layout: reuse an existing sprite set's scale and ground row for added animations.
 #   --contact: quick impact review with the first three directions only; not a complete game sprite set.
+#   --standing-mesh: body mesh(es) without weapons; writes "standingHeight" (their tallest idle pixel above the feet row)
+#     so a weapon raised above the head in idle does not make the person look small in game.
 # Action frame: a pose marker named "action" on an attack* Action (Action Editor > Marker > Add Marker, with
 # "Show Pose Markers" on) writes "actionFrame" for that sheet: the frame on which the blow lands, counted from 1.
 import bpy, math, sys, os, json, argparse
@@ -29,6 +31,7 @@ parser.add_argument('--keep-last', default='', help='Actions whose final frame m
 parser.add_argument('--samples', type=int, default=32)
 parser.add_argument('--layout', help='Existing sprites.json to reuse cell height, scale and ground row')
 parser.add_argument('--contact', action='store_true', help='Front/right/front-right poses for impact review')
+parser.add_argument('--standing-mesh', help='Comma-separated body meshes (no weapons) that define the standing height')
 args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:])
 layout = json.load(open(args.layout)) if args.layout else None
 OUT = args.out_dir
@@ -79,9 +82,9 @@ def axes(k):
     rot = Matrix.Rotation(math.radians(-45 * k), 3, 'Z')
     return np.array(rot @ rgt), np.array(rot @ u)
 
-def world_vertices():
+def world_vertices(objs=None):
     vertices = []
-    for obj in bodies:
+    for obj in (objs or bodies):
         ev = obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
         me = ev.to_mesh()
         co = np.empty(len(me.vertices) * 3); me.vertices.foreach_get('co', co); co = co.reshape(-1, 3)
@@ -125,6 +128,19 @@ if layout:
         if lo * ppu + ground_px < PAD - 0.5 or hi * ppu + ground_px > CELL_H - PAD + 0.5:
             raise ValueError('Animation %s does not fit the existing vertical layout' % name)
 print("SCALE ppu=%.2f ground=%dpx up=[%.2f,%.2f]" % (ppu, ground_px, lo_all, hi_all))
+standing_px = 0
+if option('--standing-mesh'):
+    standing_objs = [bpy.data.objects[n.strip()] for n in option('--standing-mesh').split(',')]
+    top = 0.0
+    for act in standing:
+        set_action(act)
+        for f in render_frames(act):
+            scene.frame_set(f)
+            w = world_vertices(standing_objs) - feet
+            for k in range(len(DIRS)):
+                top = max(top, float((w @ axes(k)[1]).max()))
+    standing_px = int(round(top * ppu))
+    print("STANDING %dpx (body only: %s)" % (standing_px, ", ".join(o.name for o in standing_objs)))
 
 pivot = bpy.data.objects.new("anpc_pivot", None); scene.collection.objects.link(pivot)
 pivot.location = tuple(feet)
@@ -161,6 +177,8 @@ def save_sheet(sheet, path):
 tmp = os.path.join(OUT, "_cells"); os.makedirs(tmp, exist_ok=True)
 meta = {"pixelsPerUnit": round(ppu, 4), "cellHeight": CELL_H, "groundY": ground_px, "anchorX": "centre",
         "fps": scene.render.fps, "directions": DIRS, "animations": {}}
+if standing_px > 0:
+    meta["standingHeight"] = standing_px
 test_names = [n for n in ("idle_1", "attack_2") if n in bpy.data.actions] or [a.name for a in bpy.data.actions][:2]
 for act in [a for a in actions if not TEST or a.name in test_names]:
     half = ext[act.name][0]

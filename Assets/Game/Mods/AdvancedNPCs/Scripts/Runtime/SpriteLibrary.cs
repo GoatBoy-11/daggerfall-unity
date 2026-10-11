@@ -235,6 +235,8 @@ namespace AdvancedNPCs
         /// <summary>Tallest opaque pixel above the feet row over every frame and direction of the idle sheets.</summary>
         static float StandingHeight(SpriteSet set, Dictionary<string, Texture2D> sheets)
         {
+            if (set.StandingHeight > 0)
+                return set.StandingHeight;   // given by the renderer: the body alone, without a raised weapon
             int best = 0;
             foreach (SpriteAnimation a in SpriteStates.Variants(set, SpriteStates.Idle))
             {
