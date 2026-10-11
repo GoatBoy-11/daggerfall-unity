@@ -1,0 +1,32 @@
+{
+  "kind": "generic",
+  "race": "Khajiit",
+  "gender": "Male",
+  "baseClass": "Knight",
+  "bravery": "Brave",
+  "wanderRadius": 6,
+  "portrait": "feline_knight",
+  "nameList": "khajiit_skyrim",
+  "combat": {
+    "health": 1.1
+  },
+  "spawn": {
+    "locationTypes": ["TownCity"],
+    "count": [0, 1],
+    "interiors": {
+      "buildings": ["Tavern", "Knightly Order"],
+      "chance": 15,
+      "count": [1, 1]
+    },
+    "wilderness": {
+      "chance": 3,
+      "max": 1,
+      "when": { "time": "day" }
+    }
+  },
+  "magic": {
+    "spells": [],
+    "usesMagicka": true,
+    "maxMagicka": 0
+  }
+}
