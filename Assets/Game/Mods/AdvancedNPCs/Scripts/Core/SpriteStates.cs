@@ -3,17 +3,19 @@ using System.Collections.Generic;
 
 namespace AdvancedNPCs.Core
 {
-    /// <summary>Sheet names to animation states (spec 1b §6.1): idle, idle_2, walk_1, ... ; fallbacks; set choice.</summary>
+    /// <summary>Sheet names to animation states (spec 1b §6.1): idle, idle_2, walk_1, attack_range_1, ... ; fallbacks; set choice.</summary>
     public static class SpriteStates
     {
         public const string Idle = "idle";
         public const string Walk = "walk";
         public const string Hit = "hit";
         public const string Attack = "attack";
+        /// <summary>Bow shots ("rangedAtDistance" in npc.json); melee swings never use these sheets.</summary>
+        public const string RangedAttack = "attack_range";
         public const string Cast = "cast";
         public const string Death = "death";
 
-        static readonly string[] All = { Idle, Walk, Hit, Attack, Cast, Death };
+        static readonly string[] All = { Idle, Walk, Hit, Attack, RangedAttack, Cast, Death };
 
         /// <summary>The state of a sheet name ("walk" or "walk_&lt;number&gt;", any case), or null.</summary>
         public static string StateOf(string sheetName)
@@ -33,13 +35,15 @@ namespace AdvancedNPCs.Core
 
         /// <summary>
         /// Sheets for a state, sorted by name; cast falls back to attack sheets only (none: the spell plays no animation);
-        /// walk, hit and attack fall back to idle; death has no fallback.
+        /// attack_range falls back to attack, then idle; walk, hit and attack fall back to idle; death has no fallback.
         /// </summary>
         public static List<SpriteAnimation> Variants(SpriteSet set, string state)
         {
             List<SpriteAnimation> found = Own(set, state);
             if (found.Count == 0 && state == Cast)
                 return Own(set, Attack);
+            if (found.Count == 0 && state == RangedAttack)
+                return Variants(set, Attack);
             if (found.Count == 0 && (state == Walk || state == Hit || state == Attack))
                 return Variants(set, Idle);
             return found;
@@ -55,6 +59,13 @@ namespace AdvancedNPCs.Core
             }
             found.Sort(delegate (SpriteAnimation x, SpriteAnimation y) { return string.CompareOrdinal(x.Name, y.Name); });
             return found;
+        }
+
+        /// <summary>Attack and attack_range sheets: the ones that may carry an action frame.</summary>
+        public static bool IsAttackSheet(string sheetName)
+        {
+            string s = StateOf(sheetName);
+            return s == Attack || s == RangedAttack;
         }
 
         /// <summary>A set can only be drawn if it has an idle sheet.</summary>
@@ -104,6 +115,20 @@ namespace AdvancedNPCs.Core
             double degrees = Math.Atan2(side, ahead) * 180.0 / Math.PI;
             int row = (int)Math.Floor(degrees / 45.0 + 0.5);
             return ((row % 8) + 8) % 8;
+        }
+
+        /// <summary>
+        /// The flat unit direction from the NPC toward the camera that a row was drawn from (the centre of the row's
+        /// 45 degree slice): the inverse of Row.
+        /// </summary>
+        public static void RowDirection(int row, float fwdX, float fwdZ, out float x, out float z)
+        {
+            double len = Math.Sqrt(fwdX * fwdX + fwdZ * fwdZ);
+            double fx = len > 0 ? fwdX / len : 0, fz = len > 0 ? fwdZ / len : 1;
+            double a = row * 45.0 * Math.PI / 180.0;
+            // ahead * fwd + side * right, with the NPC's right (fwd.z, -fwd.x) as in Row.
+            x = (float)(Math.Cos(a) * fx + Math.Sin(a) * fz);
+            z = (float)(Math.Cos(a) * fz - Math.Sin(a) * fx);
         }
     }
 }

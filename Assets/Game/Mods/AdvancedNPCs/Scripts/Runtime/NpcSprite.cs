@@ -50,6 +50,9 @@ namespace AdvancedNPCs
         int blowsDelivered;
         int vanillaBlowsHeld;
 
+        /// <summary>npc.json "combat.rangedAnimation": the sheet a bow shot plays; null or missing picks attack_range*, else attack*.</summary>
+        public string RangedSheet;
+
         public LoadedSpriteSet Set
         {
             get { return set; }
@@ -328,10 +331,15 @@ namespace AdvancedNPCs
         {
             if (s == MobileStates.Spell && !HasCastSheet)
                 return;
-            StartOneShot(s == MobileStates.Spell ? SpriteStates.Cast : SpriteStates.Attack);
+            if (s == MobileStates.Spell)
+                StartOneShot(SpriteStates.Cast);
+            else if (IsRanged(s))
+                StartOneShot(SpriteStates.RangedAttack, RangedSheet);
+            else
+                StartOneShot(SpriteStates.Attack);
             hitWaiting = false;
             // Only attack sheets with an action frame take over the timing; spells keep DFU's own.
-            bool ours = anim.ActionFrame >= 0 && SpriteStates.StateOf(anim.Name) == SpriteStates.Attack && s != MobileStates.Spell;
+            bool ours = anim.ActionFrame >= 0 && SpriteStates.IsAttackSheet(anim.Name) && s != MobileStates.Spell;
             pendingBlow = ours ? (s == MobileStates.PrimaryAttack ? MeleeBlow : ArrowBlow) : NoBlow;
             vanillaToHold = ours ? 1 : 0;
         }
@@ -386,30 +394,45 @@ namespace AdvancedNPCs
                 return SpriteStates.Hit;
             if (s == MobileStates.Spell && HasCastSheet)
                 return SpriteStates.Cast;
-            if (s == MobileStates.PrimaryAttack || s == MobileStates.RangedAttack1 || s == MobileStates.RangedAttack2)
+            if (s == MobileStates.PrimaryAttack)
                 return SpriteStates.Attack;
+            if (IsRanged(s))
+                return SpriteStates.RangedAttack;
             return speed > WalkSpeed ? SpriteStates.Walk : SpriteStates.Idle;
         }
 
-        /// <summary>Plays a state's sheet from its first frame and keeps it until its last frame has shown.</summary>
-        void StartOneShot(string wanted)
+        static bool IsRanged(MobileStates s)
+        {
+            return s == MobileStates.RangedAttack1 || s == MobileStates.RangedAttack2;
+        }
+
+        /// <summary>Plays a state's sheet (or the named one, if the set has it) from its first frame to its last.</summary>
+        void StartOneShot(string wanted, string sheet = null)
         {
             state = null;
-            SetState(wanted);
+            SetState(wanted, sheet);
             oneShotLeft = (float)anim.Frames / set.Set.Fps;
             if (wanted == SpriteStates.Hit)
                 hitStarts++;
         }
 
-        void SetState(string wanted)
+        void SetState(string wanted, string sheet = null)
         {
             if (wanted == state && anim != null)
                 return;
-            List<SpriteAnimation> variants = SpriteStates.Variants(set.Set, wanted);
-            if (variants.Count == 0)
-                variants = SpriteStates.Variants(set.Set, SpriteStates.Idle);
             state = wanted;
-            anim = variants[Random.Range(0, variants.Count)];
+            SpriteAnimation named;
+            if (sheet != null && set.Set.Animations.TryGetValue(sheet, out named) && set.Sheets.ContainsKey(sheet))
+            {
+                anim = named;
+            }
+            else
+            {
+                List<SpriteAnimation> variants = SpriteStates.Variants(set.Set, wanted);
+                if (variants.Count == 0)
+                    variants = SpriteStates.Variants(set.Set, SpriteStates.Idle);
+                anim = variants[Random.Range(0, variants.Count)];
+            }
             time = 0;
             material.mainTexture = Filtered(set.Sheets[anim.Name]);
             material.mainTextureScale = new Vector2(1f / anim.Frames, 1f / SpriteSetParser.Directions.Length);

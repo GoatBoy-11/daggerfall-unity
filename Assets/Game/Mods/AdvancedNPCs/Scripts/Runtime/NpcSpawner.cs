@@ -337,6 +337,7 @@ namespace AdvancedNPCs
 
             // Optional "combat" tuning: before the brain restores the saved health fraction against max health.
             NpcCombat.Apply(go, def, instance.Key);
+            NpcCombat.ApplyRanged(go, def);
 
             go.AddComponent<NpcMover>();
             NpcBrain brain = go.AddComponent<NpcBrain>();
@@ -354,7 +355,11 @@ namespace AdvancedNPCs
             {
                 LoadedSpriteSet spriteSet = spriteSets[SpriteStates.PickSet(spriteSets.Count, instance.Seed)];
                 float height = def.SpriteHeight > 0 ? def.SpriteHeight : NpcSprite.DefaultHeight(go);
-                go.AddComponent<NpcSprite>().Init(spriteSet, height, def.SpriteHeightScale);
+                NpcSprite sprite = go.AddComponent<NpcSprite>();
+                sprite.RangedSheet = def.RangedAnimation;
+                sprite.Init(spriteSet, height, def.SpriteHeightScale);
+                if (def.RangedAnimation != null && !spriteSet.Sheets.ContainsKey(def.RangedAnimation))
+                    AdvancedNpcsMod.Log(spriteSet.Label + ": no " + def.RangedAnimation + ".png for combat.rangedAnimation; bow shots play attack_range*/attack* sheets.");
             }
             AdvancedNpcsMod.Log(instance.Key + " (" + instance.Name + "): spawned.");
             return brain;

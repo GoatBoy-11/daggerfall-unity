@@ -59,7 +59,7 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 | `calmDownHours` | no | `[6, 48]` | `[min, max]` in-game hours before a hostile ANPC forgives the player |
 | `crimeOnAttack` | no | `true` | `true`: attacking is assault, killing is murder |
 | `wanderRadius` | no | `8` | metres around the spawn point; `0` stands still |
-| `combat` | no | vanilla | `{ "health": 0.7, "damage": 0.7, "attackSpeed": 1.3 }` multipliers, see [Combat tuning](#combat-tuning) |
+| `combat` | no | vanilla, no bow | `{ "health": 0.7, "damage": 0.7, "attackSpeed": 1.3, "rangedAtDistance": true }`, see [Combat tuning](#combat-tuning) |
 | `dialogue` | no | none | dialogue type(s) from `_Dialogue/`, e.g. `"tavern_wench"` or `["gossip", "tavern_wench"]`, see [Dialogue topics](#dialogue-topics) |
 
 
@@ -156,8 +156,8 @@ enemies. Bravery still applies (a Coward enemy runs).
 
 ### Combat tuning
 
-`"combat"` (unique or generic, optional) scales DFU's own numbers for this ANPC; every value is a multiplier and
-1 (or leaving it out) keeps the vanilla value:
+`"combat"` (unique or generic, optional) scales DFU's own numbers for this ANPC; `health`, `damage` and
+`attackSpeed` are multipliers and 1 (or leaving them out) keeps the vanilla value:
 
 ```json
 "combat": { "health": 0.7, "damage": 0.7, "attackSpeed": 1.3 }
@@ -168,6 +168,16 @@ enemies. Bravery still applies (a Coward enemy runs).
   `baseClass` only: human classes take their damage from weapons.
 - `attackSpeed` (0.25–4): how often it swings. DFU waits 1.5–3 s (adjusted by your level and the reflexes
   setting) after each melee attack; 1.3 waits 1/1.3 as long.
+- `rangedAtDistance` (true/false, default false): DFU gives every human class a bow and shoots it at random when
+  the target is far away. ANPCs fight in melee only unless this is `true`. Mage, Healer and other casters without
+  a bow are not affected; creatures have no bow (an error).
+- `rangedAnimation` (optional): the sheet a bow shot plays, e.g. `"attack_range_1"`. Without it, a random
+  `attack_range*` sheet plays, or an `attack*` sheet if the set has none. A name the sprite set lacks is noted in
+  `Player.log` and the same fallback is used.
+
+```json
+"combat": { "rangedAtDistance": true, "rangedAnimation": "attack_range_1" }
+```
 
 `Player.log` shows the result when it spawns, e.g. `orc_weakling@1276329198#0: combat health 24->17, damage 1-6->1-4, attack speed x1.3.`
 
@@ -438,14 +448,14 @@ ANPCs/wench/
   `blender -b character.blend --python render-sprites.py -- <out_dir> [test] [--rig NAME] [--mesh NAME]`
 - For characters with a separate weapon mesh, `Tools~/render-character-sprites.py` includes both meshes in rendering and bounds: `--mesh body,sword`. `--keep-last death_1` keeps the final corpse pose. The Dunmer example documents a complete command.
 - A character whose idle holds a weapon above its head (a guard's upright spear) would look smaller in game, because the standing height is measured from the tallest idle pixel. Add `--standing-mesh body` (the body mesh alone) and the renderer writes `"standingHeight"` (pixels above the feet row, without the weapon) into `sprites.json`; the game then sizes the person by the body.
-- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `hit*` (hurt), `attack*` (attacking), `cast*` (spellcasting), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing walk/hit/attack sheets use idle; a set needs at least one idle sheet.
+- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `hit*` (hurt), `attack*` (attacking), `attack_range*` (shooting a bow, see `rangedAtDistance`), `cast*` (spellcasting), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing walk/hit/attack sheets use idle; a set needs at least one idle sheet.
 - Every hit (any health loss) plays a hit sheet from its first frame to its last, also when the person is hit again while it plays. A hit during an attack does not interrupt it (no stun-lock, as in vanilla): the hit sheet plays right after the attack sheet. Paralysis freezes the sprite.
 - Size: the standing pose is as tall as the vanilla class sprite; set `"spriteHeight"` (world units) in `npc.json` to change it. Every animation uses the same scale.
 - Proportions: `"spriteHeightScale"` defaults to `1`. Set it to `0.94` for a sprite that is 6% shorter with exactly the same width. It scales only the vertical dimension of all animations and the corpse, anchored at the feet; sprite sheets and timing remain unchanged.
-- Death: the death sheet plays and the body stays as the corpse. `death_static.png` (one picture, always facing you) replaces the last death frame; `"deathStatic": { "groundY": n }` in `sprites.json` sets its ground row. The loot pile stays clickable. After leaving the area or reloading, DFU shows its own corpse picture again.
+- Death: the death sheet plays and the body stays as the corpse, on its last frame. The corpse does not turn with your view: it shows the row (of 8 sides) you look at it from, and stands square to that side. `death_static.png` (one picture, always facing you) replaces the last death frame; `"deathStatic": { "groundY": n }` in `sprites.json` sets its ground row. The loot pile stays clickable. After leaving the area or reloading, DFU shows its own corpse picture again.
 - Sheets may be edited in an image editor, but must keep the size `sprites.json` describes (checked at start; wrong sizes are reported in `Player.log`). Other files in the folder (`.psd`, backups) are ignored.
 - Every attack plays its attack sheet from the first frame to the last.
-- Action frame (optional): `"actionFrame": n` on an attack sheet in `sprites.json` makes the blow (melee damage, or the arrow for archers) land when the sheet shows frame `n`, counted from 1 like the sheet's columns:
+- Action frame (optional): `"actionFrame": n` on an attack or attack_range sheet in `sprites.json` makes the blow (melee damage, or the arrow for archers) land when the sheet shows frame `n`, counted from 1 like the sheet's columns:
   `"attack_1": { "cellWidth": 272, "frames": 6, "actionFrame": 4 }`
   Without it, DFU's own timing is kept, which can look slightly early or late. Spells keep DFU's timing. The render script writes `actionFrame` itself from a pose marker named `action` on the attack Action, so it survives re-rendering.
 

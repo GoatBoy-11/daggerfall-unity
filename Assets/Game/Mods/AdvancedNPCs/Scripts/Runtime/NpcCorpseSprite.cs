@@ -24,6 +24,7 @@ namespace AdvancedNPCs
         float heightScale = 1f;
         SpriteAnimation anim;
         Vector3 facing;
+        int row;
         float time;
         bool finished;
         bool showingStatic;
@@ -44,6 +45,24 @@ namespace AdvancedNPCs
         public bool ShowingStatic
         {
             get { return showingStatic; }
+        }
+
+        /// <summary>The death sheet row shown (self-test).</summary>
+        public int Row
+        {
+            get { return row; }
+        }
+
+        /// <summary>The way the person faced when they died (self-test).</summary>
+        public Vector3 Facing
+        {
+            get { return facing; }
+        }
+
+        /// <summary>The quad's rotation (self-test).</summary>
+        public Quaternion QuadRotation
+        {
+            get { return quad.transform.rotation; }
         }
 
         public bool HidLoot
@@ -197,32 +216,39 @@ namespace AdvancedNPCs
             }
         }
 
+        /// <summary>
+        /// death_static.png is one picture that always faces the view, like DFU's own corpses. The death sheet's rows
+        /// are the body seen from 8 sides, so it is not turned with the view: within a row's 45 degree slice the quad
+        /// stands still, square to the direction that row was drawn from, and only the row changes as you walk around.
+        /// </summary>
         void Draw()
         {
             Camera cam = Camera.main;
-            if (cam != null)
-            {
-                Vector3 look = cam.transform.forward;
-                look.y = 0;
-                if (look.sqrMagnitude > 0.0001f)
-                    quad.transform.rotation = Quaternion.LookRotation(look);
-            }
             float k = worldPerPixel;
             Vector3 feet = transform.position;
             if (showingStatic)
             {
+                if (cam != null)
+                {
+                    Vector3 look = cam.transform.forward;
+                    look.y = 0;
+                    if (look.sqrMagnitude > 0.0001f)
+                        quad.transform.rotation = Quaternion.LookRotation(look);
+                }
                 Texture2D t = set.DeathStatic;
                 quad.transform.localScale = new Vector3(t.width * k, t.height * k * heightScale, 1f);
                 quad.transform.position = feet + Vector3.up * ((t.height * 0.5f - set.Set.DeathStaticGroundY) * k * heightScale);
                 return;
             }
 
-            int row = 0;
             if (cam != null)
             {
                 Vector3 toCamera = cam.transform.position - feet;
                 row = SpriteDirections.Row(toCamera.x, toCamera.z, facing.x, facing.z);
             }
+            float dx, dz;
+            SpriteDirections.RowDirection(row, facing.x, facing.z, out dx, out dz);
+            quad.transform.rotation = Quaternion.LookRotation(new Vector3(-dx, 0, -dz));    // its -Z side toward that row's view
             int frame = Mathf.Min((int)(time * set.Set.Fps), anim.Frames - 1);
             int rows = SpriteSetParser.Directions.Length;
             quad.transform.localScale = new Vector3(anim.CellWidth * k, set.Set.CellHeight * k * heightScale, 1f);

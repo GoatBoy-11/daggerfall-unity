@@ -14,6 +14,7 @@ namespace AdvancedNPCs
     public class NpcCombat : MonoBehaviour
     {
         static readonly FieldInfo MobileEnemyField = typeof(EnemyEntity).GetField("mobileEnemy", BindingFlags.Instance | BindingFlags.NonPublic);
+        static readonly MethodInfo SetMobileEnemy = typeof(MobileUnit).GetProperty("Enemy").GetSetMethod(true);
 
         EnemyAttack attack;
         float attackSpeed = 1f;
@@ -54,6 +55,30 @@ namespace AdvancedNPCs
                 report += ", attack speed x" + def.AttackSpeed;
             }
             AdvancedNpcsMod.Log(report + ".");
+        }
+
+        /// <summary>
+        /// DFU gives every human class a bow (RangedAttack1) that EnemyMotor fires at a distant target. Unless npc.json
+        /// asks for it ("combat": { "rangedAtDistance": true }) the bow is taken away here, before EnemyMotor.Start
+        /// reads it. Spells keep working: they use HasSpellAnimation, not RangedAttack1.
+        /// </summary>
+        public static void ApplyRanged(GameObject go, NpcDefinition def)
+        {
+            if (def.RangedAtDistance || SetMobileEnemy == null)
+                return;
+            MobileUnit mobile = go.GetComponentInChildren<MobileUnit>();
+            if (mobile == null || !mobile.Enemy.HasRangedAttack1)
+                return;
+            MobileEnemy m = mobile.Enemy;
+            m.HasRangedAttack1 = false;
+            SetMobileEnemy.Invoke(mobile, new object[] { m });
+        }
+
+        /// <summary>The NPC may shoot DFU's bow (self-test).</summary>
+        public static bool HasBow(GameObject go)
+        {
+            MobileUnit mobile = go.GetComponentInChildren<MobileUnit>();
+            return mobile != null && mobile.Enemy.HasRangedAttack1 && (!mobile.Enemy.CastsMagic || mobile.Enemy.HasRangedAttack2);
         }
 
         void LateUpdate()

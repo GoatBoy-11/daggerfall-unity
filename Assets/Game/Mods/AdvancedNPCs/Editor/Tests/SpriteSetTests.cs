@@ -77,6 +77,15 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void ActionFrame_AlsoOnRangedAttackSheets()
+        {
+            string json = With(IdleSheet, IdleSheet + ", \"attack_range_1\": { \"cellWidth\": 272, \"frames\": 5, \"actionFrame\": 4 }");
+            SpriteSetResult r = SpriteSetParser.Parse(Label, json);
+            Assert.IsNull(r.Error, r.Error);
+            Assert.AreEqual(3, r.Set.Animations["attack_range_1"].ActionFrame);
+        }
+
+        [Test]
         public void ActionFrame_OnlyOnAttackSheets()
         {
             SpriteSetResult r = SpriteSetParser.Parse(Label, With("\"cellWidth\": 344, \"frames\": 6", "\"cellWidth\": 344, \"frames\": 6, \"actionFrame\": 2"));

@@ -9,7 +9,7 @@ namespace AdvancedNPCs.Core
         public string Name;
         public int CellWidth;
         public int Frames;
-        /// <summary>Attack sheets: the frame (from 0) on which the blow lands; -1 keeps DFU's own timing.</summary>
+        /// <summary>Attack and attack_range sheets: the frame (from 0) on which the blow lands or the arrow flies; -1 keeps DFU's own timing.</summary>
         public int ActionFrame = -1;
     }
 
@@ -141,7 +141,7 @@ namespace AdvancedNPCs.Core
                     return label + ": " + field + ".frames: must be a whole number above 0";
                 if (a.ContainsKey("actionFrame"))
                 {
-                    if (SpriteStates.StateOf(kv.Key) != SpriteStates.Attack)
+                    if (!SpriteStates.IsAttackSheet(kv.Key))
                         return label + ": " + field + ".actionFrame: only attack sheets have an action frame";
                     double action;
                     if (FieldReader.Number(a, "actionFrame", 0, out action) != null || action != Math.Floor(action) || action < 1 || action > anim.Frames)

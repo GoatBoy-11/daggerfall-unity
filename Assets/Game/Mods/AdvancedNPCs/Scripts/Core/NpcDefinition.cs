@@ -64,6 +64,10 @@ namespace AdvancedNPCs.Core
         /// <summary>"combat": melee attack rate; 1.3 waits 1/1.3 as long between swings (1 = unchanged).</summary>
         public float AttackSpeed = 1f;
         public bool HasCombatTuning { get { return HealthScale != 1f || DamageScale != 1f || AttackSpeed != 1f; } }
+        /// <summary>"combat": shoot DFU's bow at a distant target (human classes that have one); off by default.</summary>
+        public bool RangedAtDistance;
+        /// <summary>"combat": the sheet played for a bow shot; null picks attack_range* sheets, else attack*.</summary>
+        public string RangedAnimation;
         /// <summary>Dialogue type ids (files in _Dialogue), in the order given in npc.json.</summary>
         public readonly List<string> Dialogue = new List<string>();
         /// <summary>The folder's own dialogue.json, or null.</summary>

@@ -621,6 +621,29 @@ namespace AdvancedNPCs
                 Mathf.Abs(shortCorpse.localScale.y - 32f * pixelScale * 0.94f) < 0.0001f,
                 "quad=" + (shortCorpse != null ? shortCorpse.localScale.ToString() : "none"));
 
+            // The death sheet's rows are the body seen from 8 sides: the quad stands square to its row's view, not to the camera.
+            float rowX = 0, rowZ = 0;
+            if (body != null)
+                SpriteDirections.RowDirection(body.Row, body.Facing.x, body.Facing.z, out rowX, out rowZ);
+            float corpseTurn = body != null ? Vector3.Angle(body.QuadRotation * Vector3.forward, new Vector3(-rowX, 0, -rowZ)) : -1f;
+            Check("animated corpse stands square to its row, not turned with the view", body != null && corpseTurn < 0.5f,
+                body == null ? "no corpse sprite" : "row=" + body.Row + ", off by " + corpseTurn + " degrees");
+
+            // DFU gives human classes a bow; ANPCs only keep it with "combat": { "rangedAtDistance": true }.
+            NpcDefinition meleeDef = TestDefinition("selftest_melee", Bravery.Normal, location, playerTransform, -5f);
+            meleeDef.BaseClass = "Knight";
+            NpcBrain melee = SpawnDefinition(meleeDef, location);
+            NpcDefinition archerDef = TestDefinition("selftest_archer", Bravery.Normal, location, playerTransform, -6f);
+            archerDef.BaseClass = "Knight";
+            archerDef.RangedAtDistance = true;
+            NpcBrain archer = SpawnDefinition(archerDef, location);
+            yield return Settle;
+            Check("ANPC has no bow unless rangedAtDistance is set",
+                !NpcCombat.HasBow(melee.gameObject) && NpcCombat.HasBow(archer.gameObject),
+                "melee bow=" + NpcCombat.HasBow(melee.gameObject) + ", archer bow=" + NpcCombat.HasBow(archer.gameObject));
+            NpcBrain.Discard(melee);
+            NpcBrain.Discard(archer);
+
             mod.Sprites.Add("selftest_sprite_static", TestSpriteSet(true));
             NpcDefinition staticShortDef = TestDefinition("selftest_sprite_static", Bravery.Normal, location, playerTransform, -2f);
             staticShortDef.SpriteHeightScale = 0.94f;

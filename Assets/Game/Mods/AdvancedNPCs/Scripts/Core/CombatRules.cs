@@ -6,18 +6,22 @@ namespace AdvancedNPCs.Core
     /// <summary>
     /// Optional "combat" tuning in npc.json: { "health": x, "damage": x, "attackSpeed": x }, all multipliers
     /// of DFU's own values (1 = unchanged). "damage" scales a creature's melee damage ranges; human classes take
-    /// their damage from weapons, so it needs a creature baseClass. No Unity or DFU types.
+    /// their damage from weapons, so it needs a creature baseClass. "rangedAtDistance": true lets a human class
+    /// shoot DFU's bow at a distant target (off by default); "rangedAnimation" names the sheet it plays.
+    /// No Unity or DFU types.
     /// </summary>
     public static class CombatRules
     {
         public const double MinScale = 0.05, MaxScale = 10, MinSpeed = 0.25, MaxSpeed = 4;
-        static readonly string[] Keys = { "health", "damage", "attackSpeed" };
+        static readonly string[] Keys = { "health", "damage", "attackSpeed", "rangedAtDistance", "rangedAnimation" };
 
         /// <summary>Reads "combat" from an npc.json root. Returns null, or a problem with its key ("combat.health").</summary>
         public static string Read(Dictionary<string, object> root, bool isCreature, out string key,
-            out float health, out float damage, out float attackSpeed)
+            out float health, out float damage, out float attackSpeed, out bool rangedAtDistance, out string rangedAnimation)
         {
             health = damage = attackSpeed = 1f;
+            rangedAtDistance = false;
+            rangedAnimation = null;
             key = "combat";
             object raw;
             if (!root.TryGetValue("combat", out raw) || raw == null)
@@ -30,7 +34,7 @@ namespace AdvancedNPCs.Core
                 if (Array.IndexOf(Keys, k) < 0)
                 {
                     key = "combat." + k;
-                    return "unknown setting (use health, damage or attackSpeed)";
+                    return "unknown setting (use health, damage, attackSpeed, rangedAtDistance or rangedAnimation)";
                 }
             }
             double h, d, s;
@@ -43,6 +47,26 @@ namespace AdvancedNPCs.Core
                 key = "combat.damage";
                 return "needs a creature baseClass (human classes take their damage from weapons)";
             }
+            object rawRanged;
+            if (o.TryGetValue("rangedAtDistance", out rawRanged))
+            {
+                key = "combat.rangedAtDistance";
+                if (!(rawRanged is bool))
+                    return "must be true or false";
+                if ((bool)rawRanged && isCreature)
+                    return "needs a human baseClass (creatures have no bow)";
+                rangedAtDistance = (bool)rawRanged;
+            }
+            object rawSheet;
+            if (o.TryGetValue("rangedAnimation", out rawSheet))
+            {
+                key = "combat.rangedAnimation";
+                string sheet = rawSheet as string;
+                if (sheet == null || !SpriteStates.IsAttackSheet(sheet))
+                    return "must be the name of an attack_range* or attack* sheet, like \"attack_range_1\"";
+                rangedAnimation = sheet;
+            }
+            key = "combat";
             health = (float)h; damage = (float)d; attackSpeed = (float)s;
             return null;
         }

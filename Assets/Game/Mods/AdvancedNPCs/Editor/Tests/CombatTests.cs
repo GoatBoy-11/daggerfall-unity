@@ -80,6 +80,56 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void Ranged_IsOffByDefault()
+        {
+            ParseResult r = DefinitionParser.ParseFolder("grub", Unique);
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.IsFalse(r.Definition.RangedAtDistance);
+            Assert.IsNull(r.Definition.RangedAnimation);
+        }
+
+        [Test]
+        public void Ranged_ReadsSwitchAndSheet()
+        {
+            ParseResult r = With("\"baseClass\": \"Knight\", \"combat\": { \"rangedAtDistance\": true, \"rangedAnimation\": \"attack_range_1\" }");
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.IsTrue(r.Definition.RangedAtDistance);
+            Assert.AreEqual("attack_range_1", r.Definition.RangedAnimation);
+            // Not a stat change: no NpcCombat tuning component for this alone.
+            Assert.IsFalse(r.Definition.HasCombatTuning);
+        }
+
+        [Test]
+        public void Ranged_SheetIsOptional()
+        {
+            ParseResult r = With("\"baseClass\": \"Knight\", \"combat\": { \"rangedAtDistance\": true }");
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.IsTrue(r.Definition.RangedAtDistance);
+            Assert.IsNull(r.Definition.RangedAnimation);
+        }
+
+        [Test]
+        public void Ranged_RejectsBadValues()
+        {
+            ParseResult notBool = With("\"baseClass\": \"Knight\", \"combat\": { \"rangedAtDistance\": \"yes\" }");
+            Assert.IsFalse(notBool.Ok);
+            StringAssert.Contains("combat.rangedAtDistance", notBool.Error);
+            ParseResult notSheet = With("\"baseClass\": \"Knight\", \"combat\": { \"rangedAtDistance\": true, \"rangedAnimation\": \"dance_1\" }");
+            Assert.IsFalse(notSheet.Ok);
+            StringAssert.Contains("combat.rangedAnimation", notSheet.Error);
+            ParseResult creature = With(Orc + ", \"combat\": { \"rangedAtDistance\": true }");
+            Assert.IsFalse(creature.Ok);
+            StringAssert.Contains("combat.rangedAtDistance", creature.Error);
+        }
+
+        [Test]
+        public void Ranged_SheetAcceptsAttackSheets()
+        {
+            Assert.IsTrue(With("\"baseClass\": \"Knight\", \"combat\": { \"rangedAtDistance\": true, \"rangedAnimation\": \"attack_2\" }").Ok);
+            Assert.IsTrue(With("\"baseClass\": \"Knight\", \"combat\": { \"rangedAtDistance\": true, \"rangedAnimation\": \"attack_range\" }").Ok);
+        }
+
+        [Test]
         public void ScaleHealth_RoundsAndNeverDropsBelowOne()
         {
             Assert.AreEqual(17, CombatRules.ScaleHealth(24, 0.7f));
