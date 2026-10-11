@@ -68,6 +68,10 @@ namespace AdvancedNPCs.Core
         public bool RangedAtDistance;
         /// <summary>"combat": the sheet played for a bow shot; null picks attack_range* sheets, else attack*.</summary>
         public string RangedAnimation;
+        /// <summary>"combat": running speed as a multiple of walk speed (1-2).</summary>
+        public float RunSpeed = GaitRules.DefaultRunSpeed;
+        /// <summary>"combat": false = never runs (chases and flees at walk speed).</summary>
+        public bool CanRun = true;
         /// <summary>Dialogue type ids (files in _Dialogue), in the order given in npc.json.</summary>
         public readonly List<string> Dialogue = new List<string>();
         /// <summary>The folder's own dialogue.json, or null.</summary>

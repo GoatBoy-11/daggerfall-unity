@@ -8,20 +8,24 @@ namespace AdvancedNPCs.Core
     /// of DFU's own values (1 = unchanged). "damage" scales a creature's melee damage ranges; human classes take
     /// their damage from weapons, so it needs a creature baseClass. "rangedAtDistance": true lets a human class
     /// shoot DFU's bow at a distant target (off by default); "rangedAnimation" names the sheet it plays.
+    /// "runSpeed" (1-2, default 1.2) is running speed as a multiple of walking; "canRun": false never runs.
     /// No Unity or DFU types.
     /// </summary>
     public static class CombatRules
     {
         public const double MinScale = 0.05, MaxScale = 10, MinSpeed = 0.25, MaxSpeed = 4;
-        static readonly string[] Keys = { "health", "damage", "attackSpeed", "rangedAtDistance", "rangedAnimation" };
+        static readonly string[] Keys = { "health", "damage", "attackSpeed", "rangedAtDistance", "rangedAnimation", "runSpeed", "canRun" };
 
         /// <summary>Reads "combat" from an npc.json root. Returns null, or a problem with its key ("combat.health").</summary>
         public static string Read(Dictionary<string, object> root, bool isCreature, out string key,
-            out float health, out float damage, out float attackSpeed, out bool rangedAtDistance, out string rangedAnimation)
+            out float health, out float damage, out float attackSpeed, out bool rangedAtDistance, out string rangedAnimation,
+            out float runSpeed, out bool canRun)
         {
             health = damage = attackSpeed = 1f;
             rangedAtDistance = false;
             rangedAnimation = null;
+            runSpeed = GaitRules.DefaultRunSpeed;
+            canRun = true;
             key = "combat";
             object raw;
             if (!root.TryGetValue("combat", out raw) || raw == null)
@@ -34,7 +38,7 @@ namespace AdvancedNPCs.Core
                 if (Array.IndexOf(Keys, k) < 0)
                 {
                     key = "combat." + k;
-                    return "unknown setting (use health, damage, attackSpeed, rangedAtDistance or rangedAnimation)";
+                    return "unknown setting (use health, damage, attackSpeed, rangedAtDistance, rangedAnimation, runSpeed or canRun)";
                 }
             }
             double h, d, s;
@@ -65,6 +69,23 @@ namespace AdvancedNPCs.Core
                 if (sheet == null || !SpriteStates.IsAttackSheet(sheet))
                     return "must be the name of an attack_range* or attack* sheet, like \"attack_range_1\"";
                 rangedAnimation = sheet;
+            }
+            if (o.ContainsKey("runSpeed"))
+            {
+                double rs;
+                key = "combat.runSpeed";
+                if (o["runSpeed"] == null || FieldReader.Number(o, "runSpeed", GaitRules.DefaultRunSpeed, out rs) != null ||
+                    double.IsNaN(rs) || rs < GaitRules.MinRunSpeed || rs > GaitRules.MaxRunSpeed)
+                    return "must be a number from 1 to 2 (times walking speed)";
+                runSpeed = (float)rs;
+            }
+            object rawCanRun;
+            if (o.TryGetValue("canRun", out rawCanRun))
+            {
+                key = "combat.canRun";
+                if (!(rawCanRun is bool))
+                    return "must be true or false";
+                canRun = (bool)rawCanRun;
             }
             key = "combat";
             health = (float)h; damage = (float)d; attackSpeed = (float)s;

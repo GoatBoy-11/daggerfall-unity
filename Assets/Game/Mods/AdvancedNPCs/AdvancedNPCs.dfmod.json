@@ -25,6 +25,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/Enemies.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/FieldReader.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/GenericSpawn.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/GaitRules.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/CombatRules.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HealthRules.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HostilityRules.cs",

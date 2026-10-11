@@ -507,7 +507,7 @@ namespace AdvancedNPCs.Core
             d.SpriteHeightScale = (float)spriteHeightScale;
             string combatKey;
             if ((problem = CombatRules.Read(o, d.IsCreature, out combatKey, out d.HealthScale, out d.DamageScale, out d.AttackSpeed,
-                    out d.RangedAtDistance, out d.RangedAnimation)) != null)
+                    out d.RangedAtDistance, out d.RangedAnimation, out d.RunSpeed, out d.CanRun)) != null)
                 return Problem(r, file, combatKey, problem);
             ReadDialogueTypes(file, o, d, r);
             return true;

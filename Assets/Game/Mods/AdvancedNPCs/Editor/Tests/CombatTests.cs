@@ -130,6 +130,44 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void Running_DefaultsToOnAtOnePointTwo()
+        {
+            ParseResult r = DefinitionParser.ParseFolder("grub", Unique);
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.IsTrue(r.Definition.CanRun);
+            Assert.AreEqual(1.2f, r.Definition.RunSpeed, 1e-6);
+        }
+
+        [Test]
+        public void Running_ReadsRunSpeedAndCanRun()
+        {
+            ParseResult r = With("\"baseClass\": \"Knight\", \"combat\": { \"runSpeed\": 1.5 }");
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.AreEqual(1.5f, r.Definition.RunSpeed, 1e-6);
+            Assert.IsFalse(r.Definition.HasCombatTuning);
+            ParseResult off = With("\"baseClass\": \"Knight\", \"combat\": { \"canRun\": false }");
+            Assert.IsTrue(off.Ok, off.Error);
+            Assert.IsFalse(off.Definition.CanRun);
+        }
+
+        [Test]
+        public void CanRunFalse_WithRunSpeed_Loads()
+        {
+            ParseResult r = With("\"baseClass\": \"Knight\", \"combat\": { \"canRun\": false, \"runSpeed\": 1.8 }");
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.IsFalse(r.Definition.CanRun);
+        }
+
+        [Test]
+        public void Running_RejectsBadValues()
+        {
+            StringAssert.Contains("combat.runSpeed", With("\"baseClass\": \"Knight\", \"combat\": { \"runSpeed\": 0.9 }").Error);
+            StringAssert.Contains("combat.runSpeed", With("\"baseClass\": \"Knight\", \"combat\": { \"runSpeed\": 2.5 }").Error);
+            StringAssert.Contains("combat.runSpeed", With("\"baseClass\": \"Knight\", \"combat\": { \"runSpeed\": \"fast\" }").Error);
+            StringAssert.Contains("combat.canRun", With("\"baseClass\": \"Knight\", \"combat\": { \"canRun\": \"no\" }").Error);
+        }
+
+        [Test]
         public void ScaleHealth_RoundsAndNeverDropsBelowOne()
         {
             Assert.AreEqual(17, CombatRules.ScaleHealth(24, 0.7f));
