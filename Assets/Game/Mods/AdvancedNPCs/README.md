@@ -59,7 +59,7 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 | `calmDownHours` | no | `[6, 48]` | `[min, max]` in-game hours before a hostile ANPC forgives the player |
 | `crimeOnAttack` | no | `true` | `true`: attacking is assault, killing is murder |
 | `wanderRadius` | no | `8` | metres around the spawn point; `0` stands still |
-| `combat` | no | vanilla, no bow | `{ "health": 0.7, "damage": 0.7, "attackSpeed": 1.3, "rangedAtDistance": true }`, see [Combat tuning](#combat-tuning) |
+| `combat` | no | vanilla, no bow, runs | `{ "health": 0.7, "attackSpeed": 1.3, "rangedAtDistance": true, "runSpeed": 1.2, "canRun": true }`, see [Combat tuning](#combat-tuning) |
 | `dialogue` | no | none | dialogue type(s) from `_Dialogue/`, e.g. `"tavern_wench"` or `["gossip", "tavern_wench"]`, see [Dialogue topics](#dialogue-topics) |
 
 
@@ -178,6 +178,11 @@ enemies. Bravery still applies (a Coward enemy runs).
 ```json
 "combat": { "rangedAtDistance": true, "rangedAnimation": "attack_range_1" }
 ```
+
+- `runSpeed` (1–2, default 1.2): how much faster than walking the ANPC runs. A fighting ANPC runs when it sees its
+  target more than 6 m away and walks again under 4 m; a fleeing ANPC runs. DFU's walking speed for enemies is
+  about the player's, so the default lets a running player escape or catch up.
+- `canRun` (true/false, default true): `false` never runs; it chases and flees at walking speed with walk sheets.
 
 `Player.log` shows the result when it spawns, e.g. `orc_weakling@1276329198#0: combat health 24->17, damage 1-6->1-4, attack speed x1.3.`
 
@@ -448,7 +453,13 @@ ANPCs/wench/
   `blender -b character.blend --python render-sprites.py -- <out_dir> [test] [--rig NAME] [--mesh NAME]`
 - For characters with a separate weapon mesh, `Tools~/render-character-sprites.py` includes both meshes in rendering and bounds: `--mesh body,sword`. `--keep-last death_1` keeps the final corpse pose. The Dunmer example documents a complete command.
 - A character whose idle holds a weapon above its head (a guard's upright spear) would look smaller in game, because the standing height is measured from the tallest idle pixel. Add `--standing-mesh body` (the body mesh alone) and the renderer writes `"standingHeight"` (pixels above the feet row, without the weapon) into `sprites.json`; the game then sizes the person by the body.
-- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `hit*` (hurt), `attack*` (attacking), `attack_range*` (shooting a bow, see `rangedAtDistance`), `cast*` (spellcasting), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing walk/hit/attack sheets use idle; a set needs at least one idle sheet.
+- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `run*` (running), `hit*` (hurt), `attack*` (attacking), `attack_range*` (shooting a bow, see `rangedAtDistance`), `cast*` (spellcasting), `greet*` (greeting), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing run sheets use walk sheets and missing walk sheets use run sheets, then idle; missing hit/attack sheets use idle; greet sheets have no fallback; a set needs at least one idle sheet.
+- Turret: a set with no `walk*` and no `run*` sheet never moves: it does not wander, chase, flee or get knocked
+  back, but still turns to its target and attacks, shoots or casts from where it stands. Like any DFU enemy it only
+  notices a quiet player in front of it, so place turrets facing where trouble comes from.
+- Greeting: a calm ANPC with a `greet*` sheet sometimes (25 % per encounter) stops, turns and greets the player
+  within 4 m and in sight when its people like you (`likes` or `loves`, the reaction dialogue uses), or another
+  calm ANPC that is not an enemy. It greets the same person at most once every 2 game hours (not saved).
 - Every hit (any health loss) plays a hit sheet from its first frame to its last, also when the person is hit again while it plays. A hit during an attack does not interrupt it (no stun-lock, as in vanilla): the hit sheet plays right after the attack sheet. Paralysis freezes the sprite.
 - Size: the standing pose is as tall as the vanilla class sprite; set `"spriteHeight"` (world units) in `npc.json` to change it. Every animation uses the same scale.
 - Proportions: `"spriteHeightScale"` defaults to `1`. Set it to `0.94` for a sprite that is 6% shorter with exactly the same width. It scales only the vertical dimension of all animations and the corpse, anchored at the feet; sprite sheets and timing remain unchanged.
