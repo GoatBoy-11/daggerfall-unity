@@ -33,7 +33,7 @@ namespace AdvancedNPCs.Core
         static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
         static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
         static readonly string[] GenericOnlyKeys = { "names", "portraits", "spawn" };
-        static readonly string[] RaceNames = { "Breton", "Redguard", "Nord", "DarkElf" };
+        static readonly string[] RaceNames = { "Breton", "Redguard", "Nord", "DarkElf", "Khajiit" };
         static readonly string[] SpawnKeys = { "locationTypes", "places", "count", "dungeons", "interiors", "wilderness" };
         static readonly string[] PlaceKeys = { "region", "place", "positions" };
 
@@ -471,7 +471,7 @@ namespace AdvancedNPCs.Core
             {
                 race = CanonicalRace(rawRace);
                 if (race == null)
-                    return Problem(r, file, "race", "must be Breton, Redguard, Nord or DarkElf (Dunmer) (got \"" + rawRace + "\")");
+                    return Problem(r, file, "race", "must be Breton, Redguard, Nord, DarkElf (Dunmer) or Khajiit (got \"" + rawRace + "\")");
             }
 
             d.BaseClass = baseClass;

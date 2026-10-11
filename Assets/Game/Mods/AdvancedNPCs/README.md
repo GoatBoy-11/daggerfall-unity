@@ -48,7 +48,7 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 | `name` | yes | — | any text |
 | `location` | yes | — | from `anpc_pos` |
 | `position` | yes | — | from `anpc_pos` (relative to the town's origin corner) |
-| `race` | no | the region's people | `Breton`, `Redguard`, `Nord`, `DarkElf` (or `Dunmer`) |
+| `race` | no | the region's people | `Breton`, `Redguard`, `Nord`, `DarkElf` (or `Dunmer`), `Khajiit` |
 | `portrait` | no | vanilla face | portrait name, see [Portraits](#portraits) |
 | `baseClass` | no | `Spellsword` | Mage, Spellsword, Battlemage, Sorcerer, Healer, Nightblade, Bard, Burglar, Rogue, Acrobat, Thief, Assassin, Monk, Archer, Ranger, Barbarian, Warrior, Knight; for enemies also a creature, see [Enemies](#enemies) |
 | `attitude` | no | `calm` | `calm` (townsfolk) or `hostile` (an enemy), see [Enemies](#enemies) |
@@ -451,7 +451,7 @@ ANPCs/wench/
 ## Name lists
 
 - Generic people without `name`/`names` get generated names. `"nameList"` chooses the list: a custom file in `ANPCs/_Namelists/` (without `.json`) or a vanilla one: `default_breton`, `default_redguard`, `default_nord`, `default_darkelf`, `default_highelf`, `default_woodelf`, `default_khajiit`, `default_imperial`. Without `nameList` the person's own race is used.
-- Custom lists come in two formats, described in `Examples/ANPCs/_Namelists/README.txt`: a bank copied from DFU's `NameGen.txt` plus a `"style"`, or plain `male`/`female`/`surnames` lists. Simple lists can put a gendered prefix before the surname (`maleSurnamePrefix`/`femaleSurnamePrefix`, e.g. Orsimer `gro-`/`gra-`). Ready-made lists include `orsimer`, `argonian`, and `dunmer_morrowind` (Morrowind-style Dunmer given names and family names).
+- Custom lists come in two formats, described in `Examples/ANPCs/_Namelists/README.txt`: a bank copied from DFU's `NameGen.txt` plus a `"style"`, or plain `male`/`female`/`surnames` lists. Simple lists can put a gendered prefix before the surname (`maleSurnamePrefix`/`femaleSurnamePrefix`, e.g. Orsimer `gro-`/`gra-`). Ready-made lists include `orsimer`, `argonian`, `dunmer_morrowind` (Morrowind-style Dunmer given names and family names), and `khajiit_skyrim` (original Skyrim-style Khajiit whole names without surnames).
 - A missing or broken list falls back to the race's vanilla list (one warning in `Player.log`).
 
 ## Examples

@@ -1,0 +1,21 @@
+{
+  "kind": "generic",
+  "race": "Khajiit",
+  "gender": "Male",
+  "baseClass": "Bard",
+  "bravery": "Coward",
+  "wanderRadius": 8,
+  "portrait": "khajiit_citizen_1",
+  "nameList": "khajiit_skyrim",
+  "spawn": {
+    "count": [
+      0,
+      0
+    ]
+  },
+  "magic": {
+    "spells": [],
+    "usesMagicka": true,
+    "maxMagicka": 0
+  }
+}

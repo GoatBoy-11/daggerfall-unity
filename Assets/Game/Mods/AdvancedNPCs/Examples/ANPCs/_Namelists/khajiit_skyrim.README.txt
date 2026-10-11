@@ -1,0 +1,8 @@
+khajiit_skyrim
+
+200 original Skyrim-style Khajiit whole names: 100 male and 100 female.
+Includes varied short names and apostrophe-prefixed names. No separate
+surnames are added. These are invented names, not a list of named Skyrim
+characters or a dictionary of translated Khajiit titles.
+
+Use "nameList": "khajiit_skyrim" in any ANPC's npc.json.
