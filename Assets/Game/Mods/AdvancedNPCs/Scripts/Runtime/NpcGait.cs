@@ -87,6 +87,16 @@ namespace AdvancedNPCs
             if (brain == null || def == null || brain.CurrentMode == NpcMode.Dead || controller == null || !controller.enabled)
                 return;
             Vector3 local = transform.localPosition;
+            Vector3 step = local - lastLocal;
+            step.y = 0;
+            if (GaitRules.IsJump(step.magnitude))
+            {
+                // DFU's floating origin moved the ANPC itself (wilderness ANPCs are children of StreamingTarget):
+                // the spot moves with the world, and none of it is running.
+                pinLocal += step;
+                lastLocal = local;
+                return;
+            }
             if (turret)
             {
                 gait = Gait.Still;

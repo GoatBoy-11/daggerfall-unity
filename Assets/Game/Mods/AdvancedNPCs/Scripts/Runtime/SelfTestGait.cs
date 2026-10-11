@@ -13,6 +13,8 @@ namespace AdvancedNPCs
         IEnumerator GaitSteps(DaggerfallLocation location, Transform player)
         {
             DaggerfallEntityBehaviour playerBehaviour = GameManager.Instance.PlayerEntityBehaviour;
+            // Test people left standing by earlier steps would be targets for these hostile ANPCs.
+            DiscardTestPeople();
             // Every test ANPC stands along one open line from the player: in sight, on ground, nothing in between.
             Vector3 open = OpenDirection(player, 16f);
             mod.Sprites.Add("selftest_runner", TestSpriteSet(false, "idle", "walk", "run", "attack", "death"));
@@ -131,6 +133,16 @@ namespace AdvancedNPCs
             town.position -= new Vector3(500f, 0f, 0f);
             shifted.y = 0;
             Check("world shift does not boost or unpin", shifted.magnitude < 0.05f, "moved " + shifted.magnitude);
+            // Wilderness ANPCs are children of StreamingTarget: DFU's floating origin then moves the ANPC itself. The pin
+            // must follow the shift, not drag the turret back across the map.
+            Vector3 beforeOwnShift = turret.transform.localPosition;
+            Vector3 ownShift = turret.transform.parent != null ? turret.transform.parent.InverseTransformVector(new Vector3(500f, 0f, 0f)) : new Vector3(500f, 0f, 0f);
+            turret.transform.position += new Vector3(500f, 0f, 0f);
+            yield return null;
+            yield return new WaitForEndOfFrame();
+            Vector3 dragged = turret.transform.localPosition - beforeOwnShift - ownShift;
+            dragged.y = 0;
+            Check("a shift of the ANPC itself is not undone by the pin", dragged.magnitude < 0.05f, "off by " + dragged.magnitude);
             turret.SwitchHostile(false);
             NpcBrain.Discard(turret);
 
@@ -186,7 +198,18 @@ namespace AdvancedNPCs
 
             mod.Sprites.Remove("selftest_runner");
             mod.Sprites.Remove("selftest_turret");
+            DiscardTestPeople();
             yield return Settle;
+        }
+
+        /// <summary>Removes every live self-test ANPC (ids starting with "selftest").</summary>
+        static void DiscardTestPeople()
+        {
+            foreach (NpcBrain b in NpcBrain.All())
+            {
+                if (b.Id.StartsWith("selftest", System.StringComparison.Ordinal))
+                    NpcBrain.Discard(b);
+            }
         }
 
         /// <summary>

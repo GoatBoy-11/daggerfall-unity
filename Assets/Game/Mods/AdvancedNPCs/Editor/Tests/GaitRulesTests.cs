@@ -61,6 +61,14 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void IsJump_OnlyForWorldShiftSizedSteps()
+        {
+            Assert.IsFalse(GaitRules.IsJump(0.2f));     // a frame of running
+            Assert.IsFalse(GaitRules.IsJump(5f));       // a long hitch at run speed
+            Assert.IsTrue(GaitRules.IsJump(819.2f));    // DFU's floating origin moving the ANPC itself
+        }
+
+        [Test]
         public void Calm_WalksOrStands()
         {
             Assert.AreEqual(Gait.Walk, GaitRules.Calm(true));

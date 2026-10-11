@@ -13,6 +13,8 @@ namespace AdvancedNPCs.Core
         public const float RunStart = 6f;
         /// <summary>...and walks again when closer than this, so it does not flicker between the two.</summary>
         public const float RunStop = 4f;
+        /// <summary>A step longer than this in one frame is the world moving under the ANPC (floating origin), not walking.</summary>
+        public const float MaxStep = 20f;
         public const float DefaultRunSpeed = 1.2f;
         public const double MinRunSpeed = 1, MaxRunSpeed = 2;
 
@@ -20,6 +22,12 @@ namespace AdvancedNPCs.Core
         public static float WalkSpeed(int liveSpeed)
         {
             return (liveSpeed + 150f) / 40f;
+        }
+
+        /// <summary>True when a one-frame horizontal step is too long to be movement (DFU's floating origin shifted the ANPC).</summary>
+        public static bool IsJump(float stepMetres)
+        {
+            return stepMetres > MaxStep;
         }
 
         public static float RunSpeed(float walkSpeed, float runSpeed, bool canRun)
