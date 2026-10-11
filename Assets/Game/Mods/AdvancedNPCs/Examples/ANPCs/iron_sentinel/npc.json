@@ -1,0 +1,23 @@
+{
+  "kind": "generic",
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Knight",
+  "attitude": "hostile",
+  "bravery": "Brave",
+  "wanderRadius": 6,
+  "portrait": "iron_sentinel",
+  "nameList": "breton_oblivion_skyrim",
+  "spawn": {
+    "dungeons": {
+      "chance": 15,
+      "count": [1, 2],
+      "dungeonTypes": ["RuinedCastle", "HumanStronghold", "Prison"]
+    }
+  },
+  "magic": {
+    "spells": [],
+    "usesMagicka": true,
+    "maxMagicka": 0
+  }
+}

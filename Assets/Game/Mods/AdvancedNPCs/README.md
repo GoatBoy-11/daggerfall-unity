@@ -464,6 +464,16 @@ complete dialogue type; add `"dialogue": "tavern_wench"` to any ANPC to try it. 
 strongholds, prisons, barbarian strongholds and ruined castles, and the wilderness at night) and `patron` (calm;
 taverns) show spawning outside towns. `dunmer_spellblade` is a manual-spawn Dunmer Spellsword with eight-direction sprites, a casting sheet, a custom portrait, and the shared `dunmer_morrowind` namelist. Use `anpc_spawn dunmer_spellblade` to try him. `dunmer_mercenary` uses the iron-armoured model and axe, Fireball, Wizard's Fire and Resist Fire, with 80 magicka. Spawn him with `anpc_spawn dunmer_mercenary`.
 
+Four fully animated characters with their own weapons (14 sheets each, hit/death/cast effects, custom portraits):
+
+- `iron_sentinel`: hostile Breton knight with a two-handed claymore. Dungeons only (ruined castles, human strongholds, prisons).
+- `orc_weakling`: a lower-tier orc with a crude club, on the `Orc` creature, made weaker and quicker with `"combat"`
+  (70% health and damage, 1.3x attack speed). Orc strongholds, caves and mines.
+- `barbarian`: hostile Nord raider with a two-handed battle axe and 1.2x health. Barbarian and human strongholds,
+  rarely in the wilderness.
+- `verdant_guard`: a friendly town guard with a spear, after Daggerfall's city guard. His idle holds the spear above his
+  head, so his `sprites.json` carries `"standingHeight"`. One or two per town.
+
 ## Building (developers)
 
 Sources live in `Scripts/Core` (pure logic, unit-tested) and `Scripts/Runtime` (DFU glue).

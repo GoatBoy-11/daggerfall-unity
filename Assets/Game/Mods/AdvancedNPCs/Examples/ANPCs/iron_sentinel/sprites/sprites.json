@@ -1,0 +1,77 @@
+{
+  "pixelsPerUnit": 81.7803,
+  "cellHeight": 256,
+  "groundY": 21,
+  "anchorX": "centre",
+  "fps": 8,
+  "directions": [
+    "front",
+    "front_right",
+    "right",
+    "back_right",
+    "back",
+    "back_left",
+    "left",
+    "front_left"
+  ],
+  "animations": {
+    "attack_1": {
+      "cellWidth": 280,
+      "frames": 5,
+      "actionFrame": 3
+    },
+    "attack_2": {
+      "cellWidth": 272,
+      "frames": 5,
+      "actionFrame": 3
+    },
+    "cast_1": {
+      "cellWidth": 200,
+      "frames": 4
+    },
+    "death_1": {
+      "cellWidth": 320,
+      "frames": 7
+    },
+    "greet_1": {
+      "cellWidth": 256,
+      "frames": 6
+    },
+    "hit_1": {
+      "cellWidth": 232,
+      "frames": 3
+    },
+    "hit_2": {
+      "cellWidth": 248,
+      "frames": 3
+    },
+    "idle_1": {
+      "cellWidth": 248,
+      "frames": 4
+    },
+    "idle_2": {
+      "cellWidth": 256,
+      "frames": 6
+    },
+    "idle_3": {
+      "cellWidth": 248,
+      "frames": 6
+    },
+    "run": {
+      "cellWidth": 208,
+      "frames": 8
+    },
+    "talk_1": {
+      "cellWidth": 88,
+      "frames": 6
+    },
+    "talk_2": {
+      "cellWidth": 104,
+      "frames": 6
+    },
+    "walk": {
+      "cellWidth": 128,
+      "frames": 8
+    }
+  }
+}

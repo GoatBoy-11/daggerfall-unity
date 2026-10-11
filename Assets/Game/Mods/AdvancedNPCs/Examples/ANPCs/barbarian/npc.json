@@ -1,0 +1,29 @@
+{
+  "kind": "generic",
+  "race": "Nord",
+  "gender": "Male",
+  "baseClass": "Barbarian",
+  "attitude": "hostile",
+  "bravery": "Brave",
+  "wanderRadius": 6,
+  "portrait": "barbarian",
+  "combat": {
+    "health": 1.2
+  },
+  "spawn": {
+    "dungeons": {
+      "chance": 25,
+      "count": [1, 3],
+      "dungeonTypes": ["BarbarianStronghold", "HumanStronghold"]
+    },
+    "wilderness": {
+      "chance": 4,
+      "max": 2
+    }
+  },
+  "magic": {
+    "spells": [],
+    "usesMagicka": true,
+    "maxMagicka": 0
+  }
+}

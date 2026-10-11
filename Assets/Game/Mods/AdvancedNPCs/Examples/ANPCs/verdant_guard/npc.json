@@ -1,0 +1,25 @@
+{
+  "kind": "generic",
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Knight",
+  "bravery": "Brave",
+  "wanderRadius": 4,
+  "portrait": "verdant_guard",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      1,
+      2
+    ]
+  },
+  "magic": {
+    "spells": [],
+    "usesMagicka": true,
+    "maxMagicka": 0
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "kind": "generic",
+  "baseClass": "Orc",
+  "attitude": "hostile",
+  "gender": "Male",
+  "bravery": "Brave",
+  "wanderRadius": 6,
+  "portrait": "orc_weakling",
+  "nameList": "orsimer",
+  "combat": {
+    "health": 0.7,
+    "damage": 0.7,
+    "attackSpeed": 1.3
+  },
+  "spawn": {
+    "dungeons": {
+      "chance": 25,
+      "count": [1, 3],
+      "dungeonTypes": ["OrcStronghold", "NaturalCave", "Mine"]
+    }
+  }
+}
