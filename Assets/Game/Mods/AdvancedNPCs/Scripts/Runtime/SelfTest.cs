@@ -752,6 +752,35 @@ namespace AdvancedNPCs
                 NpcBrain.Discard(look);
                 mod.Sprites.Remove("selftest_look");
             }
+            // Developer look at every installed sprite set (only when ANPCs/selftest-looks.txt exists): front and side
+            // screenshots of each, standing in town light, in anpc-looks/ next to Player.log.
+            if (System.IO.File.Exists(System.IO.Path.Combine(AnpcFiles.Root, "selftest-looks.txt")))
+            {
+                string dir = System.IO.Path.Combine(Application.persistentDataPath, "anpc-looks");
+                System.IO.Directory.CreateDirectory(dir);
+                foreach (NpcDefinition g in mod.Catalog.Generics)
+                {
+                    if (mod.Sprites.For(g.Folder).Count == 0)
+                        continue;
+                    mod.Sprites.Add("selftest_look", mod.Sprites.For(g.Folder)[0]);
+                    NpcBrain each = Make("selftest_look", Bravery.Normal, location, playerTransform, 0f);
+                    yield return new WaitForSeconds(1f);
+                    Vector3 facing = Camera.main.transform.position - each.transform.position;
+                    facing.y = 0;
+                    each.transform.rotation = Quaternion.LookRotation(facing.normalized);
+                    yield return new WaitForSeconds(0.5f);
+                    ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, g.Folder + "-front.png"));
+                    yield return new WaitForSeconds(0.5f);
+                    each.transform.rotation = Quaternion.LookRotation(new Vector3(-facing.z, 0, facing.x));
+                    yield return new WaitForSeconds(0.5f);
+                    ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, g.Folder + "-side.png"));
+                    yield return new WaitForSeconds(0.5f);
+                    NpcBrain.Discard(each);
+                    mod.Sprites.Remove("selftest_look");
+                    yield return null;
+                }
+                AdvancedNpcsMod.Log(Prefix + "LOOK every sprite set saved in " + dir);
+            }
             mod.Portraits.Remove("selftest_face_1");
             mod.Portraits.Remove("selftest_face_2");
             mod.Portraits.Remove("selftest_face_3");
