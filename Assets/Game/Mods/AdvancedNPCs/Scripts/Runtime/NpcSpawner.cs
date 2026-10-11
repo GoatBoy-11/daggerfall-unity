@@ -57,7 +57,12 @@ namespace AdvancedNPCs
             foreach (DaggerfallLocation town in towns)
             {
                 SpawnFor(town);
-                SpawnGenerics(town, owner.Catalog.Generics, owner.Config.Mode, owner.Config.MaxGenericPerTown);
+                // Loaded inside a dungeon or building: the towns outside are switched off and their navigation is
+                // not linked yet, so their generics wait until the player steps out.
+                if (town.gameObject.activeInHierarchy)
+                    SpawnGenerics(town, owner.Catalog.Generics, owner.Config.Mode, owner.Config.MaxGenericPerTown);
+                else
+                    owner.StartCoroutine(SpawnGenericsNextFrame(town));
             }
         }
 
@@ -142,10 +147,20 @@ namespace AdvancedNPCs
 
         // A town built in one go raises the event in the frame it was created, before CityNavigation.Start has
         // linked the grid to its location (placing a person then throws). One frame later both are ready.
+        // A town that is switched off (the player is inside) starts only once it is active again: wait for that,
+        // however long, then give CityNavigation.Start its frame.
         IEnumerator SpawnGenericsNextFrame(DaggerfallLocation location)
         {
             yield return null;
-            if (location == null || !location.gameObject.activeSelf)
+            bool waited = false;
+            while (location != null && location.gameObject.activeSelf && !location.gameObject.activeInHierarchy)
+            {
+                waited = true;
+                yield return null;
+            }
+            if (waited)
+                yield return null;
+            if (location == null || !location.gameObject.activeInHierarchy)
                 yield break;
             SpawnGenerics(location, owner.Catalog.Generics, owner.Config.Mode, owner.Config.MaxGenericPerTown);
         }

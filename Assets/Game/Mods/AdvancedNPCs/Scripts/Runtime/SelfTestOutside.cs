@@ -198,6 +198,11 @@ namespace AdvancedNPCs
                 for (int i = 0; i < 180 && pee.IsPlayerInsideDungeon; i++)
                     yield return null;
                 yield return new WaitForSecondsRealtime(1f);
+                // The load happened inside, while the town above was switched off: its people come once you step out.
+                DaggerfallLocation outside = gm.StreamingWorld.CurrentPlayerLocationObject;
+                int townPeople = outside == null ? 0 : outside.GetComponentsInChildren<NpcBrain>().Length;
+                Check("after loading a save inside a dungeon, the town outside has its people when you leave", townPeople > 0,
+                    (outside != null ? outside.Summary.LocationName : "no town") + ": " + townPeople);
                 pee.StartDungeonInterior(dungeonLocation);
                 for (int i = 0; i < 120 && !pee.IsPlayerInsideDungeon; i++)
                     yield return null;
