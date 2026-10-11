@@ -1,6 +1,6 @@
 {
     "ModTitle": "Advanced NPCs",
-    "ModVersion": "0.7.0",
+    "ModVersion": "0.8.0",
     "ModAuthor": "GoatBoy-11",
     "ContactInfo": "https://github.com/GoatBoy-11/daggerfall-unity",
     "DFUnity_Version": "1.9.2",
@@ -25,6 +25,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/Enemies.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/FieldReader.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/GenericSpawn.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/CombatRules.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HealthRules.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HostilityRules.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/HumanClasses.cs",
@@ -57,6 +58,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/IndoorSpawner.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/TopicInjector.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcBrain.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcCombat.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcCorpseSprite.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcCrime.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcMover.cs",

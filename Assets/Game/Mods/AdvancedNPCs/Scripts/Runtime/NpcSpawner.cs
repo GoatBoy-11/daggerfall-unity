@@ -320,6 +320,9 @@ namespace AdvancedNPCs
             if (behaviour != null && behaviour.Entity != null)
                 behaviour.Entity.Team = MobileTeams.CityWatch;
 
+            // Optional "combat" tuning: before the brain restores the saved health fraction against max health.
+            NpcCombat.Apply(go, def, instance.Key);
+
             go.AddComponent<NpcMover>();
             NpcBrain brain = go.AddComponent<NpcBrain>();
             brain.Init(instance, state);

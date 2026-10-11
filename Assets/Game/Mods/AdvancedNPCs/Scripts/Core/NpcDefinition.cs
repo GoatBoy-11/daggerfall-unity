@@ -57,6 +57,13 @@ namespace AdvancedNPCs.Core
         public float WanderRadius;
         /// <summary>Optional spellcasting override; null keeps vanilla class behaviour.</summary>
         public NpcMagicDefinition Magic;
+        /// <summary>"combat": multiplier on DFU's rolled max health (1 = unchanged).</summary>
+        public float HealthScale = 1f;
+        /// <summary>"combat": multiplier on a creature's melee damage ranges (1 = unchanged).</summary>
+        public float DamageScale = 1f;
+        /// <summary>"combat": melee attack rate; 1.3 waits 1/1.3 as long between swings (1 = unchanged).</summary>
+        public float AttackSpeed = 1f;
+        public bool HasCombatTuning { get { return HealthScale != 1f || DamageScale != 1f || AttackSpeed != 1f; } }
         /// <summary>Dialogue type ids (files in _Dialogue), in the order given in npc.json.</summary>
         public readonly List<string> Dialogue = new List<string>();
         /// <summary>The folder's own dialogue.json, or null.</summary>

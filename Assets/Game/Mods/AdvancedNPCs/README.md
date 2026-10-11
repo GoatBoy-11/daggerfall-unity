@@ -59,6 +59,7 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 | `calmDownHours` | no | `[6, 48]` | `[min, max]` in-game hours before a hostile ANPC forgives the player |
 | `crimeOnAttack` | no | `true` | `true`: attacking is assault, killing is murder |
 | `wanderRadius` | no | `8` | metres around the spawn point; `0` stands still |
+| `combat` | no | vanilla | `{ "health": 0.7, "damage": 0.7, "attackSpeed": 1.3 }` multipliers, see [Combat tuning](#combat-tuning) |
 | `dialogue` | no | none | dialogue type(s) from `_Dialogue/`, e.g. `"tavern_wench"` or `["gossip", "tavern_wench"]`, see [Dialogue topics](#dialogue-topics) |
 
 
@@ -152,6 +153,23 @@ enemies. Bravery still applies (a Coward enemy runs).
   switch is saved with your game. Other mods can do the same with `AdvancedNpcsMod.Instance.SetHostile(key, true)`
   or the mod message `"SetHostile"` with data `"<key>|on"` / `"<key>|off"`.
 - Enemies spawn where any ANPC spawns: unique ones at their place, generic ones in towns, and with `anpc_spawn`.
+
+### Combat tuning
+
+`"combat"` (unique or generic, optional) scales DFU's own numbers for this ANPC; every value is a multiplier and
+1 (or leaving it out) keeps the vanilla value:
+
+```json
+"combat": { "health": 0.7, "damage": 0.7, "attackSpeed": 1.3 }
+```
+
+- `health` (0.05–10): max health is rolled by DFU as usual, then multiplied (at least 1).
+- `damage` (0.05–10): a creature's melee damage ranges, e.g. an Orc's 1–6 becomes 1–4 at 0.7. Creature
+  `baseClass` only: human classes take their damage from weapons.
+- `attackSpeed` (0.25–4): how often it swings. DFU waits 1.5–3 s (adjusted by your level and the reflexes
+  setting) after each melee attack; 1.3 waits 1/1.3 as long.
+
+`Player.log` shows the result when it spawns, e.g. `orc_weakling@1276329198#0: combat health 24->17, damage 1-6->1-4, attack speed x1.3.`
 
 
 ## Spellcasting
