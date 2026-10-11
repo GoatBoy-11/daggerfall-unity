@@ -24,6 +24,9 @@ its spot. Existing behaviour of ANPCs without these sheets is unchanged except c
   calm and on the same side (neither hostile nor an enemy, neither fighting nor fleeing).
 - Run speed: **1.2 × the ANPC's own walk speed** by default; npc.json `"combat": { "runSpeed": x }` overrides it
   per ANPC, x from 1 to 2.
+- Can run: npc.json `"combat": { "canRun": false }` turns running off for one ANPC: it chases and flees at its
+  walk speed and shows walk sheets. Default `true` (leaving it out lets the ANPC run). (User asked for a "can_run"
+  setting; camelCase inside `combat` matches the other keys.)
 - Greeting: within about 4 m and in sight, a **25 % chance per encounter**; the ANPC stops wandering, turns to face
   the target, plays `greet` once, then carries on; it will not greet the same target again for **2 game hours**.
   The other party may greet back on its own roll.
@@ -50,16 +53,20 @@ its spot. Existing behaviour of ANPCs without these sheets is unchanged except c
 
 ## 2. Gait rules (Core, pure: `GaitRules`)
 
-- `Decide(mode, targetInSight, distance, wasRunning, turret) → Gait`:
+- `Decide(mode, targetInSight, distance, wasRunning, turret, canRun) → Gait`:
   - turret → `Still` (the sprite shows idle, attack, cast, hit as usual).
+  - `canRun` false → never `Run`; every case below that would run gives `Walk` instead.
   - Fighting: `Run` when the target is in sight and `distance > RunStart (6 m)`; keeps running until
     `distance < RunStop (4 m)` or the target is out of sight (hysteresis so it does not flicker); otherwise
     `Walk`, and the sprite still shows idle when the measured speed says it stands (as today).
   - Fleeing: `Run` while it moves away; `Still` when cowering.
   - Calm: `Walk` while wandering, `Still` otherwise (unchanged).
 - `RunSpeed(walkSpeed, runSpeed)` = walkSpeed × runSpeed.
+- `RunSpeed(walkSpeed, runSpeed, canRun)` = walkSpeed when `canRun` is false.
 - `"combat.runSpeed"` parsed by `CombatRules.Read`: number, 1–2, default 1.2; anything else is a load problem
   with key `combat.runSpeed`.
+- `"combat.canRun"`: true or false, default true; anything else is a load problem with key `combat.canRun`.
+  `runSpeed` with `canRun: false` is allowed (ignored).
 
 ## 3. Movement (Runtime)
 
@@ -79,7 +86,7 @@ New component `NpcGait` on every ANPC (added by the spawner next to `NpcMover`):
 
 Brain changes (`NpcBrain`):
 
-- Fleeing uses run speed (`GaitRules.RunSpeed(walk speed, runSpeed)`) instead of the fixed `NpcMover.RunSpeed`
+- Fleeing uses run speed (`GaitRules.RunSpeed(walk speed, runSpeed, canRun)`, so walk speed when it cannot run) instead of the fixed `NpcMover.RunSpeed`
   (5 m/s). A turret never flees: it cowers (stops) in place, as a fleeing ANPC does when safe.
 - Calm wandering is skipped for turrets (same as `wanderRadius` 0).
 
@@ -112,22 +119,23 @@ New component `NpcGreeter` on every ANPC whose sprite set has a `greet*` sheet (
 
 ## 6. Data and docs
 
-- npc.json: `"combat": { "runSpeed": 1.2 }` (new key). Unknown-key message lists it. Not a stat change:
-  `HasCombatTuning` stays false for it alone.
+- npc.json: `"combat": { "runSpeed": 1.2, "canRun": true }` (new keys). Unknown-key message lists them. Not stat
+  changes: `HasCombatTuning` stays false for them alone.
 - sprites.json: no change; `run*` and `greet*` sheets just load now. `actionFrame` stays attack-only.
-- README: sheet list (`run*`, `greet*`, fallbacks, turret rule), combat section (`runSpeed`), behaviour notes
+- README: sheet list (`run*`, `greet*`, fallbacks, turret rule), combat section (`runSpeed`, `canRun`), behaviour notes
   (chase run 6 m/4 m, flee runs, greetings, turrets). Mod version 0.11.0.
 
 ## 7. Testing
 
 - Core unit tests: `StateOf` for run/greet; fallbacks (run→walk→idle, walk→run, greet none); `IsStationary`;
   `GaitRules.Decide` table (fight far/near/hysteresis/out of sight, flee, calm, turret); `RunSpeed`;
-  `combat.runSpeed` parse (default, range, type); `GreetRules` (distance, sight, each opinion case, cooldown,
+  `canRun` false never runs; `combat.runSpeed` and `combat.canRun` parse (default, range, type); `GreetRules` (distance, sight, each opinion case, cooldown,
   once per encounter, chance with a seeded random).
 - In-game self-test (`anpc_selftest`):
   - a hostile ANPC with run sheets far from the player shows gait Run and the run sheet, and moves faster than
     its walk speed (measured over 1 s); near the player it is not running;
   - a fleeing ANPC runs at run speed;
+  - an ANPC with `canRun: false` far from the player keeps gait Walk and its walk speed;
   - a turret (idle + attack only) does not move while hostile, yet faces and attacks;
   - a calm ANPC with a greet sheet, reaction forced to `likes`, chance forced to 1, greets the player when
     placed within 4 m, faces the player, and does not greet again within the cooldown; a `dislikes` reaction
