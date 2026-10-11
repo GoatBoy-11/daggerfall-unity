@@ -204,6 +204,8 @@ namespace AdvancedNPCs
                 return Races.DarkElf;
             if (race == "Khajiit")
                 return Races.Khajiit;
+            if (race == "Argonian")
+                return Races.Argonian;
             return Races.Breton;
         }
     }

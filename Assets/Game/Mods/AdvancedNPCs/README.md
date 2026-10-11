@@ -48,7 +48,7 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 | `name` | yes | — | any text |
 | `location` | yes | — | from `anpc_pos` |
 | `position` | yes | — | from `anpc_pos` (relative to the town's origin corner) |
-| `race` | no | the region's people | `Breton`, `Redguard`, `Nord`, `DarkElf` (or `Dunmer`), `Khajiit` |
+| `race` | no | the region's people | `Breton`, `Redguard`, `Nord`, `DarkElf` (or `Dunmer`), `Khajiit`, `Argonian` |
 | `portrait` | no | vanilla face | portrait name, see [Portraits](#portraits) |
 | `baseClass` | no | `Spellsword` | Mage, Spellsword, Battlemage, Sorcerer, Healer, Nightblade, Bard, Burglar, Rogue, Acrobat, Thief, Assassin, Monk, Archer, Ranger, Barbarian, Warrior, Knight; for enemies also a creature, see [Enemies](#enemies) |
 | `attitude` | no | `calm` | `calm` (townsfolk) or `hostile` (an enemy), see [Enemies](#enemies) |
@@ -464,7 +464,7 @@ complete dialogue type; add `"dialogue": "tavern_wench"` to any ANPC to try it. 
 strongholds, prisons, barbarian strongholds and ruined castles, and the wilderness at night) and `patron` (calm;
 taverns) show spawning outside towns. `dunmer_spellblade` is a manual-spawn Dunmer Spellsword with eight-direction sprites, a casting sheet, a custom portrait, and the shared `dunmer_morrowind` namelist. Use `anpc_spawn dunmer_spellblade` to try him. `dunmer_mercenary` uses the iron-armoured model and axe, Fireball, Wizard's Fire and Resist Fire, with 80 magicka. Spawn him with `anpc_spawn dunmer_mercenary`.
 
-Five fully animated characters with their own weapons (14 sheets each, hit/death/cast effects, custom portraits):
+Six fully animated characters (14 sheets each, hit/death/cast effects, custom portraits):
 
 - `iron_sentinel`: hostile Breton knight with a two-handed claymore. Dungeons only (ruined castles, human strongholds, prisons).
 - `orc_weakling`: a lower-tier orc with a crude club, on the `Orc` creature, made weaker and quicker with `"combat"`
@@ -475,6 +475,8 @@ Five fully animated characters with their own weapons (14 sheets each, hit/death
   head, so his `sprites.json` carries `"standingHeight"`. One or two per town.
 - `ohmes_knight_1`: a calm Khajiit knight-errant with a longsword, in cities, taverns and Knightly Order halls and
   rarely on the road by day. His tail is rigged and animated; `sprites.json` carries `"standingHeight"`.
+- `argonian_female_acrobat_1`: a calm Argonian acrobat who fights barehanded (karate chop and front kick), with a
+  rigged tail; towns and sometimes taverns. Uses `"race": "Argonian"`.
 
 ## Building (developers)
 

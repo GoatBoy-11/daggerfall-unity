@@ -44,11 +44,25 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual("Nord", r.Definition.Race);
         }
 
+        [TestCase("Argonian")]
+        [TestCase(" argonian ")]
+        public void ArgonianRace_IsCanonicalForUniqueAndGeneric(string race)
+        {
+            string field = "\"race\": \"" + race + "\"";
+            ParseResult unique = DefinitionParser.ParseFolder("argonian", With(field));
+            ParseResult generic = DefinitionParser.ParseFolder("argonian", "{\"kind\":\"generic\"," + field + "}");
+            Assert.IsTrue(unique.Ok, unique.Error);
+            Assert.IsTrue(generic.Ok, generic.Error);
+            Assert.AreEqual("Argonian", unique.Definition.Race);
+            Assert.AreEqual("Argonian", generic.Definition.Race);
+            Assert.AreEqual(0, generic.Warnings.Count);
+        }
+
         [Test]
         public void BadRace_IsRejected()
         {
             ParseResult r = DefinitionParser.ParseFolder("bram", With("\"race\": \"Daedra\""));
-            Assert.AreEqual("bram/npc.json: race: must be Breton, Redguard, Nord, DarkElf (Dunmer) or Khajiit (got \"Daedra\")", r.Error);
+            Assert.AreEqual("bram/npc.json: race: must be Breton, Redguard, Nord, DarkElf (Dunmer), Khajiit or Argonian (got \"Daedra\")", r.Error);
         }
 
         [TestCase("Khajiit")]

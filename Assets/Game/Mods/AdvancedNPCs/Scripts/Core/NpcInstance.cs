@@ -11,7 +11,7 @@ namespace AdvancedNPCs.Core
         public string Name;
         /// <summary>"Male" or "Female".</summary>
         public string Gender;
-        /// <summary>"Breton", "Redguard", "Nord", "DarkElf" or "Khajiit".</summary>
+        /// <summary>"Breton", "Redguard", "Nord", "DarkElf", "Khajiit" or "Argonian".</summary>
         public string Race;
         /// <summary>Normalised portrait name, or null for a vanilla face.</summary>
         public string PortraitName;

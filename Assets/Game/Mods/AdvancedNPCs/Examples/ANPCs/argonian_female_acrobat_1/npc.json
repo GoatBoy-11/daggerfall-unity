@@ -1,0 +1,24 @@
+{
+  "kind": "generic",
+  "race": "Argonian",
+  "gender": "Female",
+  "baseClass": "Acrobat",
+  "bravery": "Brave",
+  "wanderRadius": 8,
+  "portrait": "argonian_female_acrobat_1",
+  "nameList": "argonian",
+  "spawn": {
+    "locationTypes": ["TownCity", "TownHamlet", "TownVillage"],
+    "count": [0, 1],
+    "interiors": {
+      "buildings": ["Tavern"],
+      "chance": 10,
+      "count": [1, 1]
+    }
+  },
+  "magic": {
+    "spells": [],
+    "usesMagicka": true,
+    "maxMagicka": 0
+  }
+}
