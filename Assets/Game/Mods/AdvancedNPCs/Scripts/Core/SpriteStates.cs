@@ -8,14 +8,17 @@ namespace AdvancedNPCs.Core
     {
         public const string Idle = "idle";
         public const string Walk = "walk";
+        public const string Run = "run";
         public const string Hit = "hit";
         public const string Attack = "attack";
         /// <summary>Bow shots ("rangedAtDistance" in npc.json); melee swings never use these sheets.</summary>
         public const string RangedAttack = "attack_range";
         public const string Cast = "cast";
         public const string Death = "death";
+        /// <summary>Greeting someone it likes (NpcGreeter); never a fallback for anything.</summary>
+        public const string Greet = "greet";
 
-        static readonly string[] All = { Idle, Walk, Hit, Attack, RangedAttack, Cast, Death };
+        static readonly string[] All = { Idle, Walk, Run, Hit, Attack, RangedAttack, Cast, Death, Greet };
 
         /// <summary>The state of a sheet name ("walk" or "walk_&lt;number&gt;", any case), or null.</summary>
         public static string StateOf(string sheetName)
@@ -35,16 +38,24 @@ namespace AdvancedNPCs.Core
 
         /// <summary>
         /// Sheets for a state, sorted by name; cast falls back to attack sheets only (none: the spell plays no animation);
-        /// attack_range falls back to attack, then idle; walk, hit and attack fall back to idle; death has no fallback.
+        /// attack_range falls back to attack, then idle; run falls back to walk and walk to run, then idle; hit and
+        /// attack fall back to idle; death and greet have no fallback.
         /// </summary>
         public static List<SpriteAnimation> Variants(SpriteSet set, string state)
         {
             List<SpriteAnimation> found = Own(set, state);
-            if (found.Count == 0 && state == Cast)
+            if (found.Count > 0)
+                return found;
+            if (state == Cast)
                 return Own(set, Attack);
-            if (found.Count == 0 && state == RangedAttack)
+            if (state == RangedAttack)
                 return Variants(set, Attack);
-            if (found.Count == 0 && (state == Walk || state == Hit || state == Attack))
+            if (state == Run || state == Walk)
+            {
+                List<SpriteAnimation> other = Own(set, state == Run ? Walk : Run);
+                return other.Count > 0 ? other : Own(set, Idle);
+            }
+            if (state == Hit || state == Attack)
                 return Variants(set, Idle);
             return found;
         }
@@ -66,6 +77,12 @@ namespace AdvancedNPCs.Core
         {
             string s = StateOf(sheetName);
             return s == Attack || s == RangedAttack;
+        }
+
+        /// <summary>A set with no walk* and no run* sheet: its person never moves (a turret).</summary>
+        public static bool IsStationary(SpriteSet set)
+        {
+            return Own(set, Walk).Count == 0 && Own(set, Run).Count == 0;
         }
 
         /// <summary>A set can only be drawn if it has an idle sheet.</summary>

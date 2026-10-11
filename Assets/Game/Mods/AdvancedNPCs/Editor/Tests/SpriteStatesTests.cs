@@ -42,6 +42,12 @@ namespace AdvancedNPCs.Tests
         [TestCase("Attack_Range_12", "attack_range")]
         [TestCase("attack_range_x", null)]
         [TestCase("attack_ranged_1", null)]
+        [TestCase("run", "run")]
+        [TestCase("Run_2", "run")]
+        [TestCase("greet", "greet")]
+        [TestCase("greet_1", "greet")]
+        [TestCase("talk_1", null)]
+        [TestCase("pray_1", null)]
         [TestCase("idle_x", null)]
         [TestCase("death_static", null)]
         [TestCase("deathstatic", null)]
@@ -108,6 +114,36 @@ namespace AdvancedNPCs.Tests
             SpriteDirections.RowDirection(2, 0f, 1f, out rx, out rz);
             Assert.AreEqual(1f, rx, 1e-5);
             Assert.AreEqual(0f, rz, 1e-5);
+        }
+
+        [Test]
+        public void Run_FallsBackToWalkThenIdle()
+        {
+            CollectionAssert.AreEqual(new[] { "run" }, Names(SpriteStates.Variants(Set("idle_1", "walk", "run"), SpriteStates.Run)));
+            CollectionAssert.AreEqual(new[] { "walk" }, Names(SpriteStates.Variants(Set("idle_1", "walk"), SpriteStates.Run)));
+            CollectionAssert.AreEqual(new[] { "idle_1" }, Names(SpriteStates.Variants(Set("idle_1"), SpriteStates.Run)));
+        }
+
+        [Test]
+        public void Walk_FallsBackToRun()
+        {
+            CollectionAssert.AreEqual(new[] { "run" }, Names(SpriteStates.Variants(Set("idle_1", "run"), SpriteStates.Walk)));
+            CollectionAssert.AreEqual(new[] { "walk" }, Names(SpriteStates.Variants(Set("idle_1", "walk", "run"), SpriteStates.Walk)));
+        }
+
+        [Test]
+        public void Greet_HasNoFallback()
+        {
+            Assert.AreEqual(0, SpriteStates.Variants(Set("idle_1", "walk", "attack_1"), SpriteStates.Greet).Count);
+            CollectionAssert.AreEqual(new[] { "greet_1" }, Names(SpriteStates.Variants(Set("idle_1", "greet_1"), SpriteStates.Greet)));
+        }
+
+        [Test]
+        public void IsStationary_WhenNoWalkAndNoRun()
+        {
+            Assert.IsTrue(SpriteStates.IsStationary(Set("idle_1", "attack_1", "death_1")));
+            Assert.IsFalse(SpriteStates.IsStationary(Set("idle_1", "walk")));
+            Assert.IsFalse(SpriteStates.IsStationary(Set("idle_1", "run")));
         }
 
         [Test]
