@@ -58,11 +58,11 @@
       "frames": 6
     },
     "run": {
-      "cellWidth": 240,
+      "cellWidth": 232,
       "frames": 8
     },
     "talk_1": {
-      "cellWidth": 168,
+      "cellWidth": 216,
       "frames": 6
     },
     "talk_2": {
