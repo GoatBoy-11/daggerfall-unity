@@ -809,6 +809,10 @@ namespace AdvancedNPCs
             mod.Portraits.Remove("selftest_face_3");
             yield return Settle;
 
+            IEnumerator gait = GaitSteps(location, playerTransform);
+            while (gait.MoveNext())
+                yield return gait.Current;
+
             IEnumerator magic = MagicSteps(location, playerTransform);
             while (magic.MoveNext())
                 yield return magic.Current;
@@ -1125,24 +1129,28 @@ namespace AdvancedNPCs
         /// <summary>A tiny generated sprite set: idle and hit (3 frames), walk and death (2 frames), attack (8 frames, blow on the 6th), 16x32 cells, feet 4 px up.</summary>
         static LoadedSpriteSet TestSpriteSet(bool withDeathStatic)
         {
+            return TestSpriteSet(withDeathStatic, "idle", "walk", "death", "hit", "attack");
+        }
+
+        /// <summary>A small solid-colour sprite set with the named sheets (an attack sheet gets action frame 6 of 8).</summary>
+        static LoadedSpriteSet TestSpriteSet(bool withDeathStatic, params string[] names)
+        {
             SpriteSet set = new SpriteSet();
             set.PixelsPerUnit = 10f;
             set.CellHeight = 32;
             set.GroundY = 4;
             set.Fps = 8;
             Dictionary<string, Texture2D> sheets = new Dictionary<string, Texture2D>();
-            string[] names = { "idle", "walk", "death", "hit", "attack" };
-            int[] frames = { 3, 2, 2, 3, 8 };
             for (int i = 0; i < names.Length; i++)
             {
                 SpriteAnimation a = new SpriteAnimation();
                 a.Name = names[i];
                 a.CellWidth = 16;
-                a.Frames = frames[i];
+                a.Frames = names[i] == "attack" ? 8 : names[i] == "idle" || names[i] == "hit" ? 3 : 2;
                 if (a.Name == "attack")
                     a.ActionFrame = 5;
                 set.Animations[a.Name] = a;
-                sheets[a.Name] = SolidTexture(16 * frames[i], 32 * 8, new Color32((byte)(80 * i), 120, 200, 255));
+                sheets[a.Name] = SolidTexture(16 * a.Frames, 32 * 8, new Color32((byte)(40 * i), 120, 200, 255));
             }
             Texture2D deathStatic = withDeathStatic ? SolidTexture(24, 12, new Color32(160, 0, 0, 255)) : null;
             return SpriteLibrary.FromTextures("selftest", set, sheets, deathStatic);

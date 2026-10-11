@@ -27,6 +27,7 @@ namespace AdvancedNPCs
         DaggerfallEntityBehaviour entityBehaviour;
         GameObject quad;
         MeshRenderer quadRenderer;
+        NpcGait gait;
         Material material;
 
         string state;
@@ -215,6 +216,8 @@ namespace AdvancedNPCs
             vanilla = mobile != null ? mobile.GetComponent<MeshRenderer>() : null;
             controller = GetComponent<CharacterController>();
             entityBehaviour = GetComponent<DaggerfallEntityBehaviour>();
+            if (gait == null)
+                gait = GetComponent<NpcGait>();
 
             quad = CreateQuad(transform, "AnpcSprite");
             quadRenderer = quad.GetComponent<MeshRenderer>();
@@ -321,6 +324,12 @@ namespace AdvancedNPCs
                 StartAttack(MobileStates.Spell);
         }
 
+        /// <summary>The gait that chooses run, walk or idle (the spawner sets it before Init).</summary>
+        public void UseGait(NpcGait source)
+        {
+            gait = source;
+        }
+
         /// <summary>A cast* or attack* sheet exists; without one a spell plays no animation.</summary>
         bool HasCastSheet
         {
@@ -398,7 +407,9 @@ namespace AdvancedNPCs
                 return SpriteStates.Attack;
             if (IsRanged(s))
                 return SpriteStates.RangedAttack;
-            return speed > WalkSpeed ? SpriteStates.Walk : SpriteStates.Idle;
+            if (speed <= WalkSpeed)
+                return SpriteStates.Idle;       // standing, or turning on the spot
+            return gait != null && gait.Current == Gait.Run ? SpriteStates.Run : SpriteStates.Walk;
         }
 
         static bool IsRanged(MobileStates s)
@@ -457,7 +468,7 @@ namespace AdvancedNPCs
                 row = SpriteDirections.Row(toCamera.x, toCamera.z, fwd.x, fwd.z);
             }
 
-            bool loop = state == SpriteStates.Idle || state == SpriteStates.Walk;
+            bool loop = state == SpriteStates.Idle || state == SpriteStates.Walk || state == SpriteStates.Run;
             int f = (int)(time * set.Set.Fps);
             f = loop ? f % anim.Frames : Mathf.Min(f, anim.Frames - 1);
             if (f != frame)

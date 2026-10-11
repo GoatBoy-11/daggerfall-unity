@@ -50,6 +50,8 @@ namespace AdvancedNPCs
         bool provoked;          // the player hit it while it was an enemy
         float wanderPause;
         float calmCheckTimer;
+        float holdStill;        // seconds the calm NPC stands still (greeting)
+        NpcGait gait;
         System.Random rng;
 
         /// <summary>The spawned copy of an NPC, or null.</summary>
@@ -189,6 +191,22 @@ namespace AdvancedNPCs
             get { return instance; }
         }
 
+        public NpcDefinition Definition
+        {
+            get { return def; }
+        }
+
+        /// <summary>Stops calm wandering for a while (greetings). Fighting and fleeing are not affected.</summary>
+        public void HoldStill(float seconds)
+        {
+            holdStill = Mathf.Max(holdStill, seconds);
+        }
+
+        bool IsTurret
+        {
+            get { return gait != null && gait.IsTurret; }
+        }
+
         /// <summary>Health as a fraction of max (the saved fraction before the ANPC has started).</summary>
         public float CurrentHealthFraction
         {
@@ -223,6 +241,9 @@ namespace AdvancedNPCs
             controller.enabled = wasEnabled;
             homeLocal = transform.localPosition;
             hasWanderTarget = false;
+            NpcGait g = GetComponent<NpcGait>();
+            if (g != null)
+                g.Repin();
         }
 
         public static void DespawnAll()
@@ -252,6 +273,7 @@ namespace AdvancedNPCs
             senses = GetComponent<EnemySenses>();
             attack = GetComponent<EnemyAttack>();
             mover = GetComponent<NpcMover>();
+            gait = GetComponent<NpcGait>();
             homeLocal = transform.localPosition;
 
             // No language pacification roll: it would turn a player's attack back off before Update sees it.
@@ -403,6 +425,12 @@ namespace AdvancedNPCs
 
         void UpdateCalm()
         {
+            if (holdStill > 0f || IsTurret)
+            {
+                holdStill = Mathf.Max(0f, holdStill - Time.deltaTime);
+                mover.Stop();
+                return;
+            }
             float wanderRadius = Mathf.Min(def.WanderRadius, WanderCap);
             if (wanderRadius <= 0f)
             {
@@ -455,10 +483,10 @@ namespace AdvancedNPCs
                 return;
             }
             float distance = Vector3.Distance(transform.position, threat.transform.position);
-            if (distance >= SafeDistance && !CanSee(threat))
-                mover.Stop(); // cower
+            if (IsTurret || (distance >= SafeDistance && !CanSee(threat)))
+                mover.Stop(); // cower (a turret never leaves its spot)
             else
-                mover.MoveAway(threat.transform.position, NpcMover.RunSpeed);
+                mover.MoveAway(threat.transform.position, gait != null ? gait.RunSpeed : NpcMover.RunSpeed);
         }
 
         bool ThreatGone()
@@ -482,7 +510,8 @@ namespace AdvancedNPCs
             }
         }
 
-        bool CanSee(DaggerfallEntityBehaviour other)
+        /// <summary>A clear line between this NPC and another entity (half a metre above their origins).</summary>
+        public bool CanSee(DaggerfallEntityBehaviour other)
         {
             Vector3 from = transform.position + Vector3.up * 0.5f;
             Vector3 to = other.transform.position + Vector3.up * 0.5f;
