@@ -14,6 +14,8 @@ namespace AdvancedNPCs
         public List<PlacedNpc> Placed = new List<PlacedNpc>();
         /// <summary>Dialogue flags set by topics (missing in older saves).</summary>
         public List<string> Flags = new List<string>();
+        /// <summary>SaveFormat of the data; 0 in saves from before it existed.</summary>
+        public int Version;
         public string MagicArea = "";
         public long MagicVisit;
     }
@@ -47,6 +49,7 @@ namespace AdvancedNPCs
         public object GetSaveData()
         {
             NpcSaveData data = new NpcSaveData();
+            data.Version = SaveFormat.Current;
             foreach (NpcBrain brain in NpcBrain.All())
             {
                 NpcMagic magic = brain.GetComponent<NpcMagic>();
@@ -63,6 +66,9 @@ namespace AdvancedNPCs
         public void RestoreSaveData(object saveData)
         {
             NpcSaveData data = saveData as NpcSaveData;
+            string formatProblem = data != null ? SaveFormat.Check(data.Version) : null;
+            if (formatProblem != null)
+                AdvancedNpcsMod.LogError(formatProblem);
             AdvancedNpcsMod.Instance.MagicWorld.Area = data != null ? data.MagicArea : "";
             AdvancedNpcsMod.Instance.MagicWorld.Visit = data != null ? data.MagicVisit : 0;
             table.Restore(data != null ? data.States : null);

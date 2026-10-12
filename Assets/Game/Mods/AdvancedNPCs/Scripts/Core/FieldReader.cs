@@ -122,13 +122,16 @@ namespace AdvancedNPCs.Core
             return null;
         }
 
-        /// <summary>Keys of o that are not in known, sorted.</summary>
+        /// <summary>The JSON Schema link an editor reads (spec tools-quality §A2); allowed in every object.</summary>
+        public const string SchemaKey = "$schema";
+
+        /// <summary>Keys of o that are not in known (or "$schema"), sorted.</summary>
         public static List<string> UnknownKeys(Dictionary<string, object> o, ICollection<string> known)
         {
             List<string> unknown = new List<string>();
             foreach (string key in o.Keys)
             {
-                if (!known.Contains(key))
+                if (key != SchemaKey && !known.Contains(key))
                     unknown.Add(key);
             }
             unknown.Sort(StringComparer.Ordinal);

@@ -210,8 +210,9 @@ namespace AdvancedNPCs
             if (state == null || delta == 0)
                 return;
             ulong now = Now();
-            state.opinion = OpinionRules.Change(state.opinion, state.opinionAt, now, delta);
-            state.opinionAt = now;
+            int next = OpinionRules.Change(state.opinion, state.opinionAt, now, delta);
+            state.opinionAt = OpinionRules.ChangedAt(state.opinion, state.opinionAt, now);
+            state.opinion = next;
         }
 
         /// <summary>Calm ANPCs (not enemies) within 15 m who can see the spot think less of the player.</summary>

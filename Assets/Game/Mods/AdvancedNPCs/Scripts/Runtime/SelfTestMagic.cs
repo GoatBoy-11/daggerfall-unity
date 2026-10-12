@@ -79,14 +79,17 @@ namespace AdvancedNPCs
             NpcDefinition attacker = TestDefinition("selftest_magic_ai", Bravery.Brave, location, player, 2f);
             attacker.Magic = new NpcMagicDefinition { UsesMagicka = false, CooldownMin = 4, CooldownMax = 4 };
             attacker.Magic.Spells.Add("Fireball");
+            DiscardTestPeople();     // a leftover test ANPC would be its target instead of the player
             NpcBrain ai = spawner.SpawnTest(NpcInstance.ForUnique(attacker, "Breton"), location.transform);
             yield return Settle;
+            Vector3 aiLine = OpenDirection(player, 12f);
+            ai.Teleport(player.position + aiLine * 8f);
             FaceToward(ai, GameManager.Instance.PlayerObject.transform.position);
             ai.SwitchHostile(true);
             NpcMagic caster = ai.GetComponent<NpcMagic>();
             float until = Time.time + 10;
             while (caster.CastCount == 0 && Time.time < until) yield return null;
-            Check("magic AI casts offensive spell", caster.CastCount > 0, ai.Status);
+            Check("magic AI casts offensive spell", caster.CastCount > 0, ai.Status + SensesNote(ai));
             int count = caster.CastCount;
             yield return new WaitForSeconds(2);
             Check("magic AI respects shared cooldown", caster.CastCount == count, "casts=" + caster.CastCount);
@@ -167,8 +170,11 @@ namespace AdvancedNPCs
             NpcDefinition d = TestDefinition("selftest_magic_edge", Bravery.Brave, location, playerObject.transform, 0f);
             d.Magic = new NpcMagicDefinition { UsesMagicka = true, MaxMagicka = 150, CooldownMin = 4, CooldownMax = 4 };
             d.Magic.Spells.Add("Fireball");
+            DiscardTestPeople();
             NpcBrain b = spawner.SpawnTest(NpcInstance.ForUnique(d, "Breton"), location.transform);
             yield return Settle;
+            Vector3 edgeLine = OpenDirection(playerObject.transform, 12f);
+            b.Teleport(playerObject.transform.position + edgeLine * 8f);
             NpcMagic magic = b.GetComponent<NpcMagic>();
             try
             {
@@ -180,7 +186,7 @@ namespace AdvancedNPCs
             catch (System.Exception e) { Fail("magic town edge setup", e.Message); }
             float until = Time.time + 10;
             while (magic != null && magic.CastCount == 0 && Time.time < until) yield return null;
-            Check("magic town caster keeps casting past the town edge", magic != null && magic.CastCount > 0, b.Status);
+            Check("magic town caster keeps casting past the town edge", magic != null && magic.CastCount > 0, b.Status + SensesNote(b));
             Check("magic town caster past the edge spends rather than refills", magic != null && b.EntityBehaviour.Entity.CurrentMagicka < 100,
                 b.Status);
             b.SwitchHostile(false);
@@ -192,6 +198,16 @@ namespace AdvancedNPCs
             world.Refresh();
             Check("magic walking back into town is still the same visit", world.Visit == visit, "visit " + world.Visit + " (was " + visit + ")");
             yield return Settle;
+        }
+
+        /// <summary>What the ANPC's DFU senses see (for failure details).</summary>
+        static string SensesNote(NpcBrain b)
+        {
+            EnemySenses s = b != null ? b.GetComponent<EnemySenses>() : null;
+            if (s == null)
+                return "";
+            return ", target=" + (s.Target == null ? "none" : s.Target == GameManager.Instance.PlayerEntityBehaviour ? "player" : s.Target.name) +
+                   ", sight=" + s.TargetInSight + ", distance=" + s.DistanceToTarget.ToString("0.0");
         }
 
         static void MovePlayer(CharacterController controller, Transform player, Vector3 position)
