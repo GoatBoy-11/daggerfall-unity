@@ -76,6 +76,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SpriteLibrary.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTest.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestGait.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestCombat.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestOutside.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestReplies.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestSprites.cs",

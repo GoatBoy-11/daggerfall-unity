@@ -26,6 +26,7 @@ namespace AdvancedNPCs
             NpcBrain runner = SpawnDefinition(runnerDef, location);
             yield return Settle;
             runner.Teleport(player.position + open * 14f);
+            FaceToward(runner, player.position);     // DFU senses only notice a quiet player in front
             runner.SwitchHostile(true);
             NpcGait runnerGait = runner.GetComponent<NpcGait>();
             NpcSprite runnerSprite = runner.GetComponent<NpcSprite>();
@@ -39,7 +40,10 @@ namespace AdvancedNPCs
             }
             Check("far hostile ANPC runs with its run sheet and a speed boost", sawRun && sawRunSheet && runnerGait.Boosted > 0f,
                 "run=" + sawRun + ", sheet=" + (runnerSprite != null ? runnerSprite.CurrentAnimation : "none") +
-                ", boosted=" + (runnerGait != null ? runnerGait.Boosted : -1f) + ", " + runner.Status);
+                ", boosted=" + (runnerGait != null ? runnerGait.Boosted : -1f) + ", " + runner.Status + ", target=" +
+                (runner.GetComponent<EnemySenses>().Target == playerBehaviour ? "player" : runner.GetComponent<EnemySenses>().Target != null ? runner.GetComponent<EnemySenses>().Target.name : "none") +
+                ", sight=" + runner.GetComponent<EnemySenses>().TargetInSight + ", distance=" + Vector3.Distance(runner.transform.position, player.position) +
+                ", motor=" + runner.Motor.enabled + ", threat=" + (runner.Threat != null ? runner.Threat.name : "none"));
             until = Time.time + 6f;
             string trace = "";
             float nextTrace = 0f;
@@ -69,6 +73,7 @@ namespace AdvancedNPCs
             NpcBrain walker = SpawnDefinition(walkerDef, location);
             yield return Settle;
             walker.Teleport(player.position + open * 14f);
+            FaceToward(walker, player.position);
             walker.SwitchHostile(true);
             NpcGait walkerGait = walker.GetComponent<NpcGait>();
             bool walkerRan = false;
@@ -200,6 +205,15 @@ namespace AdvancedNPCs
             mod.Sprites.Remove("selftest_turret");
             DiscardTestPeople();
             yield return Settle;
+        }
+
+        /// <summary>Turns an ANPC to face a point (flat): DFU's senses only notice a quiet player in front.</summary>
+        static void FaceToward(NpcBrain b, Vector3 target)
+        {
+            Vector3 d = target - b.transform.position;
+            d.y = 0;
+            if (d.sqrMagnitude > 0.01f)
+                b.transform.rotation = Quaternion.LookRotation(d);
         }
 
         /// <summary>Removes every live self-test ANPC (ids starting with "selftest").</summary>

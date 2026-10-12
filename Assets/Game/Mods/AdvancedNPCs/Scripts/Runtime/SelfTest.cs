@@ -827,6 +827,10 @@ namespace AdvancedNPCs
             while (gait.MoveNext())
                 yield return gait.Current;
 
+            IEnumerator combat = CombatSteps(location, playerTransform);
+            while (combat.MoveNext())
+                yield return combat.Current;
+
             IEnumerator magic = MagicSteps(location, playerTransform);
             while (magic.MoveNext())
                 yield return magic.Current;

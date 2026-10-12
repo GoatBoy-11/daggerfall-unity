@@ -81,6 +81,7 @@ namespace AdvancedNPCs
             attacker.Magic.Spells.Add("Fireball");
             NpcBrain ai = spawner.SpawnTest(NpcInstance.ForUnique(attacker, "Breton"), location.transform);
             yield return Settle;
+            FaceToward(ai, GameManager.Instance.PlayerObject.transform.position);
             ai.SwitchHostile(true);
             NpcMagic caster = ai.GetComponent<NpcMagic>();
             float until = Time.time + 10;
@@ -173,6 +174,7 @@ namespace AdvancedNPCs
             {
                 Check("magic town caster past the edge is still in the area", magic != null && world.Contains(magic), b.Status);
                 b.EntityBehaviour.Entity.CurrentMagicka = 100;
+                FaceToward(b, GameManager.Instance.PlayerObject.transform.position);
                 b.SwitchHostile(true);
             }
             catch (System.Exception e) { Fail("magic town edge setup", e.Message); }

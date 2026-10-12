@@ -53,6 +53,8 @@ namespace AdvancedNPCs
         FleeRoll fleeRoll;      // Normal's one flee roll while badly hurt
         float holdStill;        // seconds the calm NPC stands still (greeting)
         NpcGait gait;
+        float patrolTimer;
+        static readonly Collider[] nearby = new Collider[64];
         System.Random rng;
 
         /// <summary>The spawned copy of an NPC, or null.</summary>
@@ -197,6 +199,12 @@ namespace AdvancedNPCs
             get { return def; }
         }
 
+        /// <summary>Whom it fights or flees from (null when calm).</summary>
+        public DaggerfallEntityBehaviour Threat
+        {
+            get { return threat; }
+        }
+
         /// <summary>Stops calm wandering for a while (greetings). Fighting and fleeing are not affected.</summary>
         public void HoldStill(float seconds)
         {
@@ -275,6 +283,7 @@ namespace AdvancedNPCs
             attack = GetComponent<EnemyAttack>();
             mover = GetComponent<NpcMover>();
             gait = GetComponent<NpcGait>();
+            patrolTimer = Random.Range(0f, AggroRules.CheckInterval);
             homeLocal = transform.localPosition;
 
             // No language pacification roll: it would turn a player's attack back off before Update sees it.
@@ -361,7 +370,16 @@ namespace AdvancedNPCs
             switch (mode)
             {
                 case NpcMode.Calm:
+                    if (HostilityRules.AttackedWhileCalm(true, motor.GiveUpTimer > 0, senses.Target != null && senses.Target != player,
+                        senses.Target != null && senses.Target.Entity != null && senses.Target.Entity.CurrentHealth > 0))
+                    {
+                        // Swung at, hit or missed (DFU's MakeEnemyHostileToAttacker): fight back or flee.
+                        OnAttackedByCreature(senses.Target);
+                        break;
+                    }
                     motor.GiveUpTimer = 0;
+                    if (def.Bravery == Bravery.Brave && Patrol())
+                        break;
                     UpdateCalm();
                     break;
                 case NpcMode.Fighting:
@@ -386,6 +404,61 @@ namespace AdvancedNPCs
                 AdvancedNpcsMod.Log(key + ": assaulted by player.");
             }
             EnterCombat();
+        }
+
+        /// <summary>A calm Brave ANPC attacks the nearest foe it sees within aggroRange (spec lazy-sprites §D).</summary>
+        bool Patrol()
+        {
+            patrolTimer -= Time.deltaTime;
+            if (patrolTimer > 0f)
+                return false;
+            patrolTimer = AggroRules.CheckInterval;
+            DaggerfallEntityBehaviour foe = FindFoe(def.AggroRange);
+            if (foe == null)
+                return false;
+            AdvancedNpcsMod.Log(key + ": attacks " + foe.name + " on sight.");
+            OnAttackedByCreature(foe);
+            return true;
+        }
+
+        DaggerfallEntityBehaviour FindFoe(float range)
+        {
+            DaggerfallEntityBehaviour best = null;
+            float bestDistance = range;
+            foreach (NpcBrain other in All())
+            {
+                if (other == this || other.entityBehaviour == null || other.entityBehaviour.Entity == null)
+                    continue;
+                bool alive = other.mode != NpcMode.Dead && other.entityBehaviour.Entity.CurrentHealth > 0;
+                if (!AggroRules.IsFoe(true, other.IsEnemy, false, false, alive))
+                    continue;
+                float d = Vector3.Distance(transform.position, other.transform.position);
+                if (d <= bestDistance && CanSee(other.entityBehaviour))
+                {
+                    best = other.entityBehaviour;
+                    bestDistance = d;
+                }
+            }
+            int count = Physics.OverlapSphereNonAlloc(transform.position, range, nearby, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                DaggerfallEntityBehaviour e = nearby[i].GetComponentInParent<DaggerfallEntityBehaviour>();
+                if (e == null || e == entityBehaviour || e.Entity == null || e.GetComponent<NpcBrain>() != null)
+                    continue;
+                EnemyMotor m = e.GetComponent<EnemyMotor>();
+                if (m == null)
+                    continue;
+                bool watchOrAlly = e.Entity.Team == MobileTeams.CityWatch || e.Entity.Team == MobileTeams.PlayerAlly;
+                if (!AggroRules.IsFoe(false, false, m.IsHostile, watchOrAlly, e.Entity.CurrentHealth > 0))
+                    continue;
+                float d = Vector3.Distance(transform.position, e.transform.position);
+                if (d <= bestDistance && CanSee(e))
+                {
+                    best = e;
+                    bestDistance = d;
+                }
+            }
+            return best;
         }
 
         void OnAttackedByCreature(DaggerfallEntityBehaviour attacker)
