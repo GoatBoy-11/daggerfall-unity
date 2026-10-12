@@ -7,6 +7,7 @@ namespace AdvancedNPCs.Core
         Coward,
         Normal,
         Brave,
+        Prudent,
     }
 
     public enum NpcKind
@@ -44,6 +45,8 @@ namespace AdvancedNPCs.Core
         public GenericSpawn Spawn;
         public Bravery Bravery;
         public int FleeHealthPercent;
+        /// <summary>"fleeChance": % chance a Normal ANPC flees once below half of FleeHealthPercent (0-100).</summary>
+        public int FleeChance = 30;
         public float CalmDownMinHours;
         public float CalmDownMaxHours;
         public bool CrimeOnAttack;

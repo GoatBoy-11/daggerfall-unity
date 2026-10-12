@@ -50,6 +50,7 @@ namespace AdvancedNPCs
         bool provoked;          // the player hit it while it was an enemy
         float wanderPause;
         float calmCheckTimer;
+        FleeRoll fleeRoll;      // Normal's one flee roll while badly hurt
         float holdStill;        // seconds the calm NPC stands still (greeting)
         NpcGait gait;
         System.Random rng;
@@ -397,7 +398,7 @@ namespace AdvancedNPCs
 
         void EnterCombat()
         {
-            CombatChoice choice = HostilityRules.Decide(def.Bravery, HealthFraction(), def.FleeHealthPercent);
+            CombatChoice choice = HostilityRules.Decide(def.Bravery, HealthFraction(), def.FleeHealthPercent, def.FleeChance, ref fleeRoll, rng.NextDouble());
             SetMode(choice == CombatChoice.Flee ? NpcMode.Fleeing : NpcMode.Fighting);
         }
 
@@ -471,7 +472,7 @@ namespace AdvancedNPCs
             }
             if (threat != GameManager.Instance.PlayerEntityBehaviour)
                 senses.Target = threat;
-            if (HostilityRules.Decide(def.Bravery, HealthFraction(), def.FleeHealthPercent) == CombatChoice.Flee)
+            if (HostilityRules.Decide(def.Bravery, HealthFraction(), def.FleeHealthPercent, def.FleeChance, ref fleeRoll, rng.NextDouble()) == CombatChoice.Flee)
                 SetMode(NpcMode.Fleeing);
         }
 

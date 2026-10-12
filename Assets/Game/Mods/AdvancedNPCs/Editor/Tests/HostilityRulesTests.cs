@@ -6,27 +6,55 @@ namespace AdvancedNPCs.Tests
 {
     public class HostilityRulesTests
     {
+        static CombatChoice Once(Bravery b, float health, int chance = 30, double random01 = 0.5)
+        {
+            FleeRoll roll = new FleeRoll();
+            return HostilityRules.Decide(b, health, 25, chance, ref roll, random01);
+        }
+
         [TestCase(1.0f)]
         [TestCase(0.01f)]
         public void Coward_AlwaysFlees(float health)
         {
-            Assert.AreEqual(CombatChoice.Flee, HostilityRules.Decide(Bravery.Coward, health, 25));
+            Assert.AreEqual(CombatChoice.Flee, Once(Bravery.Coward, health));
         }
 
         [TestCase(1.0f)]
         [TestCase(0.01f)]
         public void Brave_AlwaysFights(float health)
         {
-            Assert.AreEqual(CombatChoice.Fight, HostilityRules.Decide(Bravery.Brave, health, 25));
+            Assert.AreEqual(CombatChoice.Fight, Once(Bravery.Brave, health, 100, 0.0));
         }
 
         [TestCase(1.0f, CombatChoice.Fight)]
         [TestCase(0.25f, CombatChoice.Fight)]
         [TestCase(0.24f, CombatChoice.Flee)]
         [TestCase(0.0f, CombatChoice.Flee)]
-        public void Normal_FleesBelowThreshold(float health, CombatChoice expected)
+        public void Prudent_FleesBelowThreshold(float health, CombatChoice expected)
         {
-            Assert.AreEqual(expected, HostilityRules.Decide(Bravery.Normal, health, 25));
+            Assert.AreEqual(expected, Once(Bravery.Prudent, health));
+        }
+
+        [Test]
+        public void Normal_UsesHalfTheThresholdAndTheChance()
+        {
+            Assert.AreEqual(CombatChoice.Fight, Once(Bravery.Normal, 0.20f, 100, 0.0));   // above 12.5 %
+            Assert.AreEqual(CombatChoice.Flee, Once(Bravery.Normal, 0.10f, 100, 0.99));   // chance 100
+            Assert.AreEqual(CombatChoice.Fight, Once(Bravery.Normal, 0.10f, 0, 0.0));     // chance 0
+            Assert.AreEqual(CombatChoice.Flee, Once(Bravery.Normal, 0.10f, 30, 0.29));    // rolled under 30
+            Assert.AreEqual(CombatChoice.Fight, Once(Bravery.Normal, 0.10f, 30, 0.30));
+        }
+
+        [Test]
+        public void Normal_RollsOnceWhileBelow()
+        {
+            FleeRoll roll = new FleeRoll();
+            Assert.AreEqual(CombatChoice.Fight, HostilityRules.Decide(Bravery.Normal, 0.10f, 25, 30, ref roll, 0.9));
+            // Later frames with lucky numbers keep the first answer while still below the line.
+            Assert.AreEqual(CombatChoice.Fight, HostilityRules.Decide(Bravery.Normal, 0.05f, 25, 30, ref roll, 0.0));
+            // Healed above the line, then below again: a new roll.
+            Assert.AreEqual(CombatChoice.Fight, HostilityRules.Decide(Bravery.Normal, 0.50f, 25, 30, ref roll, 0.0));
+            Assert.AreEqual(CombatChoice.Flee, HostilityRules.Decide(Bravery.Normal, 0.10f, 25, 30, ref roll, 0.0));
         }
 
         [Test]

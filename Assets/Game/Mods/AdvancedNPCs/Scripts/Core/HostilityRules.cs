@@ -15,13 +15,24 @@ namespace AdvancedNPCs.Core
         EngineSweep,
     }
 
+    /// <summary>A Normal ANPC's one flee roll while its health is below the line (kept per ANPC, not saved).</summary>
+    public struct FleeRoll
+    {
+        public bool Below;
+        public bool Flee;
+    }
+
     /// <summary>Pure decision rules for Advanced NPC hostility. No Unity or DFU types.</summary>
     public static class HostilityRules
     {
         public const ulong SecondsPerHour = 3600;
 
-        /// <summary>Fight or flee for the given bravery and current health fraction (0..1).</summary>
-        public static CombatChoice Decide(Bravery bravery, float healthFraction, int fleeHealthPercent)
+        /// <summary>
+        /// Fight or flee for the bravery and current health fraction (0..1). Prudent flees below fleeHealthPercent;
+        /// Normal rolls once (fleeChance %) when it first drops below half of it and keeps that answer while below.
+        /// </summary>
+        public static CombatChoice Decide(Bravery bravery, float healthFraction, int fleeHealthPercent, int fleeChance,
+            ref FleeRoll roll, double random01)
         {
             switch (bravery)
             {
@@ -29,8 +40,20 @@ namespace AdvancedNPCs.Core
                     return CombatChoice.Flee;
                 case Bravery.Brave:
                     return CombatChoice.Fight;
-                default:
+                case Bravery.Prudent:
                     return healthFraction * 100f < fleeHealthPercent ? CombatChoice.Flee : CombatChoice.Fight;
+                default:
+                    if (healthFraction * 100f >= fleeHealthPercent / 2f)
+                    {
+                        roll.Below = false;
+                        return CombatChoice.Fight;
+                    }
+                    if (!roll.Below)
+                    {
+                        roll.Below = true;
+                        roll.Flee = random01 * 100.0 < fleeChance;
+                    }
+                    return roll.Flee ? CombatChoice.Flee : CombatChoice.Fight;
             }
         }
 

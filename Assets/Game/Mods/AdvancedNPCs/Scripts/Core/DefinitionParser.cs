@@ -26,7 +26,7 @@ namespace AdvancedNPCs.Core
 
         static readonly string[] SharedKeys =
         {
-            "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "calmDownHours",
+            "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "fleeChance", "aggroRange", "calmDownHours",
             "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight", "spriteHeightScale", "attitude", "hostileHours", "dialogue", "magic",
             "combat",
         };
@@ -436,13 +436,18 @@ namespace AdvancedNPCs.Core
                 return Problem(r, file, "bravery", problem);
             Bravery bravery;
             if (!TryParseBravery(rawBravery, out bravery))
-                return Problem(r, file, "bravery", "must be Coward, Normal or Brave (got \"" + rawBravery + "\")");
+                return Problem(r, file, "bravery", "must be Coward, Normal, Prudent or Brave (got \"" + rawBravery + "\")");
 
             double flee;
             if ((problem = FieldReader.Number(o, "fleeHealthPercent", 25, out flee)) != null || flee != Math.Floor(flee))
                 return Problem(r, file, "fleeHealthPercent", "must be a whole number");
             if (flee < 1 || flee > 99)
                 return Problem(r, file, "fleeHealthPercent", "must be 1-99 (got " + FieldReader.Num(flee) + ")");
+
+            double fleeChance;
+            if ((problem = FieldReader.Number(o, "fleeChance", 30, out fleeChance)) != null || (o.ContainsKey("fleeChance") && o["fleeChance"] == null) ||
+                fleeChance != Math.Floor(fleeChance) || fleeChance < 0 || fleeChance > 100)
+                return Problem(r, file, "fleeChance", "must be a whole number from 0 to 100");
 
             double[] calm;
             if (!FieldReader.Numbers(o, "calmDownHours", out calm) || (calm != null && calm.Length != 2))
@@ -482,6 +487,7 @@ namespace AdvancedNPCs.Core
             d.Gender = gender;
             d.Bravery = bravery;
             d.FleeHealthPercent = (int)flee;
+            d.FleeChance = (int)fleeChance;
             d.CalmDownMinHours = (float)calm[0];
             d.CalmDownMaxHours = (float)calm[1];
             d.CrimeOnAttack = crime;
