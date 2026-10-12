@@ -22,6 +22,11 @@ namespace AdvancedNPCs
     {
         public const string Prefix = "SELFTEST ";
         static readonly WaitForSeconds Settle = new WaitForSeconds(0.3f);
+        /// <summary>
+        /// A spawn side (TestDefinition) beyond greeting range (4 m ahead, this far aside): a greeter spawned at 4 m could
+        /// greet while it settles, and the cooldown would then stop the greeting a check waits for.
+        /// </summary>
+        const float OutOfGreeting = 8f;
 
         public static bool Running { get; private set; }
 
@@ -83,10 +88,13 @@ namespace AdvancedNPCs
             }
             NpcCrime.Report = report;
             player.GodMode = godMode;
-            config.DeathAnimation = deathAnimation;
-            config.DirectionalCorpses = directionalCorpses;
-            config.VoiceMode = voiceMode;
-            config.Footsteps = footsteps;
+            if (!config.Reload())       // DFU's current values; without mod settings, the ones from before the run
+            {
+                config.DeathAnimation = deathAnimation;
+                config.DirectionalCorpses = directionalCorpses;
+                config.VoiceMode = voiceMode;
+                config.Footsteps = footsteps;
+            }
             Running = false;
 
             string summary = Prefix + "DONE " + passed + "/" + (passed + failed) + " passed";
@@ -637,6 +645,7 @@ namespace AdvancedNPCs
                 "quad=" + (shortCorpse != null ? shortCorpse.localScale.ToString() : "none"));
 
             // Done dying, the body rests on the last frame of its front or back row, one picture facing the view.
+            yield return new WaitForEndOfFrame();       // this frame's LateUpdate has drawn it for the camera as it is now
             Vector3 camLook = Camera.main != null ? Camera.main.transform.forward : Vector3.forward;
             camLook.y = 0;
             float facingView = body != null ? Vector3.Angle(body.QuadRotation * Vector3.forward, camLook) : -1f;
@@ -673,8 +682,7 @@ namespace AdvancedNPCs
                 quickBody != null && quickBody.Finished && quickBody.Billboarded && quickBody.Row == quickBody.RestRow,
                 quickBody == null ? "no corpse sprite" : "finished=" + quickBody.Finished + ", billboard=" + quickBody.Billboarded);
             mod.Config.DeathAnimation = true;
-            if (quickBody != null)
-                UnityEngine.Object.Destroy(quickBody.gameObject);
+            NpcCorpseSprite.RemoveFor(quickDeath.Id);       // body and loot pile
             NpcBrain.Discard(quickDeath);
 
             // DFU gives human classes a bow; ANPCs only keep it with "combat": { "rangedAtDistance": true }.

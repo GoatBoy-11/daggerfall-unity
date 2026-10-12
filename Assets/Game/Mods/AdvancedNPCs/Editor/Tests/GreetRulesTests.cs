@@ -40,6 +40,13 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void CertainChance_GreetsEvenOnTheTopRoll()
+        {
+            // Unity's Random.value includes 1.
+            Assert.IsTrue(new GreetMemory().Consider("player", true, true, 10.0, 1.0, 1.0));
+        }
+
+        [Test]
         public void NotLiked_OrOutOfRange_DoesNotGreet()
         {
             Assert.IsFalse(new GreetMemory().Consider("player", true, false, 10.0, 0.0, 1.0));

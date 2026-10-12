@@ -326,11 +326,11 @@ namespace AdvancedNPCs
                   .Append(sprite.CurrentAnimation != null ? ", playing " + sprite.CurrentAnimation : "").Append('\n');
             NpcVoice voice = GetComponent<NpcVoice>();
             LoadedSoundSet sounds = voice != null ? voice.Set : null;
+            ModConfig config = AdvancedNpcsMod.Instance != null ? AdvancedNpcsMod.Instance.Config : null;
             if (sounds == null)
-                sb.Append("  sounds: vanilla voice");
+                sb.Append(config != null && config.VoiceMode == VoiceModes.Off ? "  sounds: none" : "  sounds: vanilla voice");
             else
                 sb.Append("  sounds: ").Append(sounds.Label).Append(sounds.IsReady ? ", loaded: " : ", loading: ").Append(sounds.Summary());
-            ModConfig config = AdvancedNpcsMod.Instance != null ? AdvancedNpcsMod.Instance.Config : null;
             if (config != null && config.VoiceMode != VoiceModes.Anpc)
                 sb.Append(" (ANPC sounds setting: ").Append(ModConfig.VoiceModeName(config.VoiceMode)).Append(')');
             if (config != null && !config.Footsteps)

@@ -58,8 +58,23 @@ namespace AdvancedNPCs
                 AdvancedNpcsMod.Log("No mod settings found; using defaults (same people every visit, at most 12 per town).");
                 return;
             }
+            attached = mod;
             mod.LoadSettingsCallback = Apply;
             mod.LoadSettings();
+        }
+
+        Mod attached;
+
+        /// <summary>
+        /// Reads DFU's current values again (after the self-test forced its own); false without mod settings. Also picks
+        /// up a change the player made in the settings window meanwhile.
+        /// </summary>
+        public bool Reload()
+        {
+            if (attached == null || !attached.HasSettings)
+                return false;
+            attached.LoadSettings();
+            return true;
         }
 
         public void Apply(DfuModSettings settings, ModSettingsChange change)

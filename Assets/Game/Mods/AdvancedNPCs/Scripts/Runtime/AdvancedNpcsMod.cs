@@ -249,7 +249,11 @@ namespace AdvancedNPCs
                 NpcVoice voice = b.GetComponent<NpcVoice>();
                 if (voice == null)
                     continue;
-                voice.Swap(Instance.Sounds.For(b.Instance.Definition.Folder));
+                LoadedSoundSet next = Instance.Sounds.For(b.Instance.Definition.Folder);
+                voice.Swap(next);
+                // Greet sounds now, on an ANPC that had no greeting (no greet sheet, no greet sounds): it starts greeting.
+                if (next != null && next.Pools.Contains(SoundPools.Greet) && b.GetComponent<NpcGreeter>() == null)
+                    b.gameObject.AddComponent<NpcGreeter>();
                 updated++;
             }
             return updated;

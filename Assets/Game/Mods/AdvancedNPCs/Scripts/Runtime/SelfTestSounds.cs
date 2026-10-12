@@ -61,7 +61,7 @@ namespace AdvancedNPCs
             Vector3 open = OpenDirection(player, 16f);
             try
             {
-                NpcDefinition d = TestDefinition("selftest_voice", Bravery.Brave, location, player, 0f);
+                NpcDefinition d = TestDefinition("selftest_voice", Bravery.Brave, location, player, OutOfGreeting);
                 d.BaseClass = "Warrior";
                 d.Sounds = new SoundSettings { CombatChance = 100, GreetChance = 100 };
                 NpcBrain b = SpawnDefinition(d, location);
