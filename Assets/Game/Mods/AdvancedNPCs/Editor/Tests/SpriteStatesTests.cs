@@ -46,7 +46,7 @@ namespace AdvancedNPCs.Tests
         [TestCase("Run_2", "run")]
         [TestCase("greet", "greet")]
         [TestCase("greet_1", "greet")]
-        [TestCase("talk_1", null)]
+        [TestCase("talk_1", "talk")]
         [TestCase("pray_1", null)]
         [TestCase("idle_x", null)]
         [TestCase("death_static", null)]

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using AdvancedNPCs.Core;
 
@@ -144,6 +145,64 @@ namespace AdvancedNPCs.Tests
             s.Tick(10.0, 0.0);
             Assert.IsTrue(s.NeedsLine);
             Assert.AreEqual(1, s.Line);
+        }
+
+        static Dictionary<string, object> Root(string json)
+        {
+            return (Dictionary<string, object>)Json.Parse(json);
+        }
+
+        [TestCase("{}", false, 50)]
+        [TestCase("{\"conversation\": null}", false, 50)]
+        [TestCase("{\"conversation\": false}", false, 50)]
+        [TestCase("{\"conversation\": true}", true, 50)]
+        [TestCase("{\"conversation\": {}}", true, 50)]
+        [TestCase("{\"conversation\": {\"enabled\": false, \"chance\": 20}}", false, 20)]
+        [TestCase("{\"conversation\": {\"chance\": 100}}", true, 100)]
+        [TestCase("{\"conversation\": {\"enabled\": true, \"chance\": 0}}", true, 0)]
+        public void Read_Forms(string json, bool enabled, int chance)
+        {
+            string key;
+            ConversationSettings s;
+            List<string> warnings = new List<string>();
+            Assert.IsNull(ChatRules.Read(Root(json), out key, out s, warnings));
+            Assert.AreEqual(enabled, s.Enabled);
+            Assert.AreEqual(chance, s.Chance);
+            Assert.IsEmpty(warnings);
+        }
+
+        [TestCase("{\"conversation\": {\"chance\": 101}}", "conversation.chance")]
+        [TestCase("{\"conversation\": {\"chance\": 2.5}}", "conversation.chance")]
+        [TestCase("{\"conversation\": {\"chance\": \"x\"}}", "conversation.chance")]
+        [TestCase("{\"conversation\": {\"chance\": null}}", "conversation.chance")]
+        [TestCase("{\"conversation\": {\"enabled\": 1}}", "conversation.enabled")]
+        [TestCase("{\"conversation\": 3}", "conversation")]
+        public void Read_Bad(string json, string expectedKey)
+        {
+            string key;
+            ConversationSettings s;
+            Assert.IsNotNull(ChatRules.Read(Root(json), out key, out s, new List<string>()));
+            Assert.AreEqual(expectedKey, key);
+        }
+
+        [Test]
+        public void Read_UnknownKey_Warns()
+        {
+            string key;
+            ConversationSettings s;
+            List<string> warnings = new List<string>();
+            Assert.IsNull(ChatRules.Read(Root("{\"conversation\": {\"lines\": 3}}"), out key, out s, warnings));
+            Assert.IsTrue(s.Enabled);
+            Assert.AreEqual(1, warnings.Count);
+            StringAssert.StartsWith("conversation.lines", warnings[0]);
+        }
+
+        [Test]
+        public void TalkNames()
+        {
+            Assert.AreEqual("talk", SoundPools.PoolOf("talk_3"));
+            Assert.AreEqual("talk", SpriteStates.StateOf("talk_2"));
+            Assert.IsFalse(SoundPools.IsCombat(SoundPools.Talk));
         }
     }
 }

@@ -3,6 +3,14 @@ using System.Collections.Generic;
 
 namespace AdvancedNPCs.Core
 {
+    /// <summary>npc.json "conversation" (spec conversations §1).</summary>
+    public class ConversationSettings
+    {
+        public bool Enabled;
+        /// <summary>Percent chance of a conversation after greeting another ANPC.</summary>
+        public int Chance = 50;
+    }
+
     /// <summary>ANPC conversations (spec conversations): limits, rolls and who may talk. No Unity or DFU types.</summary>
     public static class ChatRules
     {
@@ -13,6 +21,47 @@ namespace AdvancedNPCs.Core
         public const float MaxApart = 6f;
         /// <summary>anpc_chat: the partner must be this close (the greeting distance).</summary>
         public const float StartDistance = GreetRules.Distance;
+
+        static readonly string[] Keys = { "enabled", "chance" };
+
+        /// <summary>
+        /// Reads "conversation" from an npc.json root: missing, null or false = off; true = on; an object = on unless
+        /// "enabled": false. Null, or a problem with its key ("conversation.chance"). Unknown keys only warn.
+        /// </summary>
+        public static string Read(Dictionary<string, object> root, out string key, out ConversationSettings settings, List<string> warnings)
+        {
+            settings = new ConversationSettings();
+            key = "conversation";
+            object raw;
+            if (!root.TryGetValue("conversation", out raw) || raw == null)
+                return null;
+            if (raw is bool)
+            {
+                settings.Enabled = (bool)raw;
+                return null;
+            }
+            Dictionary<string, object> o = raw as Dictionary<string, object>;
+            if (o == null)
+                return "must be true, false or an object like { \"enabled\": true, \"chance\": 50 }";
+            foreach (string k in FieldReader.UnknownKeys(o, Keys))
+                warnings.Add("conversation." + k + ": unknown setting (use " + string.Join(", ", Keys) + "), ignored");
+            bool enabled;
+            if (FieldReader.Bool(o, "enabled", true, out enabled) != null || (o.ContainsKey("enabled") && o["enabled"] == null))
+            {
+                key = "conversation.enabled";
+                return "must be true or false";
+            }
+            double chance;
+            if (FieldReader.Number(o, "chance", 50, out chance) != null || (o.ContainsKey("chance") && o["chance"] == null) ||
+                double.IsNaN(chance) || chance < 0 || chance > 100 || chance != Math.Floor(chance))
+            {
+                key = "conversation.chance";
+                return "must be a whole number from 0 to 100";
+            }
+            settings.Enabled = enabled;
+            settings.Chance = (int)chance;
+            return null;
+        }
 
         /// <summary>Lines in a conversation for a roll in [0, 1] (Unity's Random.value includes 1).</summary>
         public static int Lines(double roll01)

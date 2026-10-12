@@ -16,7 +16,9 @@ namespace AdvancedNPCs.Core
         public const string Hit = "hit";
         public const string Death = "death";
         public const string Step = "step";
-        public static readonly string[] All = { Greet, Attack, AttackRange, Cast, Hit, Death, Step };
+        /// <summary>Lines in a conversation with another ANPC (NpcChat); always play there, nowhere else.</summary>
+        public const string Talk = "talk";
+        public static readonly string[] All = { Greet, Attack, AttackRange, Cast, Hit, Death, Step, Talk };
 
         /// <summary>The pool a file name (without extension) belongs to; null for any other name.</summary>
         public static string PoolOf(string name)

@@ -81,6 +81,8 @@ namespace AdvancedNPCs.Core
         public bool CanRun = true;
         /// <summary>npc.json "sounds": chances, step distance and pitch of the folder's custom sounds (spec sounds §C).</summary>
         public SoundSettings Sounds = new SoundSettings();
+        /// <summary>npc.json "conversation": talks with other ANPCs it greets (spec conversations §1); off by default.</summary>
+        public ConversationSettings Conversation = new ConversationSettings();
         /// <summary>Dialogue type ids (files in _Dialogue), in the order given in npc.json.</summary>
         public readonly List<string> Dialogue = new List<string>();
         /// <summary>The folder's own dialogue.json, or null.</summary>

@@ -28,7 +28,7 @@ namespace AdvancedNPCs.Core
         {
             "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "fleeChance", "aggroRange", "calmDownHours",
             "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight", "spriteHeightScale", "spriteScale", "attitude", "hostileHours", "dialogue", "magic",
-            "combat", "sounds",
+            "combat", "sounds", "conversation",
         };
         static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
         static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
@@ -530,6 +530,12 @@ namespace AdvancedNPCs.Core
             if ((problem = SoundRules.Read(o, out soundsKey, out d.Sounds, soundWarnings)) != null)
                 return Problem(r, file, soundsKey, problem);
             foreach (string w in soundWarnings)
+                r.Warnings.Add(file + ": " + w);
+            string chatKey;
+            List<string> chatWarnings = new List<string>();
+            if ((problem = ChatRules.Read(o, out chatKey, out d.Conversation, chatWarnings)) != null)
+                return Problem(r, file, chatKey, problem);
+            foreach (string w in chatWarnings)
                 r.Warnings.Add(file + ": " + w);
             ReadDialogueTypes(file, o, d, r);
             return true;
