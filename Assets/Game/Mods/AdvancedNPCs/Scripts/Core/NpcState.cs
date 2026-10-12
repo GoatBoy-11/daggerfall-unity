@@ -76,6 +76,8 @@ namespace AdvancedNPCs.Core
             c.magicMax = magicMax;
             c.magicUnlimited = magicUnlimited;
             c.magicRefillsOnEntry = magicRefillsOnEntry;
+            c.opinion = opinion;
+            c.opinionAt = opinionAt;
             return c;
         }
 

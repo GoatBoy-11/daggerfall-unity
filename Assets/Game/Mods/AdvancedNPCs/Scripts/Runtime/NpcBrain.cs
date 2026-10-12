@@ -219,7 +219,8 @@ namespace AdvancedNPCs
         {
             foreach (NpcBrain w in All())
             {
-                if (w == victim || w.mode != NpcMode.Calm || w.enemy || w.state == null || w.state.hostile)
+                // Not someone in a switched-off place (the town while the player is indoors): it cannot see.
+                if (w == victim || !w.isActiveAndEnabled || w.mode != NpcMode.Calm || w.enemy || w.state == null || w.state.hostile)
                     continue;
                 if (Vector3.Distance(w.transform.position, victimAt) > OpinionRules.WitnessRange || !w.CanSeePoint(victimAt))
                     continue;

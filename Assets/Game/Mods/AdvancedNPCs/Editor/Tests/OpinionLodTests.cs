@@ -46,6 +46,19 @@ namespace AdvancedNPCs.Tests
             Assert.IsFalse(s.IsDefault());
         }
 
+        [Test]
+        public void Opinion_SurvivesSnapshotAndRestore()
+        {
+            NpcStateTable table = new NpcStateTable();
+            NpcState s = table.GetOrCreate("guard");
+            s.opinion = -25;
+            s.opinionAt = 1234;
+            NpcStateTable loaded = new NpcStateTable();
+            loaded.Restore(table.Snapshot());
+            Assert.AreEqual(-25, loaded.GetOrCreate("guard").opinion);
+            Assert.AreEqual(1234UL, loaded.GetOrCreate("guard").opinionAt);
+        }
+
         [TestCase(10f, false, 1)]
         [TestCase(39.9f, false, 1)]
         [TestCase(40f, false, 3)]

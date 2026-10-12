@@ -23,12 +23,20 @@ namespace AdvancedNPCs
             victim.Teleport(player.position + open * 3f);
             onlooker.Teleport(player.position + open * 7f);
             FaceToward(onlooker, victim.transform.position);
+            // An ANPC in a switched-off place (the town while you are indoors) sees nothing.
+            GameObject offPlace = new GameObject("selftest_off_place");
+            offPlace.SetActive(false);
+            NpcDefinition awayDef = TestDefinition("selftest_op_away", Bravery.Normal, location, player, 0f);
+            NpcBrain away = spawner.SpawnTest(NpcInstance.ForUnique(awayDef, "Breton"), offPlace.transform);
+            away.transform.position = player.position + open * 6f;
             yield return Settle;
             PlayerHit(victim, playerBehaviour, 1);
             yield return null;
             yield return null;
             Check("hitting a calm ANPC lowers its opinion by 25", victim.Opinion == OpinionRules.Assault, victim.Status);
             Check("a calm onlooker thinks 10 less of the player", onlooker.Opinion == OpinionRules.Witness, onlooker.Status);
+            Check("an ANPC in a switched-off place is no witness", away.State.opinion == 0, "opinion " + away.State.opinion);
+            UnityEngine.Object.Destroy(offPlace);
             NpcBrain.Discard(victim);
             NpcBrain.Discard(onlooker);
 
