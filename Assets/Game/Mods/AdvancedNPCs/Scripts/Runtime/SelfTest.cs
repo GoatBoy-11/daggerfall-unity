@@ -807,6 +807,7 @@ namespace AdvancedNPCs
                     NpcDefinition refDef = TestDefinition("selftest_look_ref", Bravery.Normal, location, playerTransform, 1.4f);
                     refDef.BaseClass = "Warrior";
                     NpcBrain reference = SpawnDefinition(refDef, location);
+                    AdvancedNpcsMod.Log(Prefix + "LOOK " + g.Folder + ": vanilla Warrior frame " + NpcSprite.DefaultHeight(reference.gameObject).ToString("0.00") + " m");
                     NpcSprite eachSprite = each.GetComponent<NpcSprite>();
                     float eachUntil = Time.time + 10f;
                     while (eachSprite != null && eachSprite.Pending && Time.time < eachUntil)
