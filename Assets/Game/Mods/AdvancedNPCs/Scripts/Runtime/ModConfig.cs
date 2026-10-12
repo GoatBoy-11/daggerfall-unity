@@ -6,7 +6,10 @@ using DfuModSettings = DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.Mo
 
 namespace AdvancedNPCs
 {
-    /// <summary>The mod's settings (spec §8). Changes apply the next time a town is built.</summary>
+    /// <summary>
+    /// The mod's settings (spec §8). Population changes apply the next time a town is built; corpse and sound settings
+    /// at once (bodies already lying keep whether they played a death animation).
+    /// </summary>
     public class ModConfig
     {
         public const string Section = "Population";
@@ -32,6 +35,19 @@ namespace AdvancedNPCs
         public bool Interiors = true;
         public bool Wilderness = true;
         public int MaxWildernessAround = 4;
+
+        public const string CorpsesSection = "Corpses";
+        /// <summary>A dying ANPC with a sprite set plays its death sheet; off: the body lies still at once.</summary>
+        public bool DeathAnimation = true;
+        /// <summary>A body on its last death frame keeps turning with the view; off: front or back, as a billboard.</summary>
+        public bool DirectionalCorpses;
+
+        public const string SoundsSection = "Sounds";
+        /// <summary>Whose voice ANPCs use (VoiceModes); read every time a sound would play.</summary>
+        public int VoiceMode = VoiceModes.Anpc;
+        /// <summary>Footsteps from Sounds folders.</summary>
+        public bool Footsteps = true;
+
         /// <summary>True once values were read from the mod's settings (false: defaults).</summary>
         public bool FromSettings;
 
@@ -56,11 +72,21 @@ namespace AdvancedNPCs
             Interiors = Read("Interiors", delegate { return settings.GetBool(Section, "Interiors"); }, true);
             Wilderness = Read("Wilderness", delegate { return settings.GetBool(Section, "Wilderness"); }, true);
             MaxWildernessAround = Mathf.Clamp(Read("MaxWildernessAround", delegate { return settings.GetInt(Section, "MaxWildernessAround"); }, 4), 0, 10);
+            DeathAnimation = Read("DeathAnimation", delegate { return settings.GetBool(CorpsesSection, "DeathAnimation"); }, true);
+            DirectionalCorpses = Read("DirectionalCorpses", delegate { return settings.GetBool(CorpsesSection, "DirectionalCorpses"); }, false);
+            VoiceMode = VoiceModes.FromSetting(Read("ANPCSounds", delegate { return settings.GetInt(SoundsSection, "ANPCSounds"); }, VoiceModes.Anpc));
+            Footsteps = Read("Footsteps", delegate { return settings.GetBool(SoundsSection, "Footsteps"); }, true);
             if (MissingKeys.Count > 0)
                 AdvancedNpcsMod.LogError("Settings without " + string.Join(", ", MissingKeys.ToArray()) + " (modsettings.json out of date); using defaults for them.");
             FromSettings = true;
             AdvancedNpcsMod.Log("Settings: generic people " + Mode + ", at most " + MaxGenericPerTown + " per town; dungeons " + Dungeons +
-                ", interiors " + Interiors + ", wilderness " + Wilderness + " (at most " + MaxWildernessAround + " around you).");
+                ", interiors " + Interiors + ", wilderness " + Wilderness + " (at most " + MaxWildernessAround + " around you); death animation " +
+                DeathAnimation + ", directional corpses " + DirectionalCorpses + ", ANPC sounds " + VoiceModeName(VoiceMode) + ", footsteps " + Footsteps + ".");
+        }
+
+        public static string VoiceModeName(int mode)
+        {
+            return mode == VoiceModes.Vanilla ? "Vanilla" : mode == VoiceModes.Off ? "Off" : "ANPC";
         }
 
         /// <summary>Setting keys the mod reads that were not in its settings (should stay empty; checked by the self-test).</summary>

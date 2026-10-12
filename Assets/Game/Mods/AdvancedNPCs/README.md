@@ -107,7 +107,17 @@ In DFU's mod list, select Advanced NPCs → Settings → **Population**:
 - **Dungeons / Interiors / Wilderness** — on (default) or off: generic ANPCs with a `dungeons`, `interiors` or `wilderness` spawn block, see [Spawning outside towns](#spawning-outside-towns).
 - **Max wilderness ANPCs around you** — 0 to 10 (default 4).
 
-Changes apply the next time a town loads.
+These apply the next time a town loads.
+
+**Corpses** (ANPCs with their own sprite sets; apply at once):
+
+- **Death animation** — on (default): the death sheet plays, then the body lies still. Off: the body appears at once, as in vanilla Daggerfall.
+- **Directional corpses** — off (default): a body on its last death frame shows its front or back (chosen at random when it dies) and always faces you, like vanilla corpses and `death_static.png`. On: it shows the side you see it from, as it turns while you walk around.
+
+**Sounds** (apply at once):
+
+- **ANPC sounds** — *ANPC* (default): each ANPC's own [Sounds](#sounds) folder, Daggerfall's voice where it has none. *Vanilla*: Daggerfall's voice for every ANPC; Sounds folders are not used for voices. *Off*: ANPCs make no voice sounds at all (weapon and creature idle sounds stay).
+- **Footsteps** — on (default) or off: footsteps from Sounds folders, whichever **ANPC sounds** is set to.
 
 ## Upgrading from 0.1
 
@@ -130,7 +140,7 @@ folder name is the old id.
 - `anpc_info [id or key]` — the ANPC in front of you (within 5 m) or that ANPC: id, key, kind, folder, bravery, mode, health, opinion, sprite set (loaded, loading, vanilla, or shown by a dead ANPC's corpse) and height, sound pools, its current target, distance and update rate.
 - `anpc_topics [id or key]` — the dialogue topics of the ANPC in front of you (within 5 m) or of that ANPC: which are shown, and for the others the condition that hides them. See [Dialogue topics](#dialogue-topics).
 - `anpc_reload_dialogue` — re-reads `_Dialogue/*.json` and every `dialogue.json` without restarting (a change to `npc.json` still needs a restart).
-- `anpc_reload_assets [id]` — re-reads the sprite sets and [Sounds](#sounds) of that ANPC folder (or of all) from disk; spawned ANPCs using them switch to the new files. ANPCs that had the vanilla sprite or no Sounds, and changes to walk/run/greet sheets or `npc.json`, take effect when they next spawn; only whether they can move at all changes at once (a set left without walk/run sheets makes them stand still, see turrets). (`anpc_reload_sprites` is the old name.)
+- `anpc_reload_assets [id]` — re-reads the sprite sets and [Sounds](#sounds) of that ANPC folder (or of all) from disk; spawned ANPCs using them switch to the new files (also ANPCs that had no Sounds). ANPCs that had the vanilla sprite, and changes to walk/run/greet sheets or `npc.json`, take effect when they next spawn; only whether they can move at all changes at once (a set left without walk/run sheets makes them stand still, see turrets). (`anpc_reload_sprites` is the old name.)
 - `anpc_flag` — lists the dialogue flags that are set; `anpc_flag <name> on|off` sets or clears one (saved with your game).
 - `anpc_here` — in a dungeon, building or the wilderness: which templates can appear there and what happened (filter, `when`, the chance roll, how many came). See [Spawning outside towns](#spawning-outside-towns).
 - `anpc_selftest` — runs the behaviour checks with temporary ANPCs next to you (god mode on, crimes recorded instead of punished, game clock untouched); results on screen and in `Player.log`.
@@ -493,7 +503,7 @@ ANPCs/wench/
 - Size: the standing pose is as tall as the vanilla class sprite; set `"spriteHeight"` (world units) in `npc.json` to change it. Every animation uses the same scale.
 - Overall size: `"spriteScale"` (0.2–2, default `1`) in `npc.json` shrinks or grows the whole sprite evenly (width with height), on top of the default size or `spriteHeight`. Rule of thumb for the samples: no taller than the vanilla class size minus about one of their own heads, but never shorter than Daggerfall's own Warrior (whose figure is about 2.03 m: the sample people stand 2.08 m). The two Dunmer on the larger Spellsword frame use `0.85`; the orc weakling is goblin-sized (`0.72`, 1.44 m). The spawn line in `Player.log` shows each sprite's final height.
 - Proportions: `"spriteHeightScale"` defaults to `1`. Set it to `0.94` for a sprite that is 6% shorter with exactly the same width. It scales only the vertical dimension of all animations and the corpse, anchored at the feet; sprite sheets and timing remain unchanged.
-- Death: the death sheet plays and the body stays as the corpse, on its last frame. The corpse does not turn with your view: it shows the row (of 8 sides) you look at it from, and stands square to that side. `death_static.png` (one picture, always facing you) replaces the last death frame; `"deathStatic": { "groundY": n }` in `sprites.json` sets its ground row. The loot pile stays clickable. After leaving the area or reloading, DFU shows its own corpse picture again.
+- Death: the death sheet plays (shown from the side you see it from) and the body stays as the corpse, on the last frame of its front or back row, always facing you; see the **Corpses** [settings](#settings) to skip the animation or keep the body showing the side you see it from. `death_static.png` (one picture, always facing you) replaces the last death frame; `"deathStatic": { "groundY": n }` in `sprites.json` sets its ground row. The loot pile stays clickable. After leaving the area or reloading, DFU shows its own corpse picture again.
 - Sheets may be edited in an image editor, but must keep the size `sprites.json` describes (checked at start; wrong sizes are reported in `Player.log`). Other files in the folder (`.psd`, backups) are ignored.
 - Every attack plays its attack sheet from the first frame to the last.
 - Action frame (optional): `"actionFrame": n` on an attack or attack_range sheet in `sprites.json` makes the blow (melee damage, or the arrow for archers) land when the sheet shows frame `n`, counted from 1 like the sheet's columns:

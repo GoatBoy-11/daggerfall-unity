@@ -280,6 +280,89 @@ namespace AdvancedNPCs
                 mod.Sounds.Remove("selftest_voice_grunt");
             }
 
+            // The "ANPC sounds" and "Footsteps" settings, switched while ANPCs are about.
+            LoadedSoundSet modesSet = SoundLibrary.IndexSet("selftest_voice_modes/Sounds", dir);
+            mod.Sounds.Add("selftest_voice_modes", modesSet);
+            NpcVoice.ForceVanillaVoice = true;
+            try
+            {
+                NpcDefinition md = TestDefinition("selftest_voice_modes", Bravery.Normal, location, player, 2f);
+                md.BaseClass = "Warrior";
+                md.Sounds = new SoundSettings { CombatChance = 100, GreetChance = 100 };
+                NpcBrain m = SpawnDefinition(md, location);
+                NpcBrain bare = SpawnDefinition(TestDefinition("selftest_voice_none", Bravery.Normal, location, player, 3f), location);
+                yield return Settle;
+                float modesUntil = Time.time + 3f;
+                while (Time.time < modesUntil && !modesSet.IsReady)
+                    yield return null;
+                NpcVoice mVoice = m.GetComponent<NpcVoice>();
+                NpcVoice bareVoice = bare.GetComponent<NpcVoice>();
+                Check("an ANPC without a Sounds folder has a voice that leaves it to DFU",
+                    bareVoice != null && bareVoice.Set == null && bareVoice.DfuVoicing, "voice=" + (bareVoice != null) +
+                    ", DFU voicing=" + (bareVoice != null && bareVoice.DfuVoicing));
+
+                mod.Config.VoiceMode = VoiceModes.Vanilla;
+                yield return null;
+                yield return null;
+                int hitsBefore = mVoice.Played(SoundPools.Hit);
+                bool greeted = mVoice.Play(SoundPools.Greet);
+                PlayerHit(m, playerBehaviour, 1);
+                yield return null;
+                yield return null;
+                Check("ANPC sounds Vanilla: DFU voices an ANPC that has a Sounds folder, its own sounds stay quiet",
+                    mVoice.DfuVoicing && !greeted && mVoice.Played(SoundPools.Hit) == hitsBefore,
+                    "DFU voicing=" + mVoice.DfuVoicing + ", greet played=" + greeted + ", hit sounds " + hitsBefore + " -> " + mVoice.Played(SoundPools.Hit));
+
+                mod.Config.VoiceMode = VoiceModes.Off;
+                yield return null;
+                yield return null;
+                int gruntsBefore = mVoice.Played("vanilla_hit");
+                hitsBefore = mVoice.Played(SoundPools.Hit);
+                greeted = mVoice.Play(SoundPools.Greet);
+                PlayerHit(m, playerBehaviour, 1);
+                yield return null;
+                yield return null;
+                Check("ANPC sounds Off: no voice at all, from the folder or from DFU",
+                    !mVoice.DfuVoicing && !bareVoice.DfuVoicing && !greeted && mVoice.Played(SoundPools.Hit) == hitsBefore &&
+                    mVoice.Played("vanilla_hit") == gruntsBefore,
+                    "DFU voicing=" + mVoice.DfuVoicing + "/" + bareVoice.DfuVoicing + ", greet played=" + greeted + ", hit sounds " +
+                    hitsBefore + " -> " + mVoice.Played(SoundPools.Hit) + ", grunts " + gruntsBefore + " -> " + mVoice.Played("vanilla_hit"));
+
+                mod.Config.VoiceMode = VoiceModes.Anpc;
+                yield return null;
+                yield return null;
+                Check("ANPC sounds back to ANPC: the folder's sounds play again",
+                    !mVoice.DfuVoicing && bareVoice.DfuVoicing && mVoice.Play(SoundPools.Greet), "DFU voicing=" + mVoice.DfuVoicing);
+                m.SwitchHostile(false);
+                NpcBrain.Discard(bare);
+
+                // Footsteps off: none while it walks; on again: they come back.
+                mod.Config.Footsteps = false;
+                m.Teleport(player.position + open * 12f);
+                FaceToward(m, player.position);
+                m.SwitchHostile(true);
+                int stepsBefore = mVoice.Played(SoundPools.Step);
+                yield return new WaitForSeconds(1.5f);
+                int stepsOff = mVoice.Played(SoundPools.Step) - stepsBefore;
+                mod.Config.Footsteps = true;
+                float stepUntil = Time.time + 4f;
+                while (Time.time < stepUntil && mVoice.Played(SoundPools.Step) - stepsBefore == stepsOff)
+                    yield return null;
+                Check("Footsteps off silences steps; on again, they play",
+                    stepsOff == 0 && mVoice.Played(SoundPools.Step) - stepsBefore > 0,
+                    "steps while off=" + stepsOff + ", after=" + (mVoice.Played(SoundPools.Step) - stepsBefore) + ", " + m.Status);
+                m.SwitchHostile(false);
+                NpcBrain.Discard(m);
+                yield return null;
+            }
+            finally
+            {
+                NpcVoice.ForceVanillaVoice = false;
+                mod.Config.VoiceMode = VoiceModes.Anpc;
+                mod.Config.Footsteps = true;
+                mod.Sounds.Remove("selftest_voice_modes");
+            }
+
             // The wench example (when installed with the examples): parses, and anpc_spawn brings her with her sprites and sounds.
             NpcDefinition wench = mod.Catalog.Generics.Find(delegate (NpcDefinition t) { return t.Folder == "wench"; });
             if (wench != null)

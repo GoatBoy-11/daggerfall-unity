@@ -367,13 +367,12 @@ namespace AdvancedNPCs
                 if (def.RangedAnimation != null && !spriteSet.Set.Animations.ContainsKey(def.RangedAnimation))
                     AdvancedNpcsMod.Log(spriteSet.Label + ": no " + def.RangedAnimation + ".png for combat.rangedAnimation; bow shots play attack_range*/attack* sheets.");
             }
-            // Custom sounds (spec sounds): the folder's Sounds, also for an ANPC with the vanilla sprite.
+            // Custom sounds (spec sounds): the folder's Sounds, also for an ANPC with the vanilla sprite. Every ANPC has a
+            // voice, so the "ANPC sounds" setting can hand it to DFU or silence it at any time.
             LoadedSoundSet sounds = owner.Sounds != null ? owner.Sounds.For(def.Folder) : null;
+            go.AddComponent<NpcVoice>().Init(sounds, def.Sounds);
             if (sounds != null)
-            {
-                go.AddComponent<NpcVoice>().Init(sounds, def.Sounds);
                 greets |= sounds.Pools.Contains(SoundPools.Greet);
-            }
             if (greets)
                 go.AddComponent<NpcGreeter>();
             gait.Init(def);

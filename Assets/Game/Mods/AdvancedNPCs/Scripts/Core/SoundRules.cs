@@ -53,6 +53,44 @@ namespace AdvancedNPCs.Core
         }
     }
 
+    /// <summary>
+    /// The "ANPC sounds" setting (spec corpse-sound settings): whose voice an ANPC uses. Ints, not an enum: DFU's runtime
+    /// compiler cannot load a class whose enum field type is declared in a file it compiles later.
+    /// </summary>
+    public static class VoiceModes
+    {
+        /// <summary>DFU's own voice for every ANPC; Sounds folders are not used for voices.</summary>
+        public const int Vanilla = 0;
+        /// <summary>The ANPC's Sounds folder, DFU's own voice where it has none (the default).</summary>
+        public const int Anpc = 1;
+        /// <summary>No voice at all, not even DFU's.</summary>
+        public const int Off = 2;
+
+        /// <summary>The mode for the setting's choice index; anything unknown is the default.</summary>
+        public static int FromSetting(int index)
+        {
+            return index == Vanilla || index == Off ? index : Anpc;
+        }
+
+        /// <summary>The Sounds folder's greet, attack, cast, hit and death sounds play.</summary>
+        public static bool CustomVoice(int mode)
+        {
+            return mode == Anpc;
+        }
+
+        /// <summary>DFU voices the ANPC itself (EnemySounds keeps its race): with Vanilla, or with ANPC and no Sounds folder.</summary>
+        public static bool DfuVoice(int mode, bool hasSoundsFolder)
+        {
+            return mode == Vanilla || (mode == Anpc && !hasSoundsFolder);
+        }
+
+        /// <summary>A creature's own attack growl is silenced: its folder's attack sounds take over, or voices are off.</summary>
+        public static bool SilenceCreatureAttack(int mode, bool hasAttackSounds)
+        {
+            return mode == Off || (mode == Anpc && hasAttackSounds);
+        }
+    }
+
     /// <summary>npc.json "sounds" (spec sounds §C).</summary>
     public class SoundSettings
     {

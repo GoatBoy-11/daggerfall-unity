@@ -214,7 +214,7 @@ namespace AdvancedNPCs
             int voices = SwapSounds(folders);
             string text = "Reloaded " + sets + " sprite set(s) and " + soundFolders + " Sounds folder(s) in " + folders.Count + " folder(s); " +
                 updated + " sprite(s) and " + voices + " voice(s) updated. " +
-                "ANPCs that had the vanilla sprite or no Sounds, and walk/run/greet or npc.json changes, update when they next spawn " +
+                "ANPCs that had the vanilla sprite, and walk/run/greet or npc.json changes, update when they next spawn " +
                 "(except whether they can move at all: a set left without walk/run sheets makes them stand still at once).";
             Log(text);
             return text;
