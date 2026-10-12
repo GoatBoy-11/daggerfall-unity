@@ -58,6 +58,8 @@ namespace AdvancedNPCs
         static readonly List<LoadedSpriteSet> None = new List<LoadedSpriteSet>();
 
         readonly List<LoadedSpriteSet> loading = new List<LoadedSpriteSet>();
+        /// <summary>Sets replaced by a reload that a corpse (or a not yet swapped sprite) still uses.</summary>
+        readonly List<LoadedSpriteSet> retired = new List<LoadedSpriteSet>();
 
         readonly Dictionary<string, List<LoadedSpriteSet>> byFolder = new Dictionary<string, List<LoadedSpriteSet>>(StringComparer.Ordinal);
 
@@ -78,25 +80,60 @@ namespace AdvancedNPCs
             System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
             foreach (NpcDefinition def in defs)
             {
-                string dir = Path.Combine(root, def.Folder);
-                if (!Directory.Exists(dir))
-                    continue;
-                List<string> setDirs = new List<string>();
-                foreach (string sub in Directory.GetDirectories(dir))
-                {
-                    if (IsSetFolder(Path.GetFileName(sub)))
-                        setDirs.Add(sub);
-                }
-                setDirs.Sort(StringComparer.Ordinal);
-                foreach (string setDir in setDirs)
-                {
-                    LoadedSpriteSet set = IndexSet(def.Folder + "/" + Path.GetFileName(setDir), setDir);
-                    if (set != null)
-                        library.Add(def.Folder, set);
-                }
+                foreach (LoadedSpriteSet set in IndexFolder(def.Folder, Path.Combine(root, def.Folder)))
+                    library.Add(def.Folder, set);
             }
             AdvancedNpcsMod.Log("Indexed " + library.Count + " sprite set(s) in " + watch.ElapsedMilliseconds + " ms.");
             return library;
+        }
+
+        /// <summary>Every sprites / sprites_&lt;n&gt; set in an NPC folder on disk, in name order (invalid ones skipped and logged).</summary>
+        static List<LoadedSpriteSet> IndexFolder(string folder, string dir)
+        {
+            List<LoadedSpriteSet> sets = new List<LoadedSpriteSet>();
+            if (!Directory.Exists(dir))
+                return sets;
+            List<string> setDirs = new List<string>();
+            foreach (string sub in Directory.GetDirectories(dir))
+            {
+                if (IsSetFolder(Path.GetFileName(sub)))
+                    setDirs.Add(sub);
+            }
+            setDirs.Sort(StringComparer.Ordinal);
+            foreach (string setDir in setDirs)
+            {
+                LoadedSpriteSet set = IndexSet(folder + "/" + Path.GetFileName(setDir), setDir);
+                if (set != null)
+                    sets.Add(set);
+            }
+            return sets;
+        }
+
+        /// <summary>
+        /// Re-indexes one NPC folder from disk (anpc_reload_sprites, spec tools-quality §A3) and returns how many valid
+        /// sets it now has. The old sets leave the library; their textures go once nothing uses them.
+        /// </summary>
+        public int Reload(string folder, string dir)
+        {
+            List<LoadedSpriteSet> old;
+            if (byFolder.TryGetValue(folder, out old))
+            {
+                foreach (LoadedSpriteSet s in old)
+                {
+                    if (s.Pending != null)
+                    {
+                        loading.Remove(s);
+                        s.Pending = null;
+                        s.Failed = true;        // stops waiting sprites; the new set replaces it
+                    }
+                    retired.Add(s);
+                }
+                byFolder.Remove(folder);
+            }
+            List<LoadedSpriteSet> fresh = IndexFolder(folder, dir);
+            foreach (LoadedSpriteSet s in fresh)
+                Add(folder, s);
+            return fresh.Count;
         }
 
         /// <summary>The sets of an NPC folder; empty means the vanilla class sprite.</summary>
@@ -289,6 +326,15 @@ namespace AdvancedNPCs
                     if (s.Users == 0 && s.UnloadAt >= 0f && now >= s.UnloadAt && s.Pending == null && s.IsReady)
                         Unload(s);
                 }
+            }
+            for (int i = retired.Count - 1; i >= 0; i--)
+            {
+                LoadedSpriteSet s = retired[i];
+                if (s.Users > 0)
+                    continue;
+                DestroyTextures(s);         // replaced by a reload and no longer used: gone for good
+                s.IsReady = false;
+                retired.RemoveAt(i);
             }
         }
 

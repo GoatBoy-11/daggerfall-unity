@@ -128,6 +128,12 @@ namespace AdvancedNPCs
             get { return worldPerPixel; }
         }
 
+        /// <summary>Standing height in metres (the spawner's height; set while the set still loads).</summary>
+        public float WorldHeight
+        {
+            get { return set != null ? worldPerPixel * set.StandingHeightPx : waitingHeight; }
+        }
+
         /// <summary>Vertical-only scale shared with corpse rendering.</summary>
         public float HeightScale
         {
@@ -222,6 +228,50 @@ namespace AdvancedNPCs
                     feet.y = controller.bounds.min.y;
                 return feet;
             }
+        }
+
+        /// <summary>
+        /// Wears another set (anpc_reload_sprites), at the same world height: shown once loaded, the vanilla picture hidden
+        /// meanwhile. Null shows the vanilla sprite.
+        /// </summary>
+        public void Swap(LoadedSpriteSet next)
+        {
+            float height = WorldHeight;
+            float scale = set != null ? heightScale : waitingScale;
+            bool started = acquired;
+            if (acquired)
+            {
+                heldSet.Release();
+                acquired = false;
+            }
+            if (quad != null)
+                Destroy(quad);
+            if (material != null)
+                Destroy(material);
+            quad = null;
+            quadRenderer = null;
+            material = null;
+            set = null;
+            waitingSet = null;
+            anim = null;
+            state = null;
+            oneShotLeft = 0f;
+            pendingBlow = NoBlow;
+            vanillaToHold = 0;
+            hitWaiting = false;
+            heldSet = next;
+            if (next == null)
+            {
+                if (vanilla != null)
+                    vanilla.forceRenderingOff = false;
+                return;
+            }
+            if (started)
+            {
+                next.Acquire();     // Start already ran: hold the new set now (else Start does)
+                acquired = true;
+            }
+            Begin(next, height, scale);
         }
 
         /// <summary>Stops drawing and lets go of the set (the corpse sprite takes over and holds its own).</summary>

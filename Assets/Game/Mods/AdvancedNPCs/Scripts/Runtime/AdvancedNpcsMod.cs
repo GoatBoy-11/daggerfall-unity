@@ -106,6 +106,12 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_opinion",
                 "Shows or sets an ANPC's personal opinion of you (-100..100; added to the region's reaction for greetings and dialogue).",
                 "anpc_opinion <id or key> [value]", OpinionCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_info",
+                "Shows the ANPC in front of you (or <id>): mode, bravery, health, opinion, sprite set, target and update rate.",
+                "anpc_info [id or key]", InfoCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_reload_sprites",
+                "Re-reads the sprite sets of one ANPC folder (or all) from disk and shows them on spawned ANPCs.",
+                "anpc_reload_sprites [id]", ReloadSpritesCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_topics",
                 "Shows the dialogue topics of the ANPC in front of you (or <id>): which are shown, and why the others are hidden.",
                 "anpc_topics [id]", TopicsCommand);
@@ -175,6 +181,59 @@ namespace AdvancedNPCs
         {
             Dialogue.Add(file);
             composed.Clear();
+        }
+
+        static string ReloadSpritesCommand(params string[] args)
+        {
+            List<string> folders = new List<string>();
+            List<NpcDefinition> all = new List<NpcDefinition>(Instance.Catalog.ById.Values);
+            all.AddRange(Instance.Catalog.Generics);
+            foreach (NpcDefinition d in all)
+            {
+                bool wanted = args == null || args.Length == 0 || d.Id == args[0] || d.Folder == args[0];
+                if (wanted && !folders.Contains(d.Folder))
+                    folders.Add(d.Folder);
+            }
+            if (folders.Count == 0)
+                return "No ANPC folder \"" + args[0] + "\". Give an id from ANPCs/ (or nothing for all).";
+            int sets = 0;
+            foreach (string folder in folders)
+                sets += Instance.Sprites.Reload(folder, Path.Combine(AnpcFiles.Root, folder));
+            int updated = SwapSprites(folders);
+            string text = "Reloaded " + sets + " sprite set(s) in " + folders.Count + " folder(s); " + updated + " ANPC(s) updated. " +
+                "ANPCs that had the vanilla sprite, and walk/run/greet or npc.json changes, update when they next spawn.";
+            Log(text);
+            return text;
+        }
+
+        /// <summary>Spawned, living ANPCs of these folders that wear a sprite set re-pick one by seed (self-test too).</summary>
+        internal static int SwapSprites(IList<string> folders)
+        {
+            int updated = 0;
+            foreach (NpcBrain b in NpcBrain.All())
+            {
+                if (b.Instance == null || b.CurrentMode == NpcMode.Dead || !folders.Contains(b.Instance.Definition.Folder))
+                    continue;
+                NpcSprite sprite = b.GetComponent<NpcSprite>();
+                if (sprite == null || sprite.ChosenSet == null)
+                    continue;
+                List<LoadedSpriteSet> sets = Instance.Sprites.For(b.Instance.Definition.Folder);
+                sprite.Swap(sets.Count > 0 ? sets[SpriteStates.PickSet(sets.Count, b.Instance.Seed)] : null);
+                updated++;
+            }
+            return updated;
+        }
+
+        /// <summary>anpc_info (spec tools-quality §A1); internal for the self-test.</summary>
+        internal static string InfoCommand(params string[] args)
+        {
+            bool named = args != null && args.Length > 0;
+            NpcBrain b = named ? NpcBrain.Find(args[0]) : Nearest(5f);
+            if (b == null)
+                return named ? "No spawned ANPC \"" + args[0] + "\". Try anpc_list." : "No ANPC within 5 m. Stand in front of one or give an id (anpc_list).";
+            string text = b.Describe();
+            Log("anpc_info\n" + text);
+            return text;
         }
 
         static string TopicsCommand(params string[] args)

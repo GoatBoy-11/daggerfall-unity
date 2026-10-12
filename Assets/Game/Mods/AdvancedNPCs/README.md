@@ -127,11 +127,10 @@ folder name is the old id.
 - `anpc_hostile <id or key> [on|off]` — turns an ANPC into an enemy or calms it (without on/off it toggles); saved with your game. See [Enemies](#enemies).
 - `anpc_opinion <id or key> [value]` — shows or sets an ANPC's personal opinion of you (−100 to 100); saved with your game.
 
-Each ANPC has its own opinion of you (−100 to 100, saved), added to the region's reaction for greetings and the dialogue `reaction` condition. Hitting it costs 25, being seen hitting or killing another ANPC costs 10 with calm onlookers within 15 m, and helping it in a fight (its enemy dies with you within 20 m) gains 10; dialogue replies can change it with `"opinion"`. It drifts back toward 0 by 2 points a day.
-
-Performance: ANPCs far from you update their animation and calm decisions less often (every 3rd frame beyond 40 m, every 8th beyond 100 m; always every frame while fighting, fleeing or acting). Nothing changes up close.
+- `anpc_info [id or key]` — the ANPC in front of you (within 5 m) or that ANPC: id, key, kind, folder, bravery, mode, health, opinion, sprite set (loaded, loading or vanilla) and height, its current target, distance and update rate.
 - `anpc_topics [id or key]` — the dialogue topics of the ANPC in front of you (within 5 m) or of that ANPC: which are shown, and for the others the condition that hides them. See [Dialogue topics](#dialogue-topics).
 - `anpc_reload_dialogue` — re-reads `_Dialogue/*.json` and every `dialogue.json` without restarting (a change to `npc.json` still needs a restart).
+- `anpc_reload_sprites [id]` — re-reads the sprite sets of that ANPC folder (or of all) from disk; spawned ANPCs wearing them switch to the new sheets. ANPCs that had the vanilla sprite, and changes to walk/run/greet sheets or `npc.json`, take effect when they next spawn.
 - `anpc_flag` — lists the dialogue flags that are set; `anpc_flag <name> on|off` sets or clears one (saved with your game).
 - `anpc_here` — in a dungeon, building or the wilderness: which templates can appear there and what happened (filter, `when`, the chance roll, how many came). See [Spawning outside towns](#spawning-outside-towns).
 - `anpc_selftest` — runs the behaviour checks with temporary ANPCs next to you (god mode on, crimes recorded instead of punished, game clock untouched); results on screen and in `Player.log`.
@@ -141,6 +140,23 @@ Performance: ANPCs far from you update their animation and calm decisions less o
 - Calm ANPCs never stop you resting or travelling.
 - They only fight whoever attacked them; hitting one ANPC does not anger the others.
 - Killed ANPCs stay dead in that save. A new game brings them back.
+
+Each ANPC has its own opinion of you (−100 to 100, saved), added to the region's reaction for greetings and the dialogue `reaction` condition. Hitting it costs 25, being seen hitting or killing another ANPC costs 10 with calm onlookers within 15 m, and helping it in a fight (its enemy dies with you within 20 m) gains 10; dialogue replies can change it with `"opinion"`. It drifts back toward 0 by 2 points a day.
+
+Performance: ANPCs far from you update their animation and calm decisions less often (every 3rd frame beyond 40 m, every 8th beyond 100 m; always every frame while fighting, fleeing or acting). Nothing changes up close.
+
+## Editor support (JSON schemas)
+
+`Schemas~/` holds JSON schemas for `npc.json`, `sprites.json` and dialogue files: editors such as VS Code then autocomplete field names and flag typos as you type. Copy the folder to `ANPCs/_Schemas/` (folders starting with `_` are not ANPCs) and add a line at the top of a file:
+
+```json
+{
+  "$schema": "../_Schemas/npc.schema.json",
+  "race": "Breton"
+}
+```
+
+Use `../../_Schemas/sprites.schema.json` in a `sprites` folder and `../_Schemas/dialogue.schema.json` in `_Dialogue/` or an ANPC folder. The mod ignores the `"$schema"` member. `Tools~/check-schemas.py` keeps the schemas in step with the mod's own field lists.
 
 ## Enemies
 

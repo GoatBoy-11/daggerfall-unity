@@ -286,6 +286,37 @@ namespace AdvancedNPCs
             }
         }
 
+        /// <summary>What an author wants to know about this ANPC (anpc_info, spec tools-quality §A1), one fact per line.</summary>
+        public string Describe()
+        {
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            sb.Append(Id).Append(" (").Append(DisplayName).Append(")\n");
+            if (def != null)
+                sb.Append("  key ").Append(key).Append(", ").Append(def.Kind == NpcKind.Unique ? "unique" : "generic")
+                  .Append(", folder ").Append(def.Folder).Append(", bravery ").Append(def.Bravery).Append('\n');
+            sb.Append("  ").Append(Status).Append('\n');
+
+            NpcSprite sprite = GetComponent<NpcSprite>();
+            LoadedSpriteSet chosen = sprite != null ? sprite.ChosenSet : null;
+            if (chosen == null)
+                sb.Append("  sprite: vanilla (no sprite set)\n");
+            else
+                sb.Append("  sprite: ").Append(chosen.Label).Append(sprite.Pending ? ", loading" : ", loaded")
+                  .Append(", ").Append(sprite.WorldHeight.ToString("0.00")).Append(" m tall")
+                  .Append(sprite.CurrentAnimation != null ? ", playing " + sprite.CurrentAnimation : "").Append('\n');
+
+            GameObject playerObject = GameManager.Instance.PlayerObject;
+            float distance = playerObject != null ? Vector3.Distance(playerObject.transform.position, transform.position) : 0f;
+            DaggerfallEntityBehaviour target = senses != null ? senses.Target : null;
+            string targetName = target == null ? "none" : target == GameManager.Instance.PlayerEntityBehaviour ? "you" : target.name;
+            sb.Append("  target: ").Append(targetName);
+            if (target != null)
+                sb.Append(senses.TargetInSight ? " (in sight)" : " (not in sight)");
+            sb.Append(", ").Append(distance.ToString("0.0")).Append(" m from you\n");
+            sb.Append("  LOD: updates every ").Append(NpcLod.Interval(distance, false)).Append(" frame(s) when calm");
+            return sb.ToString();
+        }
+
         /// <summary>Moves the NPC, and the centre it wanders around, to a world position. Not saved.</summary>
         public void Teleport(Vector3 worldPos)
         {
