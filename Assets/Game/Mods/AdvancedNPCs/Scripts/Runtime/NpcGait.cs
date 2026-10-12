@@ -27,6 +27,8 @@ namespace AdvancedNPCs
         Vector3 lastLocal;
         Gait gait = Gait.Still;
         float boosted;
+        int lodPhase;
+        float lodDt;
 
         public Gait Current
         {
@@ -73,6 +75,7 @@ namespace AdvancedNPCs
             NpcSprite sprite = GetComponent<NpcSprite>();
             turret = sprite != null && sprite.ChosenSet != null && SpriteStates.IsStationary(sprite.ChosenSet.Set);
             Repin();
+            lodPhase = Mathf.Abs(GetInstanceID()) % NpcLod.Phases;
         }
 
         /// <summary>Remembers where it stands now (spawn, Teleport). Town-local: floating-origin shifts are not movement.</summary>
@@ -108,9 +111,13 @@ namespace AdvancedNPCs
                 return;
             }
 
+            lodDt += Time.deltaTime;
+            if (brain.CurrentMode == NpcMode.Calm && !NpcLod.Due(Time.frameCount, lodPhase, NpcLod.Interval(DistanceToPlayer(), false)))
+                return;     // calm and far: decide less often (spec opinion-lod §B); movement is measured over the gap
             Vector3 moved = local - lastLocal;
             moved.y = 0;
-            float dt = Time.deltaTime;
+            float dt = lodDt;
+            lodDt = 0f;
             bool moving = dt > 0 && moved.magnitude / dt > MovingSpeed;
             if (brain.CurrentMode == NpcMode.Fighting)
             {
@@ -133,6 +140,12 @@ namespace AdvancedNPCs
                 gait = GaitRules.Calm(moving);
             }
             lastLocal = transform.localPosition;
+        }
+
+        float DistanceToPlayer()
+        {
+            GameObject player = GameManager.Instance != null ? GameManager.Instance.PlayerObject : null;
+            return player != null ? Vector3.Distance(player.transform.position, transform.position) : 0f;
         }
 
         Vector3 ToWorld(Vector3 localDelta)

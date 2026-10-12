@@ -33,6 +33,8 @@ namespace AdvancedNPCs
         float waitingScale = 1f;
         LoadedSpriteSet heldSet;        // chosen by Begin; acquired in Start, released when this sprite goes
         bool acquired;
+        int lodPhase;           // spreads far ANPCs' updates over frames (spec opinion-lod §B)
+        float lodDt;            // time since the last update that ran
         Material material;
 
         string state;
@@ -63,6 +65,22 @@ namespace AdvancedNPCs
         public LoadedSpriteSet Set
         {
             get { return set; }
+        }
+
+        /// <summary>Playing a one-shot sheet, running, or in an attack: updated every frame whatever the distance.</summary>
+        bool Busy
+        {
+            get
+            {
+                return oneShotLeft > 0 || pendingBlow != NoBlow || (gait != null && gait.Current == Core.Gait.Run) ||
+                       (mobile != null && IsAttack(mobile.EnemyState));
+            }
+        }
+
+        float DistanceToPlayer()
+        {
+            GameObject player = GameManager.Instance != null ? GameManager.Instance.PlayerObject : null;
+            return player != null ? Vector3.Distance(player.transform.position, transform.position) : 0f;
         }
 
         /// <summary>The set this person wears, loaded or still loading.</summary>
@@ -297,6 +315,7 @@ namespace AdvancedNPCs
                 return;
             heldSet.Acquire();
             acquired = true;
+            lodPhase = Mathf.Abs(GetInstanceID()) % NpcLod.Phases;
             if (set != null && !set.IsReady)
             {
                 // Inactive long enough for its set to unload: wait for it again.
@@ -336,7 +355,11 @@ namespace AdvancedNPCs
             }
             if (set == null)
                 return;
-            float dt = Time.deltaTime;
+            lodDt += Time.deltaTime;
+            if (!NpcLod.Due(Time.frameCount, lodPhase, NpcLod.Interval(DistanceToPlayer(), Busy)))
+                return;
+            float dt = lodDt;
+            lodDt = 0f;
             // Relative to the town: DFU's floating-origin shifts move the whole town, which is not walking.
             Vector3 p = transform.localPosition;
             Vector3 moved = p - lastPosition;

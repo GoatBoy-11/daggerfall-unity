@@ -58,6 +58,12 @@ namespace AdvancedNPCs
             }
             if (Time.time < nextCheck)
                 return;
+            GameObject playerObject = GameManager.Instance.PlayerObject;
+            if (playerObject != null && Vector3.Distance(playerObject.transform.position, transform.position) > NpcLod.GreetDistance)
+            {
+                nextCheck = Time.time + CheckInterval;
+                return;     // no one sees a greeting this far away (spec opinion-lod §B)
+            }
             nextCheck = Time.time + CheckInterval;
             CheckCandidates();
         }

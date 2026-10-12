@@ -460,7 +460,9 @@ namespace AdvancedNPCs
             patrolTimer -= Time.deltaTime;
             if (patrolTimer > 0f)
                 return false;
-            patrolTimer = AggroRules.CheckInterval;
+            GameObject playerObject = GameManager.Instance.PlayerObject;
+            float playerDistance = playerObject != null ? Vector3.Distance(playerObject.transform.position, transform.position) : 0f;
+            patrolTimer = AggroRules.CheckInterval * NpcLod.Interval(playerDistance, false);
             DaggerfallEntityBehaviour foe = FindFoe(def.AggroRange);
             if (foe == null)
                 return false;
