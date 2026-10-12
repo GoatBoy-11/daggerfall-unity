@@ -254,7 +254,7 @@ namespace AdvancedNPCs
             while (sprite != null && sprite.Pending && Time.time < readyUntil)
                 yield return null;     // sprite sets load on demand
             Check("Dunmer sample has its race, portrait and full rendered set", b.Instance.Race == "DarkElf" &&
-                mod.Portraits.Get("dunmer_spellblade") != null && sprite != null && sprite.ChosenSet.Set.Animations.Count == 11,
+                mod.Portraits.Get("dunmer_spellblade") != null && sprite != null && sprite.ChosenSet.Set.Animations.Count == 12,      // 12 with talk_1 (spec conversations)
                 sprite == null ? "no sprite set" : sprite.ChosenSet.Label);
             if (sprite == null) { NpcBrain.Discard(b); yield break; }
             Check("Dunmer melee impact markers loaded", sprite.ChosenSet.Set.Animations["attack_1"].ActionFrame == 2 &&
@@ -322,7 +322,7 @@ namespace AdvancedNPCs
             while (sprite != null && sprite.Pending && Time.time < readyUntil)
                 yield return null;     // sprite sets load on demand
             NpcMagic caster = b.GetComponent<NpcMagic>();
-            Check("mercenary custom sheets and portrait load", sprite != null && sprite.ChosenSet.Set.Animations.Count == 11 &&
+            Check("mercenary custom sheets and portrait load", sprite != null && sprite.ChosenSet.Set.Animations.Count == 12 &&
                 mod.Portraits.Get("dunmer_mercenary") != null && b.Instance.Race == "DarkElf",
                 sprite == null ? "no sprite set" : sprite.ChosenSet.Label);
             Check("mercenary keeps original melee impact frames", sprite != null &&

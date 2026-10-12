@@ -910,6 +910,10 @@ namespace AdvancedNPCs
             while (sounds.MoveNext())
                 yield return sounds.Current;
 
+            IEnumerator chat = ChatSteps(location, playerTransform);
+            while (chat.MoveNext())
+                yield return chat.Current;
+
             IEnumerator opinion = OpinionSteps(location, playerTransform);
             while (opinion.MoveNext())
                 yield return opinion.Current;

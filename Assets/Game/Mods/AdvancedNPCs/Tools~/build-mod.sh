@@ -7,6 +7,7 @@
 # DFU project and can take 30-60+ minutes.
 #
 # Usage: build-mod.sh [DFU install dir] [--no-examples]
+# ANPC_BACKGROUND=1 starts the editor minimized.
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 PROJECT="$(cd "$HERE/../../../../.." && pwd)"
@@ -24,9 +25,18 @@ LOG="$PROJECT/Builds/advancednpcs-build.log"
 mkdir -p "$OUT"
 
 echo "Building with Unity 2019.4 (an editor window opens and closes by itself; log: $LOG)..."
-if ! "$UNITY" -quit -projectPath "$(cygpath -w "$PROJECT")" \
-     -executeMethod AdvancedNPCs.EditorTools.AdvancedNpcsModBuilder.Build \
-     -modOut "$(cygpath -w "$OUT")" -logFile "$(cygpath -w "$LOG")"; then
+run_unity() {
+  if [ "${ANPC_BACKGROUND:-0}" = 1 ]; then
+    local code
+    code=$(powershell -NoProfile -Command "\$p = Start-Process -FilePath '$(cygpath -w "$UNITY")' -WindowStyle Minimized -PassThru -ArgumentList '-quit','-projectPath','\"$(cygpath -w "$PROJECT")\"','-executeMethod','AdvancedNPCs.EditorTools.AdvancedNpcsModBuilder.Build','-modOut','\"$(cygpath -w "$OUT")\"','-logFile','\"$(cygpath -w "$LOG")\"'; \$p.WaitForExit(); \$p.ExitCode")
+    [ "$(echo "$code" | tr -d '\r ')" = 0 ]
+  else
+    "$UNITY" -quit -projectPath "$(cygpath -w "$PROJECT")" \
+      -executeMethod AdvancedNPCs.EditorTools.AdvancedNpcsModBuilder.Build \
+      -modOut "$(cygpath -w "$OUT")" -logFile "$(cygpath -w "$LOG")"
+  fi
+}
+if ! run_unity; then
   echo "BUILD FAILED. Last relevant log lines:"
   grep -E "AdvancedNPCs build|error CS|License|licen" "$LOG" | tail -15
   exit 1
