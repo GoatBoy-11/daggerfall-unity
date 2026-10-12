@@ -34,7 +34,7 @@ namespace AdvancedNPCs
             NpcBrain.Discard(swinger);
 
             // Bravery at low health, decided when the fight starts.
-            IEnumerator c = BraveryCase(location, player, open, Bravery.Normal, 100, 0.10f, NpcMode.Fleeing, "Normal flees below half the line when fleeChance is 100");
+            IEnumerator c = BraveryCase(location, player, open, Bravery.Normal, 100, 0.05f, NpcMode.Fleeing, "Normal flees below half the line when fleeChance is 100");
             while (c.MoveNext()) yield return c.Current;
             c = BraveryCase(location, player, open, Bravery.Normal, 0, 0.10f, NpcMode.Fighting, "Normal fights on when fleeChance is 0");
             while (c.MoveNext()) yield return c.Current;

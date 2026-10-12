@@ -27,7 +27,7 @@ namespace AdvancedNPCs.Core
         static readonly string[] SharedKeys =
         {
             "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "fleeChance", "aggroRange", "calmDownHours",
-            "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight", "spriteHeightScale", "attitude", "hostileHours", "dialogue", "magic",
+            "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight", "spriteHeightScale", "spriteScale", "attitude", "hostileHours", "dialogue", "magic",
             "combat",
         };
         static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
@@ -516,6 +516,11 @@ namespace AdvancedNPCs.Core
 
             d.SpriteHeight = (float)spriteHeight;
             d.SpriteHeightScale = (float)spriteHeightScale;
+            double spriteScale;
+            if ((problem = FieldReader.Number(o, "spriteScale", 1, out spriteScale)) != null || (o.ContainsKey("spriteScale") && o["spriteScale"] == null) ||
+                double.IsNaN(spriteScale) || spriteScale < 0.2 || spriteScale > 2)
+                return Problem(r, file, "spriteScale", "must be a number from 0.2 to 2");
+            d.SpriteScale = (float)spriteScale;
             string combatKey;
             if ((problem = CombatRules.Read(o, d.IsCreature, out combatKey, out d.HealthScale, out d.DamageScale, out d.AttackSpeed,
                     out d.RangedAtDistance, out d.RangedAnimation, out d.RunSpeed, out d.CanRun)) != null)

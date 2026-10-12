@@ -351,11 +351,13 @@ namespace AdvancedNPCs
 
             // Custom sprites (spec 1b): one of the folder's sprite sets, chosen by the person's seed.
             List<LoadedSpriteSet> spriteSets = owner.Sprites.For(def.Folder);
+            float spawnHeight = 0f;
             NpcGait gait = go.AddComponent<NpcGait>();
             if (spriteSets.Count > 0)
             {
                 LoadedSpriteSet spriteSet = spriteSets[SpriteStates.PickSet(spriteSets.Count, instance.Seed)];
-                float height = def.SpriteHeight > 0 ? def.SpriteHeight : NpcSprite.DefaultHeight(go);
+                float height = (def.SpriteHeight > 0 ? def.SpriteHeight : NpcSprite.DefaultHeight(go)) * def.SpriteScale;
+                spawnHeight = height;
                 NpcSprite sprite = go.AddComponent<NpcSprite>();
                 sprite.RangedSheet = def.RangedAnimation;
                 sprite.UseGait(gait);
@@ -366,7 +368,8 @@ namespace AdvancedNPCs
                     AdvancedNpcsMod.Log(spriteSet.Label + ": no " + def.RangedAnimation + ".png for combat.rangedAnimation; bow shots play attack_range*/attack* sheets.");
             }
             gait.Init(def);
-            AdvancedNpcsMod.Log(instance.Key + " (" + instance.Name + "): spawned.");
+            AdvancedNpcsMod.Log(instance.Key + " (" + instance.Name + "): spawned" +
+                (spawnHeight > 0 ? " (sprite " + spawnHeight.ToString("0.00") + " m tall)." : "."));
             return brain;
         }
     }

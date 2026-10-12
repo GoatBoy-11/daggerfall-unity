@@ -221,5 +221,26 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual("commoner/npc.json: spriteHeightScale: must be a finite number above 0",
                 DefinitionParser.ParseFolder("commoner", "{\"spriteHeightScale\":" + value + "}").Error);
         }
+
+        [Test]
+        public void SpriteScale_DefaultsToOneAndReads()
+        {
+            Assert.AreEqual(1f, DefinitionParser.ParseFolder("commoner", "{}").Definition.SpriteScale);
+            ParseResult r = DefinitionParser.ParseFolder("commoner", "{\"spriteScale\":0.85}");
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.AreEqual(0.85f, r.Definition.SpriteScale, 1e-6);
+            Assert.AreEqual(0, r.Warnings.Count);
+        }
+
+        [TestCase("0")]
+        [TestCase("0.1")]
+        [TestCase("2.5")]
+        [TestCase("\"small\"")]
+        [TestCase("null")]
+        public void SpriteScale_RejectsInvalidValues(string value)
+        {
+            Assert.AreEqual("commoner/npc.json: spriteScale: must be a number from 0.2 to 2",
+                DefinitionParser.ParseFolder("commoner", "{\"spriteScale\":" + value + "}").Error);
+        }
     }
 }

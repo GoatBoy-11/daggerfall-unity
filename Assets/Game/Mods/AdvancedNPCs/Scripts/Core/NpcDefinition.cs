@@ -41,6 +41,8 @@ namespace AdvancedNPCs.Core
         public float SpriteHeight;
         /// <summary>Vertical-only custom sprite scale, anchored at the feet; 1 keeps the original proportions.</summary>
         public float SpriteHeightScale = 1f;
+        /// <summary>"spriteScale": shrinks or grows the whole custom sprite evenly (0.2-2); 1 keeps the default size.</summary>
+        public float SpriteScale = 1f;
         /// <summary>Generic templates only: where and how many (null for unique ANPCs).</summary>
         public GenericSpawn Spawn;
         public Bravery Bravery;

@@ -787,12 +787,26 @@ namespace AdvancedNPCs
             {
                 string dir = System.IO.Path.Combine(Application.persistentDataPath, "anpc-looks");
                 System.IO.Directory.CreateDirectory(dir);
-                foreach (NpcDefinition g in mod.Catalog.Generics)
+                List<NpcDefinition> lookDefs = new List<NpcDefinition>(mod.Catalog.Generics);
+                lookDefs.AddRange(mod.Catalog.ById.Values);
+                foreach (NpcDefinition g in lookDefs)
                 {
                     if (mod.Sprites.For(g.Folder).Count == 0)
                         continue;
                     mod.Sprites.Add("selftest_look", mod.Sprites.For(g.Folder)[0]);
-                    NpcBrain each = Make("selftest_look", Bravery.Normal, location, playerTransform, 0f);
+                    // The sample's own class and size settings, so the picture shows its real in-game height...
+                    NpcDefinition lookDef = TestDefinition("selftest_look", Bravery.Normal, location, playerTransform, 0f);
+                    lookDef.BaseClass = g.BaseClass;
+                    lookDef.IsCreature = g.IsCreature;
+                    lookDef.Gender = g.Gender;
+                    lookDef.SpriteHeight = g.SpriteHeight;
+                    lookDef.SpriteHeightScale = g.SpriteHeightScale;
+                    lookDef.SpriteScale = g.SpriteScale;
+                    NpcBrain each = SpawnDefinition(lookDef, location);
+                    // ...next to a vanilla Warrior sprite for scale.
+                    NpcDefinition refDef = TestDefinition("selftest_look_ref", Bravery.Normal, location, playerTransform, 1.4f);
+                    refDef.BaseClass = "Warrior";
+                    NpcBrain reference = SpawnDefinition(refDef, location);
                     NpcSprite eachSprite = each.GetComponent<NpcSprite>();
                     float eachUntil = Time.time + 10f;
                     while (eachSprite != null && eachSprite.Pending && Time.time < eachUntil)
@@ -801,6 +815,7 @@ namespace AdvancedNPCs
                     Vector3 facing = Camera.main.transform.position - each.transform.position;
                     facing.y = 0;
                     each.transform.rotation = Quaternion.LookRotation(facing.normalized);
+                    reference.transform.rotation = Quaternion.LookRotation(facing.normalized);
                     yield return new WaitForSeconds(0.5f);
                     ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, g.Folder + "-front.png"));
                     yield return new WaitForSeconds(0.5f);
@@ -809,6 +824,7 @@ namespace AdvancedNPCs
                     ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, g.Folder + "-side.png"));
                     yield return new WaitForSeconds(0.5f);
                     NpcBrain.Discard(each);
+                    NpcBrain.Discard(reference);
                     mod.Sprites.Remove("selftest_look");
                     yield return null;
                 }
