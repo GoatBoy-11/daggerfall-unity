@@ -1,7 +1,7 @@
 # Advanced NPCs
 
 Persistent, data-defined NPCs ("ANPCs") for Daggerfall Unity 1.9.2. Each ANPC is a folder with an
-`npc.json`. ANPCs stay calm, only fight whoever attacks them, fight or flee by bravery, report crimes,
+`npc.json`. ANPCs stay calm, fight whoever attacks them (even when the attack misses; brave ones also attack enemies they see), fight or flee by bravery, report crimes,
 calm down over in-game hours, and keep their state (alive/dead, hostile/calm, health) through visits
 and save/load.
 
@@ -54,13 +54,17 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 | `attitude` | no | `calm` | `calm` (townsfolk) or `hostile` (an enemy), see [Enemies](#enemies) |
 | `hostileHours` | no | always | with `hostile`: `[from, to]` whole hours 0–23, e.g. `[20, 6]` |
 | `gender` | no | fixed random per ANPC | `Male`, `Female` |
-| `bravery` | no | `Normal` | `Coward` (always flees), `Normal` (flees at low health), `Brave` (fights to the death) |
-| `fleeHealthPercent` | no | `25` | 1–99, used by `Normal` |
+| `bravery` | no | `Normal` | `Coward` (always flees), `Prudent` (flees below `fleeHealthPercent`), `Normal` (once below half of it, a `fleeChance` % chance to flee, rolled once), `Brave` (never flees; when calm, attacks enemies it sees within `aggroRange`) |
+| `fleeHealthPercent` | no | `25` | 1–99, used by `Prudent` (`Normal` uses half of it) |
+| `fleeChance` | no | `30` | 0–100: `Normal`'s chance to flee once badly hurt |
+| `aggroRange` | no | `15` | 1–50 m: how far a calm `Brave` ANPC looks for enemies (enemy ANPCs and hostile vanilla enemies, never the city watch) |
 | `calmDownHours` | no | `[6, 48]` | `[min, max]` in-game hours before a hostile ANPC forgives the player |
 | `crimeOnAttack` | no | `true` | `true`: attacking is assault, killing is murder |
 | `wanderRadius` | no | `8` | metres around the spawn point; `0` stands still |
 | `combat` | no | vanilla, no bow, runs | `{ "health": 0.7, "attackSpeed": 1.3, "rangedAtDistance": true, "runSpeed": 1.2, "canRun": true }`, see [Combat tuning](#combat-tuning) |
 | `dialogue` | no | none | dialogue type(s) from `_Dialogue/`, e.g. `"tavern_wench"` or `["gossip", "tavern_wench"]`, see [Dialogue topics](#dialogue-topics) |
+
+Before 0.12, `"Normal"` meant "always flees at low health"; use `"Prudent"` for that now.
 
 
 ## Generic townsfolk
@@ -453,6 +457,7 @@ ANPCs/wench/
   `blender -b character.blend --python render-sprites.py -- <out_dir> [test] [--rig NAME] [--mesh NAME]`
 - For characters with a separate weapon mesh, `Tools~/render-character-sprites.py` includes both meshes in rendering and bounds: `--mesh body,sword`. `--keep-last death_1` keeps the final corpse pose. The Dunmer example documents a complete command.
 - A character whose idle holds a weapon above its head (a guard's upright spear) would look smaller in game, because the standing height is measured from the tallest idle pixel. Add `--standing-mesh body` (the body mesh alone) and the renderer writes `"standingHeight"` (pixels above the feet row, without the weapon) into `sprites.json`; the game then sizes the person by the body.
+- Sprite sets load when an ANPC using them appears (it may show up a moment after spawning) and unload a minute after the last one is gone; at startup only the files and their sizes are checked.
 - Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `run*` (running), `hit*` (hurt), `attack*` (attacking), `attack_range*` (shooting a bow, see `rangedAtDistance`), `cast*` (spellcasting), `greet*` (greeting), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing run sheets use walk sheets and missing walk sheets use run sheets, then idle; missing hit/attack sheets use idle; greet sheets have no fallback; a set needs at least one idle sheet.
 - Turret: a set with no `walk*` and no `run*` sheet never moves: it does not wander, chase, flee or get knocked
   back, but still turns to its target and attacks, shoots or casts from where it stands. Like any DFU enemy it only
