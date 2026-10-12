@@ -189,6 +189,9 @@ namespace AdvancedNPCs
         // Spells and damage over time hurt in the frame a bundle lands or a magic round runs; DFU voices no grunt for them.
         void OnAssignBundle(LiveEffectBundle bundle)
         {
+            // A weapon's strike enchantment or poison lands in the frame of the weapon hit DFU itself voices.
+            if (bundle != null && (bundle.castByItem != null || bundle.bundleType == BundleTypes.Poison))
+                return;
             magicFrame = Time.frameCount;
         }
 
@@ -349,10 +352,11 @@ namespace AdvancedNPCs
         /// <summary>DFU's own grunt (same setting, chance, race and gender), for an event the folder has no sound for.</summary>
         void VanillaGrunt(bool attack, bool heavy, int chance)
         {
-            if (enemySounds == null || voiceRace == Races.None || (!DaggerfallUnity.Settings.CombatVoices && !ForceVanillaVoice))
+            bool force = ForceVanillaVoice && SelfTest.Running;
+            if (enemySounds == null || voiceRace == Races.None || (!DaggerfallUnity.Settings.CombatVoices && !force))
                 return;
             EnemyEntity entity = behaviour.Entity as EnemyEntity;
-            if (entity == null || entity.EntityType != EntityTypes.EnemyClass || (!ForceVanillaVoice && !Dice100.SuccessRoll(chance)))
+            if (entity == null || entity.EntityType != EntityTypes.EnemyClass || (!force && !Dice100.SuccessRoll(chance)))
                 return;
             Genders gender = mobile != null && (mobile.Enemy.Gender == MobileGender.Male || entity.MobileEnemy.ID == (int)MobileTypes.Knight_CityWatch)
                 ? Genders.Male : Genders.Female;

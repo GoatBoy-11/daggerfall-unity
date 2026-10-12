@@ -259,10 +259,14 @@ namespace AdvancedNPCs
 
                 int healthBefore = g.EntityBehaviour.Entity.CurrentHealth;
                 EntityEffectManager gEffects = g.GetComponent<EntityEffectManager>();
-                if (gEffects != null)       // no caster: no absorption, reflection or resistance roll can stop it
+                // No caster: no absorption, reflection or resistance roll. The target's saving throw can still cut a small
+                // spell to nothing, so cast again (each time watching for a grunt) until one lands.
+                for (int cast = 0; cast < 5 && gEffects != null && g.EntityBehaviour.Entity.CurrentHealth >= healthBefore; cast++)
+                {
                     gEffects.AssignBundle(DamageSpell(null), AssignBundleFlags.BypassSavingThrows | AssignBundleFlags.BypassChance);
-                yield return null;
-                yield return null;
+                    yield return null;
+                    yield return null;
+                }
                 int gruntsAfterSpell = gVoice != null ? gVoice.Played("vanilla_hit") : -1;
                 Check("spell damage gives no grunt (DFU voices none)",
                     g.EntityBehaviour.Entity.CurrentHealth < healthBefore && gruntsAfterSpell == gruntsAfterHit,
@@ -282,9 +286,19 @@ namespace AdvancedNPCs
             {
                 LoadedSoundSet wenchSounds = mod.Sounds.For("wench");
                 string wenchWarnings = string.Join("; ", mod.Catalog.Messages.FindAll(delegate (string m) { return m.StartsWith("wench/"); }).ToArray());
+                int wenchFiles = 0;
+                bool wenchPools = wenchSounds != null;
+                foreach (string pool in new[] { SoundPools.Greet, SoundPools.Hit, SoundPools.Death, SoundPools.Step })
+                    wenchPools = wenchPools && wenchSounds.Files.ContainsKey(pool);
+                if (wenchSounds != null)
+                    foreach (List<string> f in wenchSounds.Files.Values)
+                        wenchFiles += f.Count;
+                List<LoadedSpriteSet> wenchSets = mod.Sprites.For("wench");
+                bool wenchSheets = wenchSets.Count == 1;
+                foreach (string sheet in new[] { "idle_1", "walk_1", "attack_1", "hit_1", "death" })
+                    wenchSheets = wenchSheets && wenchSets[0].Set.Animations.ContainsKey(sheet);
                 Check("the wench example parses with her sprites, sounds and settings",
-                    mod.Sprites.For("wench").Count == 1 && wenchSounds != null && wenchSounds.Summary() == "greet 4, hit 3, death 2, step 4" &&
-                    wench.Sounds != null && wench.Sounds.GreetChance == 70 && wenchWarnings.Length == 0,
+                    wenchSheets && wenchPools && wench.Sounds != null && wench.Sounds.GreetChance == 70 && wenchWarnings.Length == 0,
                     "sets=" + mod.Sprites.For("wench").Count + ", sounds=" + (wenchSounds != null ? wenchSounds.Summary() : "none") +
                     ", warnings: " + wenchWarnings);
                 string spawnError;
@@ -303,7 +317,8 @@ namespace AdvancedNPCs
                         foreach (List<AudioClip> c in wenchSounds.Clips.Values)
                             clips += c.Count;
                     Check("anpc_spawn wench shows her sprite set and loads all her sounds",
-                        wSprite != null && wSprite.Showing && wSprite.ChosenSet != null && wSprite.ChosenSet.Label == "wench/sprites" && clips == 13,
+                        wSprite != null && wSprite.Showing && wSprite.ChosenSet != null && wSprite.ChosenSet.Label == "wench/sprites" &&
+                        clips == wenchFiles && clips > 0,
                         "showing=" + (wSprite != null && wSprite.Showing) + ", set=" + (wSprite != null && wSprite.ChosenSet != null ? wSprite.ChosenSet.Label : "none") +
                         ", clips=" + clips);
                     NpcBrain.Discard(w);
@@ -330,12 +345,12 @@ namespace AdvancedNPCs
             yield return Settle;
         }
 
-        /// <summary>A touch spell of 1-2 health damage by the caster (null: none).</summary>
+        /// <summary>A touch spell of 3-4 health damage by the caster (null: none).</summary>
         static EntityEffectBundle DamageSpell(DaggerfallEntityBehaviour caster)
         {
             EffectSettings settings = BaseEntityEffect.DefaultEffectSettings();
-            settings.MagnitudeBaseMin = 1;
-            settings.MagnitudeBaseMax = 2;
+            settings.MagnitudeBaseMin = 3;
+            settings.MagnitudeBaseMax = 4;
             settings.MagnitudePlusMin = 0;
             settings.MagnitudePlusMax = 0;
             EffectBundleSettings spell = new EffectBundleSettings

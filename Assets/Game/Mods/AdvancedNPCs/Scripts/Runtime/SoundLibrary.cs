@@ -235,7 +235,7 @@ namespace AdvancedNPCs
             loading.Add(s);
         }
 
-        /// <summary>One user fewer; the last one starts the unload countdown (short for a retired set: no one takes it again).</summary>
+        /// <summary>One user fewer; the last one starts the unload countdown (for a retired set: as long as its longest clip may still play).</summary>
         public void Release(LoadedSoundSet s)
         {
             if (s.Users > 0)

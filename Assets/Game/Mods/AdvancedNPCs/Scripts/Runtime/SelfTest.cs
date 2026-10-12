@@ -41,6 +41,7 @@ namespace AdvancedNPCs
         public IEnumerator Run(Action<int, int> onDone)
         {
             Running = true;
+            NpcVoice.ForceVanillaVoice = false;     // in case an earlier run was cut off before its clean-up
             PlayerEntity player = GameManager.Instance.PlayerEntity;
             bool godMode = player.GodMode;
             Action<PlayerEntity.Crimes> report = NpcCrime.Report;
