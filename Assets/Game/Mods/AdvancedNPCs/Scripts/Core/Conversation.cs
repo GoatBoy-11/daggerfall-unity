@@ -11,6 +11,7 @@ namespace AdvancedNPCs.Core
         void GiveItem(string name);
         void TakeItem(string name);
         void ChangeReputation(int amount);
+        void ChangeOpinion(int amount);
         void StartQuest(string name);
         void BecomeEnemy();
         void EndConversation();
@@ -186,6 +187,8 @@ namespace AdvancedNPCs.Core
                 {
                     if (a.Reputation != 0)
                         act.ChangeReputation(a.Reputation);
+                    if (a.Opinion != 0)
+                        act.ChangeOpinion(a.Opinion);
                 }
             }
             for (int i = 0; i < sets.Length; i++)

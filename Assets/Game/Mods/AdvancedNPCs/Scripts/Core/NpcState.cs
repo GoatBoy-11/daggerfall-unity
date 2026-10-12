@@ -37,6 +37,10 @@ namespace AdvancedNPCs.Core
         public int magicMax;
         public bool magicUnlimited;
         public bool magicRefillsOnEntry;
+        /// <summary>Personal opinion of the player, -100..100 (spec opinion-lod §A); drifts toward 0 from opinionAt.</summary>
+        public int opinion;
+        /// <summary>Game second of the last opinion change.</summary>
+        public ulong opinionAt;
 
         public bool HasAsked(string topicId)
         {
@@ -100,7 +104,7 @@ namespace AdvancedNPCs.Core
         public bool IsDefault()
         {
             return MagicSettled() && !dead && !hostile && healthFraction >= 0.999f && string.IsNullOrEmpty(portrait) && !enemyOn && !enemyOff &&
-                   (asked == null || asked.Count == 0);
+                   (asked == null || asked.Count == 0) && opinion == 0;
         }
     }
 

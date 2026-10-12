@@ -21,7 +21,7 @@ namespace AdvancedNPCs.Core
         static readonly string[] FileKeys = { "topics", "greetings" };
         public const int MaxReplyDepth = 8;
 
-        static readonly string[] ActionKeys = { "giveGold", "takeGold", "giveItem", "takeItem", "reputation", "startQuest", "becomeEnemy", "endConversation" };
+        static readonly string[] ActionKeys = { "giveGold", "takeGold", "giveItem", "takeItem", "reputation", "opinion", "startQuest", "becomeEnemy", "endConversation" };
         static readonly string[] TopicKeys = Join(new[] { "caption", "id", "answers", "when", "question", "sets", "clears", "once", "replies" }, ActionKeys);
         static readonly string[] AnswerKeys = Join(new[] { "text", "when", "sets", "clears", "replies" }, ActionKeys);
         static readonly string[] ReplyKeys = Join(new[] { "text", "id", "when", "answers", "replies", "sets", "clears" }, ActionKeys);
@@ -378,6 +378,7 @@ namespace AdvancedNPCs.Core
             a.GiveGold = Amount(where, o, "giveGold", 1, 100000, "a whole number 1-100000", messages);
             a.TakeGold = Amount(where, o, "takeGold", 1, 100000, "a whole number 1-100000", messages);
             a.Reputation = Amount(where, o, "reputation", -20, 20, "a whole number -20 to 20 (not 0)", messages);
+            a.Opinion = Amount(where, o, "opinion", -50, 50, "a whole number -50 to 50 (not 0)", messages);
             a.GiveItem = Name(where, o, "giveItem", "an item name", messages);
             a.TakeItem = Name(where, o, "takeItem", "an item name", messages);
             a.StartQuest = Name(where, o, "startQuest", "a quest name", messages);

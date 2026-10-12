@@ -100,6 +100,8 @@ namespace AdvancedNPCs.Core
         public string TakeItem;
         /// <summary>Change of the player's standing with the region's people, -20..20.</summary>
         public int Reputation;
+        /// <summary>Change of this ANPC's personal opinion of the player, -50..50 (spec opinion-lod §A).</summary>
+        public int Opinion;
         public string StartQuest;
         public bool BecomeEnemy;
         public bool EndConversation;
@@ -108,7 +110,7 @@ namespace AdvancedNPCs.Core
         {
             get
             {
-                return GiveGold == 0 && TakeGold == 0 && GiveItem == null && TakeItem == null && Reputation == 0 && StartQuest == null &&
+                return GiveGold == 0 && TakeGold == 0 && GiveItem == null && TakeItem == null && Reputation == 0 && Opinion == 0 && StartQuest == null &&
                        !BecomeEnemy && !EndConversation;
             }
         }

@@ -37,6 +37,15 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual(expected, OpinionRules.Band(reaction, opinion));
         }
 
+        [Test]
+        public void State_WithAnOpinionIsSaved()
+        {
+            NpcState s = new NpcState();
+            Assert.IsTrue(s.IsDefault());
+            s.opinion = -5;
+            Assert.IsFalse(s.IsDefault());
+        }
+
         [TestCase(10f, false, 1)]
         [TestCase(39.9f, false, 1)]
         [TestCase(40f, false, 3)]

@@ -21,6 +21,7 @@ namespace AdvancedNPCs.Tests
         public void GiveItem(string name) { facts.Items.Add(name); Done.Add("giveItem " + name); }
         public void TakeItem(string name) { facts.Items.Remove(name); Done.Add("takeItem " + name); }
         public void ChangeReputation(int amount) { Done.Add("reputation " + amount); }
+        public void ChangeOpinion(int amount) { Done.Add("opinion " + amount); }
         public void StartQuest(string name) { Done.Add("startQuest " + name); }
         public void BecomeEnemy() { Done.Add("becomeEnemy"); }
         public void EndConversation() { Done.Add("endConversation"); }
@@ -71,6 +72,18 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual(8, f.GoldValue);
             CollectionAssert.Contains(f.Flags, "had_ale");
             CollectionAssert.Contains(f.AskedTopics, "ale_a_mug_please"); // "asked": "Ale/A mug, please." normalises the same
+        }
+
+        [Test]
+        public void OpinionAction_RunsAfterReputation()
+        {
+            DialogueTopic t = Topic("{ \"caption\": \"Gift\", \"answers\": [\"x\"], \"replies\": [ { \"text\": \"For you.\", " +
+                "\"opinion\": 15, \"reputation\": 1, \"takeGold\": 10, \"answers\": [\"Thank you!\"] } ] }");
+            FakeFacts f = new FakeFacts { GoldValue = 20 };
+            FakeActions act = new FakeActions(f);
+            DialogueAnswer next;
+            Conversation.Say(t.Replies[0], t.Id, f, new Random(1), f, act, out next);
+            CollectionAssert.AreEqual(new[] { "takeGold 10", "reputation 1", "opinion 15" }, act.Done);
         }
 
         [Test]

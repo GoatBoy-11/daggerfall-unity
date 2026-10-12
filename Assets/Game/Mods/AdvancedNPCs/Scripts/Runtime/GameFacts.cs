@@ -123,7 +123,8 @@ namespace AdvancedNPCs
                     }
                     return "neutral";
                 }
-                return ConditionParser.ReactionBand((int)ReactionField.GetValue(TalkManager.Instance));
+                int reaction = (int)ReactionField.GetValue(TalkManager.Instance);
+                return OpinionRules.Band(reaction, CurrentOpinion);
             }
         }
 
@@ -266,6 +267,22 @@ namespace AdvancedNPCs
         }
 
         /// <summary>The player's standing with the region's people (what DFU's reaction, and so "reaction", is based on).</summary>
+        /// <summary>This ANPC's personal opinion of the player now (0 without an ANPC).</summary>
+        int CurrentOpinion
+        {
+            get { return state != null ? OpinionRules.Current(state.opinion, state.opinionAt, DaggerfallUnity.Instance.WorldTime.Now.ToSeconds()) : 0; }
+        }
+
+        /// <summary>Changes this ANPC's personal opinion of the player (reply action "opinion").</summary>
+        public void ChangeOpinion(int amount)
+        {
+            if (state == null)
+                return;
+            ulong now = DaggerfallUnity.Instance.WorldTime.Now.ToSeconds();
+            state.opinion = OpinionRules.Change(state.opinion, state.opinionAt, now, amount);
+            state.opinionAt = now;
+        }
+
         public void ChangeReputation(int amount)
         {
             try
