@@ -1,10 +1,13 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
+using DaggerfallWorkshop.Game.MagicAndEffects;
+using DaggerfallWorkshop.Game.MagicAndEffects.MagicEffects;
 using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
@@ -103,6 +106,15 @@ namespace AdvancedNPCs
                 Check("a hit plays a hit sound", voice.Played(SoundPools.Hit) == hitsBefore + 1,
                     "hit sounds " + hitsBefore + " -> " + voice.Played(SoundPools.Hit));
 
+                // Overlapping one-shots: each on its own audio source, so a new pitch does not bend the one still playing.
+                voice.Play(SoundPools.Greet);
+                AudioSource firstVoice = voice.LastVoice;
+                voice.Play(SoundPools.Greet);
+                Check("overlapping voice sounds take turns over separate audio sources",
+                    firstVoice != null && voice.LastVoice != null && firstVoice != voice.LastVoice,
+                    "first=" + (firstVoice != null ? firstVoice.GetInstanceID().ToString() : "-") + ", second=" +
+                    (voice.LastVoice != null ? voice.LastVoice.GetInstanceID().ToString() : "-"));
+
                 PlayerHit(b, playerBehaviour, 100000);
                 yield return new WaitForSeconds(0.5f);
                 Check("death always plays a death sound and lets go of the sounds",
@@ -146,6 +158,12 @@ namespace AdvancedNPCs
                 Check("anpc_reload_assets swaps a live ANPC to the re-read Sounds",
                     reloaded && swapped == 1 && freshSounds != null && freshSounds != plainSet && freshSounds.Users == 1 && plainSet.Users == 0,
                     "reloaded=" + reloaded + ", swapped=" + swapped + ", users new/old=" + (freshSounds != null ? freshSounds.Users : -1) + "/" + plainSet.Users);
+                yield return null;
+                yield return null;
+                bool keptAWhile = plainSet.Clips.Count > 0;
+                yield return new WaitForSecondsRealtime(SoundRules.RetireDelay(0.1f) + 0.5f);
+                Check("a replaced sound set keeps its clips a while (a death cry may still play), then frees them",
+                    keptAWhile && plainSet.Clips.Count == 0, "kept=" + keptAWhile + ", clips later=" + plainSet.Clips.Count);
                 NpcBrain.Discard(plain);
                 yield return null;
             }
@@ -191,6 +209,10 @@ namespace AdvancedNPCs
                 orcDef.IsCreature = true;
                 NpcBrain orc = SpawnDefinition(orcDef, location);
                 yield return Settle;
+                float orcUntil = Time.time + 3f;
+                while (Time.time < orcUntil && !orcSet.IsReady)
+                    yield return null;
+                yield return null;
                 NpcVoice orcVoice = orc.GetComponent<NpcVoice>();
                 Check("a creature with attack sounds no longer plays its own attack growl",
                     orcVoice != null && orcVoice.CreatureAttackSilenced, "silenced=" + (orcVoice != null && orcVoice.CreatureAttackSilenced));
@@ -203,6 +225,94 @@ namespace AdvancedNPCs
                 mod.Sounds.Remove("selftest_voice_orc");
             }
 
+            // DFU's grunt stands in only where DFU itself voices one, and for a pool none of whose files could be decoded.
+            string gruntDir = Path.Combine(Path.Combine(Application.temporaryCachePath, "anpc_selftest_grunt"), "Sounds");
+            Directory.CreateDirectory(gruntDir);
+            File.WriteAllBytes(Path.Combine(gruntDir, "greet_1.wav"), ToneWav(0.1f));
+            File.WriteAllText(Path.Combine(gruntDir, "hit_1.wav"), "not a sound");
+            LoadedSoundSet gruntSet = SoundLibrary.IndexSet("selftest_voice_grunt/Sounds", gruntDir);
+            mod.Sounds.Add("selftest_voice_grunt", gruntSet);
+            NpcVoice.ForceVanillaVoice = true;
+            try
+            {
+                NpcDefinition gd = TestDefinition("selftest_voice_grunt", Bravery.Normal, location, player, 2f);
+                gd.BaseClass = "Warrior";
+                gd.Sounds = new SoundSettings { CombatChance = 100, GreetChance = 0 };
+                NpcBrain g = SpawnDefinition(gd, location);
+                yield return Settle;
+                float gruntUntil = Time.time + 3f;
+                while (Time.time < gruntUntil && !gruntSet.IsReady)
+                    yield return null;
+                yield return null;
+                NpcVoice gVoice = g.GetComponent<NpcVoice>();
+                Check("a pool whose every file failed to decode has no clips", gruntSet.IsReady &&
+                    gruntSet.Files.ContainsKey(SoundPools.Hit) && !gruntSet.Clips.ContainsKey(SoundPools.Hit), gruntSet.Summary());
+
+                int gruntsBefore = gVoice != null ? gVoice.Played("vanilla_hit") : -1;
+                PlayerHit(g, playerBehaviour, 1);
+                yield return null;
+                yield return null;
+                int gruntsAfterHit = gVoice != null ? gVoice.Played("vanilla_hit") : -1;
+                Check("a weapon hit with no playable hit sound gives DFU's own grunt",
+                    gruntsAfterHit == gruntsBefore + 1 && gVoice.Played(SoundPools.Hit) == 0,
+                    "grunts " + gruntsBefore + " -> " + gruntsAfterHit + ", custom hits " + (gVoice != null ? gVoice.Played(SoundPools.Hit) : -1));
+
+                int healthBefore = g.EntityBehaviour.Entity.CurrentHealth;
+                EntityEffectManager gEffects = g.GetComponent<EntityEffectManager>();
+                if (gEffects != null)       // no caster: no absorption, reflection or resistance roll can stop it
+                    gEffects.AssignBundle(DamageSpell(null), AssignBundleFlags.BypassSavingThrows | AssignBundleFlags.BypassChance);
+                yield return null;
+                yield return null;
+                int gruntsAfterSpell = gVoice != null ? gVoice.Played("vanilla_hit") : -1;
+                Check("spell damage gives no grunt (DFU voices none)",
+                    g.EntityBehaviour.Entity.CurrentHealth < healthBefore && gruntsAfterSpell == gruntsAfterHit,
+                    "health " + healthBefore + " -> " + g.EntityBehaviour.Entity.CurrentHealth + ", grunts " + gruntsAfterHit + " -> " + gruntsAfterSpell);
+                NpcBrain.Discard(g);
+                yield return null;
+            }
+            finally
+            {
+                NpcVoice.ForceVanillaVoice = false;
+                mod.Sounds.Remove("selftest_voice_grunt");
+            }
+
+            // The wench example (when installed with the examples): parses, and anpc_spawn brings her with her sprites and sounds.
+            NpcDefinition wench = mod.Catalog.Generics.Find(delegate (NpcDefinition t) { return t.Folder == "wench"; });
+            if (wench != null)
+            {
+                LoadedSoundSet wenchSounds = mod.Sounds.For("wench");
+                string wenchWarnings = string.Join("; ", mod.Catalog.Messages.FindAll(delegate (string m) { return m.StartsWith("wench/"); }).ToArray());
+                Check("the wench example parses with her sprites, sounds and settings",
+                    mod.Sprites.For("wench").Count == 1 && wenchSounds != null && wenchSounds.Summary() == "greet 4, hit 3, death 2, step 4" &&
+                    wench.Sounds != null && wench.Sounds.GreetChance == 70 && wenchWarnings.Length == 0,
+                    "sets=" + mod.Sprites.For("wench").Count + ", sounds=" + (wenchSounds != null ? wenchSounds.Summary() : "none") +
+                    ", warnings: " + wenchWarnings);
+                string spawnError;
+                NpcBrain w = mod.SpawnInFront(wench, new List<NpcDefinition> { wench }, out spawnError);
+                if (w != null)
+                {
+                    ids.Add(w.Id);
+                    mod.Placed.Remove(w.Id);      // a test person: not kept in the save
+                    NpcSprite wSprite = w.GetComponent<NpcSprite>();
+                    float wenchUntil = Time.time + 5f;
+                    while (Time.time < wenchUntil && ((wSprite != null && wSprite.Pending) || (wenchSounds != null && !wenchSounds.IsReady)))
+                        yield return null;
+                    yield return null;
+                    int clips = 0;
+                    if (wenchSounds != null)
+                        foreach (List<AudioClip> c in wenchSounds.Clips.Values)
+                            clips += c.Count;
+                    Check("anpc_spawn wench shows her sprite set and loads all her sounds",
+                        wSprite != null && wSprite.Showing && wSprite.ChosenSet != null && wSprite.ChosenSet.Label == "wench/sprites" && clips == 13,
+                        "showing=" + (wSprite != null && wSprite.Showing) + ", set=" + (wSprite != null && wSprite.ChosenSet != null ? wSprite.ChosenSet.Label : "none") +
+                        ", clips=" + clips);
+                    NpcBrain.Discard(w);
+                }
+                else
+                {
+                    Check("anpc_spawn wench shows her sprite set and loads all her sounds", false, "not spawned: " + spawnError);
+                }
+            }
             // Optional sample check (works when the mod is installed without its examples): the guard's shipped sounds.
             LoadedSoundSet guard = mod.Sounds.For("castle_guard_1");
             if (guard != null)
@@ -218,6 +328,26 @@ namespace AdvancedNPCs
                     UnityEngine.Object.Destroy(sample);
             }
             yield return Settle;
+        }
+
+        /// <summary>A touch spell of 1-2 health damage by the caster (null: none).</summary>
+        static EntityEffectBundle DamageSpell(DaggerfallEntityBehaviour caster)
+        {
+            EffectSettings settings = BaseEntityEffect.DefaultEffectSettings();
+            settings.MagnitudeBaseMin = 1;
+            settings.MagnitudeBaseMax = 2;
+            settings.MagnitudePlusMin = 0;
+            settings.MagnitudePlusMax = 0;
+            EffectBundleSettings spell = new EffectBundleSettings
+            {
+                Version = EntityEffectBroker.CurrentSpellVersion,
+                BundleType = BundleTypes.Spell,
+                TargetType = TargetTypes.ByTouch,
+                ElementType = ElementTypes.Magic,
+                Name = "selftest damage",
+                Effects = new[] { new EffectEntry(DamageHealth.EffectKey, settings) },
+            };
+            return new EntityEffectBundle(spell, caster);
         }
 
         /// <summary>A short 440 Hz tone as a 16-bit mono WAV file.</summary>

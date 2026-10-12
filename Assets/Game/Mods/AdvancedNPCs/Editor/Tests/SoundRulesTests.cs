@@ -125,6 +125,16 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void Rolls_HundredAlwaysAndZeroNever_AlsoAtTheEndsOfTheRoll()
+        {
+            // Unity's Random.value includes 1.
+            Assert.IsTrue(SoundRules.Rolls(100, 1.0));
+            Assert.IsTrue(SoundRules.Rolls(100, 0.0));
+            Assert.IsFalse(SoundRules.Rolls(0, 1.0));
+            Assert.IsFalse(SoundRules.Rolls(0, 0.0));
+        }
+
+        [Test]
         public void Pitch_VariesWithinTheRangeAndNeverReachesZero()
         {
             Assert.AreEqual(1f, SoundRules.Pitch(1f, 0f, 0.9), 1e-6);
@@ -146,8 +156,38 @@ namespace AdvancedNPCs.Tests
         [Test]
         public void VanillaVoice_OnlyWithoutACustomPool()
         {
-            Assert.IsTrue(SoundRules.VanillaVoice(false));
-            Assert.IsFalse(SoundRules.VanillaVoice(true));
+            Assert.IsTrue(SoundRules.VanillaVoice(SoundPools.Attack, false, false));
+            Assert.IsFalse(SoundRules.VanillaVoice(SoundPools.Attack, true, false));
+            Assert.IsTrue(SoundRules.VanillaVoice(SoundPools.Hit, false, false));
+            Assert.IsFalse(SoundRules.VanillaVoice(SoundPools.Hit, true, false));
+        }
+
+        [Test]
+        public void VanillaVoice_OnlyWhereDfuItselfVoices()
+        {
+            // DFU grunts on melee attacks and weapon hits only: never on bow shots, spells, damage over time, greetings or steps.
+            Assert.IsFalse(SoundRules.VanillaVoice(SoundPools.AttackRange, false, false));
+            Assert.IsFalse(SoundRules.VanillaVoice(SoundPools.Hit, false, true));
+            Assert.IsFalse(SoundRules.VanillaVoice(SoundPools.Cast, false, false));
+            Assert.IsFalse(SoundRules.VanillaVoice(SoundPools.Greet, false, false));
+            Assert.IsFalse(SoundRules.VanillaVoice(SoundPools.Step, false, false));
+            Assert.IsFalse(SoundRules.VanillaVoice(SoundPools.Death, false, false));
+        }
+
+        [Test]
+        public void RetireDelay_OutlastsTheLongestClipAtTheLowestPitch()
+        {
+            Assert.AreEqual(0.5f, SoundRules.RetireDelay(0f), 1e-5);
+            Assert.AreEqual(2f / SoundRules.MinPitch + 0.5f, SoundRules.RetireDelay(2f), 1e-4);
+        }
+
+        [Test]
+        public void NextVoice_TakesTurns()
+        {
+            Assert.AreEqual(1, SoundRules.NextVoice(0, 3));
+            Assert.AreEqual(2, SoundRules.NextVoice(1, 3));
+            Assert.AreEqual(0, SoundRules.NextVoice(2, 3));
+            Assert.AreEqual(0, SoundRules.NextVoice(0, 1));
         }
 
         const string SetStart = "{ \"pixelsPerUnit\": 10, \"cellHeight\": 32, \"groundY\": 4, \"fps\": 8, \"animations\": { " +

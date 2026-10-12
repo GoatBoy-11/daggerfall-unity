@@ -85,6 +85,15 @@ namespace AdvancedNPCs.Core
             return Own(set, Walk).Count == 0 && Own(set, Run).Count == 0;
         }
 
+        /// <summary>
+        /// The set's sprites.json had walk* or run* sheets, yet none could be used (bad size, unreadable): its ANPCs stand
+        /// still by accident, which is logged (spec tools-quality B2.7). A set without them is a turret on purpose.
+        /// </summary>
+        public static bool LostMovement(bool declaredMovement, SpriteSet set)
+        {
+            return declaredMovement && IsStationary(set);
+        }
+
         /// <summary>A set can only be drawn if it has an idle sheet.</summary>
         public static bool IsValid(SpriteSet set)
         {

@@ -315,7 +315,10 @@ namespace AdvancedNPCs
 
             NpcSprite sprite = GetComponent<NpcSprite>();
             LoadedSpriteSet chosen = sprite != null ? sprite.ChosenSet : null;
-            if (chosen == null)
+            NpcCorpseSprite body = chosen == null && mode == NpcMode.Dead ? NpcCorpseSprite.Of(Id) : null;
+            if (body != null && body.Set != null)
+                sb.Append("  sprite: ").Append(body.Set.Label).Append(", shown by the corpse\n");
+            else if (chosen == null)
                 sb.Append("  sprite: vanilla (no sprite set)\n");
             else
                 sb.Append("  sprite: ").Append(chosen.Label).Append(sprite.Pending ? ", loading" : ", loaded")

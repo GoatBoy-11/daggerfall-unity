@@ -23,6 +23,7 @@ namespace AdvancedNPCs
         /// <summary>Live ANPCs using the set.</summary>
         public int Users;
         internal SoundLibrary Library;
+        internal bool Retired;
         internal float UnloadAt = -1f;
         internal Queue<string> Pending;
 
@@ -190,6 +191,10 @@ namespace AdvancedNPCs
             return fresh != null;
         }
 
+        /// <summary>
+        /// Out of the library for good. Its clips stay a while after the last user lets go: a death cry from an object of
+        /// its own (NpcVoice.PlayDeath) may still be playing one of them.
+        /// </summary>
         void Retire(LoadedSoundSet s)
         {
             if (s.Pending != null)
@@ -197,7 +202,19 @@ namespace AdvancedNPCs
                 loading.Remove(s);
                 s.Pending = null;
             }
+            s.Retired = true;
+            s.UnloadAt = Time.unscaledTime + SoundRules.RetireDelay(LongestClip(s));
             retired.Add(s);
+        }
+
+        static float LongestClip(LoadedSoundSet s)
+        {
+            float longest = 0f;
+            foreach (List<AudioClip> clips in s.Clips.Values)
+                foreach (AudioClip c in clips)
+                    if (c != null)
+                        longest = Math.Max(longest, c.length);
+            return longest;
         }
 
         /// <summary>One more user; starts loading an indexed set.</summary>
@@ -218,13 +235,13 @@ namespace AdvancedNPCs
             loading.Add(s);
         }
 
-        /// <summary>One user fewer; the last one starts the unload countdown.</summary>
+        /// <summary>One user fewer; the last one starts the unload countdown (short for a retired set: no one takes it again).</summary>
         public void Release(LoadedSoundSet s)
         {
             if (s.Users > 0)
                 s.Users--;
             if (s.Users == 0)
-                s.UnloadAt = Time.unscaledTime + UnloadDelaySeconds;
+                s.UnloadAt = Time.unscaledTime + (s.Retired ? SoundRules.RetireDelay(LongestClip(s)) : UnloadDelaySeconds);
         }
 
         /// <summary>Every frame (AdvancedNpcsMod.Update): loads one clip, unloads sets whose countdown ran out.</summary>
@@ -251,7 +268,7 @@ namespace AdvancedNPCs
             }
             for (int i = retired.Count - 1; i >= 0; i--)
             {
-                if (retired[i].Users > 0)
+                if (retired[i].Users > 0 || now < retired[i].UnloadAt)
                     continue;
                 Unload(retired[i], false);      // replaced or removed and no longer used: gone for good
                 retired.RemoveAt(i);

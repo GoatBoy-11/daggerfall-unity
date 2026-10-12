@@ -127,7 +127,7 @@ folder name is the old id.
 - `anpc_hostile <id or key> [on|off]` — turns an ANPC into an enemy or calms it (without on/off it toggles); saved with your game. See [Enemies](#enemies).
 - `anpc_opinion <id or key> [value]` — shows or sets an ANPC's personal opinion of you (−100 to 100); saved with your game.
 
-- `anpc_info [id or key]` — the ANPC in front of you (within 5 m) or that ANPC: id, key, kind, folder, bravery, mode, health, opinion, sprite set (loaded, loading or vanilla) and height, sound pools, its current target, distance and update rate.
+- `anpc_info [id or key]` — the ANPC in front of you (within 5 m) or that ANPC: id, key, kind, folder, bravery, mode, health, opinion, sprite set (loaded, loading, vanilla, or shown by a dead ANPC's corpse) and height, sound pools, its current target, distance and update rate.
 - `anpc_topics [id or key]` — the dialogue topics of the ANPC in front of you (within 5 m) or of that ANPC: which are shown, and for the others the condition that hides them. See [Dialogue topics](#dialogue-topics).
 - `anpc_reload_dialogue` — re-reads `_Dialogue/*.json` and every `dialogue.json` without restarting (a change to `npc.json` still needs a restart).
 - `anpc_reload_assets [id]` — re-reads the sprite sets and [Sounds](#sounds) of that ANPC folder (or of all) from disk; spawned ANPCs using them switch to the new files. ANPCs that had the vanilla sprite or no Sounds, and changes to walk/run/greet sheets or `npc.json`, take effect when they next spawn. (`anpc_reload_sprites` is the old name.)
@@ -483,7 +483,9 @@ ANPCs/wench/
 - Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `run*` (running), `hit*` (hurt), `attack*` (attacking), `attack_range*` (shooting a bow, see `rangedAtDistance`), `cast*` (spellcasting), `greet*` (greeting), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing run sheets use walk sheets and missing walk sheets use run sheets, then idle; missing hit/attack sheets use idle; greet sheets have no fallback; a set needs at least one idle sheet.
 - Turret: a set with no `walk*` and no `run*` sheet never moves: it does not wander, chase, flee or get knocked
   back, but still turns to its target and attacks, shoots or casts from where it stands. Like any DFU enemy it only
-  notices a quiet player in front of it, so place turrets facing where trouble comes from.
+  notices a quiet player in front of it, so place turrets facing where trouble comes from. When `sprites.json` lists
+  walk or run sheets but none of them can be used (wrong size, unreadable), `Player.log` says so: that set's people
+  stand still too.
 - Greeting: a calm ANPC with a `greet*` sheet sometimes (25 % per encounter) stops, turns and greets the player
   within 4 m and in sight when its people like you (`likes` or `loves`, the reaction dialogue uses), or another
   calm ANPC that is not an enemy. It greets the same person at most once every 2 game hours (not saved).
@@ -517,7 +519,7 @@ ANPCs/wench/
 - Sounds follow what happens, not the sprite, so an ANPC with the vanilla sprite can have them too.
 - `death` always plays. `step` plays on every footfall while walking or running, but only when you are within `stepDistance`. The others play by chance.
 - With a walk/run sheet, footsteps fall on its first and middle frame; `"stepFrames": [2, 6]` on a `walk*`/`run*` animation in `sprites.json` picks the frames (counted from 1). Without one, a step every 0.5 s walking, 0.33 s running.
-- DFU's own voice grunts (attack, pain) are replaced for the events the folder has sounds for, and kept for the others; a creature base class (an orc, say) with `attack` sounds also stops its own attack growl. Weapon swing, impact and parry sounds, and a creature's idle barks, are never changed.
+- DFU's own voice grunts (attack, pain) are replaced for the events the folder has sounds for, and kept for the others where DFU plays them: a melee attack, and a hit by a weapon (never for bow shots, spells or damage over time). While the folder's sounds are still loading, or when none of an event's files could be read, DFU's grunt stands in. A creature base class (an orc, say) with `attack` sounds also stops its own attack growl. Weapon swing, impact and parry sounds, and a creature's idle barks, are never changed.
 - Sounds come from the ANPC in 3D, fade out by 30 m, follow DFU's sound volume, load when the first ANPC using them appears and unload a while after the last one goes.
 
 Settings in `npc.json`, all optional:
@@ -560,6 +562,10 @@ each at most once per town. Use `anpc_list` to find them. `Examples/ANPCs/_Dialo
 complete dialogue type; add `"dialogue": "tavern_wench"` to any ANPC to try it. `bandit` (hostile; human
 strongholds, prisons, barbarian strongholds and ruined castles, and the wilderness at night) and `patron` (calm;
 taverns) show spawning outside towns. `dunmer_spellblade` is a manual-spawn Dunmer Spellsword with eight-direction sprites, a casting sheet, a custom portrait, and the shared `dunmer_morrowind` namelist. Use `anpc_spawn dunmer_spellblade` to try him. `dunmer_mercenary` uses the iron-armoured model and axe, Fireball, Wizard's Fire and Resist Fire, with 80 magicka. Spawn him with `anpc_spawn dunmer_mercenary`.
+
+`wench` is a cowardly tavern wench (one or two per town, often inside taverns) with idle, walk, attack, hit and death
+sheets, her own portrait, the `tavern_wench` dialogue and her own greet, hit, death and step sounds (see
+`SOUND_CREDITS.txt`). Try `anpc_spawn wench`.
 
 Seven fully animated characters (14 sheets each, hit/death/cast effects, custom portraits):
 

@@ -27,6 +27,10 @@ namespace AdvancedNPCs
         public bool Failed;
         /// <summary>Live ANPC sprites and corpses using the set.</summary>
         public int Users;
+        /// <summary>sprites.json had walk* or run* sheets.</summary>
+        public bool DeclaredMovement;
+        /// <summary>Every declared walk* and run* sheet was skipped: its ANPCs stand still, which has been logged.</summary>
+        public bool LostMovement;
         internal SpriteLibrary Library;
         internal float UnloadAt = -1f;
         internal Queue<string> Pending;
@@ -115,21 +119,7 @@ namespace AdvancedNPCs
         /// </summary>
         public int Reload(string folder, string dir)
         {
-            List<LoadedSpriteSet> old;
-            if (byFolder.TryGetValue(folder, out old))
-            {
-                foreach (LoadedSpriteSet s in old)
-                {
-                    if (s.Pending != null)
-                    {
-                        loading.Remove(s);
-                        s.Pending = null;
-                        s.Failed = true;        // stops waiting sprites; the new set replaces it
-                    }
-                    retired.Add(s);
-                }
-                byFolder.Remove(folder);
-            }
+            Remove(folder);
             List<LoadedSpriteSet> fresh = IndexFolder(folder, dir);
             foreach (LoadedSpriteSet s in fresh)
                 Add(folder, s);
@@ -157,9 +147,28 @@ namespace AdvancedNPCs
                 set.Library = this;
         }
 
+        /// <summary>
+        /// Takes a folder's sets out of the library; the textures of those read from disk go once nothing uses them
+        /// (sets built from textures belong to whoever built them).
+        /// </summary>
         public void Remove(string folder)
         {
+            List<LoadedSpriteSet> old;
+            if (!byFolder.TryGetValue(folder, out old))
+                return;
             byFolder.Remove(folder);
+            foreach (LoadedSpriteSet s in old)
+            {
+                if (s.Library != this)
+                    continue;
+                if (s.Pending != null)
+                {
+                    loading.Remove(s);
+                    s.Pending = null;
+                    s.Failed = true;        // stops waiting sprites; a reloaded set replaces it
+                }
+                retired.Add(s);
+            }
         }
 
         /// <summary>A set from readable textures already in memory (self-test).</summary>
@@ -219,6 +228,7 @@ namespace AdvancedNPCs
             LoadedSpriteSet loaded = new LoadedSpriteSet();
             loaded.Label = label;
             loaded.Set = set;
+            loaded.DeclaredMovement = !SpriteStates.IsStationary(set);
             List<string> skipped = new List<string>();
             foreach (SpriteAnimation a in set.Animations.Values)
             {
@@ -251,6 +261,7 @@ namespace AdvancedNPCs
                 AdvancedNpcsMod.LogError(label + ": no usable idle sheet; sprite set skipped");
                 return null;
             }
+            NoteLostMovement(loaded);
             loaded.Dir = dir;
             loaded.HasDeathStatic = File.Exists(Path.Combine(dir, DeathStaticFile));
             return loaded;
@@ -378,6 +389,7 @@ namespace AdvancedNPCs
                 s.Failed = true;
                 return;
             }
+            NoteLostMovement(s);
             if (s.Set.StandingHeight > 0)
                 s.StandingHeightPx = s.Set.StandingHeight;
             else
@@ -385,6 +397,18 @@ namespace AdvancedNPCs
             s.IsReady = true;
             if (s.Users == 0)
                 s.UnloadAt = Time.unscaledTime + UnloadDelaySeconds;
+        }
+
+        /// <summary>
+        /// Logs, once, a set whose walk* and run* sheets were all skipped (at indexing or while loading): its ANPCs will
+        /// stand still (spec tools-quality B2.7). A set that never had them is a turret on purpose and is not logged.
+        /// </summary>
+        static void NoteLostMovement(LoadedSpriteSet s)
+        {
+            if (s.LostMovement || !SpriteStates.LostMovement(s.DeclaredMovement, s.Set))
+                return;
+            s.LostMovement = true;
+            AdvancedNpcsMod.LogError(s.Label + ": every walk* and run* sheet was skipped; its ANPCs will stand still (turrets)");
         }
 
         void Unload(LoadedSpriteSet s)

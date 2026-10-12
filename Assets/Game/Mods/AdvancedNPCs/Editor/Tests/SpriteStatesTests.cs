@@ -147,6 +147,14 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void LostMovement_OnlyWhenWalkOrRunSheetsWereDeclaredButNoneIsLeft()
+        {
+            Assert.IsTrue(SpriteStates.LostMovement(true, Set("idle_1", "attack_1")));
+            Assert.IsFalse(SpriteStates.LostMovement(false, Set("idle_1", "attack_1")));     // a turret on purpose
+            Assert.IsFalse(SpriteStates.LostMovement(true, Set("idle_1", "run")));
+        }
+
+        [Test]
         public void IsValid_NeedsIdle()
         {
             Assert.IsTrue(SpriteStates.IsValid(Set("idle")));

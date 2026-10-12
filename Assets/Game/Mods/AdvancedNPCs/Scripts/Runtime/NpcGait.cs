@@ -22,6 +22,9 @@ namespace AdvancedNPCs
         CharacterController controller;
         MobileUnit mobile;
         DaggerfallEntityBehaviour behaviour;
+        NpcSprite sprite;
+        LoadedSpriteSet seenSet;
+        bool seenReady;
         bool turret;
         Vector3 pinLocal;
         Vector3 lastLocal;
@@ -72,13 +75,28 @@ namespace AdvancedNPCs
             controller = GetComponent<CharacterController>();
             mobile = GetComponentInChildren<MobileUnit>();
             behaviour = GetComponent<DaggerfallEntityBehaviour>();
-            NpcSprite sprite = GetComponent<NpcSprite>();
-            turret = sprite != null && sprite.ChosenSet != null && SpriteStates.IsStationary(sprite.ChosenSet.Set);
-            if (turret)
-                AdvancedNpcsMod.Log(sprite.ChosenSet.Label + ": no usable walk* or run* sheet; " + (brain != null ? brain.Id : name) +
-                    " stands still (a turret).");
+            sprite = GetComponent<NpcSprite>();
+            FollowSet();
             Repin();
             lodPhase = Mathf.Abs(GetInstanceID()) % NpcLod.Phases;
+        }
+
+        /// <summary>
+        /// A turret is a person whose set has no walk* and no run* sheet. Checked again when the set changes
+        /// (anpc_reload_sprites) or finishes loading (sheets may be dropped then); a new turret stays where it stands.
+        /// </summary>
+        void FollowSet()
+        {
+            LoadedSpriteSet chosen = sprite != null ? sprite.ChosenSet : null;
+            bool ready = chosen != null && chosen.IsReady;
+            if (chosen == seenSet && ready == seenReady)
+                return;
+            seenSet = chosen;
+            seenReady = ready;
+            bool now = chosen != null && !chosen.Failed && SpriteStates.IsStationary(chosen.Set);
+            if (now && !turret)
+                Repin();
+            turret = now;
         }
 
         /// <summary>Remembers where it stands now (spawn, Teleport). Town-local: floating-origin shifts are not movement.</summary>
@@ -92,6 +110,7 @@ namespace AdvancedNPCs
         {
             if (brain == null || def == null || brain.CurrentMode == NpcMode.Dead || controller == null || !controller.enabled)
                 return;
+            FollowSet();
             Vector3 local = transform.localPosition;
             Vector3 step = local - lastLocal;
             step.y = 0;

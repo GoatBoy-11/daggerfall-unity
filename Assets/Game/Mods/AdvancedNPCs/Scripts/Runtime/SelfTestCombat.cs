@@ -55,6 +55,17 @@ namespace AdvancedNPCs
             yield return new WaitForSeconds(1.5f);
             Check("a brave ANPC ignores an enemy beyond its aggroRange", brave.CurrentMode == NpcMode.Calm, brave.Status);
             brave.Teleport(player.position + open * 10f);
+
+            // Within range but in a switched-off town (its GameObject inactive, as DFU leaves towns out of reach): no foe.
+            GameObject offTown = new GameObject("selftest_patrol_off_town");
+            offTown.SetActive(false);
+            Transform postHome = post.transform.parent;
+            post.transform.SetParent(offTown.transform, true);
+            yield return new WaitForSeconds(1.5f);
+            Check("a brave ANPC ignores an enemy in a switched-off town", brave.CurrentMode == NpcMode.Calm, brave.Status);
+            post.transform.SetParent(postHome, true);
+            Object.Destroy(offTown);
+
             float until = Time.time + 3f;
             while (Time.time < until && brave.CurrentMode == NpcMode.Calm)
                 yield return null;
