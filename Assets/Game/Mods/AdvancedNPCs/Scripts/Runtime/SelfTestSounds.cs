@@ -159,6 +159,50 @@ namespace AdvancedNPCs
             }
             DiscardTestPeople();
 
+            // Review fixes: spawned into a switched-off town (EnemySounds.Awake runs only when it turns on), and a
+            // creature whose own attack growl must give way to the folder's attack sounds.
+            LoadedSoundSet offSet = SoundLibrary.IndexSet("selftest_voice_off/Sounds", dir);
+            LoadedSoundSet orcSet = SoundLibrary.IndexSet("selftest_voice_orc/Sounds", dir);
+            mod.Sounds.Add("selftest_voice_off", offSet);
+            mod.Sounds.Add("selftest_voice_orc", orcSet);
+            try
+            {
+                GameObject offTown = new GameObject("selftest_voice_town");
+                offTown.transform.position = location.transform.position;
+                offTown.SetActive(false);
+                NpcDefinition od = TestDefinition("selftest_voice_off", Bravery.Normal, location, player, 2f);
+                NpcBrain off = spawner.SpawnTest(NpcInstance.ForUnique(od, "Breton"), offTown.transform);
+                offTown.SetActive(true);
+                yield return null;
+                yield return null;
+                NpcVoice offVoice = off != null ? off.GetComponent<NpcVoice>() : null;
+                EnemySounds offSounds = off != null ? off.GetComponent<EnemySounds>() : null;
+                Check("an ANPC spawned into a switched-off town still has DFU's voice silenced once it turns on",
+                    offVoice != null && offSounds != null && offSounds.RaceForSounds == Races.None &&
+                    offVoice.VoiceRace >= Races.Breton && offVoice.VoiceRace <= Races.HighElf,
+                    "race now " + (offSounds != null ? offSounds.RaceForSounds.ToString() : "-") + ", kept " +
+                    (offVoice != null ? offVoice.VoiceRace.ToString() : "-"));
+                UnityEngine.Object.Destroy(offTown);
+                yield return null;
+
+                NpcDefinition orcDef = TestDefinition("selftest_voice_orc", Bravery.Brave, location, player, 2f);
+                orcDef.Hostile = true;
+                orcDef.BaseClass = "Orc";
+                orcDef.IsCreature = true;
+                NpcBrain orc = SpawnDefinition(orcDef, location);
+                yield return Settle;
+                NpcVoice orcVoice = orc.GetComponent<NpcVoice>();
+                Check("a creature with attack sounds no longer plays its own attack growl",
+                    orcVoice != null && orcVoice.CreatureAttackSilenced, "silenced=" + (orcVoice != null && orcVoice.CreatureAttackSilenced));
+                NpcBrain.Discard(orc);
+                yield return null;
+            }
+            finally
+            {
+                mod.Sounds.Remove("selftest_voice_off");
+                mod.Sounds.Remove("selftest_voice_orc");
+            }
+
             // Optional sample check (works when the mod is installed without its examples): the guard's shipped sounds.
             LoadedSoundSet guard = mod.Sounds.For("castle_guard_1");
             if (guard != null)

@@ -50,6 +50,15 @@ namespace AdvancedNPCs
             get { return voiceRace; }
         }
 
+        static AudioClip silence;
+        bool creatureAttackSilenced;
+
+        /// <summary>A creature's own attack growl is replaced by the folder's attack sounds (self-test).</summary>
+        public bool CreatureAttackSilenced
+        {
+            get { return creatureAttackSilenced; }
+        }
+
         public void Init(LoadedSoundSet sounds, SoundSettings soundSettings)
         {
             set = sounds;
@@ -63,6 +72,28 @@ namespace AdvancedNPCs
             }
             voice = MakeSource("AnpcVoice");
             steps = MakeSource("AnpcSteps");
+            SilenceCreatureAttack();
+        }
+
+        /// <summary>
+        /// Creatures (orcs, ...) growl on half their attacks through EnemySounds' cached attack clip, which DFU fills
+        /// only while it is empty: a silent clip there gives the attack to the folder's own sounds (spec sounds §E).
+        /// </summary>
+        void SilenceCreatureAttack()
+        {
+            if (enemySounds == null || !HasPool(SoundPools.Attack))
+                return;
+            System.Reflection.FieldInfo field = typeof(EnemySounds).GetField("attackClip",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (field == null)
+            {
+                AdvancedNpcsMod.Log("EnemySounds.attackClip not found: a creature's own attack growl stays.");
+                return;
+            }
+            if (silence == null)
+                silence = AudioClip.Create("AnpcSilence", 1, 1, 22050, false);
+            field.SetValue(enemySounds, silence);
+            creatureAttackSilenced = true;
         }
 
         /// <summary>Uses another sound set (anpc_reload_assets); null leaves only DFU's own grunts.</summary>

@@ -517,7 +517,7 @@ ANPCs/wench/
 - Sounds follow what happens, not the sprite, so an ANPC with the vanilla sprite can have them too.
 - `death` always plays. `step` plays on every footfall while walking or running, but only when you are within `stepDistance`. The others play by chance.
 - With a walk/run sheet, footsteps fall on its first and middle frame; `"stepFrames": [2, 6]` on a `walk*`/`run*` animation in `sprites.json` picks the frames (counted from 1). Without one, a step every 0.5 s walking, 0.33 s running.
-- DFU's own voice grunts (attack, pain) are replaced for the events the folder has sounds for, and kept for the others. Weapon swing, impact and parry sounds are never changed.
+- DFU's own voice grunts (attack, pain) are replaced for the events the folder has sounds for, and kept for the others; a creature base class (an orc, say) with `attack` sounds also stops its own attack growl. Weapon swing, impact and parry sounds, and a creature's idle barks, are never changed.
 - Sounds come from the ANPC in 3D, fade out by 30 m, follow DFU's sound volume, load when the first ANPC using them appears and unload a while after the last one goes.
 
 Settings in `npc.json`, all optional:

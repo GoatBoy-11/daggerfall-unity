@@ -76,6 +76,9 @@ mod replays (§E) keep DFU's own pitch.
 - Mechanism: the ANPC's `EnemySounds.RaceForSounds` is set to `Races.None`, which makes DFU's voice lookup return
   `SoundClips.None` (silence); the mod then plays the vanilla grunt itself (same chances and setting, same race
   and gender) for events that have no custom pool. Weapon swing, impact, miss and parry sounds are never touched.
+- Creatures (e.g. an orc base class) growl through `EnemySounds`' attack clip on half their attacks; with an `attack`
+  pool that cached clip is replaced by a silent one, so the folder's sound is the attack's voice (review fix). Idle
+  barks stay.
 - An ANPC with no `Sounds` folder is unchanged.
 
 ## F. Playback and loading
