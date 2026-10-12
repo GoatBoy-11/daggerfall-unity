@@ -1,6 +1,6 @@
 {
     "ModTitle": "Advanced NPCs",
-    "ModVersion": "0.17.0",
+    "ModVersion": "0.18.0",
     "ModAuthor": "GoatBoy-11",
     "ContactInfo": "https://github.com/GoatBoy-11/daggerfall-unity",
     "DFUnity_Version": "1.9.2",
@@ -11,6 +11,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/Bearing.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/Condition.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/Conversation.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/CorpseRules.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/Dialogue.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DialogueLibrary.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/DialogueParser.cs",

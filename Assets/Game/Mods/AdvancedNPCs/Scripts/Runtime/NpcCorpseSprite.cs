@@ -25,6 +25,8 @@ namespace AdvancedNPCs
         SpriteAnimation anim;
         Vector3 facing;
         int row;
+        int restRow;
+        bool billboard;
         float time;
         bool finished;
         bool showingStatic;
@@ -70,6 +72,18 @@ namespace AdvancedNPCs
         public int Row
         {
             get { return row; }
+        }
+
+        /// <summary>The row (front or back) the body rests on once the death sheet has played (self-test).</summary>
+        public int RestRow
+        {
+            get { return restRow; }
+        }
+
+        /// <summary>Drawn as one picture facing the view (death_static, or the resting last frame) (self-test).</summary>
+        public bool Billboarded
+        {
+            get { return billboard; }
         }
 
         /// <summary>The way the person faced when they died (self-test).</summary>
@@ -120,10 +134,15 @@ namespace AdvancedNPCs
             NpcBrain brain = from.GetComponent<NpcBrain>();
             corpse.key = brain != null ? brain.Id : null;
 
+            corpse.restRow = CorpseRules.RestRow(Random.value);
+
             corpse.quad = NpcSprite.CreateQuad(go.transform, "AnpcCorpseSprite");
             corpse.material = new Material(from.MaterialTemplate);
             corpse.quad.GetComponent<MeshRenderer>().sharedMaterial = corpse.material;
             corpse.ShowDeathSheet();
+            ModConfig config = AdvancedNpcsMod.Instance != null ? AdvancedNpcsMod.Instance.Config : null;
+            if (config != null && !config.DeathAnimation)
+                corpse.Finish();        // as in vanilla: the body lies still at once
             corpse.Draw();
             return corpse;
         }
@@ -187,17 +206,21 @@ namespace AdvancedNPCs
         {
             time += Time.deltaTime;
             if (!finished && time >= (float)anim.Frames / set.Set.Fps)
-            {
-                finished = true;
-                if (set.DeathStatic != null)
-                {
-                    showingStatic = true;
-                    material.mainTexture = NpcSprite.Filtered(set.DeathStatic);
-                    material.mainTextureScale = Vector2.one;
-                    material.mainTextureOffset = Vector2.zero;
-                }
-            }
+                Finish();
             WatchLoot();
+        }
+
+        /// <summary>The death sheet has played (or is skipped): death_static.png if the set has one, else its last frame.</summary>
+        void Finish()
+        {
+            finished = true;
+            if (set.DeathStatic != null)
+            {
+                showingStatic = true;
+                material.mainTexture = NpcSprite.Filtered(set.DeathStatic);
+                material.mainTextureScale = Vector2.one;
+                material.mainTextureOffset = Vector2.zero;
+            }
         }
 
         void LateUpdate()
@@ -239,39 +262,48 @@ namespace AdvancedNPCs
         }
 
         /// <summary>
-        /// death_static.png is one picture that always faces the view, like DFU's own corpses. The death sheet's rows
-        /// are the body seen from 8 sides, so it is not turned with the view: within a row's 45 degree slice the quad
-        /// stands still, square to the direction that row was drawn from, and only the row changes as you walk around.
+        /// death_static.png, and the resting last frame (front or back row) unless "Directional corpses" is on, are one
+        /// picture that always faces the view, like DFU's own corpses. While the death sheet plays (and for a directional
+        /// corpse after), its rows are the body seen from 8 sides, so it is not turned with the view: within a row's
+        /// 45 degree slice the quad stands still, square to the direction that row was drawn from, and only the row
+        /// changes as you walk around.
         /// </summary>
         void Draw()
         {
             Camera cam = Camera.main;
             float k = worldPerPixel;
             Vector3 feet = transform.position;
+            ModConfig config = AdvancedNpcsMod.Instance != null ? AdvancedNpcsMod.Instance.Config : null;
+            billboard = CorpseRules.Billboard(showingStatic, finished, config != null && config.DirectionalCorpses);
+            if (billboard && cam != null)
+            {
+                Vector3 look = cam.transform.forward;
+                look.y = 0;
+                if (look.sqrMagnitude > 0.0001f)
+                    quad.transform.rotation = Quaternion.LookRotation(look);
+            }
             if (showingStatic)
             {
-                if (cam != null)
-                {
-                    Vector3 look = cam.transform.forward;
-                    look.y = 0;
-                    if (look.sqrMagnitude > 0.0001f)
-                        quad.transform.rotation = Quaternion.LookRotation(look);
-                }
                 Texture2D t = set.DeathStatic;
                 quad.transform.localScale = new Vector3(t.width * k, t.height * k * heightScale, 1f);
                 quad.transform.position = feet + Vector3.up * ((t.height * 0.5f - set.Set.DeathStaticGroundY) * k * heightScale);
                 return;
             }
 
+            int viewRow = row;
             if (cam != null)
             {
                 Vector3 toCamera = cam.transform.position - feet;
-                row = SpriteDirections.Row(toCamera.x, toCamera.z, facing.x, facing.z);
+                viewRow = SpriteDirections.Row(toCamera.x, toCamera.z, facing.x, facing.z);
             }
-            float dx, dz;
-            SpriteDirections.RowDirection(row, facing.x, facing.z, out dx, out dz);
-            quad.transform.rotation = Quaternion.LookRotation(new Vector3(-dx, 0, -dz));    // its -Z side toward that row's view
-            int frame = Mathf.Min((int)(time * set.Set.Fps), anim.Frames - 1);
+            row = CorpseRules.Row(billboard, restRow, viewRow);
+            if (!billboard)
+            {
+                float dx, dz;
+                SpriteDirections.RowDirection(row, facing.x, facing.z, out dx, out dz);
+                quad.transform.rotation = Quaternion.LookRotation(new Vector3(-dx, 0, -dz));    // its -Z side toward that row's view
+            }
+            int frame = CorpseRules.Frame(finished, time, set.Set.Fps, anim.Frames);
             int rows = SpriteSetParser.Directions.Length;
             quad.transform.localScale = new Vector3(anim.CellWidth * k, set.Set.CellHeight * k * heightScale, 1f);
             quad.transform.position = feet + Vector3.up * ((set.Set.CellHeight * 0.5f - set.Set.GroundY) * k * heightScale);

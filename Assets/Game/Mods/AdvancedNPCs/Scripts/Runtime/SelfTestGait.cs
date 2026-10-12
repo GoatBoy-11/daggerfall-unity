@@ -157,7 +157,7 @@ namespace AdvancedNPCs
             NpcGreeter.ChanceOverride = 1f;
             try
             {
-                NpcDefinition greeterDef = TestDefinition("selftest_greeter", Bravery.Normal, location, player, 0f);
+                NpcDefinition greeterDef = TestDefinition("selftest_greeter", Bravery.Normal, location, player, OutOfGreeting);
                 NpcBrain greeter = SpawnDefinition(greeterDef, location);
                 yield return Settle;
                 greeter.Teleport(player.position + open * 3f);
@@ -183,7 +183,7 @@ namespace AdvancedNPCs
                 NpcBrain.Discard(greeter);
 
                 NpcGreeter.ReactionOverride = "dislikes";
-                NpcDefinition coldDef = TestDefinition("selftest_cold", Bravery.Normal, location, player, 0f);
+                NpcDefinition coldDef = TestDefinition("selftest_cold", Bravery.Normal, location, player, OutOfGreeting);
                 coldDef.Folder = "selftest_greeter";
                 NpcBrain cold = SpawnDefinition(coldDef, location);
                 yield return Settle;
@@ -196,7 +196,7 @@ namespace AdvancedNPCs
 
                 // Turned into an enemy mid-greeting, without a hit: the greet pose ends at once (spec tools-quality B2.5).
                 NpcGreeter.ReactionOverride = "likes";
-                NpcDefinition turnDef = TestDefinition("selftest_turncoat", Bravery.Brave, location, player, 0f);
+                NpcDefinition turnDef = TestDefinition("selftest_turncoat", Bravery.Brave, location, player, OutOfGreeting);
                 turnDef.Folder = "selftest_greeter";
                 NpcBrain turncoat = SpawnDefinition(turnDef, location);
                 yield return Settle;

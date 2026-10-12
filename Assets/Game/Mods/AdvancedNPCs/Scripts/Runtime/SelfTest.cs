@@ -22,6 +22,11 @@ namespace AdvancedNPCs
     {
         public const string Prefix = "SELFTEST ";
         static readonly WaitForSeconds Settle = new WaitForSeconds(0.3f);
+        /// <summary>
+        /// A spawn side (TestDefinition) beyond greeting range (4 m ahead, this far aside): a greeter spawned at 4 m could
+        /// greet while it settles, and the cooldown would then stop the greeting a check waits for.
+        /// </summary>
+        const float OutOfGreeting = 8f;
 
         public static bool Running { get; private set; }
 
@@ -47,6 +52,14 @@ namespace AdvancedNPCs
             Action<PlayerEntity.Crimes> report = NpcCrime.Report;
             player.GodMode = true;
             NpcCrime.Report = delegate (PlayerEntity.Crimes c) { crimes.Add(c); };
+            // The checks expect the corpse and sound settings at their defaults; the player's own come back at the end.
+            ModConfig config = mod.Config;
+            bool deathAnimation = config.DeathAnimation, directionalCorpses = config.DirectionalCorpses, footsteps = config.Footsteps;
+            int voiceMode = config.VoiceMode;
+            config.DeathAnimation = true;
+            config.DirectionalCorpses = false;
+            config.VoiceMode = VoiceModes.Anpc;
+            config.Footsteps = true;
             AdvancedNpcsMod.Log(Prefix + "START");
 
             // Step through manually so an exception in one check is reported and cleanup still runs.
@@ -75,6 +88,13 @@ namespace AdvancedNPCs
             }
             NpcCrime.Report = report;
             player.GodMode = godMode;
+            if (!config.Reload())       // DFU's current values; without mod settings, the ones from before the run
+            {
+                config.DeathAnimation = deathAnimation;
+                config.DirectionalCorpses = directionalCorpses;
+                config.VoiceMode = voiceMode;
+                config.Footsteps = footsteps;
+            }
             Running = false;
 
             string summary = Prefix + "DONE " + passed + "/" + (passed + failed) + " passed";
@@ -624,13 +644,46 @@ namespace AdvancedNPCs
                 Mathf.Abs(shortCorpse.localScale.y - 32f * pixelScale * 0.94f) < 0.0001f,
                 "quad=" + (shortCorpse != null ? shortCorpse.localScale.ToString() : "none"));
 
-            // The death sheet's rows are the body seen from 8 sides: the quad stands square to its row's view, not to the camera.
+            // Done dying, the body rests on the last frame of its front or back row, one picture facing the view.
+            yield return new WaitForEndOfFrame();       // this frame's LateUpdate has drawn it for the camera as it is now
+            Vector3 camLook = Camera.main != null ? Camera.main.transform.forward : Vector3.forward;
+            camLook.y = 0;
+            float facingView = body != null ? Vector3.Angle(body.QuadRotation * Vector3.forward, camLook) : -1f;
+            Check("a corpse rests on its front or back last frame, facing the view like vanilla corpses",
+                body != null && body.Billboarded && body.Row == body.RestRow &&
+                (body.Row == CorpseRules.FrontRow || body.Row == CorpseRules.BackRow) && facingView < 0.5f,
+                body == null ? "no corpse sprite" : "billboard=" + body.Billboarded + ", row=" + body.Row + ", rest row=" + body.RestRow +
+                ", off the view by " + facingView + " degrees");
+
+            // "Directional corpses": the death sheet's rows are the body seen from 8 sides, so the quad stands square to
+            // its row's view, not to the camera.
+            mod.Config.DirectionalCorpses = true;
+            yield return null;
+            yield return null;
             float rowX = 0, rowZ = 0;
             if (body != null)
                 SpriteDirections.RowDirection(body.Row, body.Facing.x, body.Facing.z, out rowX, out rowZ);
             float corpseTurn = body != null ? Vector3.Angle(body.QuadRotation * Vector3.forward, new Vector3(-rowX, 0, -rowZ)) : -1f;
-            Check("animated corpse stands square to its row, not turned with the view", body != null && corpseTurn < 0.5f,
-                body == null ? "no corpse sprite" : "row=" + body.Row + ", off by " + corpseTurn + " degrees");
+            Check("with Directional corpses, a corpse stands square to its row, not turned with the view",
+                body != null && !body.Billboarded && corpseTurn < 0.5f,
+                body == null ? "no corpse sprite" : "billboard=" + body.Billboarded + ", row=" + body.Row + ", off by " + corpseTurn + " degrees");
+            mod.Config.DirectionalCorpses = false;
+
+            // "Death animation" off: the body lies still on its last frame at once, as in vanilla.
+            mod.Config.DeathAnimation = false;
+            NpcBrain quickDeath = Make("selftest_sprite", Bravery.Normal, location, playerTransform, -3f);
+            yield return Settle;
+            corpsesBefore = NpcCorpseSprite.All.Count;
+            PlayerHit(quickDeath, playerBehaviour, 100000);
+            yield return null;
+            yield return null;
+            NpcCorpseSprite quickBody = NpcCorpseSprite.All.Count > corpsesBefore ? NpcCorpseSprite.All[NpcCorpseSprite.All.Count - 1] : null;
+            Check("with Death animation off, the body lies still at once",
+                quickBody != null && quickBody.Finished && quickBody.Billboarded && quickBody.Row == quickBody.RestRow,
+                quickBody == null ? "no corpse sprite" : "finished=" + quickBody.Finished + ", billboard=" + quickBody.Billboarded);
+            mod.Config.DeathAnimation = true;
+            NpcCorpseSprite.RemoveFor(quickDeath.Id);       // body and loot pile
+            NpcBrain.Discard(quickDeath);
 
             // DFU gives human classes a bow; ANPCs only keep it with "combat": { "rangedAtDistance": true }.
             NpcDefinition meleeDef = TestDefinition("selftest_melee", Bravery.Normal, location, playerTransform, -5f);

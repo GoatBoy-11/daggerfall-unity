@@ -48,15 +48,43 @@ namespace AdvancedNPCs.EditorTools
             section.Keys.Add(wild);
 
             data.Sections.Add(section);
+
+            // Corpse and sound settings (spec corpse-sound settings); ModConfig reads them by these names. The version
+            // stays 1.1: a player's saved values of the older keys still apply, the new keys start at these defaults.
+            Section corpses = new Section();
+            corpses.Name = "Corpses";
+            corpses.Description = "Bodies of ANPCs with their own sprite sets.";
+            corpses.Keys.Add(Toggle("DeathAnimation",
+                "Play the death animation before the body lies still. Off: the body appears at once, as in vanilla Daggerfall."));
+            corpses.Keys.Add(Toggle("DirectionalCorpses",
+                "A body on its last death frame keeps showing the side you see it from. Off: it shows its front or back and always faces you, like vanilla corpses.",
+                false));
+            data.Sections.Add(corpses);
+
+            Section sounds = new Section();
+            sounds.Name = "Sounds";
+            sounds.Description = "Voices and footsteps of ANPCs.";
+            MultipleChoiceKey voices = new MultipleChoiceKey();
+            voices.Name = "ANPCSounds";
+            voices.Description = "ANPC: each ANPC's own Sounds folder, Daggerfall's voice where it has none. " +
+                                 "Vanilla: Daggerfall's voice for every ANPC. Off: ANPCs make no voice sounds.";
+            voices.Options.Add("Vanilla");      // order = VoiceModes values
+            voices.Options.Add("ANPC");
+            voices.Options.Add("Off");
+            voices.Value = 1;
+            sounds.Keys.Add(voices);
+            sounds.Keys.Add(Toggle("Footsteps", "Footsteps from an ANPC's Sounds folder."));
+            data.Sections.Add(sounds);
+
             data.Save(Path.GetFullPath(SettingsPath)); // Save imports by full path
         }
 
-        static ToggleKey Toggle(string name, string description)
+        static ToggleKey Toggle(string name, string description, bool value = true)
         {
             ToggleKey key = new ToggleKey();
             key.Name = name;
             key.Description = description;
-            key.Value = true;
+            key.Value = value;
             return key;
         }
     }

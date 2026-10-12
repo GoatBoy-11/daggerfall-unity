@@ -55,7 +55,7 @@ namespace AdvancedNPCs.Core
             double last;
             if (!likes || (lastGreet.TryGetValue(target, out last) && nowHours - last < GreetRules.CooldownHours))
                 return false;
-            if (roll >= chance)
+            if (chance < 1.0 && roll >= chance)     // a roll can be 1 (Unity's Random.value): a certain chance stays certain
                 return false;
             lastGreet[target] = nowHours;
             Count++;

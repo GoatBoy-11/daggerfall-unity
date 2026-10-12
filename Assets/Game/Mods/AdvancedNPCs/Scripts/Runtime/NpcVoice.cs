@@ -32,6 +32,7 @@ namespace AdvancedNPCs
         int magicFrame = -100;
         Races voiceRace = Races.None;
         bool acquired;
+        bool started;
         int lastHealth = -1;
         MobileStates lastState;
         float stepTimer;
@@ -76,6 +77,26 @@ namespace AdvancedNPCs
             get { return creatureAttackSilenced; }
         }
 
+        /// <summary>The "ANPC sounds" setting (VoiceModes), read live.</summary>
+        static int Mode
+        {
+            get
+            {
+                AdvancedNpcsMod mod = AdvancedNpcsMod.Instance;
+                return mod != null && mod.Config != null ? mod.Config.VoiceMode : VoiceModes.Anpc;
+            }
+        }
+
+        static bool FootstepsOn
+        {
+            get
+            {
+                AdvancedNpcsMod mod = AdvancedNpcsMod.Instance;
+                return mod == null || mod.Config == null || mod.Config.Footsteps;
+            }
+        }
+
+        /// <summary>Every ANPC has one; sounds is null for an ANPC without a Sounds folder.</summary>
         public void Init(LoadedSoundSet sounds, SoundSettings soundSettings)
         {
             set = sounds;
@@ -83,9 +104,11 @@ namespace AdvancedNPCs
             enemySounds = GetComponent<EnemySounds>();
             if (enemySounds != null && enemySounds.RaceForSounds != Races.None)
             {
-                // DFU picked a random voice in Awake; the mod plays it itself where the folder has no sound (spec sounds §E).
+                // DFU picked a random voice in Awake. Kept here; EnemySounds gets it back only while DFU voices the ANPC
+                // itself (SyncVoiceRace), else the mod plays it where the folder has no sound (spec sounds §E).
                 voiceRace = enemySounds.RaceForSounds;
                 enemySounds.RaceForSounds = Races.None;
+                SyncVoiceRace();
             }
             voices = MakeSources("AnpcVoice", SoundRules.VoiceSources);
             steps = MakeSources("AnpcSteps", SoundRules.StepSources);
@@ -98,7 +121,7 @@ namespace AdvancedNPCs
         /// </summary>
         void SyncCreatureAttack()
         {
-            bool silenceIt = Playable(SoundPools.Attack) != null;
+            bool silenceIt = VoiceModes.SilenceCreatureAttack(Mode, Playable(SoundPools.Attack) != null);
             if (enemySounds == null || silenceIt == creatureAttackSilenced)
                 return;
             if (!attackClipFieldLooked)
@@ -120,12 +143,11 @@ namespace AdvancedNPCs
         /// <summary>Uses another sound set (anpc_reload_assets); null leaves only DFU's own grunts.</summary>
         public void Swap(LoadedSoundSet next)
         {
-            bool started = acquired;
             if (acquired && set != null)
                 set.Release();
             acquired = false;
             set = next;
-            if (started && set != null)
+            if (started && set != null)     // Start already ran (also for an ANPC that had no Sounds): hold the new set now
             {
                 set.Acquire();
                 acquired = true;
@@ -169,6 +191,7 @@ namespace AdvancedNPCs
             if (effects != null)
                 effects.OnAssignBundle += OnAssignBundle;
             EntityEffectBroker.OnNewMagicRound += OnNewMagicRound;
+            started = true;
             if (set != null && !acquired)
             {
                 set.Acquire();
@@ -214,7 +237,7 @@ namespace AdvancedNPCs
         public bool Play(string pool)
         {
             string playable = Playable(pool);
-            if (playable == null || voices == null)
+            if (playable == null || voices == null || !VoiceModes.CustomVoice(Mode))
                 return false;
             if (pool != SoundPools.Death)
             {
@@ -248,7 +271,7 @@ namespace AdvancedNPCs
 
         void PlayDeath()
         {
-            if (Playable(SoundPools.Death) == null)
+            if (Playable(SoundPools.Death) == null || !VoiceModes.CustomVoice(Mode))
                 return;
             AudioClip clip = set.Pick(SoundPools.Death);
             if (clip == null)
@@ -274,7 +297,7 @@ namespace AdvancedNPCs
 
         void Step()
         {
-            if (Playable(SoundPools.Step) == null || steps == null || brain == null || brain.CurrentMode == NpcMode.Dead)
+            if (!FootstepsOn || Playable(SoundPools.Step) == null || steps == null || brain == null || brain.CurrentMode == NpcMode.Dead)
                 return;
             if (behaviour != null && behaviour.Entity != null && behaviour.Entity.IsParalyzed)
                 return;
@@ -302,6 +325,7 @@ namespace AdvancedNPCs
         {
             if (brain == null || behaviour == null || behaviour.Entity == null || brain.CurrentMode == NpcMode.Dead)
                 return;
+            SyncVoiceRace();
             SyncCreatureAttack();
 
             // Attacks: each one DFU starts (melee or bow).
@@ -339,9 +363,37 @@ namespace AdvancedNPCs
             }
         }
 
+        /// <summary>
+        /// DFU voices the ANPC itself (its race back in EnemySounds) with the Vanilla setting, or with ANPC and no Sounds
+        /// folder; otherwise the race stays here: the mod plays the folder's sounds and stands in for DFU, or (Off) nothing.
+        /// </summary>
+        void SyncVoiceRace()
+        {
+            if (enemySounds == null)
+                return;
+            bool dfu = VoiceModes.DfuVoice(Mode, set != null);
+            if (dfu && enemySounds.RaceForSounds == Races.None && voiceRace != Races.None)
+            {
+                enemySounds.RaceForSounds = voiceRace;
+            }
+            else if (!dfu && enemySounds.RaceForSounds != Races.None)
+            {
+                voiceRace = enemySounds.RaceForSounds;      // DFU may have swapped a male high elf's voice for a wood elf's
+                enemySounds.RaceForSounds = Races.None;
+            }
+        }
+
+        /// <summary>DFU voices this ANPC itself now (self-test).</summary>
+        public bool DfuVoicing
+        {
+            get { return enemySounds != null && enemySounds.RaceForSounds != Races.None; }
+        }
+
         /// <summary>The folder's sound for the event, or else DFU's own grunt where DFU voices one (spec sounds §E).</summary>
         void OnEvent(string pool, bool attack, bool heavy, int vanillaChance, bool magicDamage)
         {
+            if (set == null || !VoiceModes.CustomVoice(Mode))
+                return;     // DFU voices it itself, or voices are off
             bool custom = Playable(pool) != null;
             if (custom)
                 Play(pool);

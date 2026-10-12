@@ -58,6 +58,55 @@
                 }
             ],
             "$version": "v1"
+        },
+        {
+            "Name": "Corpses",
+            "Description": "Bodies of ANPCs with their own sprite sets.",
+            "IsAdvanced": false,
+            "Keys": [
+                {
+                    "Value": true,
+                    "Name": "DeathAnimation",
+                    "Description": "Play the death animation before the body lies still. Off: the body appears at once, as in vanilla Daggerfall.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
+                {
+                    "Value": false,
+                    "Name": "DirectionalCorpses",
+                    "Description": "A body on its last death frame keeps showing the side you see it from. Off: it shows its front or back and always faces you, like vanilla corpses.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                }
+            ],
+            "$version": "v1"
+        },
+        {
+            "Name": "Sounds",
+            "Description": "Voices and footsteps of ANPCs.",
+            "IsAdvanced": false,
+            "Keys": [
+                {
+                    "Options": [
+                        "Vanilla",
+                        "ANPC",
+                        "Off"
+                    ],
+                    "Value": 1,
+                    "Name": "ANPCSounds",
+                    "Description": "ANPC: each ANPC's own Sounds folder, Daggerfall's voice where it has none. Vanilla: Daggerfall's voice for every ANPC. Off: ANPCs make no voice sounds.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.MultipleChoiceKey"
+                },
+                {
+                    "Value": true,
+                    "Name": "Footsteps",
+                    "Description": "Footsteps from an ANPC's Sounds folder.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                }
+            ],
+            "$version": "v1"
         }
     ]
 }

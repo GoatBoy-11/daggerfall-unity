@@ -175,6 +175,42 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void VoiceModes_FromTheSettingsChoice()
+        {
+            Assert.AreEqual(VoiceModes.Vanilla, VoiceModes.FromSetting(0));
+            Assert.AreEqual(VoiceModes.Anpc, VoiceModes.FromSetting(1));
+            Assert.AreEqual(VoiceModes.Off, VoiceModes.FromSetting(2));
+            Assert.AreEqual(VoiceModes.Anpc, VoiceModes.FromSetting(7));      // unknown: the default
+            Assert.AreEqual(VoiceModes.Anpc, VoiceModes.FromSetting(-1));
+        }
+
+        [Test]
+        public void VoiceModes_WhoSpeaks()
+        {
+            // ANPC: the folder's sounds, DFU's own voice only for an ANPC without any.
+            Assert.IsTrue(VoiceModes.CustomVoice(VoiceModes.Anpc));
+            Assert.IsTrue(VoiceModes.DfuVoice(VoiceModes.Anpc, false));
+            Assert.IsFalse(VoiceModes.DfuVoice(VoiceModes.Anpc, true));
+            // Vanilla: DFU's voice for everyone, Sounds folders ignored.
+            Assert.IsFalse(VoiceModes.CustomVoice(VoiceModes.Vanilla));
+            Assert.IsTrue(VoiceModes.DfuVoice(VoiceModes.Vanilla, true));
+            Assert.IsTrue(VoiceModes.DfuVoice(VoiceModes.Vanilla, false));
+            // Off: no one.
+            Assert.IsFalse(VoiceModes.CustomVoice(VoiceModes.Off));
+            Assert.IsFalse(VoiceModes.DfuVoice(VoiceModes.Off, true));
+            Assert.IsFalse(VoiceModes.DfuVoice(VoiceModes.Off, false));
+        }
+
+        [Test]
+        public void VoiceModes_CreatureGrowlGivesWayToAttackSoundsOrSilence()
+        {
+            Assert.IsTrue(VoiceModes.SilenceCreatureAttack(VoiceModes.Anpc, true));
+            Assert.IsFalse(VoiceModes.SilenceCreatureAttack(VoiceModes.Anpc, false));
+            Assert.IsFalse(VoiceModes.SilenceCreatureAttack(VoiceModes.Vanilla, true));
+            Assert.IsTrue(VoiceModes.SilenceCreatureAttack(VoiceModes.Off, false));
+        }
+
+        [Test]
         public void RetireDelay_OutlastsTheLongestClipAtTheLowestPitch()
         {
             Assert.AreEqual(0.5f, SoundRules.RetireDelay(0f), 1e-5);
