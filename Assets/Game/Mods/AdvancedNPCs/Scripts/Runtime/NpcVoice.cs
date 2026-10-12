@@ -3,6 +3,7 @@ using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
+using DaggerfallWorkshop.Game.MagicAndEffects;
 using DaggerfallWorkshop.Game.Utility;
 using AdvancedNPCs.Core;
 
@@ -22,8 +23,13 @@ namespace AdvancedNPCs
         MobileUnit mobile;
         EnemySounds enemySounds;
         DaggerfallEntityBehaviour behaviour;
-        AudioSource voice;
-        AudioSource steps;
+        EntityEffectManager effects;
+        AudioSource[] voices;
+        AudioSource[] steps;
+        int nextVoice;
+        int nextStep;
+        AudioSource lastVoice;
+        int magicFrame = -100;
         Races voiceRace = Races.None;
         bool acquired;
         int lastHealth = -1;
@@ -50,7 +56,18 @@ namespace AdvancedNPCs
             get { return voiceRace; }
         }
 
+        /// <summary>Self-test: DFU's grunt replays every time (no Combat Voices setting, no chance roll).</summary>
+        public static bool ForceVanillaVoice;
+
+        /// <summary>The audio source of the last voice sound (self-test).</summary>
+        public AudioSource LastVoice
+        {
+            get { return lastVoice; }
+        }
+
         static AudioClip silence;
+        static System.Reflection.FieldInfo attackClipField;
+        static bool attackClipFieldLooked;
         bool creatureAttackSilenced;
 
         /// <summary>A creature's own attack growl is replaced by the folder's attack sounds (self-test).</summary>
@@ -70,30 +87,34 @@ namespace AdvancedNPCs
                 voiceRace = enemySounds.RaceForSounds;
                 enemySounds.RaceForSounds = Races.None;
             }
-            voice = MakeSource("AnpcVoice");
-            steps = MakeSource("AnpcSteps");
-            SilenceCreatureAttack();
+            voices = MakeSources("AnpcVoice", SoundRules.VoiceSources);
+            steps = MakeSources("AnpcSteps", SoundRules.StepSources);
         }
 
         /// <summary>
         /// Creatures (orcs, ...) growl on half their attacks through EnemySounds' cached attack clip, which DFU fills
-        /// only while it is empty: a silent clip there gives the attack to the folder's own sounds (spec sounds §E).
+        /// only while it is empty: a silent clip there gives the attack to the folder's own sounds (spec sounds §E) once
+        /// they have loaded. Emptied again, DFU's growl comes back (no attack sound could be loaded, or another set).
         /// </summary>
-        void SilenceCreatureAttack()
+        void SyncCreatureAttack()
         {
-            if (enemySounds == null || !HasPool(SoundPools.Attack))
+            bool silenceIt = Playable(SoundPools.Attack) != null;
+            if (enemySounds == null || silenceIt == creatureAttackSilenced)
                 return;
-            System.Reflection.FieldInfo field = typeof(EnemySounds).GetField("attackClip",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (field == null)
+            if (!attackClipFieldLooked)
             {
-                AdvancedNpcsMod.Log("EnemySounds.attackClip not found: a creature's own attack growl stays.");
-                return;
+                attackClipFieldLooked = true;
+                attackClipField = typeof(EnemySounds).GetField("attackClip",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (attackClipField == null)
+                    AdvancedNpcsMod.Log("EnemySounds.attackClip not found: a creature's own attack growl stays.");
             }
-            if (silence == null)
+            if (attackClipField == null)
+                return;
+            if (silenceIt && silence == null)
                 silence = AudioClip.Create("AnpcSilence", 1, 1, 22050, false);
-            field.SetValue(enemySounds, silence);
-            creatureAttackSilenced = true;
+            attackClipField.SetValue(enemySounds, silenceIt ? silence : null);
+            creatureAttackSilenced = silenceIt;
         }
 
         /// <summary>Uses another sound set (anpc_reload_assets); null leaves only DFU's own grunts.</summary>
@@ -111,13 +132,18 @@ namespace AdvancedNPCs
             }
         }
 
-        AudioSource MakeSource(string name)
+        /// <summary>Sources that take turns, so overlapping one-shots each keep their own pitch.</summary>
+        AudioSource[] MakeSources(string name, int count)
         {
-            GameObject go = new GameObject(name);
-            go.transform.SetParent(transform, false);
-            AudioSource a = go.AddComponent<AudioSource>();
-            Configure(a);
-            return a;
+            AudioSource[] sources = new AudioSource[count];
+            for (int i = 0; i < count; i++)
+            {
+                GameObject go = new GameObject(name);
+                go.transform.SetParent(transform, false);
+                sources[i] = go.AddComponent<AudioSource>();
+                Configure(sources[i]);
+            }
+            return sources;
         }
 
         static void Configure(AudioSource a)
@@ -139,6 +165,10 @@ namespace AdvancedNPCs
             behaviour = GetComponent<DaggerfallEntityBehaviour>();
             DaggerfallEnemy enemy = GetComponent<DaggerfallEnemy>();
             mobile = enemy != null ? enemy.MobileUnit : null;
+            effects = GetComponent<EntityEffectManager>();
+            if (effects != null)
+                effects.OnAssignBundle += OnAssignBundle;
+            EntityEffectBroker.OnNewMagicRound += OnNewMagicRound;
             if (set != null && !acquired)
             {
                 set.Acquire();
@@ -148,20 +178,43 @@ namespace AdvancedNPCs
 
         void OnDestroy()
         {
+            if (effects != null)
+                effects.OnAssignBundle -= OnAssignBundle;
+            EntityEffectBroker.OnNewMagicRound -= OnNewMagicRound;
             if (acquired && set != null)
                 set.Release();
             acquired = false;
         }
 
-        bool HasPool(string pool)
+        // Spells and damage over time hurt in the frame a bundle lands or a magic round runs; DFU voices no grunt for them.
+        void OnAssignBundle(LiveEffectBundle bundle)
         {
-            return set != null && SoundPools.Resolve(pool, set.Pools) != null;
+            // A weapon's strike enchantment or poison lands in the frame of the weapon hit DFU itself voices.
+            if (bundle != null && (bundle.castByItem != null || bundle.bundleType == BundleTypes.Poison))
+                return;
+            magicFrame = Time.frameCount;
+        }
+
+        void OnNewMagicRound()
+        {
+            if (effects != null && effects.EffectCount > 0)
+                magicFrame = Time.frameCount;
+        }
+
+        /// <summary>
+        /// The pool that plays for an event, among those with loaded clips: while the set loads, or when every file of a
+        /// pool failed to decode, the event has no pool (DFU's own grunt stands in where DFU has one).
+        /// </summary>
+        string Playable(string pool)
+        {
+            return set != null ? SoundPools.Resolve(pool, set.Clips.Keys) : null;
         }
 
         /// <summary>Plays a random sound of the event's pool, rolling its chance; false when nothing played.</summary>
         public bool Play(string pool)
         {
-            if (!HasPool(pool))
+            string playable = Playable(pool);
+            if (playable == null || voices == null)
                 return false;
             if (pool != SoundPools.Death)
             {
@@ -169,11 +222,14 @@ namespace AdvancedNPCs
                 if (!SoundRules.Rolls(chance, Random.value))
                     return false;
             }
-            AudioClip clip = set.Pick(SoundPools.Resolve(pool, set.Pools));
-            if (clip == null || voice == null)
+            AudioClip clip = set.Pick(playable);
+            if (clip == null)
                 return false;
+            AudioSource voice = voices[nextVoice];
+            nextVoice = SoundRules.NextVoice(nextVoice, voices.Length);
             voice.pitch = SoundRules.Pitch(settings.SoundPitch, settings.SoundPitchVariation, Random.value);
             voice.PlayOneShot(clip, DaggerfallUnity.Settings.SoundVolume);
+            lastVoice = voice;
             Count(pool);
             return true;
         }
@@ -192,7 +248,7 @@ namespace AdvancedNPCs
 
         void PlayDeath()
         {
-            if (!HasPool(SoundPools.Death))
+            if (Playable(SoundPools.Death) == null)
                 return;
             AudioClip clip = set.Pick(SoundPools.Death);
             if (clip == null)
@@ -218,7 +274,7 @@ namespace AdvancedNPCs
 
         void Step()
         {
-            if (!HasPool(SoundPools.Step) || steps == null || brain == null || brain.CurrentMode == NpcMode.Dead)
+            if (Playable(SoundPools.Step) == null || steps == null || brain == null || brain.CurrentMode == NpcMode.Dead)
                 return;
             if (behaviour != null && behaviour.Entity != null && behaviour.Entity.IsParalyzed)
                 return;
@@ -228,8 +284,10 @@ namespace AdvancedNPCs
             AudioClip clip = set.Pick(SoundPools.Step);
             if (clip == null)
                 return;
-            steps.pitch = SoundRules.Pitch(settings.StepPitch, settings.StepPitchVariation, Random.value);
-            steps.PlayOneShot(clip, DaggerfallUnity.Settings.SoundVolume);
+            AudioSource step = steps[nextStep];
+            nextStep = SoundRules.NextVoice(nextStep, steps.Length);
+            step.pitch = SoundRules.Pitch(settings.StepPitch, settings.StepPitchVariation, Random.value);
+            step.PlayOneShot(clip, DaggerfallUnity.Settings.SoundVolume);
             Count(SoundPools.Step);
         }
 
@@ -244,22 +302,23 @@ namespace AdvancedNPCs
         {
             if (brain == null || behaviour == null || behaviour.Entity == null || brain.CurrentMode == NpcMode.Dead)
                 return;
+            SyncCreatureAttack();
 
             // Attacks: each one DFU starts (melee or bow).
             MobileStates s = mobile != null ? mobile.EnemyState : MobileStates.Idle;
             if (s != lastState)
             {
                 if (s == MobileStates.PrimaryAttack)
-                    OnEvent(SoundPools.Attack, true, false, 20);
+                    OnEvent(SoundPools.Attack, true, false, 20, false);
                 else if (s == MobileStates.RangedAttack1 || s == MobileStates.RangedAttack2)
-                    OnEvent(SoundPools.AttackRange, true, false, 20);
+                    OnEvent(SoundPools.AttackRange, true, false, 20, false);
             }
             lastState = s;
 
-            // Hits: health dropped and the ANPC lives.
+            // Hits: health dropped and the ANPC lives. Magic may have struck this frame or, before this Update ran, the last.
             int health = behaviour.Entity.CurrentHealth;
             if (lastHealth >= 0 && health < lastHealth && health > 0)
-                OnEvent(SoundPools.Hit, false, lastHealth - health >= behaviour.Entity.MaxHealth / 4, 40);
+                OnEvent(SoundPools.Hit, false, lastHealth - health >= behaviour.Entity.MaxHealth / 4, 40, Time.frameCount - magicFrame <= 1);
             lastHealth = health;
 
             // Footsteps of an ANPC without a walk/run sheet: a timer while it moves.
@@ -280,22 +339,24 @@ namespace AdvancedNPCs
             }
         }
 
-        /// <summary>The folder's sound for the event, or else DFU's own grunt (spec sounds §E).</summary>
-        void OnEvent(string pool, bool attack, bool heavy, int vanillaChance)
+        /// <summary>The folder's sound for the event, or else DFU's own grunt where DFU voices one (spec sounds §E).</summary>
+        void OnEvent(string pool, bool attack, bool heavy, int vanillaChance, bool magicDamage)
         {
-            if (SoundRules.VanillaVoice(HasPool(pool)))
-                VanillaGrunt(attack, heavy, vanillaChance);
-            else
+            bool custom = Playable(pool) != null;
+            if (custom)
                 Play(pool);
+            else if (SoundRules.VanillaVoice(pool, custom, magicDamage))
+                VanillaGrunt(attack, heavy, vanillaChance);
         }
 
         /// <summary>DFU's own grunt (same setting, chance, race and gender), for an event the folder has no sound for.</summary>
         void VanillaGrunt(bool attack, bool heavy, int chance)
         {
-            if (enemySounds == null || voiceRace == Races.None || !DaggerfallUnity.Settings.CombatVoices)
+            bool force = ForceVanillaVoice && SelfTest.Running;
+            if (enemySounds == null || voiceRace == Races.None || (!DaggerfallUnity.Settings.CombatVoices && !force))
                 return;
             EnemyEntity entity = behaviour.Entity as EnemyEntity;
-            if (entity == null || entity.EntityType != EntityTypes.EnemyClass || !Dice100.SuccessRoll(chance))
+            if (entity == null || entity.EntityType != EntityTypes.EnemyClass || (!force && !Dice100.SuccessRoll(chance)))
                 return;
             Genders gender = mobile != null && (mobile.Enemy.Gender == MobileGender.Male || entity.MobileEnemy.ID == (int)MobileTypes.Knight_CityWatch)
                 ? Genders.Male : Genders.Female;

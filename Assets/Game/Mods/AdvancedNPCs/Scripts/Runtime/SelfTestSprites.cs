@@ -88,6 +88,9 @@ namespace AdvancedNPCs
                 NpcCorpseSprite deadBody = NpcCorpseSprite.All.Count > corpsesBefore ? NpcCorpseSprite.All[NpcCorpseSprite.All.Count - 1] : null;
                 Check("a dead ANPC lets go of its set and its corpse holds it", deadBody != null && lazy.Users == 1,
                     "corpse=" + (deadBody != null) + ", users=" + lazy.Users);
+                string deadInfo = AdvancedNpcsMod.InfoCommand(dead.Id);
+                Check("anpc_info on a dead ANPC names the set its corpse shows",
+                    deadInfo.Contains("sprite: selftest_lazy/sprites, shown by the corpse") && !deadInfo.Contains("vanilla (no sprite set)"), deadInfo);
                 if (deadBody != null)
                     UnityEngine.Object.Destroy(deadBody.gameObject);
                 NpcBrain.Discard(dead);
@@ -115,11 +118,73 @@ namespace AdvancedNPCs
                     ", showing=" + (liveSprite != null && liveSprite.Showing) + ", users new/old=" + (fresh != null ? fresh.Users : -1) + "/" + lazy.Users);
                 NpcBrain.Discard(live);
                 yield return null;
+
+                // Taken out of the library (the self-test's own clean-up): the sheets go once nothing uses the set.
+                mod.Sprites.Remove("selftest_lazy");
+                yield return null;
+                yield return null;
+                Check("a sprite set taken out of the library frees its sheets once unused",
+                    fresh != null && fresh.Sheets.Count == 0 && !fresh.IsReady, fresh == null ? "no set" : "sheets=" + fresh.Sheets.Count);
             }
             finally
             {
                 SpriteLibrary.UnloadDelaySeconds = oldDelay;
                 mod.Sprites.Remove("selftest_lazy");
+            }
+
+            // Walk sheets declared but none usable (spec tools-quality B2.7): logged once, and the ANPC stands still.
+            // One set loses its walk sheet at indexing (wrong size), the other while loading (a PNG that only has a header).
+            string lostRoot = Path.Combine(Application.temporaryCachePath, "anpc_selftest_lostwalk");
+            string badSize = Path.Combine(lostRoot, "sprites");
+            string badData = Path.Combine(lostRoot, "sprites_2");
+            Directory.CreateDirectory(badSize);
+            Directory.CreateDirectory(badData);
+            byte[] idlePng = SolidTexture(32, 32 * 8, new Color32(160, 90, 90, 255)).EncodeToPNG();
+            string setJson = "{ \"pixelsPerUnit\": 10, \"cellHeight\": 32, \"groundY\": 4, \"fps\": 8, \"anchorX\": \"centre\", " +
+                "\"animations\": { \"idle\": { \"cellWidth\": 16, \"frames\": 2 }, \"walk\": { \"cellWidth\": 16, \"frames\": 2 } } }";
+            foreach (string d in new[] { badSize, badData })
+            {
+                File.WriteAllBytes(Path.Combine(d, "idle.png"), idlePng);
+                File.WriteAllText(Path.Combine(d, SpriteLibrary.SetFile), setJson);
+            }
+            File.WriteAllBytes(Path.Combine(badSize, "walk.png"), SolidTexture(48, 32 * 8, new Color32(160, 90, 90, 255)).EncodeToPNG());
+            byte[] headerOnly = new byte[PngHeader.Length];
+            System.Array.Copy(idlePng, headerOnly, headerOnly.Length);
+            File.WriteAllBytes(Path.Combine(badData, "walk.png"), headerOnly);
+            LoadedSpriteSet lostAtIndex = SpriteLibrary.IndexSet("selftest_lostwalk/sprites", badSize);
+            LoadedSpriteSet lostAtLoad = SpriteLibrary.IndexSet("selftest_lostwalk/sprites_2", badData);
+            Check("a set whose walk sheets were all skipped at indexing is reported as standing still",
+                lostAtIndex != null && lostAtIndex.DeclaredMovement && lostAtIndex.LostMovement,
+                lostAtIndex == null ? "not indexed" : "declared=" + lostAtIndex.DeclaredMovement + ", lost=" + lostAtIndex.LostMovement);
+            if (lostAtLoad != null)
+            {
+                mod.Sprites.Add("selftest_lostwalk", lostAtLoad);
+                try
+                {
+                    bool lostBeforeLoad = lostAtLoad.LostMovement;
+                    NpcBrain walker = SpawnDefinition(TestDefinition("selftest_lostwalk", Bravery.Normal, location, player, 1f), location);
+                    NpcGait walkerGait = walker.GetComponent<NpcGait>();
+                    bool turretAtSpawn = walkerGait != null && walkerGait.IsTurret;
+                    float lostUntil = Time.time + 3f;
+                    while (Time.time < lostUntil && !lostAtLoad.IsReady)
+                        yield return null;
+                    yield return null;
+                    yield return null;
+                    Check("a walk sheet dropped while loading is reported, and its ANPC becomes a turret",
+                        !lostBeforeLoad && !turretAtSpawn && lostAtLoad.LostMovement && walkerGait != null && walkerGait.IsTurret,
+                        "lost before/after=" + lostBeforeLoad + "/" + lostAtLoad.LostMovement + ", turret at spawn/now=" + turretAtSpawn + "/" +
+                        (walkerGait != null && walkerGait.IsTurret));
+                    NpcBrain.Discard(walker);
+                    yield return null;
+                }
+                finally
+                {
+                    mod.Sprites.Remove("selftest_lostwalk");
+                }
+            }
+            else
+            {
+                Check("a walk sheet dropped while loading is reported, and its ANPC becomes a turret", false, "not indexed");
             }
         }
     }

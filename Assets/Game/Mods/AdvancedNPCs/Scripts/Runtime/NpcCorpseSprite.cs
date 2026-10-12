@@ -42,6 +42,25 @@ namespace AdvancedNPCs
             get { return finished; }
         }
 
+        /// <summary>The sprite set the body shows (anpc_info).</summary>
+        public LoadedSpriteSet Set
+        {
+            get { return set; }
+        }
+
+        /// <summary>The body of the ANPC with this id, if it lies in the world now; else null.</summary>
+        public static NpcCorpseSprite Of(string id)
+        {
+            if (id == null)
+                return null;
+            foreach (NpcCorpseSprite c in All)
+            {
+                if (c.key == id)
+                    return c;
+            }
+            return null;
+        }
+
         public bool ShowingStatic
         {
             get { return showingStatic; }

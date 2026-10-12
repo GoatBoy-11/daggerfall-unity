@@ -130,10 +130,10 @@ namespace AdvancedNPCs.Core
             return max == double.MaxValue ? "must be a number" : "must be a number from " + FieldReader.Num(min) + " to " + FieldReader.Num(max);
         }
 
-        /// <summary>Whether a sound with this percent chance plays, for a roll in [0, 1).</summary>
+        /// <summary>Whether a sound with this percent chance plays, for a roll in [0, 1] (Unity's Random.value includes 1).</summary>
         public static bool Rolls(int chance, double roll01)
         {
-            return roll01 * 100.0 < chance;
+            return chance >= 100 || roll01 * 100.0 < chance;
         }
 
         /// <summary>The pitch of one play: pitch ± variation (roll 0 → lowest, 1 → highest), never below MinPitch.</summary>
@@ -152,10 +152,33 @@ namespace AdvancedNPCs.Core
             return middle == 0 ? new[] { 0 } : new[] { 0, middle };
         }
 
-        /// <summary>DFU's own voice grunt plays for an event only when the ANPC has no custom pool for it (spec sounds §E).</summary>
-        public static bool VanillaVoice(bool hasCustomPool)
+        /// <summary>
+        /// DFU's own voice grunt plays for an event only when the ANPC has no custom pool for it (spec sounds §E), and only
+        /// where DFU itself voices one: a melee attack, or a hit by a weapon (not a bow shot, a spell or damage over time).
+        /// </summary>
+        public static bool VanillaVoice(string pool, bool hasCustomPool, bool magicDamage)
         {
-            return !hasCustomPool;
+            if (hasCustomPool)
+                return false;
+            return pool == SoundPools.Attack || (pool == SoundPools.Hit && !magicDamage);
+        }
+
+        /// <summary>
+        /// Real seconds a replaced sound set (anpc_reload_assets) keeps its clips once unused: long enough for a sound
+        /// still playing, such as a death cry, at the lowest pitch.
+        /// </summary>
+        public static float RetireDelay(float longestClipSeconds)
+        {
+            return Math.Max(0f, longestClipSeconds) / MinPitch + 0.5f;
+        }
+
+        /// <summary>One-shot voices of an ANPC take turns over this many audio sources, so each keeps its own pitch.</summary>
+        public const int VoiceSources = 3, StepSources = 2;
+
+        /// <summary>The source after this one, round robin.</summary>
+        public static int NextVoice(int current, int count)
+        {
+            return count <= 1 ? 0 : (current + 1) % count;
         }
     }
 }
