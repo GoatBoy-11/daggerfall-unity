@@ -72,7 +72,7 @@ namespace AdvancedNPCs
             if (player != null)
             {
                 bool near = Near(player.transform) && brain.CanSee(player);
-                bool likes = near && GreetRules.LikesPlayer(selfCalm, PlayerReactionBand());
+                bool likes = near && GreetRules.LikesPlayer(selfCalm, PlayerReactionBand(brain.Opinion));
                 if (memory.Consider(GreetRules.PlayerKey, near, likes, now, Random.value, chance))
                 {
                     Greet(player.transform);
@@ -109,8 +109,11 @@ namespace AdvancedNPCs
                 brain.HoldStill(sprite.GreetSeconds + 0.3f);
         }
 
-        /// <summary>DFU's reaction to the player for a townsperson here (the region's people), as a dialogue band.</summary>
-        static string PlayerReactionBand()
+        /// <summary>
+        /// DFU's reaction to the player for a townsperson here (the region's people) plus this ANPC's own opinion,
+        /// as a dialogue band.
+        /// </summary>
+        static string PlayerReactionBand(int opinion)
         {
             if (ReactionOverride != null)
                 return ReactionOverride;
@@ -120,12 +123,12 @@ namespace AdvancedNPCs
                 PlayerEntity p = GameManager.Instance.PlayerEntity;
                 if (TalkManager.Instance == null ||
                     !p.FactionData.GetFactionData(GameManager.Instance.PlayerGPS.GetPeopleOfCurrentRegion(), out people))
-                    return "neutral";
-                return ConditionParser.ReactionBand(TalkManager.Instance.GetReactionToPlayer(people));
+                    return OpinionRules.Band(0, opinion);
+                return OpinionRules.Band(TalkManager.Instance.GetReactionToPlayer(people), opinion);
             }
             catch (System.Exception)
             {
-                return "neutral";
+                return OpinionRules.Band(0, opinion);
             }
         }
     }

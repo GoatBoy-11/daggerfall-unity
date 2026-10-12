@@ -198,6 +198,47 @@ namespace AdvancedNPCs
             get { return def; }
         }
 
+        /// <summary>Personal opinion of the player now (spec opinion-lod §A), -100..100.</summary>
+        public int Opinion
+        {
+            get { return state != null ? OpinionRules.Current(state.opinion, state.opinionAt, Now()) : 0; }
+        }
+
+        /// <summary>Changes the personal opinion of the player (drifted first, clamped); saved with the state.</summary>
+        public void ChangeOpinion(int delta)
+        {
+            if (state == null || delta == 0)
+                return;
+            ulong now = Now();
+            state.opinion = OpinionRules.Change(state.opinion, state.opinionAt, now, delta);
+            state.opinionAt = now;
+        }
+
+        /// <summary>Calm ANPCs (not enemies) within 15 m who can see the spot think less of the player.</summary>
+        static void WitnessPlayerViolence(Vector3 victimAt, NpcBrain victim)
+        {
+            foreach (NpcBrain w in All())
+            {
+                if (w == victim || w.mode != NpcMode.Calm || w.enemy || w.state == null || w.state.hostile)
+                    continue;
+                if (Vector3.Distance(w.transform.position, victimAt) > OpinionRules.WitnessRange || !w.CanSeePoint(victimAt))
+                    continue;
+                w.ChangeOpinion(OpinionRules.Witness);
+                AdvancedNpcsMod.Log(w.key + ": saw the player attack someone (opinion " + w.Opinion + ").");
+            }
+        }
+
+        /// <summary>A clear line from this NPC to a point (half a metre above both), ignoring what stands on the point.</summary>
+        bool CanSeePoint(Vector3 point)
+        {
+            Vector3 from = transform.position + Vector3.up * 0.5f;
+            Vector3 to = point + Vector3.up * 0.5f;
+            RaycastHit hit;
+            if (!Physics.Linecast(from, to, out hit))
+                return true;
+            return hit.collider.transform.IsChildOf(transform) || Vector3.Distance(hit.point, to) < 0.8f;
+        }
+
         /// <summary>Whom it fights or flees from (null when calm).</summary>
         public DaggerfallEntityBehaviour Threat
         {
@@ -233,6 +274,9 @@ namespace AdvancedNPCs
                     text += ", health " + entityBehaviour.Entity.CurrentHealth + "/" + entityBehaviour.Entity.MaxHealth;
                 if (!gameObject.activeInHierarchy)
                     text += ", inactive";
+                int opinion = Opinion;
+                if (opinion != 0)
+                    text += ", opinion " + opinion;
                 if (def != null && def.Magic != null && entityBehaviour != null)
                     text += def.Magic.UsesMagicka ? ", magicka " + state.magicka + "/" + def.Magic.MaxMagicka : ", unlimited magicka";
                 return text;
@@ -397,6 +441,11 @@ namespace AdvancedNPCs
             state.hostileUntil = HostilityRules.NewCalmDeadline(Now(), def.CalmDownMinHours, def.CalmDownMaxHours, rng);
             threat = GameManager.Instance.PlayerEntityBehaviour;
 
+            if (wasCalm)
+            {
+                ChangeOpinion(OpinionRules.Assault);
+                WitnessPlayerViolence(transform.position, this);
+            }
             if (wasCalm && def.CrimeOnAttack)
             {
                 NpcCrime.Report(PlayerEntity.Crimes.Assault);
@@ -539,6 +588,13 @@ namespace AdvancedNPCs
         {
             if (ThreatGone())
             {
+                DaggerfallEntityBehaviour player = GameManager.Instance.PlayerEntityBehaviour;
+                if (threat != null && threat != player && threat.Entity != null && threat.Entity.CurrentHealth <= 0 && player != null &&
+                    Vector3.Distance(player.transform.position, transform.position) <= OpinionRules.HelpRange)
+                {
+                    ChangeOpinion(OpinionRules.Helped);
+                    AdvancedNpcsMod.Log(key + ": the player helped in a fight (opinion " + Opinion + ").");
+                }
                 EndCreatureFight();
                 return;
             }
@@ -631,10 +687,11 @@ namespace AdvancedNPCs
                 sprite.Hide();
 
             // DFU tells the victim who hit it only after OnDeath; decide the killer once that has happened.
-            AdvancedNpcsMod.Instance.StartCoroutine(ResolveKiller(def, key, motor, wasHostile, fightingCreature, wasEnemy));
+            AdvancedNpcsMod.Instance.StartCoroutine(ResolveKiller(def, key, motor, wasHostile, fightingCreature, wasEnemy, transform.position));
         }
 
-        static IEnumerator ResolveKiller(NpcDefinition def, string key, EnemyMotor motor, bool wasHostile, bool fightingCreature, bool wasEnemy)
+        static IEnumerator ResolveKiller(NpcDefinition def, string key, EnemyMotor motor, bool wasHostile, bool fightingCreature, bool wasEnemy,
+            Vector3 diedAt)
         {
             yield return null;
 
@@ -645,6 +702,8 @@ namespace AdvancedNPCs
                 NpcCrime.Report(PlayerEntity.Crimes.Murder);
             }
             AdvancedNpcsMod.Log(key + ": died" + (byPlayer ? " (player)." : " (creature)."));
+            if (byPlayer && !wasEnemy)
+                WitnessPlayerViolence(diedAt, null);
         }
 
         float HealthFraction()

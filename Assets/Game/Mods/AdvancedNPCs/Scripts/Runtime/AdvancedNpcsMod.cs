@@ -103,6 +103,9 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_hostile",
                 "Turns an ANPC into an enemy (no crime to fight) or calms it; saved with your game.",
                 "anpc_hostile <id or key> [on|off]", HostileCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_opinion",
+                "Shows or sets an ANPC's personal opinion of you (-100..100; added to the region's reaction for greetings and dialogue).",
+                "anpc_opinion <id or key> [value]", OpinionCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_topics",
                 "Shows the dialogue topics of the ANPC in front of you (or <id>): which are shown, and why the others are hidden.",
                 "anpc_topics [id]", TopicsCommand);
@@ -657,6 +660,23 @@ namespace AdvancedNPCs
             if (!hostile)
                 s.hostile = false;
             return true;
+        }
+
+        static string OpinionCommand(params string[] args)
+        {
+            if (args == null || args.Length < 1 || args.Length > 2)
+                return "Usage: anpc_opinion <id or key> [value -100..100]   (ids from anpc_list)";
+            NpcBrain b = NpcBrain.Find(args[0]);
+            if (b == null)
+                return "No spawned ANPC \"" + args[0] + "\". Try anpc_list.";
+            if (args.Length == 2)
+            {
+                int value;
+                if (!int.TryParse(args[1], out value) || value < OpinionRules.Min || value > OpinionRules.Max)
+                    return "The value must be a whole number from -100 to 100.";
+                b.ChangeOpinion(value - b.Opinion);
+            }
+            return b.Id + " (" + b.DisplayName + "): opinion of you " + b.Opinion + ". Saved with your game.";
         }
 
         static string HostileCommand(params string[] args)
