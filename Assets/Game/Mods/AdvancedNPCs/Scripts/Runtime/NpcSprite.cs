@@ -35,6 +35,7 @@ namespace AdvancedNPCs
         bool acquired;
         int lodPhase;           // spreads far ANPCs' updates over frames (spec opinion-lod §B)
         float lodDt;            // time since the last update that ran
+        int updatesRun;
         Material material;
 
         string state;
@@ -65,6 +66,12 @@ namespace AdvancedNPCs
         public LoadedSpriteSet Set
         {
             get { return set; }
+        }
+
+        /// <summary>How many frame updates actually ran (self-test: LOD skips some for far ANPCs).</summary>
+        public int UpdatesRun
+        {
+            get { return updatesRun; }
         }
 
         /// <summary>Playing a one-shot sheet, running, or in an attack: updated every frame whatever the distance.</summary>
@@ -360,6 +367,7 @@ namespace AdvancedNPCs
                 return;
             float dt = lodDt;
             lodDt = 0f;
+            updatesRun++;
             // Relative to the town: DFU's floating-origin shifts move the whole town, which is not walking.
             Vector3 p = transform.localPosition;
             Vector3 moved = p - lastPosition;

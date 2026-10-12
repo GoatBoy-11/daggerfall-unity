@@ -848,6 +848,10 @@ namespace AdvancedNPCs
             while (combat.MoveNext())
                 yield return combat.Current;
 
+            IEnumerator opinion = OpinionSteps(location, playerTransform);
+            while (opinion.MoveNext())
+                yield return opinion.Current;
+
             IEnumerator magic = MagicSteps(location, playerTransform);
             while (magic.MoveNext())
                 yield return magic.Current;

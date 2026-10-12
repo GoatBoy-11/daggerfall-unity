@@ -125,6 +125,11 @@ folder name is the old id.
 - `anpc_spawn <template>` — makes a new person from a generic template (e.g. `anpc_spawn wench`) in front of you, rolled like the template's other people (name, portrait, sprite set). They stay at that spot for the rest of this game, saved with it: outdoors in a town (key `<template>@<map id>+<n>`), inside a building (`<template>@<map id>:b<building>+<n>`) or inside a dungeon (`<template>@<map id>:dungeon+<n>`). Not in the wilderness. This works in either GenericPeople mode.
 - `anpc_remove <key>` — removes a person made with `anpc_spawn` from the world and from your save.
 - `anpc_hostile <id or key> [on|off]` — turns an ANPC into an enemy or calms it (without on/off it toggles); saved with your game. See [Enemies](#enemies).
+- `anpc_opinion <id or key> [value]` — shows or sets an ANPC's personal opinion of you (−100 to 100); saved with your game.
+
+Each ANPC has its own opinion of you (−100 to 100, saved), added to the region's reaction for greetings and the dialogue `reaction` condition. Hitting it costs 25, being seen hitting or killing another ANPC costs 10 with calm onlookers within 15 m, and helping it in a fight (its enemy dies with you within 20 m) gains 10; dialogue replies can change it with `"opinion"`. It drifts back toward 0 by 2 points a day.
+
+Performance: ANPCs far from you update their animation and calm decisions less often (every 3rd frame beyond 40 m, every 8th beyond 100 m; always every frame while fighting, fleeing or acting). Nothing changes up close.
 - `anpc_topics [id or key]` — the dialogue topics of the ANPC in front of you (within 5 m) or of that ANPC: which are shown, and for the others the condition that hides them. See [Dialogue topics](#dialogue-topics).
 - `anpc_reload_dialogue` — re-reads `_Dialogue/*.json` and every `dialogue.json` without restarting (a change to `npc.json` still needs a restart).
 - `anpc_flag` — lists the dialogue flags that are set; `anpc_flag <name> on|off` sets or clears one (saved with your game).
@@ -412,7 +417,8 @@ more replies, so small dialogue trees are easy:
 |---|---|---|
 | `giveGold` / `takeGold` | `5` | the player gets / pays that much gold (1–100000) |
 | `giveItem` / `takeItem` | `"Ruby"` | the player gets / gives up one item by its name |
-| `reputation` | `-2` | how this region's people regard the player (−20 to 20); this is what `reaction` reads |
+| `reputation` | `-2` | how this region's people regard the player (−20 to 20); part of what `reaction` reads |
+| `opinion` | `10` | this ANPC's own opinion of the player (−50 to 50); `reaction` reads the region's reaction plus this ANPC's opinion |
 | `startQuest` | `"A0C00Y00"` | starts a DFU quest by its file name |
 | `becomeEnemy` | `true` | the talk window closes and the ANPC becomes an enemy (like `anpc_hostile <id> on`) |
 | `endConversation` | `true` | the talk window closes after the line |

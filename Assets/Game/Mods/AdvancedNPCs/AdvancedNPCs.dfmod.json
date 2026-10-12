@@ -1,6 +1,6 @@
 {
     "ModTitle": "Advanced NPCs",
-    "ModVersion": "0.13.0",
+    "ModVersion": "0.14.0",
     "ModAuthor": "GoatBoy-11",
     "ContactInfo": "https://github.com/GoatBoy-11/daggerfall-unity",
     "DFUnity_Version": "1.9.2",
@@ -79,6 +79,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTest.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestGait.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestCombat.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestOpinion.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestOutside.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestReplies.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestSprites.cs",
