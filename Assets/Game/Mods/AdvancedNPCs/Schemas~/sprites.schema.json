@@ -34,7 +34,8 @@
         "properties": {
           "cellWidth": { "type": "integer", "minimum": 1 },
           "frames": { "type": "integer", "minimum": 1 },
-          "actionFrame": { "type": "integer", "minimum": 1, "description": "Attack sheets: the frame (1-based) the blow lands on." }
+          "actionFrame": { "type": "integer", "minimum": 1, "description": "Attack sheets: the frame (1-based) the blow lands on." },
+          "stepFrames": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "minItems": 1, "description": "Walk and run sheets: the frames (1-based) a footstep sound plays on (default: the first and the middle frame)." }
         }
       }
     }

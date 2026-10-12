@@ -321,7 +321,7 @@ namespace AdvancedNPCs
                     AudioClip clip = handler.audioClip;
                     if (clip == null || clip.length <= 0f)
                     {
-                        problem = "could not be decoded";
+                        problem = "could not be decoded (an .ogg with a picture or video stream does not load: re-export it as audio only)";
                         return null;
                     }
                     clip.name = Path.GetFileName(path);

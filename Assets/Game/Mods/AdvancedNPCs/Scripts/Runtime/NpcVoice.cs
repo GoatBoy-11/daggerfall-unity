@@ -65,6 +65,21 @@ namespace AdvancedNPCs
             steps = MakeSource("AnpcSteps");
         }
 
+        /// <summary>Uses another sound set (anpc_reload_assets); null leaves only DFU's own grunts.</summary>
+        public void Swap(LoadedSoundSet next)
+        {
+            bool started = acquired;
+            if (acquired && set != null)
+                set.Release();
+            acquired = false;
+            set = next;
+            if (started && set != null)
+            {
+                set.Acquire();
+                acquired = true;
+            }
+        }
+
         AudioSource MakeSource(string name)
         {
             GameObject go = new GameObject(name);

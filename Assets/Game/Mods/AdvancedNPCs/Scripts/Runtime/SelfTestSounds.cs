@@ -136,6 +136,16 @@ namespace AdvancedNPCs
                 Check("an ANPC with the vanilla sprite steps by timer while moving", plainVoice != null && plainVoice.Played(SoundPools.Step) > 0,
                     "steps=" + (plainVoice != null ? plainVoice.Played(SoundPools.Step) : -1) + ", " + plain.Status);
                 plain.SwitchHostile(false);
+
+                string info = AdvancedNpcsMod.InfoCommand(plain.Id);
+                Check("anpc_info shows the ANPC's sound pools", info.Contains("sounds: selftest_voice_plain/Sounds") && info.Contains("step 2"), info);
+                // anpc_reload_assets: a live ANPC's voice moves to the re-indexed Sounds; the old set loses its user.
+                bool reloaded = mod.Sounds.Reload("selftest_voice_plain", root);
+                int swapped = AdvancedNpcsMod.SwapSounds(new[] { "selftest_voice_plain" });
+                LoadedSoundSet freshSounds = plainVoice != null ? plainVoice.Set : null;
+                Check("anpc_reload_assets swaps a live ANPC to the re-read Sounds",
+                    reloaded && swapped == 1 && freshSounds != null && freshSounds != plainSet && freshSounds.Users == 1 && plainSet.Users == 0,
+                    "reloaded=" + reloaded + ", swapped=" + swapped + ", users new/old=" + (freshSounds != null ? freshSounds.Users : -1) + "/" + plainSet.Users);
                 NpcBrain.Discard(plain);
                 yield return null;
             }
@@ -148,6 +158,21 @@ namespace AdvancedNPCs
                 mod.Sprites.Remove("selftest_voice");
             }
             DiscardTestPeople();
+
+            // Optional sample check (works when the mod is installed without its examples): the guard's shipped sounds.
+            LoadedSoundSet guard = mod.Sounds.For("castle_guard_1");
+            if (guard != null)
+            {
+                string problem = null;
+                AudioClip sample = null;
+                if (guard.Files.ContainsKey(SoundPools.Greet))
+                    sample = SoundLibrary.LoadClip(guard.Files[SoundPools.Greet][0], out problem);
+                Check("castle_guard_1 sample sounds index and decode (OGG)",
+                    guard.Pools.Count == 5 && guard.Files.ContainsKey(SoundPools.Step) && sample != null,
+                    guard.Summary() + (problem != null ? ", " + problem : ""));
+                if (sample != null)
+                    UnityEngine.Object.Destroy(sample);
+            }
             yield return Settle;
         }
 

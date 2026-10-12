@@ -321,6 +321,12 @@ namespace AdvancedNPCs
                 sb.Append("  sprite: ").Append(chosen.Label).Append(sprite.Pending ? ", loading" : ", loaded")
                   .Append(", ").Append(sprite.WorldHeight.ToString("0.00")).Append(" m tall")
                   .Append(sprite.CurrentAnimation != null ? ", playing " + sprite.CurrentAnimation : "").Append('\n');
+            NpcVoice voice = GetComponent<NpcVoice>();
+            LoadedSoundSet sounds = voice != null ? voice.Set : null;
+            if (sounds == null)
+                sb.Append("  sounds: vanilla voice\n");
+            else
+                sb.Append("  sounds: ").Append(sounds.Label).Append(sounds.IsReady ? ", loaded: " : ", loading: ").Append(sounds.Summary()).Append('\n');
 
             GameObject playerObject = GameManager.Instance.PlayerObject;
             float distance = playerObject != null ? Vector3.Distance(playerObject.transform.position, transform.position) : 0f;

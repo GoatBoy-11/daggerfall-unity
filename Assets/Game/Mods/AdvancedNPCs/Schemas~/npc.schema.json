@@ -100,6 +100,20 @@
         "skill": { "type": "number", "minimum": 0, "maximum": 100 }
       }
     },
+    "sounds": {
+      "type": "object",
+      "description": "Custom sounds in the folder's Sounds/ (greet, attack, attack_range, cast, hit, death, step; _1, _2... for random picks).",
+      "additionalProperties": false,
+      "properties": {
+        "combatChance": { "type": "integer", "minimum": 0, "maximum": 100, "default": 50, "description": "Percent chance for attack, attack_range, cast and hit sounds." },
+        "greetChance": { "type": "integer", "minimum": 0, "maximum": 100, "default": 50, "description": "Percent chance for greet sounds." },
+        "stepDistance": { "type": "number", "exclusiveMinimum": 0, "default": 15, "description": "No step sounds when the player is farther than this (metres)." },
+        "soundPitch": { "type": "number", "minimum": 0.25, "maximum": 3, "default": 1, "description": "Pitch of every sound except steps." },
+        "soundPitchVariation": { "type": "number", "minimum": 0, "maximum": 1, "default": 0, "description": "Random pitch change (±) each time a sound plays." },
+        "stepPitch": { "type": "number", "minimum": 0.25, "maximum": 3, "default": 1 },
+        "stepPitchVariation": { "type": "number", "minimum": 0, "maximum": 1, "default": 0 }
+      }
+    },
     "combat": {
       "type": "object",
       "additionalProperties": false,
