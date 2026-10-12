@@ -491,7 +491,7 @@ namespace AdvancedNPCs
                 if (guard.Files.ContainsKey(SoundPools.Greet))
                     sample = SoundLibrary.LoadClip(guard.Files[SoundPools.Greet][0], out problem);
                 Check("castle_guard_1 sample sounds index and decode (OGG)",
-                    guard.Pools.Count == 5 && guard.Files.ContainsKey(SoundPools.Step) && sample != null,
+                    guard.Pools.Count == 6 && guard.Files.ContainsKey(SoundPools.Step) && guard.Files.ContainsKey(SoundPools.Talk) && sample != null,
                     guard.Summary() + (problem != null ? ", " + problem : ""));
                 if (sample != null)
                     UnityEngine.Object.Destroy(sample);

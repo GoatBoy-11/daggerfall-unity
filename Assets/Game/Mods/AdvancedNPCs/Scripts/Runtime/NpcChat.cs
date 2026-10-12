@@ -214,6 +214,9 @@ namespace AdvancedNPCs
         {
             if (session != null)
                 session.End();
+            NpcGreeter greeter = GetComponent<NpcGreeter>();
+            if (greeter != null && partner != null)
+                greeter.Met(partner.brain);     // no wave at the one it just talked with
             if (cutShort && voice != null)
                 voice.StopTalk();
             if (sprite != null)

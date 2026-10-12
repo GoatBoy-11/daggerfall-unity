@@ -84,5 +84,16 @@ namespace AdvancedNPCs.Tests
             Assert.IsTrue(m.Consider("bob", true, true, 12.1, 0.0, 1.0));     // over 2 hours later
             Assert.IsTrue(m.Consider("ann", true, true, 12.1, 0.0, 1.0));     // another target is separate
         }
+
+        [Test]
+        public void Met_CountsAsTheSameEncounter()
+        {
+            // After a conversation the partner is not greeted again until it leaves and comes back.
+            GreetMemory m = new GreetMemory();
+            m.Met("anna");
+            Assert.IsFalse(m.Consider("anna", true, true, 10.0, 0.0, 1.0));
+            Assert.IsFalse(m.Consider("anna", false, true, 10.1, 0.0, 1.0));
+            Assert.IsTrue(m.Consider("anna", true, true, 10.2, 0.0, 1.0));
+        }
     }
 }

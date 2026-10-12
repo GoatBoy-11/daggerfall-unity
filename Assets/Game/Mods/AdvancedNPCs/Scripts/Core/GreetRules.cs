@@ -42,6 +42,14 @@ namespace AdvancedNPCs.Core
             near.Clear();
         }
 
+        /// <summary>
+        /// The target is near and already met (a conversation just ended): no greeting until it leaves and comes back.
+        /// </summary>
+        public void Met(string target)
+        {
+            near.Add(target);
+        }
+
         /// <summary>True when the ANPC should greet this target now. Call for every candidate at each check.</summary>
         public bool Consider(string target, bool inRangeAndSeen, bool likes, double nowHours, double roll, double chance)
         {

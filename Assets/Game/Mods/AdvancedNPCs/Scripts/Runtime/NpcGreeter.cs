@@ -113,6 +113,13 @@ namespace AdvancedNPCs
             }
         }
 
+        /// <summary>A conversation with this ANPC just ended: they met, so no greeting until it leaves and comes back.</summary>
+        public void Met(NpcBrain other)
+        {
+            if (other != null)
+                memory.Met(other.Id);
+        }
+
         bool Near(Transform target)
         {
             Vector3 d = target.position - transform.position;
