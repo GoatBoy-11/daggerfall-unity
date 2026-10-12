@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "advanced-npcs/npc.schema.json",
+  "title": "Advanced NPCs: npc.json",
+  "description": "One ANPC folder's definition (ANPCs/<id>/npc.json). The folder name is the id.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": { "type": "string", "pattern": "^[a-z0-9_]+$", "description": "Optional; must match the folder name." },
+    "kind": { "enum": ["unique", "generic"], "default": "unique", "description": "unique: one named person at a fixed spot. generic: a template spawned by rules." },
+    "name": { "type": "string", "description": "Display name (unique), or a fixed name for every generic copy." },
+    "names": { "type": "array", "items": { "type": "string" }, "description": "Generic only: names to pick from." },
+    "nameList": { "type": "string", "description": "A list in ANPCs/_Namelists (without .txt)." },
+    "race": { "type": "string", "description": "Breton, Redguard, Nord, DarkElf (Dunmer), Khajiit or Argonian.", "examples": ["Breton", "Redguard", "Nord", "DarkElf", "Khajiit", "Argonian"] },
+    "baseClass": { "type": "string", "description": "A DFU class (Warrior, Rogue, Spellsword...) or, with attitude hostile, a creature.", "examples": ["Warrior", "Rogue", "Spellsword", "Mage", "Knight", "Barbarian"] },
+    "gender": { "type": "string", "examples": ["Male", "Female"] },
+    "bravery": { "enum": ["Coward", "Normal", "Brave", "Prudent"], "default": "Normal" },
+    "fleeHealthPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+    "fleeChance": { "type": "number", "minimum": 0, "maximum": 100, "default": 30, "description": "Normal bravery: chance to flee, rolled once below half of fleeHealthPercent." },
+    "aggroRange": { "type": "number", "exclusiveMinimum": 0, "default": 15, "description": "Brave: metres within which a calm ANPC attacks enemies it sees." },
+    "calmDownHours": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "[min, max] game hours before an angered ANPC calms down." },
+    "crimeOnAttack": { "type": "boolean" },
+    "wanderRadius": { "type": "number", "minimum": 0 },
+    "spriteHeight": { "type": "number", "exclusiveMinimum": 0, "description": "World height in metres (default: the vanilla class sprite's height)." },
+    "spriteHeightScale": { "type": "number", "exclusiveMinimum": 0, "description": "Vertical-only stretch of the sprite." },
+    "spriteScale": { "type": "number", "exclusiveMinimum": 0, "description": "Uniform scale of the sprite height." },
+    "attitude": { "enum": ["calm", "hostile"], "default": "calm" },
+    "hostileHours": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 23 }, "minItems": 2, "maxItems": 2, "description": "With attitude hostile: [from, to] hours when it is an enemy." },
+    "dialogue": { "type": "string", "description": "A dialogue file in ANPCs/_Dialogue (without .json)." },
+    "portrait": { "type": "string" },
+    "portraits": { "type": "array", "items": { "type": "string" } },
+    "location": {
+      "type": "object",
+      "description": "Unique only: the town the ANPC lives in.",
+      "properties": { "region": { "type": "string" }, "place": { "type": "string" } },
+      "required": ["region", "place"]
+    },
+    "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3, "description": "Unique only: [x, y, z] in the town (use anpc_pos or anpc_place)." },
+    "spawn": {
+      "type": "object",
+      "description": "Generic only: where copies appear.",
+      "additionalProperties": false,
+      "properties": {
+        "locationTypes": { "type": "array", "items": { "type": "string" } },
+        "places": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "region": { "type": "string" },
+              "place": { "type": "string" },
+              "positions": { "type": "array", "items": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 } }
+            }
+          }
+        },
+        "count": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 2, "maxItems": 2 },
+        "dungeons": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "chance": { "type": "number", "minimum": 0, "maximum": 100 },
+            "count": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 2, "maxItems": 2 },
+            "dungeonTypes": { "type": "array", "items": { "type": "string" } },
+            "when": { "type": "object" }
+          }
+        },
+        "interiors": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "chance": { "type": "number", "minimum": 0, "maximum": 100 },
+            "count": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 2, "maxItems": 2 },
+            "buildings": { "type": "array", "items": { "type": "string" } },
+            "when": { "type": "object" }
+          }
+        },
+        "wilderness": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "chance": { "type": "number", "minimum": 0, "maximum": 100 },
+            "max": { "type": "integer", "minimum": 0 },
+            "when": { "type": "object" }
+          }
+        }
+      }
+    },
+    "magic": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "spells": { "type": "array", "items": { "type": "string" }, "description": "Standard spell names (see anpc_spells)." },
+        "usesMagicka": { "type": "boolean" },
+        "maxMagicka": { "type": "number", "minimum": 0 },
+        "recovery": { "enum": ["onAreaEntry", "rest"], "default": "onAreaEntry" },
+        "castCooldown": { "type": "array", "items": { "type": "number", "minimum": 0 }, "minItems": 2, "maxItems": 2 },
+        "restHours": { "type": "number", "minimum": 0 },
+        "skill": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "combat": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "health": { "type": "number", "exclusiveMinimum": 0, "description": "Scale of the class's health." },
+        "damage": { "type": "number", "exclusiveMinimum": 0, "description": "Scale of the damage (creatures only)." },
+        "attackSpeed": { "type": "number", "exclusiveMinimum": 0 },
+        "rangedAtDistance": { "type": "boolean", "default": false, "description": "Shoot arrows at range (melee classes only when true)." },
+        "rangedAnimation": { "type": "string", "description": "The sheet a bow shot plays (default attack_range*, else attack*)." },
+        "runSpeed": { "type": "number", "exclusiveMinimum": 0, "default": 1.2 },
+        "canRun": { "type": "boolean", "default": true }
+      }
+    }
+  }
+}

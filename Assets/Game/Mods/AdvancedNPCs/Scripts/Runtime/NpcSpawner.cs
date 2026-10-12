@@ -364,7 +364,7 @@ namespace AdvancedNPCs
                 sprite.Begin(spriteSet, height, def.SpriteHeightScale);
                 if (SpriteStates.Variants(spriteSet.Set, SpriteStates.Greet).Count > 0)
                     go.AddComponent<NpcGreeter>();
-                if (def.RangedAnimation != null && !spriteSet.Sheets.ContainsKey(def.RangedAnimation))
+                if (def.RangedAnimation != null && !spriteSet.Set.Animations.ContainsKey(def.RangedAnimation))
                     AdvancedNpcsMod.Log(spriteSet.Label + ": no " + def.RangedAnimation + ".png for combat.rangedAnimation; bow shots play attack_range*/attack* sheets.");
             }
             gait.Init(def);

@@ -53,7 +53,8 @@ namespace AdvancedNPCs
         float holdStill;        // seconds the calm NPC stands still (greeting)
         NpcGait gait;
         float patrolTimer;
-        static readonly Collider[] nearby = new Collider[64];
+        static Collider[] nearby = new Collider[64];
+        const int MaxNearby = 512;
         System.Random rng;
 
         /// <summary>The spawned copy of an NPC, or null.</summary>
@@ -210,8 +211,9 @@ namespace AdvancedNPCs
             if (state == null || delta == 0)
                 return;
             ulong now = Now();
-            state.opinion = OpinionRules.Change(state.opinion, state.opinionAt, now, delta);
-            state.opinionAt = now;
+            int next = OpinionRules.Change(state.opinion, state.opinionAt, now, delta);
+            state.opinionAt = OpinionRules.ChangedAt(state.opinion, state.opinionAt, now);
+            state.opinion = next;
         }
 
         /// <summary>Calm ANPCs (not enemies) within 15 m who can see the spot think less of the player.</summary>
@@ -282,6 +284,54 @@ namespace AdvancedNPCs
                     text += def.Magic.UsesMagicka ? ", magicka " + state.magicka + "/" + def.Magic.MaxMagicka : ", unlimited magicka";
                 return text;
             }
+        }
+
+        /// <summary>What an author wants to know about this ANPC (anpc_info, spec tools-quality §A1), one fact per line.</summary>
+        public string Describe()
+        {
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            sb.Append(Id).Append(" (").Append(DisplayName).Append(")\n");
+            if (def != null)
+                sb.Append("  key ").Append(key).Append(", ").Append(def.Kind == NpcKind.Unique ? "unique" : "generic")
+                  .Append(", folder ").Append(def.Folder).Append(", bravery ").Append(def.Bravery).Append('\n');
+            sb.Append("  ").Append(Status).Append('\n');
+            sb.Append("  enemy: ").Append(enemy ? "yes" : "no");
+            if (state != null && state.hostile)
+            {
+                if (state.hostileUntil == EnemyMarker)
+                {
+                    sb.Append(", hostile until the enemy rules end it");
+                }
+                else
+                {
+                    ulong now = Now();
+                    double hours = state.hostileUntil > now ? (state.hostileUntil - now) / 3600.0 : 0.0;
+                    sb.Append(", hostile for ").Append(hours.ToString("0.0")).Append(" more game hour(s)");
+                }
+            }
+            sb.Append('\n');
+            sb.Append("  opinion ").Append(Opinion).Append(", region's reaction with opinion: ")
+              .Append(NpcGreeter.PlayerReactionBand(Opinion)).Append('\n');
+
+            NpcSprite sprite = GetComponent<NpcSprite>();
+            LoadedSpriteSet chosen = sprite != null ? sprite.ChosenSet : null;
+            if (chosen == null)
+                sb.Append("  sprite: vanilla (no sprite set)\n");
+            else
+                sb.Append("  sprite: ").Append(chosen.Label).Append(sprite.Pending ? ", loading" : ", loaded")
+                  .Append(", ").Append(sprite.WorldHeight.ToString("0.00")).Append(" m tall")
+                  .Append(sprite.CurrentAnimation != null ? ", playing " + sprite.CurrentAnimation : "").Append('\n');
+
+            GameObject playerObject = GameManager.Instance.PlayerObject;
+            float distance = playerObject != null ? Vector3.Distance(playerObject.transform.position, transform.position) : 0f;
+            DaggerfallEntityBehaviour target = senses != null ? senses.Target : null;
+            string targetName = target == null ? "none" : target == GameManager.Instance.PlayerEntityBehaviour ? "you" : target.name;
+            sb.Append("  target: ").Append(targetName);
+            if (target != null)
+                sb.Append(senses.TargetInSight ? " (in sight)" : " (not in sight)");
+            sb.Append(", ").Append(distance.ToString("0.0")).Append(" m from you\n");
+            sb.Append("  LOD: updates every ").Append(NpcLod.Interval(distance, false)).Append(" frame(s) when calm");
+            return sb.ToString();
         }
 
         /// <summary>Moves the NPC, and the centre it wanders around, to a world position. Not saved.</summary>
@@ -468,6 +518,7 @@ namespace AdvancedNPCs
             if (foe == null)
                 return false;
             AdvancedNpcsMod.Log(key + ": attacks " + foe.name + " on sight.");
+            senses.Target = foe;        // DFU's senses chase it now instead of waiting to notice it
             OnAttackedByCreature(foe);
             return true;
         }
@@ -478,7 +529,7 @@ namespace AdvancedNPCs
             float bestDistance = range;
             foreach (NpcBrain other in All())
             {
-                if (other == this || other.entityBehaviour == null || other.entityBehaviour.Entity == null)
+                if (other == this || !other.isActiveAndEnabled || other.entityBehaviour == null || other.entityBehaviour.Entity == null)
                     continue;
                 bool alive = other.mode != NpcMode.Dead && other.entityBehaviour.Entity.CurrentHealth > 0;
                 if (!AggroRules.IsFoe(true, other.IsEnemy, false, false, alive))
@@ -491,6 +542,11 @@ namespace AdvancedNPCs
                 }
             }
             int count = Physics.OverlapSphereNonAlloc(transform.position, range, nearby, ~0, QueryTriggerInteraction.Ignore);
+            while (count == nearby.Length && nearby.Length < MaxNearby)
+            {
+                nearby = new Collider[nearby.Length * 2];      // a crowded spot: look again with room for all
+                count = Physics.OverlapSphereNonAlloc(transform.position, range, nearby, ~0, QueryTriggerInteraction.Ignore);
+            }
             for (int i = 0; i < count; i++)
             {
                 DaggerfallEntityBehaviour e = nearby[i].GetComponentInParent<DaggerfallEntityBehaviour>();
@@ -591,13 +647,7 @@ namespace AdvancedNPCs
         {
             if (ThreatGone())
             {
-                DaggerfallEntityBehaviour player = GameManager.Instance.PlayerEntityBehaviour;
-                if (threat != null && threat != player && threat.Entity != null && threat.Entity.CurrentHealth <= 0 && player != null &&
-                    Vector3.Distance(player.transform.position, transform.position) <= OpinionRules.HelpRange)
-                {
-                    ChangeOpinion(OpinionRules.Helped);
-                    AdvancedNpcsMod.Log(key + ": the player helped in a fight (opinion " + Opinion + ").");
-                }
+                CountHelp();
                 EndCreatureFight();
                 return;
             }
@@ -607,10 +657,23 @@ namespace AdvancedNPCs
                 SetMode(NpcMode.Fleeing);
         }
 
+        /// <summary>The creature this ANPC fought or fled from died with the player close by: +10 opinion.</summary>
+        void CountHelp()
+        {
+            DaggerfallEntityBehaviour player = GameManager.Instance.PlayerEntityBehaviour;
+            if (threat != null && threat != player && threat.Entity != null && threat.Entity.CurrentHealth <= 0 && player != null &&
+                Vector3.Distance(player.transform.position, transform.position) <= OpinionRules.HelpRange)
+            {
+                ChangeOpinion(OpinionRules.Helped);
+                AdvancedNpcsMod.Log(key + ": the player helped in a fight (opinion " + Opinion + ").");
+            }
+        }
+
         void UpdateFleeing()
         {
             if (ThreatGone())
             {
+                CountHelp();
                 EndCreatureFight();
                 return;
             }

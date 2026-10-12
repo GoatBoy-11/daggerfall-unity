@@ -57,6 +57,16 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void LeaveAll_EndsEveryEncounter()
+        {
+            // The greeter stops checking while the player is far away (spec tools-quality B2.9): nobody stays "near".
+            GreetMemory m = new GreetMemory();
+            Assert.IsFalse(m.Consider("player", true, true, 10.0, 0.9, 0.25));
+            m.LeaveAll();
+            Assert.IsTrue(m.Consider("player", true, true, 10.1, 0.0, 0.25));
+        }
+
+        [Test]
         public void Cooldown_BlocksTheSameTargetForTwoHours()
         {
             GreetMemory m = new GreetMemory();

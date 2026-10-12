@@ -2,6 +2,7 @@ using System.Collections;
 using System.IO;
 using UnityEngine;
 using DaggerfallWorkshop;
+using DaggerfallWorkshop.Game;
 using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
@@ -39,6 +40,13 @@ namespace AdvancedNPCs
                 Check("an ANPC waits invisibly for its set, then shows it", pendingAtSpawn && sprite != null && !sprite.Pending &&
                     sprite.Showing && lazy.IsReady && lazy.Users == 1,
                     "pending at spawn=" + pendingAtSpawn + ", ready=" + lazy.IsReady + ", users=" + lazy.Users);
+                // anpc_info (spec tools-quality §A1): the facts an author needs, for one ANPC.
+                string info = AdvancedNpcsMod.InfoCommand(b.Id);
+                Check("anpc_info names the ANPC, its mode and its loaded sprite set",
+                    info.Contains(b.Id) && info.Contains("Calm") && info.Contains("selftest_lazy/sprites") && info.Contains("loaded") &&
+                    info.Contains("LOD") && info.Contains("enemy: no") && info.Contains("reaction with opinion:"), info);
+                string none = AdvancedNpcsMod.InfoCommand("selftest_nobody_here");
+                Check("anpc_info answers for an unknown id", none.Contains("selftest_nobody_here"), none);
                 NpcBrain.Discard(b);
                 yield return new WaitForSeconds(1.5f);
                 Check("a set unloads after its last user", !lazy.IsReady && lazy.Sheets.Count == 0 && lazy.Users == 0,
@@ -65,6 +73,48 @@ namespace AdvancedNPCs
                 yield return new WaitForSeconds(1.5f);
                 Check("a set whose user left mid-load settles unloaded", !lazy.IsReady && lazy.Sheets.Count == 0 && lazy.Users == 0,
                     "ready=" + lazy.IsReady + ", sheets=" + lazy.Sheets.Count + ", users=" + lazy.Users);
+
+                // Killed: the living sprite lets go of the set, the corpse holds it (spec tools-quality B2.4).
+                NpcDefinition deadDef = TestDefinition("selftest_lazy_dead", Bravery.Normal, location, player, 1f);
+                deadDef.Folder = "selftest_lazy";
+                NpcBrain dead = SpawnDefinition(deadDef, location);
+                NpcSprite deadSprite = dead.GetComponent<NpcSprite>();
+                float deadUntil = Time.time + 3f;
+                while (Time.time < deadUntil && deadSprite != null && deadSprite.Pending)
+                    yield return null;
+                int corpsesBefore = NpcCorpseSprite.All.Count;
+                PlayerHit(dead, GameManager.Instance.PlayerEntityBehaviour, 100000);
+                yield return new WaitForSeconds(1f);
+                NpcCorpseSprite deadBody = NpcCorpseSprite.All.Count > corpsesBefore ? NpcCorpseSprite.All[NpcCorpseSprite.All.Count - 1] : null;
+                Check("a dead ANPC lets go of its set and its corpse holds it", deadBody != null && lazy.Users == 1,
+                    "corpse=" + (deadBody != null) + ", users=" + lazy.Users);
+                if (deadBody != null)
+                    UnityEngine.Object.Destroy(deadBody.gameObject);
+                NpcBrain.Discard(dead);
+                yield return null;
+
+                // anpc_reload_sprites (spec tools-quality §A3): a live ANPC swaps to the re-indexed set and shows it.
+                NpcDefinition liveDef = TestDefinition("selftest_lazy_live", Bravery.Normal, location, player, 1f);
+                liveDef.Folder = "selftest_lazy";
+                NpcBrain live = SpawnDefinition(liveDef, location);
+                NpcSprite liveSprite = live.GetComponent<NpcSprite>();
+                float liveUntil = Time.time + 3f;
+                while (Time.time < liveUntil && liveSprite != null && liveSprite.Pending)
+                    yield return null;
+                int reloaded = mod.Sprites.Reload("selftest_lazy", Path.GetDirectoryName(dir));
+                int swapped = AdvancedNpcsMod.SwapSprites(new[] { "selftest_lazy" });
+                LoadedSpriteSet fresh = liveSprite != null ? liveSprite.ChosenSet : null;
+                liveUntil = Time.time + 3f;
+                while (Time.time < liveUntil && liveSprite != null && liveSprite.Pending)
+                    yield return null;
+                yield return null;
+                Check("anpc_reload_sprites swaps a live ANPC to the re-indexed set",
+                    reloaded == 1 && swapped >= 1 && fresh != null && fresh != lazy && fresh.Label == lazy.Label && liveSprite.Showing &&
+                    fresh.Users == 1 && lazy.Users == 0,
+                    "reloaded=" + reloaded + ", swapped=" + swapped + ", new set=" + (fresh != null && fresh != lazy) +
+                    ", showing=" + (liveSprite != null && liveSprite.Showing) + ", users new/old=" + (fresh != null ? fresh.Users : -1) + "/" + lazy.Users);
+                NpcBrain.Discard(live);
+                yield return null;
             }
             finally
             {

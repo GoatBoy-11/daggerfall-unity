@@ -36,6 +36,12 @@ namespace AdvancedNPCs.Core
         /// <summary>Greetings given (self-test).</summary>
         public int Count { get; private set; }
 
+        /// <summary>Nobody is near any more (the greeter stopped checking): the next sighting is a new encounter.</summary>
+        public void LeaveAll()
+        {
+            near.Clear();
+        }
+
         /// <summary>True when the ANPC should greet this target now. Call for every candidate at each check.</summary>
         public bool Consider(string target, bool inRangeAndSeen, bool likes, double nowHours, double roll, double chance)
         {

@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "advanced-npcs/sprites.schema.json",
+  "title": "Advanced NPCs: sprites.json",
+  "description": "One sprite set (ANPCs/<id>/sprites or sprites_<n>). Each animation is <name>.png: frames left to right, the 8 directions top to bottom.",
+  "type": "object",
+  "required": ["pixelsPerUnit", "cellHeight", "groundY", "fps", "animations"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "pixelsPerUnit": { "type": "number", "exclusiveMinimum": 0 },
+    "cellHeight": { "type": "integer", "minimum": 1, "description": "Height in pixels of one frame cell." },
+    "groundY": { "type": "integer", "minimum": 0, "description": "Pixel row of the feet, from the cell's bottom." },
+    "standingHeight": { "type": "integer", "minimum": 0, "description": "Standing body height in pixels above groundY, without held weapons (default: measured from the idle sheets)." },
+    "fps": { "type": "number", "exclusiveMinimum": 0 },
+    "anchorX": { "const": "centre" },
+    "directions": {
+      "type": "array",
+      "items": { "enum": ["front", "front_right", "right", "back_right", "back", "back_left", "left", "front_left"] },
+      "description": "Informational: rows are always in this order."
+    },
+    "deathStatic": {
+      "type": "object",
+      "description": "Optional death_static.png (a billboard corpse).",
+      "properties": { "groundY": { "type": "integer", "minimum": 0 } }
+    },
+    "animations": {
+      "type": "object",
+      "description": "Names start with idle, walk, run, hit, attack, attack_range, cast, greet or death (e.g. idle_1, attack_2).",
+      "propertyNames": { "pattern": "^(idle|walk|run|hit|attack|attack_range|cast|greet|death)(_[A-Za-z0-9]+)?$" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["cellWidth", "frames"],
+        "additionalProperties": false,
+        "properties": {
+          "cellWidth": { "type": "integer", "minimum": 1 },
+          "frames": { "type": "integer", "minimum": 1 },
+          "actionFrame": { "type": "integer", "minimum": 1, "description": "Attack sheets: the frame (1-based) the blow lands on." }
+        }
+      }
+    }
+  }
+}

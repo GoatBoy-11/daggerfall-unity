@@ -193,6 +193,26 @@ namespace AdvancedNPCs
                 Check("a disliked player is not greeted", coldSprite != null && coldSprite.GreetStarts == 0,
                     "greets=" + (coldSprite != null ? coldSprite.GreetStarts : -1));
                 NpcBrain.Discard(cold);
+
+                // Turned into an enemy mid-greeting, without a hit: the greet pose ends at once (spec tools-quality B2.5).
+                NpcGreeter.ReactionOverride = "likes";
+                NpcDefinition turnDef = TestDefinition("selftest_turncoat", Bravery.Brave, location, player, 0f);
+                turnDef.Folder = "selftest_greeter";
+                NpcBrain turncoat = SpawnDefinition(turnDef, location);
+                yield return Settle;
+                turncoat.Teleport(player.position + open * 3f);
+                NpcSprite turnSprite = turncoat.GetComponent<NpcSprite>();
+                float turnUntil = Time.time + 2f;
+                while (Time.time < turnUntil && (turnSprite == null || turnSprite.GreetStarts == 0))
+                    yield return null;
+                bool wasGreeting = turnSprite != null && turnSprite.CurrentState == SpriteStates.Greet;
+                turncoat.SwitchHostile(true);
+                yield return null;
+                yield return null;
+                Check("an ANPC turned hostile mid-greeting drops the greet pose", wasGreeting && turnSprite.CurrentState != SpriteStates.Greet,
+                    "was greeting=" + wasGreeting + ", now " + (turnSprite != null ? turnSprite.CurrentState : "no sprite"));
+                turncoat.SwitchHostile(false);
+                NpcBrain.Discard(turncoat);
             }
             finally
             {

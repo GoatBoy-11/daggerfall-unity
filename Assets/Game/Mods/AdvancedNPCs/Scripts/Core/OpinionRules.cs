@@ -36,6 +36,17 @@ namespace AdvancedNPCs.Core
             return Math.Max(Min, Math.Min(Max, Current(opinion, at, now) + delta));
         }
 
+        /// <summary>
+        /// The new "last change" stamp for a change at now: moved forward only by the whole days already drifted, so
+        /// frequent small changes do not stop the drift; now when the opinion was (or has drifted to) 0.
+        /// </summary>
+        public static ulong ChangedAt(int opinion, ulong at, ulong now)
+        {
+            if (now <= at || Current(opinion, at, now) == 0)
+                return now;
+            return at + (now - at) / SecondsPerDay * SecondsPerDay;
+        }
+
         /// <summary>DFU's reaction plus the opinion, as a dialogue band (dislikes, neutral, likes, loves).</summary>
         public static string Band(int reaction, int opinion)
         {

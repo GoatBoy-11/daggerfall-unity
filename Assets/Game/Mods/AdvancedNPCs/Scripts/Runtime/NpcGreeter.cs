@@ -62,6 +62,7 @@ namespace AdvancedNPCs
             if (playerObject != null && Vector3.Distance(playerObject.transform.position, transform.position) > NpcLod.GreetDistance)
             {
                 nextCheck = Time.time + CheckInterval;
+                memory.LeaveAll();      // not watching: whoever comes back is a new encounter
                 return;     // no one sees a greeting this far away (spec opinion-lod §B)
             }
             nextCheck = Time.time + CheckInterval;
@@ -119,7 +120,7 @@ namespace AdvancedNPCs
         /// DFU's reaction to the player for a townsperson here (the region's people) plus this ANPC's own opinion,
         /// as a dialogue band.
         /// </summary>
-        static string PlayerReactionBand(int opinion)
+        internal static string PlayerReactionBand(int opinion)
         {
             if (ReactionOverride != null)
                 return ReactionOverride;

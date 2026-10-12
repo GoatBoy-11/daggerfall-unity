@@ -266,7 +266,6 @@ namespace AdvancedNPCs
             return null;
         }
 
-        /// <summary>The player's standing with the region's people (what DFU's reaction, and so "reaction", is based on).</summary>
         /// <summary>This ANPC's personal opinion of the player now (0 without an ANPC).</summary>
         int CurrentOpinion
         {
@@ -279,10 +278,12 @@ namespace AdvancedNPCs
             if (state == null)
                 return;
             ulong now = DaggerfallUnity.Instance.WorldTime.Now.ToSeconds();
-            state.opinion = OpinionRules.Change(state.opinion, state.opinionAt, now, amount);
-            state.opinionAt = now;
+            int next = OpinionRules.Change(state.opinion, state.opinionAt, now, amount);
+            state.opinionAt = OpinionRules.ChangedAt(state.opinion, state.opinionAt, now);
+            state.opinion = next;
         }
 
+        /// <summary>Changes the player's standing with the region's people (what DFU's reaction, and so "reaction", is based on).</summary>
         public void ChangeReputation(int amount)
         {
             try
