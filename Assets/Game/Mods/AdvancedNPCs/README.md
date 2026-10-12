@@ -137,7 +137,8 @@ folder name is the old id.
 - `anpc_hostile <id or key> [on|off]` — turns an ANPC into an enemy or calms it (without on/off it toggles); saved with your game. See [Enemies](#enemies).
 - `anpc_opinion <id or key> [value]` — shows or sets an ANPC's personal opinion of you (−100 to 100); saved with your game.
 
-- `anpc_info [id or key]` — the ANPC in front of you (within 5 m) or that ANPC: id, key, kind, folder, bravery, mode, health, opinion, sprite set (loaded, loading, vanilla, or shown by a dead ANPC's corpse) and height, sound pools and where its footsteps come from (`steps: own`, `default` or `none`), its current target, distance and update rate.
+- `anpc_info [id or key]` — the ANPC in front of you (within 5 m) or that ANPC: id, key, kind, folder, bravery, mode, health, opinion, sprite set (loaded, loading, vanilla, or shown by a dead ANPC's corpse) and height, sound pools and where its footsteps come from (`steps: own`, `default` or `none`), its conversation setting (and partner and line while talking, or why it cannot talk now), its current target, distance and update rate.
+- `anpc_chat` — starts a conversation at once between the ANPC in front of you (within 5 m) and the nearest other ANPC within 4 m of it, ignoring the chance and the 2-hour wait; says why not when one of them cannot talk. See [Conversations](#conversations).
 - `anpc_topics [id or key]` — the dialogue topics of the ANPC in front of you (within 5 m) or of that ANPC: which are shown, and for the others the condition that hides them. See [Dialogue topics](#dialogue-topics).
 - `anpc_reload_dialogue` — re-reads `_Dialogue/*.json` and every `dialogue.json` without restarting (a change to `npc.json` still needs a restart).
 - `anpc_reload_assets [id]` — re-reads the sprite sets and [Sounds](#sounds) of that ANPC folder (or of all, with the default steps in `_Sounds`; `anpc_reload_assets _Sounds` re-reads only those) from disk; spawned ANPCs using them switch to the new files (also ANPCs that had no Sounds). ANPCs that had the vanilla sprite, and changes to walk/run/greet sheets or `npc.json`, take effect when they next spawn; only whether they can move at all changes at once (a set left without walk/run sheets makes them stand still, see turrets). (`anpc_reload_sprites` is the old name.)
@@ -490,7 +491,7 @@ ANPCs/wench/
 - For characters with a separate weapon mesh, `Tools~/render-character-sprites.py` includes both meshes in rendering and bounds: `--mesh body,sword`. `--keep-last death_1` keeps the final corpse pose. The Dunmer example documents a complete command.
 - A character whose idle holds a weapon above its head (a guard's upright spear) would look smaller in game, because the standing height is measured from the tallest idle pixel. Add `--standing-mesh body` (the body mesh alone) and the renderer writes `"standingHeight"` (pixels above the feet row, without the weapon) into `sprites.json`; the game then sizes the person by the body.
 - Sprite sets load when an ANPC using them appears (it may show up a moment after spawning) and unload a minute after the last one is gone; at startup only the files and their sizes are checked.
-- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `run*` (running), `hit*` (hurt), `attack*` (attacking), `attack_range*` (shooting a bow, see `rangedAtDistance`), `cast*` (spellcasting), `greet*` (greeting), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing run sheets use walk sheets and missing walk sheets use run sheets, then idle; missing hit/attack sheets use idle; greet sheets have no fallback; a set needs at least one idle sheet.
+- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `run*` (running), `hit*` (hurt), `attack*` (attacking), `attack_range*` (shooting a bow, see `rangedAtDistance`), `cast*` (spellcasting), `greet*` (greeting), `talk*` (speaking in a [conversation](#conversations)), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing run sheets use walk sheets and missing walk sheets use run sheets, then idle; missing hit/attack sheets use idle; greet sheets have no fallback; missing talk sheets use idle; a set needs at least one idle sheet.
 - Turret: a set with no `walk*` and no `run*` sheet never moves: it does not wander, chase, flee or get knocked
   back, but still turns to its target and attacks, shoots or casts from where it stands. Like any DFU enemy it only
   notices a quiet player in front of it, so place turrets facing where trouble comes from. When `sprites.json` lists
@@ -525,7 +526,7 @@ ANPCs/wench/
     step_1.ogg    step_2.ogg   step_3.ogg
 ```
 
-- A file's name says when it plays: `greet`, `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `hit` (hurt but alive), `death` and `step`. A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
+- A file's name says when it plays: `greet`, `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `hit` (hurt but alive), `death`, `step` and `talk` (a line in a [conversation](#conversations); always plays there, no chance roll, and nowhere else). A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
 - Sounds follow what happens, not the sprite, so an ANPC with the vanilla sprite can have them too.
 - Default footsteps: `step_*` files in the shared `ANPCs/_Sounds` folder play for every ANPC whose own `Sounds` folder has no `step` files (the examples ship four dirt-ground steps there). An ANPC with step files of its own uses only those; `"defaultSteps": false` turns the defaults off for one ANPC. Other names in `_Sounds` are ignored (logged).
 - `death` always plays. `step` plays on every footfall while walking or running, but only when you are within `stepDistance`. The others play by chance.
@@ -559,6 +560,35 @@ Settings in `npc.json`, all optional:
 | `defaultSteps` | true | without step files of its own, play the shared `_Sounds` steps |
 
 After changing files, `anpc_reload_assets` re-reads them; `anpc_info` lists an ANPC's sound pools.
+
+## Conversations
+
+Two ANPCs that greet each other sometimes stop and chat, in turns: the one speaking plays a `talk` sound and its
+`talk*` sheet, the other listens. No text: you only hear them, like Gothic's townsfolk.
+
+```json
+"conversation": { "enabled": true, "chance": 50 }
+```
+
+- Off unless `npc.json` has `"conversation"`. `"conversation": true` is the same as `{ "enabled": true }`; the
+  object turns it on unless it says `"enabled": false`. `chance` (0–100, default 50) is the percent chance after
+  this ANPC greets another one (the greeting itself happens 25 % of the time per encounter, see
+  [Sprites](#sprites)).
+- Both ANPCs need it on, `talk` files in their `Sounds` folder (see [Sounds](#sounds)), a sprite set of their own
+  (an ANPC with the vanilla class sprite never converses), the **ANPC sounds** setting on *ANPC*, and to be calm
+  and not your enemy. An ANPC without `greet` files still greets other ANPCs silently, which is how conversations
+  start.
+- A conversation has 4 to 8 lines. The one who greeted speaks first, then they take turns; each line lasts as long
+  as its sound (a different sound from the speaker's last one when it has two or more), with a short pause
+  (0.4–1 s) after it. The speaker loops a random `talk*` sheet, or its idle sheet without one.
+- They stop and face each other while talking, and greet no one else.
+- The same two talk at most once every 2 game hours (not saved).
+- It ends at once when either is attacked, turns hostile or dies, when they end up more than 6 m apart, when you
+  talk to one of them (the talk window opens as usual), or when one leaves (the town unloads). A line in progress
+  is cut off. Leaving and loading a game ends every conversation.
+- `anpc_chat` starts one right away for testing; `anpc_info` shows an ANPC's conversation setting and state.
+- The examples `wench`, `castle_guard_1` and `argonian_female_acrobat_1` (spawning in towns) and
+  `dunmer_citizen_1` and `khajiit_citizen_1` (via `anpc_spawn`) converse.
 
 ## Name lists
 

@@ -24,6 +24,9 @@ while building it. Rough size: **S** (an evening), **M** (a feature like run/gre
 
 ## Behaviour and AI
 
+- **ANPC conversations (done, 0.20.0).** Opted-in ANPCs that greet each other chat in turns with `talk` sounds and
+  sheets (spec 2026-10-12-advanced-npcs-conversations).
+
 - **Archer kiting (M).** With `rangedAtDistance`, keep 6–12 m from the target, back off when it closes in, then
   shoot (DFU's motor only approaches). The `attack_range` sheet already exists.
 - **Blocking (S–M).** A `block*` sheet played when DFU's parry roll succeeds, for sword-and-shield ANPCs.

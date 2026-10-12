@@ -23,5 +23,8 @@
   "wanderRadius": 10,
   "portrait": "wench_unique",
   "dialogue": "tavern_wench",
-  "sounds": { "greetChance": 70, "stepPitchVariation": 0.06 }
+  "sounds": { "greetChance": 70, "stepPitchVariation": 0.06 },
+  "conversation": {
+    "enabled": true
+  }
 }

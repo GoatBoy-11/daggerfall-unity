@@ -18,5 +18,8 @@
     "spells": [],
     "usesMagicka": true,
     "maxMagicka": 0
+  },
+  "conversation": {
+    "enabled": true
   }
 }

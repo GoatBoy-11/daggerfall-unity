@@ -44,6 +44,10 @@
     "walk_1": {
       "cellWidth": 128,
       "frames": 8
+    },
+    "talk_1": {
+      "cellWidth": 128,
+      "frames": 8
     }
   }
 }
