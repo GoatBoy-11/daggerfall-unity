@@ -22,6 +22,12 @@ namespace AdvancedNPCs
         /// <summary>Self-test: forces the chance (negative = GreetRules.Chance).</summary>
         public static float ChanceOverride = -1f;
 
+        /// <summary>
+        /// No greet sheet or sound: it greets only other ANPCs, without turning, so they may start a conversation
+        /// (spec conversations §1).
+        /// </summary>
+        public bool Silent;
+
         readonly GreetMemory memory = new GreetMemory();
         NpcBrain brain;
         NpcSprite sprite;
@@ -86,7 +92,7 @@ namespace AdvancedNPCs
             double chance = ChanceOverride >= 0f ? ChanceOverride : GreetRules.Chance;
 
             DaggerfallEntityBehaviour player = GameManager.Instance.PlayerEntityBehaviour;
-            if (player != null)
+            if (player != null && !Silent)
             {
                 bool near = Near(player.transform) && brain.CanSee(player);
                 bool likes = near && GreetRules.LikesPlayer(selfCalm, PlayerReactionBand(brain.Opinion));
@@ -129,6 +135,8 @@ namespace AdvancedNPCs
 
         void Greet(Transform target)
         {
+            if (Silent)
+                return;     // nothing to show or hear
             facingTarget = target;
             facingLeft = 0.6f;
             if (sprite != null && sprite.PlayGreet())

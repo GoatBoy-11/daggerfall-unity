@@ -95,5 +95,15 @@ namespace AdvancedNPCs.Tests
             Assert.IsFalse(m.Consider("anna", false, true, 10.1, 0.0, 1.0));
             Assert.IsTrue(m.Consider("anna", true, true, 10.2, 0.0, 1.0));
         }
+
+        [TestCase(true, false, false, true)]
+        [TestCase(false, true, true, true)]
+        [TestCase(false, true, false, false)]
+        [TestCase(false, false, true, false)]
+        public void NeedsGreeter_GreetFilesOrAConversationThatCanHappen(bool greetFiles, bool converses, bool spriteSet, bool expected)
+        {
+            // Without greet files the greeter only starts conversations, which need a sprite set of its own.
+            Assert.AreEqual(expected, GreetRules.NeedsGreeter(greetFiles, converses, spriteSet));
+        }
     }
 }

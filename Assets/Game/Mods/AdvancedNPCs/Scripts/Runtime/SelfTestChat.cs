@@ -12,7 +12,7 @@ namespace AdvancedNPCs
     /// <summary>Self-test: conversations between ANPCs (spec conversations).</summary>
     public partial class SelfTest
     {
-        static readonly string[] ChatFolders = { "selftest_chat_a", "selftest_chat_b", "selftest_chat_c", "selftest_chat_d", "selftest_chat_mute", "selftest_chat_plain" };
+        static readonly string[] ChatFolders = { "selftest_chat_a", "selftest_chat_b", "selftest_chat_c", "selftest_chat_d", "selftest_chat_mute", "selftest_chat_plain", "selftest_chat_quiet", "selftest_chat_ghost" };
 
         IEnumerator ChatSteps(DaggerfallLocation location, Transform player)
         {
@@ -20,18 +20,24 @@ namespace AdvancedNPCs
             string root = Path.Combine(Application.temporaryCachePath, "anpc_selftest_chat");
             string talkDir = Path.Combine(root, "Sounds");
             string muteDir = Path.Combine(Path.Combine(root, "mute"), "Sounds");
+            string quietDir = Path.Combine(Path.Combine(root, "quiet"), "Sounds");
             Directory.CreateDirectory(talkDir);
             Directory.CreateDirectory(muteDir);
-            foreach (string n in new[] { "talk_1", "talk_2", "greet_1" })
+            Directory.CreateDirectory(quietDir);
+            foreach (string n in new[] { "talk_1", "talk_2" })
                 File.WriteAllBytes(Path.Combine(talkDir, n + ".wav"), ToneWav(0.3f));
+            File.WriteAllBytes(Path.Combine(talkDir, "greet_1.wav"), ToneWav(0.6f));     // longer than the start delay
             File.WriteAllBytes(Path.Combine(muteDir, "greet_1.wav"), ToneWav(0.1f));
+            File.WriteAllBytes(Path.Combine(quietDir, "talk_1.wav"), ToneWav(0.3f));
             foreach (string f in ChatFolders)
-                mod.Sounds.Add(f, SoundLibrary.IndexSet(f + "/Sounds", f == "selftest_chat_mute" ? muteDir : talkDir));
+                mod.Sounds.Add(f, SoundLibrary.IndexSet(f + "/Sounds", f == "selftest_chat_mute" ? muteDir : f == "selftest_chat_quiet" ? quietDir : talkDir));
             mod.Sprites.Add("selftest_chat_a", TestSpriteSet(false, "idle", "walk", "talk"));
             mod.Sprites.Add("selftest_chat_b", TestSpriteSet(false, "idle", "walk"));
             mod.Sprites.Add("selftest_chat_c", TestSpriteSet(false, "idle", "walk", "talk"));
             mod.Sprites.Add("selftest_chat_d", TestSpriteSet(false, "idle", "walk", "talk"));
             mod.Sprites.Add("selftest_chat_mute", TestSpriteSet(false, "idle", "walk"));
+            mod.Sprites.Add("selftest_chat_quiet", TestSpriteSet(false, "idle", "walk", "talk"));
+            mod.Sprites.Add("selftest_chat_ghost", TestSpriteSet(false, "idle", "walk", "talk"));
             // selftest_chat_plain: talk sounds but no sprite set (the vanilla class sprite).
             NpcGreeter.ReactionOverride = "neutral";    // nobody greets the player
             NpcGreeter.ChanceOverride = 1f;
@@ -41,8 +47,8 @@ namespace AdvancedNPCs
             Vector3 side = Vector3.Cross(Vector3.up, open).normalized;
             try
             {
-                NpcBrain a = SpawnTalker("selftest_chat_a", true, location, player);
-                NpcBrain b = SpawnTalker("selftest_chat_b", true, location, player);
+                NpcBrain a = SpawnTalker("selftest_chat_a", true, location, player, 100);
+                NpcBrain b = SpawnTalker("selftest_chat_b", true, location, player, 100);
                 Vector3 spot = player.position + open * 8f;
                 a.Teleport(spot);
                 b.Teleport(spot + side * 2.5f);
@@ -72,6 +78,8 @@ namespace AdvancedNPCs
                 NpcVoice va = a.GetComponent<NpcVoice>();
                 NpcVoice vb = b.GetComponent<NpcVoice>();
                 int talkA = va.Played(SoundPools.Talk), talkB = vb.Played(SoundPools.Talk);
+                int greetSounds = va.Played(SoundPools.Greet) + vb.Played(SoundPools.Greet);
+                bool firstLineSeen = false, greetOverlap = false;
                 bool facedChecked = false, faced = false;
                 float facedAt = Time.time + 1f;
                 List<string> aAnims = new List<string>(), bAnims = new List<string>();
@@ -79,6 +87,11 @@ namespace AdvancedNPCs
                 while (Time.time < until && ca.Talking)
                 {
                     ChatSession s = ca.Session;
+                    if (!firstLineSeen && va.Played(SoundPools.Talk) + vb.Played(SoundPools.Talk) > talkA + talkB)
+                    {
+                        firstLineSeen = true;
+                        greetOverlap = va.PlayingGreet || vb.PlayingGreet;
+                    }
                     if (s != null && s.Speaking)
                     {
                         NpcChat speaker = s.Speaker == 0 ? first : first.Partner;
@@ -94,6 +107,8 @@ namespace AdvancedNPCs
                     }
                     yield return null;
                 }
+                Check("the first line waits for the greeting sound", greetSounds > 0 && firstLineSeen && !greetOverlap,
+                    "greet sounds " + greetSounds + ", first line seen " + firstLineSeen + ", overlap " + greetOverlap);
                 Check("talkers turn to face each other", faced,
                     "angles " + Facing(a, b.transform.position).ToString("0") + "/" + Facing(b, a.transform.position).ToString("0"));
                 Check("the speaker shows its talk sheet, or idle without one",
@@ -192,6 +207,41 @@ namespace AdvancedNPCs
                 yield return Settle;
                 string muteWhy = cd.TryStart(mute.GetComponent<NpcChat>(), true);
                 string plainWhy = plain.GetComponent<NpcChat>().WhyNot();
+                // A partner that was never active (an unloaded town's people): no conversation, no exception.
+                GameObject holder = new GameObject("selftest_chat_off");
+                holder.SetActive(false);
+                holder.transform.SetParent(location.transform, false);
+                NpcDefinition ghostDef = TestDefinition("selftest_chat_ghost", Bravery.Normal, location, player, OutOfGreeting);
+                ghostDef.Conversation = new ConversationSettings { Enabled = true, Chance = 100 };
+                NpcBrain ghost = spawner.SpawnTest(NpcInstance.ForUnique(ghostDef, "Breton"), holder.transform);
+                string ghostWhy = null, ghostError = null;
+                try
+                {
+                    ghostWhy = cd.TryStart(ghost.GetComponent<NpcChat>(), true);
+                }
+                catch (System.Exception e)
+                {
+                    ghostError = e.GetType().Name;
+                }
+                Check("an ANPC that is not active cannot be talked to",
+                    ghostError == null && ghostWhy != null && ghostWhy.Contains("not here") && !cd.Talking,
+                    "why=" + ghostWhy + ", error=" + ghostError);
+                NpcBrain.Discard(ghost);
+                Object.Destroy(holder);
+
+                // Talk files but no greet files: greets other ANPCs silently, never the player.
+                NpcBrain quiet = SpawnTalker("selftest_chat_quiet", true, location, player);
+                quiet.Teleport(player.position + open * 2.5f);
+                FaceToward(quiet, player.position);
+                NpcGreeter.ReactionOverride = "loves";
+                float quietUntil = Time.time + 2f;
+                while (Time.time < quietUntil)
+                    yield return null;
+                NpcGreeter.ReactionOverride = "neutral";
+                NpcGreeter quietGreeter = quiet.GetComponent<NpcGreeter>();
+                Check("a talker without greet files never greets the player", quietGreeter != null && quietGreeter.Greetings == 0,
+                    quietGreeter == null ? "no greeter" : "greetings " + quietGreeter.Greetings);
+
                 Check("no talk sounds, a vanilla sprite or no opt-in: no conversation",
                     muteWhy != null && muteWhy.Contains("no talk sounds") && plainWhy == "vanilla sprite" && shy.GetComponent<NpcChat>() == null,
                     "mute=" + muteWhy + ", plain=" + plainWhy + ", shy has NpcChat " + (shy.GetComponent<NpcChat>() != null));
@@ -212,8 +262,14 @@ namespace AdvancedNPCs
 
         NpcBrain SpawnTalker(string id, bool talks, DaggerfallLocation location, Transform player)
         {
+            return SpawnTalker(id, talks, location, player, 50);
+        }
+
+        NpcBrain SpawnTalker(string id, bool talks, DaggerfallLocation location, Transform player, int greetChance)
+        {
             NpcDefinition d = TestDefinition(id, Bravery.Normal, location, player, OutOfGreeting);
             d.Conversation = new ConversationSettings { Enabled = talks, Chance = 100 };
+            d.Sounds = new SoundSettings { GreetChance = greetChance };
             return SpawnDefinition(d, location);
         }
 

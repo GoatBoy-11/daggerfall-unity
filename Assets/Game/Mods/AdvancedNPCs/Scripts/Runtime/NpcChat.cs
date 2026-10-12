@@ -77,6 +77,8 @@ namespace AdvancedNPCs
         /// <summary>Why this ANPC cannot join a conversation now, or null.</summary>
         public string WhyNot()
         {
+            if (!isActiveAndEnabled || brain == null)
+                return "not here";      // an unloaded town's people (never active: Awake has not run)
             if (sprite == null)
                 sprite = GetComponent<NpcSprite>();
             if (voice == null)
@@ -109,7 +111,10 @@ namespace AdvancedNPCs
                 return brain.DisplayName + ": " + why;
             why = other.WhyNot();
             if (why != null)
-                return other.brain.DisplayName + ": " + why;
+            {
+                NpcBrain otherBrain = other.brain != null ? other.brain : other.GetComponent<NpcBrain>();
+                return (otherBrain != null ? otherBrain.DisplayName : other.name) + ": " + why;
+            }
             string pair = ChatRules.PairKey(brain.Id, other.brain.Id);
             if (!forced && !Memory.CanStart(pair, NowHours()))
                 return "they talked less than 2 game hours ago";
@@ -148,8 +153,8 @@ namespace AdvancedNPCs
             partner.brain.HoldStill(0.5f);
             if (delay > 0f)
             {
-                // A greeting wave finishes before the first line.
-                bool greeting = (sprite != null && sprite.Greeting) || (partner.sprite != null && partner.sprite.Greeting);
+                // A greeting (wave or hello) finishes before the first line.
+                bool greeting = Greeting(this) || Greeting(partner);
                 greetWait -= dt;
                 if (!greeting || greetWait <= 0f)
                     delay -= dt;
@@ -181,6 +186,11 @@ namespace AdvancedNPCs
             Vector3 d = partner.transform.position - transform.position;
             d.y = 0;
             return d.magnitude > ChatRules.MaxApart;
+        }
+
+        static bool Greeting(NpcChat c)
+        {
+            return (c.sprite != null && c.sprite.Greeting) || (c.voice != null && c.voice.PlayingGreet);
         }
 
         static bool StillFit(NpcChat c)

@@ -22,6 +22,16 @@ namespace AdvancedNPCs.Core
 
         static readonly string[] All = { Idle, Walk, Run, Hit, Attack, RangedAttack, Cast, Death, Greet, Talk };
 
+        /// <summary>
+        /// A sheet is loaded when it names a state; talk* sheets only for an ANPC that converses (no texture memory spent
+        /// on sheets that never show).
+        /// </summary>
+        public static bool Loads(string sheetName, bool converses)
+        {
+            string state = StateOf(sheetName);
+            return state != null && (state != Talk || converses);
+        }
+
         /// <summary>The state of a sheet name ("walk" or "walk_&lt;number&gt;", any case), or null.</summary>
         public static string StateOf(string sheetName)
         {

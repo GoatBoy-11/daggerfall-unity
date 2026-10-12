@@ -576,11 +576,11 @@ Two ANPCs that greet each other sometimes stop and chat, in turns: the one speak
   [Sprites](#sprites)).
 - Both ANPCs need it on, `talk` files in their `Sounds` folder (see [Sounds](#sounds)), a sprite set of their own
   (an ANPC with the vanilla class sprite never converses), the **ANPC sounds** setting on *ANPC*, and to be calm
-  and not your enemy. An ANPC without `greet` files still greets other ANPCs silently, which is how conversations
-  start.
+  and not your enemy. An ANPC without `greet` files still greets other ANPCs silently (it neither turns nor greets
+  you), which is how conversations start. `talk*` sheets load only for ANPCs with `"conversation"` on.
 - A conversation has 4 to 8 lines. The one who greeted speaks first, then they take turns; each line lasts as long
   as its sound (a different sound from the speaker's last one when it has two or more), with a short pause
-  (0.4–1 s) after it. The speaker loops a random `talk*` sheet, or its idle sheet without one.
+  (0.4–1 s) after it; the first line waits for a greeting wave or hello to finish. The speaker loops a random `talk*` sheet, or its idle sheet without one.
 - They stop and face each other while talking, and greet no one else.
 - The same two talk at most once every 2 game hours (not saved).
 - It ends at once when either is attacked, turns hostile or dies, when they end up more than 6 m apart, when you

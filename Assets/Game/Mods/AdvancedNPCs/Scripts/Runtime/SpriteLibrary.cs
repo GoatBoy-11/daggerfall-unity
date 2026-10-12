@@ -84,7 +84,7 @@ namespace AdvancedNPCs
             System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
             foreach (NpcDefinition def in defs)
             {
-                foreach (LoadedSpriteSet set in IndexFolder(def.Folder, Path.Combine(root, def.Folder)))
+                foreach (LoadedSpriteSet set in IndexFolder(def.Folder, Path.Combine(root, def.Folder), def.Conversation.Enabled))
                     library.Add(def.Folder, set);
             }
             AdvancedNpcsMod.Log("Indexed " + library.Count + " sprite set(s) in " + watch.ElapsedMilliseconds + " ms.");
@@ -92,7 +92,7 @@ namespace AdvancedNPCs
         }
 
         /// <summary>Every sprites / sprites_&lt;n&gt; set in an NPC folder on disk, in name order (invalid ones skipped and logged).</summary>
-        static List<LoadedSpriteSet> IndexFolder(string folder, string dir)
+        static List<LoadedSpriteSet> IndexFolder(string folder, string dir, bool converses)
         {
             List<LoadedSpriteSet> sets = new List<LoadedSpriteSet>();
             if (!Directory.Exists(dir))
@@ -106,7 +106,7 @@ namespace AdvancedNPCs
             setDirs.Sort(StringComparer.Ordinal);
             foreach (string setDir in setDirs)
             {
-                LoadedSpriteSet set = IndexSet(folder + "/" + Path.GetFileName(setDir), setDir);
+                LoadedSpriteSet set = IndexSet(folder + "/" + Path.GetFileName(setDir), setDir, converses);
                 if (set != null)
                     sets.Add(set);
             }
@@ -117,10 +117,10 @@ namespace AdvancedNPCs
         /// Re-indexes one NPC folder from disk (anpc_reload_sprites, spec tools-quality §A3) and returns how many valid
         /// sets it now has. The old sets leave the library; their textures go once nothing uses them.
         /// </summary>
-        public int Reload(string folder, string dir)
+        public int Reload(string folder, string dir, bool converses)
         {
             Remove(folder);
-            List<LoadedSpriteSet> fresh = IndexFolder(folder, dir);
+            List<LoadedSpriteSet> fresh = IndexFolder(folder, dir, converses);
             foreach (LoadedSpriteSet s in fresh)
                 Add(folder, s);
             return fresh.Count;
@@ -202,6 +202,12 @@ namespace AdvancedNPCs
         /// <summary>Reads sprites.json and checks every sheet's size from its PNG header; loads no image.</summary>
         public static LoadedSpriteSet IndexSet(string label, string dir)
         {
+            return IndexSet(label, dir, true);
+        }
+
+        /// <summary>As IndexSet; without converses the talk* sheets are left out (they would never show).</summary>
+        public static LoadedSpriteSet IndexSet(string label, string dir, bool converses)
+        {
             string jsonPath = Path.Combine(dir, SetFile);
             if (!File.Exists(jsonPath))
             {
@@ -232,6 +238,11 @@ namespace AdvancedNPCs
             List<string> skipped = new List<string>();
             foreach (SpriteAnimation a in set.Animations.Values)
             {
+                if (SpriteStates.StateOf(a.Name) != null && !SpriteStates.Loads(a.Name, converses))
+                {
+                    skipped.Add(a.Name);    // talk* of an ANPC that never converses
+                    continue;
+                }
                 if (SpriteStates.StateOf(a.Name) == null)
                 {
                     AdvancedNpcsMod.Log(label + "/" + a.Name + ".png: not an idle*, walk*, run*, hit*, attack*, attack_range*, cast*, greet* or death* sheet; not loaded");

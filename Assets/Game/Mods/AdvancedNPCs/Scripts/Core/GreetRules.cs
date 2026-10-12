@@ -17,6 +17,15 @@ namespace AdvancedNPCs.Core
             return selfCalm && (reactionBand == "likes" || reactionBand == "loves");
         }
 
+        /// <summary>
+        /// An ANPC gets a greeter when it has greet files (sheet or sound), or when it converses and can (a sprite set of
+        /// its own, spec conversations §1); the second kind greets silently, only other ANPCs.
+        /// </summary>
+        public static bool NeedsGreeter(bool greetFiles, bool converses, bool spriteSet)
+        {
+            return greetFiles || (converses && spriteSet);
+        }
+
         /// <summary>Another ANPC: both calm, neither an enemy of the player.</summary>
         public static bool SameSide(bool selfCalm, bool selfEnemy, bool otherCalm, bool otherEnemy)
         {

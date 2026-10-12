@@ -218,5 +218,14 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual(0, SpriteDirections.Row(0f, 0f, 0f, 1f));
             Assert.AreEqual(0, SpriteDirections.Row(1f, 0f, 0f, 0f));
         }
+
+        [TestCase("talk_1", true, true)]
+        [TestCase("talk_1", false, false)]
+        [TestCase("idle_1", false, true)]
+        [TestCase("pray_1", true, false)]
+        public void Loads_TalkSheetsOnlyForTalkers(string sheet, bool converses, bool expected)
+        {
+            Assert.AreEqual(expected, SpriteStates.Loads(sheet, converses));
+        }
     }
 }

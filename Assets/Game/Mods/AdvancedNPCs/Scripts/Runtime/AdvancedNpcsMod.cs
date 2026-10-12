@@ -197,11 +197,13 @@ namespace AdvancedNPCs
             List<string> folders = new List<string>();
             List<NpcDefinition> all = new List<NpcDefinition>(Instance.Catalog.ById.Values);
             all.AddRange(Instance.Catalog.Generics);
+            Dictionary<string, bool> converses = new Dictionary<string, bool>(StringComparer.Ordinal);
             foreach (NpcDefinition d in all)
             {
                 bool wanted = args == null || args.Length == 0 || d.Id == args[0] || d.Folder == args[0];
                 if (wanted && !folders.Contains(d.Folder))
                     folders.Add(d.Folder);
+                converses[d.Folder] = d.Conversation.Enabled;
             }
             bool everyFolder = args == null || args.Length == 0;
             bool defaultsOnly = !everyFolder && string.Equals(args[0], SoundLibrary.SharedFolder, StringComparison.OrdinalIgnoreCase);
@@ -224,7 +226,8 @@ namespace AdvancedNPCs
             foreach (string folder in folders)
             {
                 string dir = Path.Combine(AnpcFiles.Root, folder);
-                sets += Instance.Sprites.Reload(folder, dir);
+                bool talks;
+                sets += Instance.Sprites.Reload(folder, dir, converses.TryGetValue(folder, out talks) && talks);
                 if (Instance.Sounds.Reload(folder, dir))
                     soundFolders++;
             }
@@ -310,7 +313,7 @@ namespace AdvancedNPCs
             float best = ChatRules.StartDistance;
             foreach (NpcBrain other in NpcBrain.All())
             {
-                if (other == a || other.CurrentMode == NpcMode.Dead)
+                if (other == a || other.CurrentMode == NpcMode.Dead || !other.isActiveAndEnabled)
                     continue;
                 float d = Vector3.Distance(other.transform.position, a.transform.position);
                 if (d <= best)
