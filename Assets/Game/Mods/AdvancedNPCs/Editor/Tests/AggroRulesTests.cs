@@ -16,5 +16,15 @@ namespace AdvancedNPCs.Tests
         {
             Assert.AreEqual(expected, AggroRules.IsFoe(isAnpc, anpcIsEnemy, vanillaHostile, watchOrAlly, alive));
         }
+
+        [TestCase(15f, 40f)]
+        [TestCase(30f, 40f)]
+        [TestCase(45f, 55f)]
+        [TestCase(50f, 60f)]
+        public void GiveUpDistance_StaysBeyondTheAggroRange(float aggroRange, float expected)
+        {
+            // A patrol must not start fights the creature-fight rule gives up on straight away.
+            Assert.AreEqual(expected, AggroRules.GiveUpDistance(aggroRange), 1e-5);
+        }
     }
 }

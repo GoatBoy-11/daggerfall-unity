@@ -31,7 +31,8 @@ namespace AdvancedNPCs
         LoadedSpriteSet waitingSet;     // chosen, still loading: nothing drawn yet
         float waitingHeight;
         float waitingScale = 1f;
-        LoadedSpriteSet heldSet;        // acquired by Begin, released when this sprite goes
+        LoadedSpriteSet heldSet;        // chosen by Begin; acquired in Start, released when this sprite goes
+        bool acquired;
         Material material;
 
         string state;
@@ -80,7 +81,6 @@ namespace AdvancedNPCs
         public void Begin(LoadedSpriteSet loaded, float worldHeight, float verticalScale = 1f)
         {
             heldSet = loaded;
-            loaded.Acquire();
             if (loaded.IsReady)
             {
                 Init(loaded, worldHeight, verticalScale);
@@ -287,6 +287,31 @@ namespace AdvancedNPCs
             Draw();
         }
 
+        /// <summary>
+        /// Holds the set only once the person is really in the world: Unity never calls Start or OnDestroy on an
+        /// object that was never active (ANPCs spawned into a switched-off town), so acquiring in Begin would leak.
+        /// </summary>
+        void Start()
+        {
+            if (heldSet == null || acquired)
+                return;
+            heldSet.Acquire();
+            acquired = true;
+            if (set != null && !set.IsReady)
+            {
+                // Inactive long enough for its set to unload: wait for it again.
+                waitingSet = set;
+                set = null;
+                if (quad != null)
+                    Destroy(quad);
+                if (material != null)
+                    Destroy(material);
+                quad = null;
+                quadRenderer = null;
+                material = null;
+            }
+        }
+
         void Update()
         {
             if (waitingSet != null)
@@ -476,7 +501,7 @@ namespace AdvancedNPCs
 
         void OnDestroy()
         {
-            if (heldSet != null)
+            if (acquired)
                 heldSet.Release();
             if (material != null)
                 Destroy(material);

@@ -20,7 +20,6 @@ namespace AdvancedNPCs
     {
 
         const float SafeDistance = 30f;
-        const float CreatureGiveUpDistance = 40f;
         const float CalmCheckInterval = 2f;
         /// <summary>hostileUntil of an enemy: never calms by time (enemy rules decide).</summary>
         const ulong EnemyMarker = (ulong)long.MaxValue;     // the save serializer stores a long
@@ -568,7 +567,7 @@ namespace AdvancedNPCs
             if (threat == GameManager.Instance.PlayerEntityBehaviour)
                 return false; // player hostility ends only by calm-down
             return threat == null || threat.Entity == null || threat.Entity.CurrentHealth <= 0 ||
-                   Vector3.Distance(transform.position, threat.transform.position) > CreatureGiveUpDistance;
+                   Vector3.Distance(transform.position, threat.transform.position) > AggroRules.GiveUpDistance(def.AggroRange);
         }
 
         void EndCreatureFight()

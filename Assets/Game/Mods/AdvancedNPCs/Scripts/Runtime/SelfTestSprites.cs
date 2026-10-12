@@ -44,6 +44,19 @@ namespace AdvancedNPCs
                 Check("a set unloads after its last user", !lazy.IsReady && lazy.Sheets.Count == 0 && lazy.Users == 0,
                     "ready=" + lazy.IsReady + ", sheets=" + lazy.Sheets.Count + ", users=" + lazy.Users);
 
+                // Spawned under a switched-off town and removed without ever being active (Unity skips OnDestroy):
+                // it must not hold the set.
+                GameObject offTown = new GameObject("selftest_off_town");
+                offTown.transform.position = location.transform.position;
+                offTown.SetActive(false);
+                NpcDefinition offDef = TestDefinition("selftest_lazy_off", Bravery.Normal, location, player, 2f);
+                offDef.Folder = "selftest_lazy";
+                spawner.SpawnTest(NpcInstance.ForUnique(offDef, "Breton"), offTown.transform);
+                UnityEngine.Object.Destroy(offTown);
+                yield return null;
+                Check("an ANPC that never became active does not hold its set", lazy.Users == 0, "users=" + lazy.Users);
+                yield return new WaitForSeconds(1.5f);
+
                 // Gone while its set is still loading: no error, and the set still settles unloaded.
                 NpcDefinition quickDef = TestDefinition("selftest_lazy_quick", Bravery.Normal, location, player, 1f);
                 quickDef.Folder = "selftest_lazy";
