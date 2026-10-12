@@ -79,6 +79,8 @@ namespace AdvancedNPCs.Core
         public float RunSpeed = GaitRules.DefaultRunSpeed;
         /// <summary>"combat": false = never runs (chases and flees at walk speed).</summary>
         public bool CanRun = true;
+        /// <summary>npc.json "sounds": chances, step distance and pitch of the folder's custom sounds (spec sounds §C).</summary>
+        public SoundSettings Sounds = new SoundSettings();
         /// <summary>Dialogue type ids (files in _Dialogue), in the order given in npc.json.</summary>
         public readonly List<string> Dialogue = new List<string>();
         /// <summary>The folder's own dialogue.json, or null.</summary>

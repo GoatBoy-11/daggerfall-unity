@@ -1,0 +1,161 @@
+using System;
+using System.Collections.Generic;
+
+namespace AdvancedNPCs.Core
+{
+    /// <summary>
+    /// The sound pools of an ANPC's Sounds folder (spec sounds §A): a file's pool is its name without the extension
+    /// and without a trailing _&lt;digits&gt;, so "attack_3.wav" joins "attack". No Unity or DFU types.
+    /// </summary>
+    public static class SoundPools
+    {
+        public const string Greet = "greet";
+        public const string Attack = "attack";
+        public const string AttackRange = "attack_range";
+        public const string Cast = "cast";
+        public const string Hit = "hit";
+        public const string Death = "death";
+        public const string Step = "step";
+        public static readonly string[] All = { Greet, Attack, AttackRange, Cast, Hit, Death, Step };
+
+        /// <summary>The pool a file name (without extension) belongs to; null for any other name.</summary>
+        public static string PoolOf(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return null;
+            string lower = name.ToLowerInvariant();
+            int end = lower.Length;
+            while (end > 0 && char.IsDigit(lower[end - 1]))
+                end--;
+            if (end < lower.Length)
+            {
+                if (end == 0 || lower[end - 1] != '_')
+                    return null;        // "step2": digits without the underscore are part of the name
+                lower = lower.Substring(0, end - 1);
+            }
+            return Array.IndexOf(All, lower) >= 0 ? lower : null;
+        }
+
+        /// <summary>attack, attack_range, cast and hit roll combatChance.</summary>
+        public static bool IsCombat(string pool)
+        {
+            return pool == Attack || pool == AttackRange || pool == Cast || pool == Hit;
+        }
+
+        /// <summary>The pool that plays for an event: its own, or attack for attack_range; null when there is none.</summary>
+        public static string Resolve(string pool, ICollection<string> available)
+        {
+            if (available.Contains(pool))
+                return pool;
+            if (pool == AttackRange && available.Contains(Attack))
+                return Attack;
+            return null;
+        }
+    }
+
+    /// <summary>npc.json "sounds" (spec sounds §C).</summary>
+    public class SoundSettings
+    {
+        public int CombatChance = 50;
+        public int GreetChance = 50;
+        public float StepDistance = 15f;
+        public float SoundPitch = 1f;
+        public float SoundPitchVariation = 0f;
+        public float StepPitch = 1f;
+        public float StepPitchVariation = 0f;
+    }
+
+    /// <summary>Settings, chances, pitch and footfall frames of custom sounds (spec sounds §C-E). No Unity or DFU types.</summary>
+    public static class SoundRules
+    {
+        public const float MinPitch = 0.1f;
+        public const double MinBasePitch = 0.25, MaxBasePitch = 3;
+        /// <summary>Seconds between footsteps of an ANPC without a walk/run sheet.</summary>
+        public const float WalkStepSeconds = 0.5f, RunStepSeconds = 0.33f;
+        /// <summary>Metres beyond which nothing of an ANPC is heard.</summary>
+        public const float MaxAudibleDistance = 30f;
+        static readonly string[] Keys =
+            { "combatChance", "greetChance", "stepDistance", "soundPitch", "soundPitchVariation", "stepPitch", "stepPitchVariation" };
+
+        /// <summary>Reads "sounds" from an npc.json root: null, or a problem with its key ("sounds.greetChance"). Unknown keys only warn.</summary>
+        public static string Read(Dictionary<string, object> root, out string key, out SoundSettings settings, List<string> warnings)
+        {
+            settings = new SoundSettings();
+            key = "sounds";
+            object raw;
+            if (!root.TryGetValue("sounds", out raw) || raw == null)
+                return null;
+            Dictionary<string, object> o = raw as Dictionary<string, object>;
+            if (o == null)
+                return "must be an object like { \"combatChance\": 50, \"greetChance\": 50 }";
+            foreach (string k in FieldReader.UnknownKeys(o, Keys))
+                warnings.Add("sounds." + k + ": unknown setting (use " + string.Join(", ", Keys) + "), ignored");
+
+            double v;
+            string problem;
+            if ((problem = Ranged(o, "combatChance", 50, 0, 100, true, out v, ref key)) != null) return problem;
+            settings.CombatChance = (int)v;
+            if ((problem = Ranged(o, "greetChance", 50, 0, 100, true, out v, ref key)) != null) return problem;
+            settings.GreetChance = (int)v;
+            if ((problem = Ranged(o, "stepDistance", 15, 0, double.MaxValue, false, out v, ref key)) != null) return problem;
+            if (v <= 0)
+            {
+                key = "sounds.stepDistance";
+                return "must be a number of metres above 0";
+            }
+            settings.StepDistance = (float)v;
+            if ((problem = Ranged(o, "soundPitch", 1, MinBasePitch, MaxBasePitch, false, out v, ref key)) != null) return problem;
+            settings.SoundPitch = (float)v;
+            if ((problem = Ranged(o, "soundPitchVariation", 0, 0, 1, false, out v, ref key)) != null) return problem;
+            settings.SoundPitchVariation = (float)v;
+            if ((problem = Ranged(o, "stepPitch", 1, MinBasePitch, MaxBasePitch, false, out v, ref key)) != null) return problem;
+            settings.StepPitch = (float)v;
+            if ((problem = Ranged(o, "stepPitchVariation", 0, 0, 1, false, out v, ref key)) != null) return problem;
+            settings.StepPitchVariation = (float)v;
+            key = "sounds";
+            return null;
+        }
+
+        static string Ranged(Dictionary<string, object> o, string name, double fallback, double min, double max, bool whole,
+            out double value, ref string key)
+        {
+            string problem = FieldReader.Number(o, name, fallback, out value);
+            bool bad = problem != null || (o.ContainsKey(name) && o[name] == null) || double.IsNaN(value) || value < min || value > max ||
+                       (whole && value != Math.Floor(value));
+            if (!bad)
+                return null;
+            key = "sounds." + name;
+            if (whole)
+                return "must be a whole number from " + FieldReader.Num(min) + " to " + FieldReader.Num(max);
+            return max == double.MaxValue ? "must be a number" : "must be a number from " + FieldReader.Num(min) + " to " + FieldReader.Num(max);
+        }
+
+        /// <summary>Whether a sound with this percent chance plays, for a roll in [0, 1).</summary>
+        public static bool Rolls(int chance, double roll01)
+        {
+            return roll01 * 100.0 < chance;
+        }
+
+        /// <summary>The pitch of one play: pitch ± variation (roll 0 → lowest, 1 → highest), never below MinPitch.</summary>
+        public static float Pitch(float pitch, float variation, double roll01)
+        {
+            float p = pitch + variation * (float)(roll01 * 2.0 - 1.0);
+            return Math.Max(MinPitch, p);
+        }
+
+        /// <summary>Footfall frames (from 0) of a walk/run sheet: its stepFrames, else the first and the middle frame.</summary>
+        public static int[] StepFrames(SpriteAnimation a)
+        {
+            if (a.StepFrames != null)
+                return a.StepFrames;
+            int middle = a.Frames / 2;
+            return middle == 0 ? new[] { 0 } : new[] { 0, middle };
+        }
+
+        /// <summary>DFU's own voice grunt plays for an event only when the ANPC has no custom pool for it (spec sounds §E).</summary>
+        public static bool VanillaVoice(bool hasCustomPool)
+        {
+            return !hasCustomPool;
+        }
+    }
+}
