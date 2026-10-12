@@ -47,6 +47,8 @@ namespace AdvancedNPCs.Core
         public int FleeHealthPercent;
         /// <summary>"fleeChance": % chance a Normal ANPC flees once below half of FleeHealthPercent (0-100).</summary>
         public int FleeChance = 30;
+        /// <summary>"aggroRange": metres a calm Brave ANPC looks for enemies (1-50).</summary>
+        public float AggroRange = AggroRules.DefaultRange;
         public float CalmDownMinHours;
         public float CalmDownMaxHours;
         public bool CrimeOnAttack;

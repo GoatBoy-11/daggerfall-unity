@@ -57,6 +57,15 @@ namespace AdvancedNPCs.Core
             }
         }
 
+        /// <summary>
+        /// A calm ANPC was swung at: DFU's MakeEnemyHostileToAttacker set the pursuit timer and a non-player target
+        /// (on a hit or a miss). Only an attack sets that timer while the motor is off.
+        /// </summary>
+        public static bool AttackedWhileCalm(bool calm, bool pursuitTimerSet, bool targetIsOther, bool targetAlive)
+        {
+            return calm && pursuitTimerSet && targetIsOther && targetAlive;
+        }
+
         /// <summary>In-game second at which a player-hostile NPC calms down.</summary>
         public static ulong NewCalmDeadline(ulong now, float minHours, float maxHours, Random rng)
         {

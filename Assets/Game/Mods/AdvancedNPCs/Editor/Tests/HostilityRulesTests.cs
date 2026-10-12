@@ -57,6 +57,16 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual(CombatChoice.Flee, HostilityRules.Decide(Bravery.Normal, 0.10f, 25, 30, ref roll, 0.0));
         }
 
+        [TestCase(true, true, true, true, true)]
+        [TestCase(false, true, true, true, false)]
+        [TestCase(true, false, true, true, false)]
+        [TestCase(true, true, false, true, false)]
+        [TestCase(true, true, true, false, false)]
+        public void AttackedWhileCalm(bool calm, bool timerSet, bool targetIsOther, bool targetAlive, bool expected)
+        {
+            Assert.AreEqual(expected, HostilityRules.AttackedWhileCalm(calm, timerSet, targetIsOther, targetAlive));
+        }
+
         [Test]
         public void CalmDeadline_IsWithinRange()
         {

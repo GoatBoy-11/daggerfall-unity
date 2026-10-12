@@ -39,6 +39,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcInstance.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcState.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/PngHeader.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/AggroRules.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/PlacedNpc.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/PopulationPlanner.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/PortraitNames.cs",

@@ -448,6 +448,10 @@ namespace AdvancedNPCs.Core
             if ((problem = FieldReader.Number(o, "fleeChance", 30, out fleeChance)) != null || (o.ContainsKey("fleeChance") && o["fleeChance"] == null) ||
                 fleeChance != Math.Floor(fleeChance) || fleeChance < 0 || fleeChance > 100)
                 return Problem(r, file, "fleeChance", "must be a whole number from 0 to 100");
+            double aggro;
+            if ((problem = FieldReader.Number(o, "aggroRange", AggroRules.DefaultRange, out aggro)) != null || (o.ContainsKey("aggroRange") && o["aggroRange"] == null) ||
+                double.IsNaN(aggro) || aggro < AggroRules.MinRange || aggro > AggroRules.MaxRange)
+                return Problem(r, file, "aggroRange", "must be a number from 1 to 50 (metres)");
 
             double[] calm;
             if (!FieldReader.Numbers(o, "calmDownHours", out calm) || (calm != null && calm.Length != 2))
@@ -488,6 +492,7 @@ namespace AdvancedNPCs.Core
             d.Bravery = bravery;
             d.FleeHealthPercent = (int)flee;
             d.FleeChance = (int)fleeChance;
+            d.AggroRange = (float)aggro;
             d.CalmDownMinHours = (float)calm[0];
             d.CalmDownMaxHours = (float)calm[1];
             d.CrimeOnAttack = crime;

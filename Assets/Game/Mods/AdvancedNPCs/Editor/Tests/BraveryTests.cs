@@ -53,6 +53,25 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void AggroRange_DefaultsAndReads()
+        {
+            Assert.AreEqual(15f, DefinitionParser.ParseFolder("grub", Unique).Definition.AggroRange, 1e-6);
+            ParseResult r = With("\"aggroRange\": 8.5");
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.AreEqual(8.5f, r.Definition.AggroRange, 1e-6);
+        }
+
+        [TestCase("0.5")]
+        [TestCase("51")]
+        [TestCase("\"far\"")]
+        public void AggroRange_RejectsBadValues(string value)
+        {
+            ParseResult r = With("\"aggroRange\": " + value);
+            Assert.IsFalse(r.Ok);
+            StringAssert.Contains("aggroRange", r.Error);
+        }
+
+        [Test]
         public void UnknownBravery_ListsAllFour()
         {
             ParseResult r = With("\"bravery\": \"Reckless\"");
