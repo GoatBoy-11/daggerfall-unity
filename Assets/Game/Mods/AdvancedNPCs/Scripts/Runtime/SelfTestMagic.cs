@@ -80,6 +80,9 @@ namespace AdvancedNPCs
             attacker.Magic = new NpcMagicDefinition { UsesMagicka = false, CooldownMin = 4, CooldownMax = 4 };
             attacker.Magic.Spells.Add("Fireball");
             DiscardTestPeople();     // a leftover test ANPC would be its target instead of the player
+            // A turret (no walk sheet) stays at its spot: a walking caster can reach melee range before its first cast
+            // and then only swings (a swing blocks casting).
+            mod.Sprites.Add("selftest_magic_ai", TestSpriteSet(false, "idle", "attack", "death"));
             NpcBrain ai = spawner.SpawnTest(NpcInstance.ForUnique(attacker, "Breton"), location.transform);
             yield return Settle;
             Vector3 aiLine = OpenDirection(player, 12f);
@@ -95,6 +98,7 @@ namespace AdvancedNPCs
             Check("magic AI respects shared cooldown", caster.CastCount == count, "casts=" + caster.CastCount);
             ai.SwitchHostile(false);
             NpcBrain.Discard(ai);
+            mod.Sprites.Remove("selftest_magic_ai");
             yield return Settle;
 
             // A class without DFU spell frames (Bard) casts without entering the Spell state, which would throw.
@@ -171,6 +175,7 @@ namespace AdvancedNPCs
             d.Magic = new NpcMagicDefinition { UsesMagicka = true, MaxMagicka = 150, CooldownMin = 4, CooldownMax = 4 };
             d.Magic.Spells.Add("Fireball");
             DiscardTestPeople();
+            mod.Sprites.Add("selftest_magic_edge", TestSpriteSet(false, "idle", "attack", "death"));     // a turret: stays at 8 m
             NpcBrain b = spawner.SpawnTest(NpcInstance.ForUnique(d, "Breton"), location.transform);
             yield return Settle;
             Vector3 edgeLine = OpenDirection(playerObject.transform, 12f);
@@ -191,6 +196,7 @@ namespace AdvancedNPCs
                 b.Status);
             b.SwitchHostile(false);
             NpcBrain.Discard(b);
+            mod.Sprites.Remove("selftest_magic_edge");
 
             MovePlayer(controller, playerObject.transform, location.transform.TransformPoint(home));
             for (int i = 0; i < 120 && !gm.PlayerGPS.IsPlayerInLocationRect; i++)

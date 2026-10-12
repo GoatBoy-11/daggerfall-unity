@@ -44,7 +44,7 @@ namespace AdvancedNPCs
                 string info = AdvancedNpcsMod.InfoCommand(b.Id);
                 Check("anpc_info names the ANPC, its mode and its loaded sprite set",
                     info.Contains(b.Id) && info.Contains("Calm") && info.Contains("selftest_lazy/sprites") && info.Contains("loaded") &&
-                    info.Contains("LOD"), info);
+                    info.Contains("LOD") && info.Contains("enemy: no") && info.Contains("reaction with opinion:"), info);
                 string none = AdvancedNpcsMod.InfoCommand("selftest_nobody_here");
                 Check("anpc_info answers for an unknown id", none.Contains("selftest_nobody_here"), none);
                 NpcBrain.Discard(b);

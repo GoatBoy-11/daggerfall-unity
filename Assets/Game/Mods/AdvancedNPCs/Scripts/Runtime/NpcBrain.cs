@@ -295,6 +295,23 @@ namespace AdvancedNPCs
                 sb.Append("  key ").Append(key).Append(", ").Append(def.Kind == NpcKind.Unique ? "unique" : "generic")
                   .Append(", folder ").Append(def.Folder).Append(", bravery ").Append(def.Bravery).Append('\n');
             sb.Append("  ").Append(Status).Append('\n');
+            sb.Append("  enemy: ").Append(enemy ? "yes" : "no");
+            if (state != null && state.hostile)
+            {
+                if (state.hostileUntil == EnemyMarker)
+                {
+                    sb.Append(", hostile until the enemy rules end it");
+                }
+                else
+                {
+                    ulong now = Now();
+                    double hours = state.hostileUntil > now ? (state.hostileUntil - now) / 3600.0 : 0.0;
+                    sb.Append(", hostile for ").Append(hours.ToString("0.0")).Append(" more game hour(s)");
+                }
+            }
+            sb.Append('\n');
+            sb.Append("  opinion ").Append(Opinion).Append(", region's reaction with opinion: ")
+              .Append(NpcGreeter.PlayerReactionBand(Opinion)).Append('\n');
 
             NpcSprite sprite = GetComponent<NpcSprite>();
             LoadedSpriteSet chosen = sprite != null ? sprite.ChosenSet : null;

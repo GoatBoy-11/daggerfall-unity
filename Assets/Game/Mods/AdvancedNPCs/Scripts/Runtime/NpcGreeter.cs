@@ -120,7 +120,7 @@ namespace AdvancedNPCs
         /// DFU's reaction to the player for a townsperson here (the region's people) plus this ANPC's own opinion,
         /// as a dialogue band.
         /// </summary>
-        static string PlayerReactionBand(int opinion)
+        internal static string PlayerReactionBand(int opinion)
         {
             if (ReactionOverride != null)
                 return ReactionOverride;
