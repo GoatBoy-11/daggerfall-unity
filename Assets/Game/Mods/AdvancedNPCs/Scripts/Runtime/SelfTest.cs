@@ -852,6 +852,10 @@ namespace AdvancedNPCs
             while (combat.MoveNext())
                 yield return combat.Current;
 
+            IEnumerator sounds = SoundSteps(location, playerTransform);
+            while (sounds.MoveNext())
+                yield return sounds.Current;
+
             IEnumerator opinion = OpinionSteps(location, playerTransform);
             while (opinion.MoveNext())
                 yield return opinion.Current;

@@ -79,6 +79,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/PortraitLibrary.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SpriteLibrary.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SoundLibrary.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcVoice.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestSounds.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTest.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestGait.cs",

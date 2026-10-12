@@ -746,6 +746,9 @@ namespace AdvancedNPCs
             mode = NpcMode.Dead;
             state.dead = true;
             state.hostile = false;
+            NpcVoice voice = GetComponent<NpcVoice>();
+            if (voice != null)
+                voice.OnDied();
 
             // Custom sprites: the death sheet plays and the body stays as the corpse (spec 1b §6.4).
             NpcSprite sprite = GetComponent<NpcSprite>();

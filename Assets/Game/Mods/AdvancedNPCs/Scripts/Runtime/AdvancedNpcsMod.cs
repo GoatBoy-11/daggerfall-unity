@@ -30,6 +30,7 @@ namespace AdvancedNPCs
         public PortraitLibrary Portraits { get; private set; }
         public NameLists Names { get; private set; }
         public SpriteLibrary Sprites { get; private set; }
+        public SoundLibrary Sounds { get; private set; }
         public ModConfig Config { get; private set; }
         public NpcMagicWorld MagicWorld { get; private set; }
         /// <summary>Dialogue types from ANPCs/_Dialogue.</summary>
@@ -67,6 +68,8 @@ namespace AdvancedNPCs
         {
             if (Sprites != null)
                 Sprites.Tick(Time.unscaledTime);
+            if (Sounds != null)
+                Sounds.Tick(Time.unscaledTime);
         }
 
         void Awake()
@@ -84,6 +87,7 @@ namespace AdvancedNPCs
             List<NpcDefinition> all = new List<NpcDefinition>(Catalog.ById.Values);
             all.AddRange(Catalog.Generics);
             Sprites = SpriteLibrary.Load(AnpcFiles.Root, all);
+            Sounds = SoundLibrary.Load(AnpcFiles.Root, all);
             Flags = new FlagSet();
             Dialogue = DialogueFiles.Load(AnpcFiles.Root);
             DialogueFiles.Check(Dialogue, Catalog);

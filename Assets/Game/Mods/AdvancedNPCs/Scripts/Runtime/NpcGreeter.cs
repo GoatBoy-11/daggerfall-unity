@@ -24,6 +24,7 @@ namespace AdvancedNPCs
         readonly GreetMemory memory = new GreetMemory();
         NpcBrain brain;
         NpcSprite sprite;
+        NpcVoice voice;
         float nextCheck;
         Transform facingTarget;
         float facingLeft;
@@ -38,12 +39,13 @@ namespace AdvancedNPCs
         {
             brain = GetComponent<NpcBrain>();
             sprite = GetComponent<NpcSprite>();
+            voice = GetComponent<NpcVoice>();
             nextCheck = Time.time + Random.Range(0f, CheckInterval);
         }
 
         void Update()
         {
-            if (brain == null || sprite == null || brain.CurrentMode != NpcMode.Calm)
+            if (brain == null || (sprite == null && voice == null) || brain.CurrentMode != NpcMode.Calm)
             {
                 facingTarget = null;
                 return;
@@ -112,8 +114,10 @@ namespace AdvancedNPCs
         {
             facingTarget = target;
             facingLeft = 0.6f;
-            if (sprite.PlayGreet())
+            if (sprite != null && sprite.PlayGreet())
                 brain.HoldStill(sprite.GreetSeconds + 0.3f);
+            if (voice != null)
+                voice.Play(SoundPools.Greet);
         }
 
         /// <summary>

@@ -1,7 +1,11 @@
+using System;
 using System.Collections;
 using System.IO;
 using UnityEngine;
 using DaggerfallWorkshop;
+using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Entity;
+using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
 {
@@ -23,8 +27,154 @@ namespace AdvancedNPCs
                 AdvancedNpcsMod.Log("selftest: sound probe " + Path.GetFileName(file) + ": " +
                     (clip != null ? "loaded, " + clip.length.ToString("0.000") + " s, " + clip.frequency + " Hz" : "FAILED (" + problem + ")"));
                 if (clip != null)
-                    Object.Destroy(clip);
+                    UnityEngine.Object.Destroy(clip);
                 yield return null;
+            }
+        }
+
+        IEnumerator SoundSteps(DaggerfallLocation location, Transform player)
+        {
+            DaggerfallEntityBehaviour playerBehaviour = GameManager.Instance.PlayerEntityBehaviour;
+            string root = Path.Combine(Application.temporaryCachePath, "anpc_selftest_voice");
+            string dir = Path.Combine(root, "Sounds");
+            Directory.CreateDirectory(dir);
+            foreach (string n in new[] { "greet_1", "attack_1", "attack_2", "hit_1", "death_1", "step_1", "step_2", "cast_1", "idle_1" })
+                File.WriteAllBytes(Path.Combine(dir, n + ".wav"), ToneWav(0.1f));
+
+            LoadedSoundSet voiceSet = SoundLibrary.IndexSet("selftest_voice/Sounds", dir);
+            LoadedSoundSet plainSet = SoundLibrary.IndexSet("selftest_voice_plain/Sounds", dir);
+            Check("a Sounds folder is sorted into pools by name (suffix ignored, unknown names left out)",
+                voiceSet != null && voiceSet.Files.Count == 6 && voiceSet.Files[SoundPools.Attack].Count == 2 &&
+                voiceSet.Files[SoundPools.Step].Count == 2 && !voiceSet.Files.ContainsKey("idle"),
+                voiceSet == null ? "not indexed" : voiceSet.Summary());
+            if (voiceSet == null || plainSet == null)
+                yield break;
+            mod.Sounds.Add("selftest_voice", voiceSet);
+            mod.Sounds.Add("selftest_voice_plain", plainSet);
+            mod.Sprites.Add("selftest_voice", TestSpriteSet(false, "idle", "walk", "greet", "attack", "hit", "death"));
+            NpcGreeter.ReactionOverride = "likes";
+            NpcGreeter.ChanceOverride = 1f;
+            DiscardTestPeople();
+            Vector3 open = OpenDirection(player, 16f);
+            try
+            {
+                NpcDefinition d = TestDefinition("selftest_voice", Bravery.Brave, location, player, 0f);
+                d.BaseClass = "Warrior";
+                d.Sounds = new SoundSettings { CombatChance = 100, GreetChance = 100 };
+                NpcBrain b = SpawnDefinition(d, location);
+                yield return Settle;
+                NpcVoice voice = b.GetComponent<NpcVoice>();
+                EnemySounds enemySounds = b.GetComponent<EnemySounds>();
+                float until = Time.time + 3f;
+                while (Time.time < until && !voiceSet.IsReady)
+                    yield return null;
+                Check("an ANPC with a Sounds folder loads them and silences DFU's own voice lookup",
+                    voice != null && voiceSet.IsReady && voiceSet.Users == 1 && enemySounds != null &&
+                    enemySounds.RaceForSounds == Races.None && voice.VoiceRace != Races.None,
+                    "voice=" + (voice != null) + ", ready=" + voiceSet.IsReady + ", users=" + voiceSet.Users +
+                    ", race=" + (enemySounds != null ? enemySounds.RaceForSounds.ToString() : "-"));
+                if (voice == null)
+                    yield break;
+
+                // Greeting: the greet pool plays with the greet sheet.
+                b.Teleport(player.position + open * 3f);
+                FaceToward(b, player.position);
+                until = Time.time + 3f;
+                while (Time.time < until && voice.Played(SoundPools.Greet) == 0)
+                    yield return null;
+                Check("a greeting plays a greet sound", voice.Played(SoundPools.Greet) == 1, "greet sounds=" + voice.Played(SoundPools.Greet));
+
+                // Chasing the player: footfalls on the walk sheet's frames, then attack sounds.
+                b.Teleport(player.position + open * 12f);
+                FaceToward(b, player.position);
+                b.SwitchHostile(true);
+                until = Time.time + 8f;
+                while (Time.time < until && (voice.Played(SoundPools.Step) == 0 || voice.Played(SoundPools.Attack) == 0))
+                    yield return null;
+                Check("a walking ANPC plays step sounds on its sheet's frames", voice.Played(SoundPools.Step) > 0,
+                    "steps=" + voice.Played(SoundPools.Step) + ", " + b.Status);
+                Check("an attack plays an attack sound and no vanilla grunt", voice.Played(SoundPools.Attack) > 0 &&
+                    voice.Played("vanilla_attack") == 0, "attacks=" + voice.Played(SoundPools.Attack) + ", vanilla=" + voice.Played("vanilla_attack"));
+
+                int hitsBefore = voice.Played(SoundPools.Hit);
+                PlayerHit(b, playerBehaviour, 1);
+                yield return null;
+                yield return null;
+                Check("a hit plays a hit sound", voice.Played(SoundPools.Hit) == hitsBefore + 1,
+                    "hit sounds " + hitsBefore + " -> " + voice.Played(SoundPools.Hit));
+
+                PlayerHit(b, playerBehaviour, 100000);
+                yield return new WaitForSeconds(0.5f);
+                Check("death always plays a death sound and lets go of the sounds",
+                    voice.Played(SoundPools.Death) == 1 && voiceSet.Users == 0,
+                    "death sounds=" + voice.Played(SoundPools.Death) + ", users=" + voiceSet.Users);
+                NpcBrain.Discard(b);
+
+                // Vanilla sprite: footsteps by timer while moving, none beyond stepDistance.
+                NpcDefinition pd = TestDefinition("selftest_voice_plain", Bravery.Brave, location, player, 0f);
+                pd.BaseClass = "Warrior";
+                pd.Sounds = new SoundSettings { CombatChance = 0, GreetChance = 0 };
+                NpcBrain plain = SpawnDefinition(pd, location);
+                yield return Settle;
+                NpcVoice plainVoice = plain.GetComponent<NpcVoice>();
+                plain.Teleport(player.position + open * 12f);
+                FaceToward(plain, player.position);
+                pd.Sounds.StepDistance = 0.5f;      // farther than that: silent
+                plain.SwitchHostile(true);
+                yield return new WaitForSeconds(1.5f);
+                int farSteps = plainVoice != null ? plainVoice.Played(SoundPools.Step) : -1;
+                Check("no step sounds beyond stepDistance", farSteps == 0, "steps=" + farSteps + ", " + plain.Status);
+                plain.SwitchHostile(false);
+                yield return Settle;
+                plain.Teleport(player.position + open * 12f);
+                FaceToward(plain, player.position);
+                pd.Sounds.StepDistance = 30f;
+                plain.SwitchHostile(true);
+                until = Time.time + 4f;
+                while (Time.time < until && plainVoice != null && plainVoice.Played(SoundPools.Step) == 0)
+                    yield return null;
+                Check("an ANPC with the vanilla sprite steps by timer while moving", plainVoice != null && plainVoice.Played(SoundPools.Step) > 0,
+                    "steps=" + (plainVoice != null ? plainVoice.Played(SoundPools.Step) : -1) + ", " + plain.Status);
+                plain.SwitchHostile(false);
+                NpcBrain.Discard(plain);
+                yield return null;
+            }
+            finally
+            {
+                NpcGreeter.ReactionOverride = null;
+                NpcGreeter.ChanceOverride = -1f;
+                mod.Sounds.Remove("selftest_voice");
+                mod.Sounds.Remove("selftest_voice_plain");
+                mod.Sprites.Remove("selftest_voice");
+            }
+            DiscardTestPeople();
+            yield return Settle;
+        }
+
+        /// <summary>A short 440 Hz tone as a 16-bit mono WAV file.</summary>
+        static byte[] ToneWav(float seconds)
+        {
+            const int rate = 22050;
+            int samples = (int)(rate * seconds);
+            using (MemoryStream ms = new MemoryStream())
+            using (BinaryWriter w = new BinaryWriter(ms))
+            {
+                w.Write(new[] { 'R', 'I', 'F', 'F' });
+                w.Write(36 + samples * 2);
+                w.Write(new[] { 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ' });
+                w.Write(16);
+                w.Write((short)1);
+                w.Write((short)1);
+                w.Write(rate);
+                w.Write(rate * 2);
+                w.Write((short)2);
+                w.Write((short)16);
+                w.Write(new[] { 'd', 'a', 't', 'a' });
+                w.Write(samples * 2);
+                for (int i = 0; i < samples; i++)
+                    w.Write((short)(Math.Sin(2 * Math.PI * 440 * i / rate) * 8000));
+                w.Flush();
+                return ms.ToArray();
             }
         }
     }
