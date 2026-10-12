@@ -201,19 +201,19 @@ namespace AdvancedNPCs
                     folders.Add(d.Folder);
             }
             bool everyFolder = args == null || args.Length == 0;
-            bool defaultsOnly = !everyFolder && args[0] == SoundLibrary.SharedFolder;
+            bool defaultsOnly = !everyFolder && string.Equals(args[0], SoundLibrary.SharedFolder, StringComparison.OrdinalIgnoreCase);
+            string defaultsText = "";
             if (everyFolder || defaultsOnly)
             {
                 // The shared default steps (ANPCs/_Sounds) too.
                 bool hasDefaults = Instance.Sounds.ReloadDefaults(AnpcFiles.Root);
-                foreach (NpcBrain b in NpcBrain.All())
+                SwapDefaultSteps();
+                defaultsText = " " + SoundLibrary.SharedFolder + ": " + (hasDefaults ? "default step sounds found." : "no default step sounds.");
+                if (defaultsOnly || folders.Count == 0)
                 {
-                    NpcVoice v = b.CurrentMode != NpcMode.Dead ? b.GetComponent<NpcVoice>() : null;
-                    if (v != null)
-                        v.SwapDefaultSteps(Instance.Sounds.DefaultSteps);
+                    Log("Reloaded" + defaultsText);
+                    return "Reloaded" + defaultsText;
                 }
-                if (defaultsOnly)
-                    return "Reloaded " + SoundLibrary.SharedFolder + ": " + (hasDefaults ? "default step sounds found." : "no default step sounds.");
             }
             if (folders.Count == 0)
                 return args != null && args.Length > 0 ? "No ANPC folder \"" + args[0] + "\". Give an id from ANPCs/ (or nothing for all)." : "No ANPC folders loaded.";
@@ -230,7 +230,7 @@ namespace AdvancedNPCs
             string text = "Reloaded " + sets + " sprite set(s) and " + soundFolders + " Sounds folder(s) in " + folders.Count + " folder(s); " +
                 updated + " sprite(s) and " + voices + " voice(s) updated. " +
                 "ANPCs that had the vanilla sprite, and walk/run/greet or npc.json changes, update when they next spawn " +
-                "(except whether they can move at all: a set left without walk/run sheets makes them stand still at once).";
+                "(except whether they can move at all: a set left without walk/run sheets makes them stand still at once)." + defaultsText;
             Log(text);
             return text;
         }
@@ -254,6 +254,17 @@ namespace AdvancedNPCs
         }
 
         /// <summary>Spawned, living ANPCs of these folders with a voice switch to the folder's new Sounds (none: vanilla voice).</summary>
+        /// <summary>Live ANPCs take the library's current default steps (anpc_reload_assets).</summary>
+        internal static void SwapDefaultSteps()
+        {
+            foreach (NpcBrain b in NpcBrain.All())
+            {
+                NpcVoice v = b.CurrentMode != NpcMode.Dead ? b.GetComponent<NpcVoice>() : null;
+                if (v != null)
+                    v.SwapDefaultSteps(Instance.Sounds.DefaultSteps);
+            }
+        }
+
         internal static int SwapSounds(IList<string> folders)
         {
             int updated = 0;

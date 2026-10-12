@@ -153,7 +153,7 @@ namespace AdvancedNPCs.Core
             if ((problem = Ranged(o, "stepPitchVariation", 0, 0, 1, false, out v, ref key)) != null) return problem;
             settings.StepPitchVariation = (float)v;
             bool defaultSteps;
-            if (FieldReader.Bool(o, "defaultSteps", true, out defaultSteps) != null || (o.ContainsKey("defaultSteps") && o["defaultSteps"] == null))
+            if (FieldReader.Bool(o, "defaultSteps", true, out defaultSteps) != null)
             {
                 key = "sounds.defaultSteps";
                 return "must be true or false";

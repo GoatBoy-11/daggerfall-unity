@@ -369,15 +369,18 @@ namespace AdvancedNPCs
             Directory.CreateDirectory(defaultsDir);
             foreach (string n in new[] { "step_1", "step_2", "greet_1" })
                 File.WriteAllBytes(Path.Combine(defaultsDir, n + ".wav"), ToneWav(0.1f));
-            mod.Sounds.ReloadDefaults(defaultsRoot);
-            LoadedSoundSet defaults = mod.Sounds.DefaultSteps;
+            // The test's defaults go only to its own three ANPCs (as anpc_reload_assets would hand them out), so the
+            // installed defaults of everyone else stay as they are.
+            LoadedSoundSet defaults = SoundLibrary.IndexDefaults(defaultsRoot);
             Check("_Sounds gives default steps, and only steps",
                 defaults != null && defaults.Files.Count == 1 && defaults.Files.ContainsKey(SoundPools.Step) &&
                 defaults.Files[SoundPools.Step].Count == 2, defaults == null ? "none" : defaults.Summary());
             LoadedSoundSet ownSteps = SoundLibrary.IndexSet("selftest_steps_own/Sounds", dir);
-            mod.Sounds.Add("selftest_steps_own", ownSteps);
             try
             {
+                if (defaults != null)
+                    mod.Sounds.Add("selftest_steps_defaults", defaults);
+                mod.Sounds.Add("selftest_steps_own", ownSteps);
                 NpcDefinition ad = TestDefinition("selftest_steps_default", Bravery.Normal, location, player, -6f);
                 NpcDefinition od = TestDefinition("selftest_steps_own", Bravery.Normal, location, player, 0f);
                 NpcDefinition nd = TestDefinition("selftest_steps_none", Bravery.Normal, location, player, 6f);
@@ -393,6 +396,8 @@ namespace AdvancedNPCs
                 NpcVoice nv = withNone.GetComponent<NpcVoice>();
                 Vector3 side = Vector3.Cross(Vector3.up, open).normalized;
                 NpcBrain[] walkers = { withDefaults, withOwn, withNone };
+                foreach (NpcBrain w in walkers)
+                    w.GetComponent<NpcVoice>().SwapDefaultSteps(defaults);
                 for (int i = 0; i < walkers.Length; i++)
                 {
                     walkers[i].Teleport(player.position + open * 12f + side * (i - 1) * 2.5f);
@@ -419,11 +424,14 @@ namespace AdvancedNPCs
                     NpcBrain.Discard(w);
                 }
                 yield return null;
+                yield return null;
+                Check("the default steps are let go when their ANPCs go", defaults != null && defaults.Users == 0,
+                    "users=" + (defaults != null ? defaults.Users : -1));
             }
             finally
             {
                 mod.Sounds.Remove("selftest_steps_own");
-                mod.Sounds.ReloadDefaults(AnpcFiles.Root);     // the installed defaults again
+                mod.Sounds.Remove("selftest_steps_defaults");
             }
 
             // The wench example (when installed with the examples): parses, and anpc_spawn brings her with her sprites and sounds.

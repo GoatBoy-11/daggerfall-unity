@@ -135,8 +135,8 @@ namespace AdvancedNPCs
             return defaultSteps != null;
         }
 
-        /// <summary>ANPCs/_Sounds indexed, step files only (others are logged and ignored); null without any.</summary>
-        static LoadedSoundSet IndexDefaults(string root)
+        /// <summary>ANPCs/_Sounds under root indexed, step files only (others are logged and ignored); null without any.</summary>
+        public static LoadedSoundSet IndexDefaults(string root)
         {
             string dir = Path.Combine(root, SharedFolder);
             if (!Directory.Exists(dir))
@@ -278,6 +278,8 @@ namespace AdvancedNPCs
         {
             s.Users++;
             s.UnloadAt = -1f;
+            if (s.Retired && !retired.Contains(s))
+                retired.Add(s);         // a retired set taken up again (by an ANPC set up before the swap): freed again once unused
             if (s.IsReady || s.Pending != null)
                 return;
             s.Pending = new Queue<string>();

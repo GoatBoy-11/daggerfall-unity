@@ -103,7 +103,12 @@ namespace AdvancedNPCs
         /// <summary>Where its footsteps come from: "own", "default" or "none" (anpc_info, self-test).</summary>
         public string StepsSource
         {
-            get { return OwnSteps ? "own" : stepDefaults != null ? "default" : "none"; }
+            get
+            {
+                if (OwnSteps)
+                    return set.IsReady && !set.Clips.ContainsKey(SoundPools.Step) ? "own (none could be loaded)" : "own";
+                return stepDefaults != null ? "default" : "none";
+            }
         }
 
         bool OwnSteps
@@ -163,6 +168,8 @@ namespace AdvancedNPCs
         /// <summary>Uses another sound set (anpc_reload_assets); null leaves only DFU's own grunts.</summary>
         public void Swap(LoadedSoundSet next)
         {
+            if (gone)
+                return;     // dead: holds nothing any more
             if (acquired && set != null)
                 set.Release();
             acquired = false;

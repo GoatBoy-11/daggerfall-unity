@@ -194,6 +194,8 @@ namespace AdvancedNPCs.Tests
             Assert.IsFalse(s.DefaultSteps);
             Assert.IsNotNull(SoundRules.Read(Root("{ \"sounds\": { \"defaultSteps\": \"no\" } }"), out key, out s, new List<string>()));
             Assert.AreEqual("sounds.defaultSteps", key);
+            Assert.IsNull(SoundRules.Read(Root("{ \"sounds\": { \"defaultSteps\": null } }"), out key, out s, new List<string>()));
+            Assert.IsTrue(s.DefaultSteps);      // null: the default, as for the other optional booleans
         }
 
         [Test]
