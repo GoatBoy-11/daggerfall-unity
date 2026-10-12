@@ -41,6 +41,8 @@ namespace AdvancedNPCs
         MobileStates lastState;
         float stepTimer;
         readonly Dictionary<string, int> played = new Dictionary<string, int>();
+        int lastTalk = -1;
+        AudioSource talkSource;
 
         /// <summary>The ANPC's sound set (anpc_info).</summary>
         public LoadedSoundSet Set
@@ -320,6 +322,59 @@ namespace AdvancedNPCs
             lastVoice = voice;
             Count(pool);
             return true;
+        }
+
+        /// <summary>Loaded talk clips (spec conversations §1).</summary>
+        public int TalkClips
+        {
+            get
+            {
+                List<AudioClip> clips;
+                return set != null && set.Clips.TryGetValue(SoundPools.Talk, out clips) ? clips.Count : 0;
+            }
+        }
+
+        /// <summary>The "ANPC sounds" setting lets the folder's voices play.</summary>
+        public bool CustomVoiceOn
+        {
+            get { return VoiceModes.CustomVoice(Mode); }
+        }
+
+        /// <summary>
+        /// Plays a talk clip with no chance roll, not the one before when there are more (spec conversations §2).
+        /// Returns its seconds at the pitch used; 0 when nothing played.
+        /// </summary>
+        public float PlayTalk()
+        {
+            if (voices == null || gone || !CustomVoiceOn || TalkClips == 0)
+                return 0f;
+            List<AudioClip> clips = set.Clips[SoundPools.Talk];
+            lastTalk = ChatRules.NextClip(clips.Count, lastTalk, Random.value);
+            AudioClip clip = clips[lastTalk];
+            if (clip == null)
+                return 0f;
+            AudioSource voice = voices[nextVoice];
+            nextVoice = SoundRules.NextVoice(nextVoice, voices.Length);
+            voice.pitch = SoundRules.Pitch(settings.SoundPitch, settings.SoundPitchVariation, Random.value);
+            voice.PlayOneShot(clip, DaggerfallUnity.Settings.SoundVolume);
+            lastVoice = voice;
+            talkSource = voice;
+            Count(SoundPools.Talk);
+            return clip.length / Mathf.Max(SoundRules.MinPitch, voice.pitch);
+        }
+
+        /// <summary>A talk clip is still playing (self-test).</summary>
+        public bool TalkPlaying
+        {
+            get { return talkSource != null && talkSource.isPlaying; }
+        }
+
+        /// <summary>Cuts the talk clip short (a conversation ended early).</summary>
+        public void StopTalk()
+        {
+            if (talkSource != null)
+                talkSource.Stop();
+            talkSource = null;
         }
 
         /// <summary>

@@ -50,6 +50,7 @@ namespace AdvancedNPCs
         float speed;
         int lastHealth = -1;
         float oneShotLeft;      // seconds a hit (or attack) sheet keeps playing whatever DFU's own state says
+        float talkLeft;         // seconds the speaker in a conversation keeps its talk sheet (NpcChat)
         int hitStarts;
         int greetStarts;
         MobileStates lastMobileState;
@@ -468,6 +469,8 @@ namespace AdvancedNPCs
 
             if (oneShotLeft > 0)
                 oneShotLeft -= dt;
+            if (talkLeft > 0)
+                talkLeft -= dt;
             if (state == SpriteStates.Greet && oneShotLeft > 0 && brain != null && brain.CurrentMode != NpcMode.Calm)
                 oneShotLeft = 0;        // turned hostile mid-greeting: no friendly wave in a fight
             if (oneShotLeft <= 0)
@@ -525,6 +528,45 @@ namespace AdvancedNPCs
             StartOneShot(SpriteStates.Greet);
             greetStarts++;
             return true;
+        }
+
+        /// <summary>A custom sprite set is loaded (conversations need one).</summary>
+        public bool HasSet
+        {
+            get { return set != null; }
+        }
+
+        /// <summary>talk* sheets of the set (0: talking shows idle).</summary>
+        public int TalkSheets
+        {
+            get { return set != null ? SpriteStates.Variants(set.Set, SpriteStates.Talk).Count : 0; }
+        }
+
+        /// <summary>A greet sheet is playing.</summary>
+        public bool Greeting
+        {
+            get { return state == SpriteStates.Greet && oneShotLeft > 0; }
+        }
+
+        /// <summary>
+        /// Loops a random talk* sheet (idle without one) for this long while standing; each call picks again
+        /// (spec conversations §2). A hit, attack or greeting sheet finishes first.
+        /// </summary>
+        public void Talk(float seconds)
+        {
+            if (set == null)
+                return;
+            talkLeft = seconds;
+            if (oneShotLeft > 0)
+                return;
+            state = null;
+            SetState(SpriteStates.Talk);
+        }
+
+        /// <summary>Back to idle (or whatever the ANPC does) at the next update.</summary>
+        public void StopTalk()
+        {
+            talkLeft = 0f;
         }
 
         /// <summary>Seconds the greet sheet now playing lasts (0 when none plays).</summary>
@@ -612,6 +654,8 @@ namespace AdvancedNPCs
                 return SpriteStates.Attack;
             if (IsRanged(s))
                 return SpriteStates.RangedAttack;
+            if (talkLeft > 0 && speed <= WalkSpeed)
+                return SpriteStates.Talk;
             if (speed <= WalkSpeed)
                 return SpriteStates.Idle;       // standing, or turning on the spot
             return gait != null && gait.Current == Gait.Run ? SpriteStates.Run : SpriteStates.Walk;
@@ -673,7 +717,7 @@ namespace AdvancedNPCs
                 row = SpriteDirections.Row(toCamera.x, toCamera.z, fwd.x, fwd.z);
             }
 
-            bool loop = state == SpriteStates.Idle || state == SpriteStates.Walk || state == SpriteStates.Run;
+            bool loop = state == SpriteStates.Idle || state == SpriteStates.Walk || state == SpriteStates.Run || state == SpriteStates.Talk;
             int f = (int)(time * set.Set.Fps);
             f = loop ? f % anim.Frames : Mathf.Min(f, anim.Frames - 1);
             if (f != frame)
