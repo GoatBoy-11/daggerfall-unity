@@ -226,12 +226,15 @@ namespace AdvancedNPCs
             NpcBrain b = spawner.SpawnTest(NpcInstance.ForUnique(d, "Breton"), location.transform);
             yield return Settle;
             NpcSprite sprite = b.GetComponent<NpcSprite>();
+            float readyUntil = Time.time + 10f;
+            while (sprite != null && sprite.Pending && Time.time < readyUntil)
+                yield return null;     // sprite sets load on demand
             Check("Dunmer sample has its race, portrait and full rendered set", b.Instance.Race == "DarkElf" &&
-                mod.Portraits.Get("dunmer_spellblade") != null && sprite != null && sprite.Set.Set.Animations.Count == 11,
-                sprite == null ? "no sprite set" : sprite.Set.Label);
+                mod.Portraits.Get("dunmer_spellblade") != null && sprite != null && sprite.ChosenSet.Set.Animations.Count == 11,
+                sprite == null ? "no sprite set" : sprite.ChosenSet.Label);
             if (sprite == null) { NpcBrain.Discard(b); yield break; }
-            Check("Dunmer melee impact markers loaded", sprite.Set.Set.Animations["attack_1"].ActionFrame == 2 &&
-                sprite.Set.Set.Animations["attack_2"].ActionFrame == 1, "expected frames 3 and 2, counted from 1");
+            Check("Dunmer melee impact markers loaded", sprite.ChosenSet.Set.Animations["attack_1"].ActionFrame == 2 &&
+                sprite.ChosenSet.Set.Animations["attack_2"].ActionFrame == 1, "expected frames 3 and 2, counted from 1");
             bool oldAI = GameManager.Instance.DisableAI;
             GameManager.Instance.DisableAI = true;
             try
@@ -291,12 +294,15 @@ namespace AdvancedNPCs
             NpcBrain b = spawner.SpawnTest(NpcInstance.ForUnique(d, "Breton"), location.transform);
             yield return Settle;
             NpcSprite sprite = b.GetComponent<NpcSprite>();
+            float readyUntil = Time.time + 10f;
+            while (sprite != null && sprite.Pending && Time.time < readyUntil)
+                yield return null;     // sprite sets load on demand
             NpcMagic caster = b.GetComponent<NpcMagic>();
-            Check("mercenary custom sheets and portrait load", sprite != null && sprite.Set.Set.Animations.Count == 11 &&
+            Check("mercenary custom sheets and portrait load", sprite != null && sprite.ChosenSet.Set.Animations.Count == 11 &&
                 mod.Portraits.Get("dunmer_mercenary") != null && b.Instance.Race == "DarkElf",
-                sprite == null ? "no sprite set" : sprite.Set.Label);
+                sprite == null ? "no sprite set" : sprite.ChosenSet.Label);
             Check("mercenary keeps original melee impact frames", sprite != null &&
-                sprite.Set.Set.Animations["attack_1"].ActionFrame == 2 && sprite.Set.Set.Animations["attack_2"].ActionFrame == 1,
+                sprite.ChosenSet.Set.Animations["attack_1"].ActionFrame == 2 && sprite.ChosenSet.Set.Animations["attack_2"].ActionFrame == 1,
                 "expected impact frames 3 and 2");
             Check("mercenary starts with smaller magicka pool", caster != null && b.EntityBehaviour.Entity.MaxMagicka == 80 &&
                 b.EntityBehaviour.Entity.CurrentMagicka == 80 && sample.NameList == "dunmer_morrowind", b.Status);

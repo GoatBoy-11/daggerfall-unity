@@ -28,6 +28,10 @@ namespace AdvancedNPCs
         GameObject quad;
         MeshRenderer quadRenderer;
         NpcGait gait;
+        LoadedSpriteSet waitingSet;     // chosen, still loading: nothing drawn yet
+        float waitingHeight;
+        float waitingScale = 1f;
+        LoadedSpriteSet heldSet;        // acquired by Begin, released when this sprite goes
         Material material;
 
         string state;
@@ -58,6 +62,38 @@ namespace AdvancedNPCs
         public LoadedSpriteSet Set
         {
             get { return set; }
+        }
+
+        /// <summary>The set this person wears, loaded or still loading.</summary>
+        public LoadedSpriteSet ChosenSet
+        {
+            get { return set != null ? set : waitingSet; }
+        }
+
+        /// <summary>Waiting for its set to load (invisible meanwhile).</summary>
+        public bool Pending
+        {
+            get { return waitingSet != null; }
+        }
+
+        /// <summary>Spawner entry: shows the set now if it is loaded, else waits for it with the vanilla picture hidden.</summary>
+        public void Begin(LoadedSpriteSet loaded, float worldHeight, float verticalScale = 1f)
+        {
+            heldSet = loaded;
+            loaded.Acquire();
+            if (loaded.IsReady)
+            {
+                Init(loaded, worldHeight, verticalScale);
+                return;
+            }
+            waitingSet = loaded;
+            waitingHeight = worldHeight;
+            waitingScale = verticalScale;
+            DaggerfallEnemy enemy = GetComponent<DaggerfallEnemy>();
+            MobileUnit unit = enemy != null ? enemy.MobileUnit : null;
+            vanilla = unit != null ? unit.GetComponent<MeshRenderer>() : null;
+            if (vanilla != null)
+                vanilla.forceRenderingOff = true;
         }
 
         public float WorldPerPixel
@@ -253,6 +289,26 @@ namespace AdvancedNPCs
 
         void Update()
         {
+            if (waitingSet != null)
+            {
+                if (waitingSet.IsReady)
+                {
+                    LoadedSpriteSet ready = waitingSet;
+                    waitingSet = null;
+                    Init(ready, waitingHeight, waitingScale);
+                }
+                else if (waitingSet.Failed)
+                {
+                    waitingSet = null;
+                    if (vanilla != null)
+                        vanilla.forceRenderingOff = false;
+                }
+                else if (vanilla != null)
+                {
+                    vanilla.forceRenderingOff = true;
+                }
+                return;
+            }
             if (set == null)
                 return;
             float dt = Time.deltaTime;
@@ -420,6 +476,8 @@ namespace AdvancedNPCs
 
         void OnDestroy()
         {
+            if (heldSet != null)
+                heldSet.Release();
             if (material != null)
                 Destroy(material);
         }

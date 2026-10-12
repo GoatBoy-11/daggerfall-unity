@@ -95,7 +95,9 @@ namespace AdvancedNPCs
             DaggerfallEntityBehaviour playerBehaviour = gm.PlayerEntityBehaviour;
             Transform playerTransform = gm.PlayerObject.transform;
 
-            NpcBrain normal = Make("selftest_normal", Bravery.Normal, location, playerTransform, -3f);
+            NpcDefinition normalDef = TestDefinition("selftest_normal", Bravery.Normal, location, playerTransform, -3f);
+            normalDef.Bravery = Bravery.Prudent;     // the old Normal (flees below fleeHealthPercent); keeps its test name
+            NpcBrain normal = SpawnDefinition(normalDef, location);
             NpcBrain bystander = Make("selftest_bystander", Bravery.Normal, location, playerTransform, -1f);
             NpcBrain coward = Make("selftest_coward", Bravery.Coward, location, playerTransform, 1f);
             NpcBrain brave = Make("selftest_brave", Bravery.Brave, location, playerTransform, 3f);
@@ -164,7 +166,7 @@ namespace AdvancedNPCs
 
             SetHealthFraction(normal, 0.2f);
             yield return Settle;
-            Check("normal NPC flees below 25% health", normal.CurrentMode == NpcMode.Fleeing, Describe(normal));
+            Check("prudent NPC flees below 25% health", normal.CurrentMode == NpcMode.Fleeing, Describe(normal));
 
             PlayerHit(coward, playerBehaviour, 1);
             yield return Settle;
@@ -760,6 +762,10 @@ namespace AdvancedNPCs
             {
                 mod.Sprites.Add("selftest_look", real);
                 NpcBrain look = Make("selftest_look", Bravery.Normal, location, playerTransform, 0f);
+                NpcSprite lookSprite = look.GetComponent<NpcSprite>();
+                float lookUntil = Time.time + 10f;
+                while (lookSprite != null && lookSprite.Pending && Time.time < lookUntil)
+                    yield return null;
                 yield return new WaitForSeconds(1f);
                 Vector3 toCam = Camera.main.transform.position - look.transform.position;
                 toCam.y = 0;
@@ -787,6 +793,10 @@ namespace AdvancedNPCs
                         continue;
                     mod.Sprites.Add("selftest_look", mod.Sprites.For(g.Folder)[0]);
                     NpcBrain each = Make("selftest_look", Bravery.Normal, location, playerTransform, 0f);
+                    NpcSprite eachSprite = each.GetComponent<NpcSprite>();
+                    float eachUntil = Time.time + 10f;
+                    while (eachSprite != null && eachSprite.Pending && Time.time < eachUntil)
+                        yield return null;
                     yield return new WaitForSeconds(1f);
                     Vector3 facing = Camera.main.transform.position - each.transform.position;
                     facing.y = 0;
@@ -808,6 +818,10 @@ namespace AdvancedNPCs
             mod.Portraits.Remove("selftest_face_2");
             mod.Portraits.Remove("selftest_face_3");
             yield return Settle;
+
+            IEnumerator lazySprites = LazySpriteSteps(location, playerTransform);
+            while (lazySprites.MoveNext())
+                yield return lazySprites.Current;
 
             IEnumerator gait = GaitSteps(location, playerTransform);
             while (gait.MoveNext())

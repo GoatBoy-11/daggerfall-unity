@@ -359,7 +359,7 @@ namespace AdvancedNPCs
                 NpcSprite sprite = go.AddComponent<NpcSprite>();
                 sprite.RangedSheet = def.RangedAnimation;
                 sprite.UseGait(gait);
-                sprite.Init(spriteSet, height, def.SpriteHeightScale);
+                sprite.Begin(spriteSet, height, def.SpriteHeightScale);
                 if (SpriteStates.Variants(spriteSet.Set, SpriteStates.Greet).Count > 0)
                     go.AddComponent<NpcGreeter>();
                 if (def.RangedAnimation != null && !spriteSet.Sheets.ContainsKey(def.RangedAnimation))

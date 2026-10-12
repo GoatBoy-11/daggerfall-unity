@@ -71,7 +71,7 @@ namespace AdvancedNPCs
             mobile = GetComponentInChildren<MobileUnit>();
             behaviour = GetComponent<DaggerfallEntityBehaviour>();
             NpcSprite sprite = GetComponent<NpcSprite>();
-            turret = sprite != null && sprite.Set != null && SpriteStates.IsStationary(sprite.Set.Set);
+            turret = sprite != null && sprite.ChosenSet != null && SpriteStates.IsStationary(sprite.ChosenSet.Set);
             Repin();
         }
 

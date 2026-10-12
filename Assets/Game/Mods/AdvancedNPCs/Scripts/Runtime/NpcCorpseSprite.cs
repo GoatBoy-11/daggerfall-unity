@@ -91,6 +91,7 @@ namespace AdvancedNPCs
             go.transform.position = feet;
             NpcCorpseSprite corpse = go.AddComponent<NpcCorpseSprite>();
             corpse.set = from.Set;
+            corpse.set.Acquire();
             corpse.worldPerPixel = from.WorldPerPixel;
             corpse.heightScale = from.HeightScale;
             corpse.anim = deaths[Random.Range(0, deaths.Count)];
@@ -120,6 +121,8 @@ namespace AdvancedNPCs
 
         void OnDestroy()
         {
+            if (set != null)
+                set.Release();
             if (material != null)
                 Destroy(material);
             // The body went first (e.g. anpc_remove): never leave a loot pile without any picture.

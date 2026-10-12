@@ -63,6 +63,12 @@ namespace AdvancedNPCs
             mod.IsReady = true;
         }
 
+        void Update()
+        {
+            if (Sprites != null)
+                Sprites.Tick(Time.unscaledTime);
+        }
+
         void Awake()
         {
             MagicWorld = gameObject.AddComponent<NpcMagicWorld>();

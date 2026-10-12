@@ -6,7 +6,10 @@ using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
 {
-    /// <summary>One loaded sprite set: its sprites.json, sheet textures and optional death_static image.</summary>
+    /// <summary>
+    /// One sprite set: its sprites.json and, while some ANPC or corpse uses it, its sheet textures and optional
+    /// death_static image (spec lazy-sprites §A).
+    /// </summary>
     public class LoadedSpriteSet
     {
         public string Label;
@@ -15,17 +18,46 @@ namespace AdvancedNPCs
         public Texture2D DeathStatic;
         /// <summary>Height in pixels of the tallest idle frame above the feet row: the "standing height".</summary>
         public float StandingHeightPx;
+        /// <summary>Folder the sheets are read from; null for sets built from textures (self-test), which never unload.</summary>
+        public string Dir;
+        public bool HasDeathStatic;
+        /// <summary>Every sheet (and death_static.png) is loaded and uploaded.</summary>
+        public bool IsReady;
+        /// <summary>Loading left no usable idle sheet: its ANPCs keep the vanilla sprite.</summary>
+        public bool Failed;
+        /// <summary>Live ANPC sprites and corpses using the set.</summary>
+        public int Users;
+        internal SpriteLibrary Library;
+        internal float UnloadAt = -1f;
+        internal Queue<string> Pending;
+        internal float IdleHeight;
+
+        public void Acquire()
+        {
+            if (Library != null)
+                Library.Acquire(this);
+        }
+
+        public void Release()
+        {
+            if (Library != null)
+                Library.Release(this);
+        }
     }
 
     /// <summary>
-    /// Sprite sets of every NPC folder (spec 1b §5, §8): ANPCs/&lt;npc&gt;/sprites or sprites_&lt;n&gt;. Loaded once at start and
-    /// shared by every person of that folder.
+    /// Sprite sets of every NPC folder (spec 1b §5, §8): ANPCs/&lt;npc&gt;/sprites or sprites_&lt;n&gt;. Indexed at start
+    /// (sprites.json and sheet sizes only), loaded one image per frame while used, unloaded a while after the last user.
     /// </summary>
     public class SpriteLibrary
     {
         public const string SetFile = "sprites.json";
         public const string DeathStaticFile = "death_static.png";
+        /// <summary>Real seconds a set stays loaded after its last user has gone.</summary>
+        public static float UnloadDelaySeconds = 60f;
         static readonly List<LoadedSpriteSet> None = new List<LoadedSpriteSet>();
+
+        readonly List<LoadedSpriteSet> loading = new List<LoadedSpriteSet>();
 
         readonly Dictionary<string, List<LoadedSpriteSet>> byFolder = new Dictionary<string, List<LoadedSpriteSet>>(StringComparer.Ordinal);
 
@@ -58,12 +90,12 @@ namespace AdvancedNPCs
                 setDirs.Sort(StringComparer.Ordinal);
                 foreach (string setDir in setDirs)
                 {
-                    LoadedSpriteSet set = LoadSet(def.Folder + "/" + Path.GetFileName(setDir), setDir);
+                    LoadedSpriteSet set = IndexSet(def.Folder + "/" + Path.GetFileName(setDir), setDir);
                     if (set != null)
                         library.Add(def.Folder, set);
                 }
             }
-            AdvancedNpcsMod.Log("Loaded " + library.Count + " sprite set(s) in " + watch.ElapsedMilliseconds + " ms.");
+            AdvancedNpcsMod.Log("Indexed " + library.Count + " sprite set(s) in " + watch.ElapsedMilliseconds + " ms.");
             return library;
         }
 
@@ -84,6 +116,8 @@ namespace AdvancedNPCs
                 byFolder[folder] = sets;
             }
             sets.Add(set);
+            if (set.Dir != null)
+                set.Library = this;
         }
 
         public void Remove(string folder)
@@ -101,6 +135,7 @@ namespace AdvancedNPCs
                 loaded.Sheets[kv.Key] = kv.Value;
             loaded.DeathStatic = deathStatic;
             loaded.StandingHeightPx = StandingHeight(set, loaded.Sheets);
+            loaded.IsReady = true;
             return loaded;
         }
 
@@ -118,7 +153,8 @@ namespace AdvancedNPCs
             return true;
         }
 
-        static LoadedSpriteSet LoadSet(string label, string dir)
+        /// <summary>Reads sprites.json and checks every sheet's size from its PNG header; loads no image.</summary>
+        public static LoadedSpriteSet IndexSet(string label, string dir)
         {
             string jsonPath = Path.Combine(dir, SetFile);
             if (!File.Exists(jsonPath))
@@ -155,42 +191,172 @@ namespace AdvancedNPCs
                     skipped.Add(a.Name);
                     continue;
                 }
-                Texture2D texture = LoadPng(label + "/" + a.Name + ".png", Path.Combine(dir, a.Name + ".png"), true);
-                if (texture == null)
+                int w, h;
+                string headerProblem = ReadSize(Path.Combine(dir, a.Name + ".png"), out w, out h);
+                if (headerProblem != null)
                 {
+                    AdvancedNpcsMod.LogError(label + "/" + a.Name + ".png: file: " + headerProblem + " (sheet skipped)");
                     skipped.Add(a.Name);
                     continue;
                 }
-                string sizeError = SpriteSetParser.CheckSheetSize(label, a, set.CellHeight, texture.width, texture.height);
+                string sizeError = SpriteSetParser.CheckSheetSize(label, a, set.CellHeight, w, h);
                 if (sizeError != null)
                 {
                     AdvancedNpcsMod.LogError(sizeError + " (sheet skipped)");
-                    UnityEngine.Object.Destroy(texture);
                     skipped.Add(a.Name);
                     continue;
                 }
-                loaded.Sheets[a.Name] = texture;
             }
             foreach (string name in skipped)
                 set.Animations.Remove(name);
             if (!SpriteStates.IsValid(set))
             {
                 AdvancedNpcsMod.LogError(label + ": no usable idle sheet; sprite set skipped");
-                foreach (Texture2D t in loaded.Sheets.Values)
-                    UnityEngine.Object.Destroy(t);
                 return null;
             }
-
-            string staticPath = Path.Combine(dir, DeathStaticFile);
-            if (File.Exists(staticPath))
-                loaded.DeathStatic = LoadPng(label + "/" + DeathStaticFile, staticPath, false);
-
-            loaded.StandingHeightPx = StandingHeight(set, loaded.Sheets);
-            foreach (Texture2D t in loaded.Sheets.Values)
-                Finish(t);
-            if (loaded.DeathStatic != null)
-                Finish(loaded.DeathStatic);
+            loaded.Dir = dir;
+            loaded.HasDeathStatic = File.Exists(Path.Combine(dir, DeathStaticFile));
             return loaded;
+        }
+
+        /// <summary>Null and the size, or what is wrong with the file.</summary>
+        static string ReadSize(string path, out int width, out int height)
+        {
+            width = height = 0;
+            if (!File.Exists(path))
+                return "missing";
+            try
+            {
+                byte[] head = new byte[PngHeader.Length];
+                using (FileStream f = File.OpenRead(path))
+                {
+                    if (f.Read(head, 0, head.Length) != head.Length)
+                        return "not a readable PNG";
+                }
+                return PngHeader.TryReadSize(head, out width, out height) ? null : "not a readable PNG";
+            }
+            catch (Exception e)
+            {
+                return "could not read (" + e.Message + ")";
+            }
+        }
+
+        /// <summary>One more user; starts loading an indexed set.</summary>
+        public void Acquire(LoadedSpriteSet s)
+        {
+            s.Users++;
+            s.UnloadAt = -1f;
+            if (s.IsReady || s.Failed || s.Pending != null)
+                return;
+            s.Pending = new Queue<string>();
+            List<string> names = new List<string>(s.Set.Animations.Keys);
+            names.Sort(StringComparer.Ordinal);
+            foreach (string n in names)
+                s.Pending.Enqueue(n);
+            if (s.HasDeathStatic)
+                s.Pending.Enqueue(DeathStaticFile);
+            s.IdleHeight = 0f;
+            loading.Add(s);
+        }
+
+        /// <summary>One user fewer; the last one starts the unload countdown.</summary>
+        public void Release(LoadedSpriteSet s)
+        {
+            if (s.Users > 0)
+                s.Users--;
+            if (s.Users == 0 && s.Dir != null)
+                s.UnloadAt = Time.unscaledTime + UnloadDelaySeconds;
+        }
+
+        /// <summary>Every frame (AdvancedNpcsMod.Update): loads one image, unloads sets whose countdown ran out.</summary>
+        public void Tick(float now)
+        {
+            if (loading.Count > 0)
+            {
+                LoadedSpriteSet s = loading[0];
+                if (s.Pending.Count > 0)
+                    LoadNext(s);
+                if (s.Pending.Count == 0)
+                {
+                    loading.RemoveAt(0);
+                    FinishLoading(s);
+                }
+            }
+            foreach (List<LoadedSpriteSet> sets in byFolder.Values)
+            {
+                foreach (LoadedSpriteSet s in sets)
+                {
+                    if (s.Users == 0 && s.UnloadAt >= 0f && now >= s.UnloadAt && s.Pending == null && s.IsReady)
+                        Unload(s);
+                }
+            }
+        }
+
+        void LoadNext(LoadedSpriteSet s)
+        {
+            string name = s.Pending.Dequeue();
+            if (name == DeathStaticFile)
+            {
+                s.DeathStatic = LoadPng(s.Label + "/" + DeathStaticFile, Path.Combine(s.Dir, DeathStaticFile), false);
+                if (s.DeathStatic != null)
+                    Finish(s.DeathStatic);
+                return;
+            }
+            SpriteAnimation a;
+            if (!s.Set.Animations.TryGetValue(name, out a))
+                return;
+            Texture2D t = LoadPng(s.Label + "/" + name + ".png", Path.Combine(s.Dir, name + ".png"), true);
+            string sizeError = t != null ? SpriteSetParser.CheckSheetSize(s.Label, a, s.Set.CellHeight, t.width, t.height) : null;
+            if (t == null || sizeError != null)
+            {
+                if (sizeError != null)
+                    AdvancedNpcsMod.LogError(sizeError + " (sheet skipped)");
+                if (t != null)
+                    UnityEngine.Object.Destroy(t);
+                s.Set.Animations.Remove(name);
+                return;
+            }
+            if (s.Set.StandingHeight <= 0 && SpriteStates.StateOf(name) == SpriteStates.Idle)
+                s.IdleHeight = Math.Max(s.IdleHeight, IdleHeight(s.Set, a, t));
+            Finish(t);
+            s.Sheets[name] = t;
+        }
+
+        void FinishLoading(LoadedSpriteSet s)
+        {
+            s.Pending = null;
+            if (!SpriteStates.IsValid(s.Set))
+            {
+                AdvancedNpcsMod.LogError(s.Label + ": no usable idle sheet; its ANPCs keep the vanilla sprite");
+                DestroyTextures(s);
+                s.Failed = true;
+                return;
+            }
+            if (s.Set.StandingHeight > 0)
+                s.StandingHeightPx = s.Set.StandingHeight;
+            else
+                s.StandingHeightPx = s.IdleHeight > 0 ? s.IdleHeight : s.Set.CellHeight - s.Set.GroundY;
+            s.IsReady = true;
+            if (s.Users == 0)
+                s.UnloadAt = Time.unscaledTime + UnloadDelaySeconds;
+        }
+
+        void Unload(LoadedSpriteSet s)
+        {
+            DestroyTextures(s);
+            s.IsReady = false;
+            s.UnloadAt = -1f;
+            AdvancedNpcsMod.Log(s.Label + ": sprite set unloaded (no one uses it).");
+        }
+
+        static void DestroyTextures(LoadedSpriteSet s)
+        {
+            foreach (Texture2D t in s.Sheets.Values)
+                UnityEngine.Object.Destroy(t);
+            s.Sheets.Clear();
+            if (s.DeathStatic != null)
+                UnityEngine.Object.Destroy(s.DeathStatic);
+            s.DeathStatic = null;
         }
 
         static Texture2D LoadPng(string label, string path, bool required)
@@ -237,42 +403,49 @@ namespace AdvancedNPCs
         {
             if (set.StandingHeight > 0)
                 return set.StandingHeight;   // given by the renderer: the body alone, without a raised weapon
-            int best = 0;
+            float best = 0f;
             foreach (SpriteAnimation a in SpriteStates.Variants(set, SpriteStates.Idle))
             {
                 Texture2D t;
-                if (!sheets.TryGetValue(a.Name, out t))
-                    continue;
-                Color32[] px = t.GetPixels32();
-                int w = t.width;
-                for (int row = 0; row < SpriteSetParser.Directions.Length; row++)
+                if (sheets.TryGetValue(a.Name, out t))
+                    best = Math.Max(best, IdleHeight(set, a, t));
+            }
+            return best > 0 ? best : set.CellHeight - set.GroundY;
+        }
+
+        /// <summary>Tallest opaque pixel above the feet row in one idle sheet (0 if none); the texture must be readable.</summary>
+        static float IdleHeight(SpriteSet set, SpriteAnimation a, Texture2D t)
+        {
+            int best = 0;
+            Color32[] px = t.GetPixels32();
+            int w = t.width;
+            for (int row = 0; row < SpriteSetParser.Directions.Length; row++)
+            {
+                int cellBottom = (SpriteSetParser.Directions.Length - 1 - row) * set.CellHeight;   // texture rows start at the bottom
+                for (int frame = 0; frame < a.Frames; frame++)
                 {
-                    int cellBottom = (SpriteSetParser.Directions.Length - 1 - row) * set.CellHeight;   // texture rows start at the bottom
-                    for (int frame = 0; frame < a.Frames; frame++)
+                    int x0 = frame * a.CellWidth;
+                    for (int y = set.CellHeight - 1; y > set.GroundY + best; y--)
                     {
-                        int x0 = frame * a.CellWidth;
-                        for (int y = set.CellHeight - 1; y > set.GroundY + best; y--)
+                        int line = (cellBottom + y) * w;
+                        bool opaque = false;
+                        for (int x = x0; x < x0 + a.CellWidth; x++)
                         {
-                            int line = (cellBottom + y) * w;
-                            bool opaque = false;
-                            for (int x = x0; x < x0 + a.CellWidth; x++)
+                            if (px[line + x].a > 16)
                             {
-                                if (px[line + x].a > 16)
-                                {
-                                    opaque = true;
-                                    break;
-                                }
-                            }
-                            if (opaque)
-                            {
-                                best = Math.Max(best, y + 1 - set.GroundY);
+                                opaque = true;
                                 break;
                             }
+                        }
+                        if (opaque)
+                        {
+                            best = Math.Max(best, y + 1 - set.GroundY);
+                            break;
                         }
                     }
                 }
             }
-            return best > 0 ? best : set.CellHeight - set.GroundY;
+            return best;
         }
     }
 }
