@@ -98,6 +98,9 @@ namespace AdvancedNPCs
                 Say(displayName + " will not talk to you now.");
                 return false;
             }
+            NpcChat chat = brain != null ? brain.GetComponent<NpcChat>() : null;
+            if (chat != null && chat.Talking)
+                chat.End(true);     // the player interrupts (spec conversations §3)
             TalkManager.Instance.TalkToMobileNPC(proxy);
             if (portrait != null)
                 ApplyPortrait(DaggerfallUI.Instance.TalkWindow, portrait);

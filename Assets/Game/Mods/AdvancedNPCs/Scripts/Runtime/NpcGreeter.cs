@@ -10,6 +10,7 @@ namespace AdvancedNPCs
     /// <summary>
     /// Greetings (spec run/greet/turret §5): a calm ANPC with a greet sheet now and then stops, turns to a player or
     /// ANPC it likes within 4 m and in sight, and plays the sheet once. Once per encounter, 25 %, 2 game hours per target.
+    /// Greeting another ANPC may start a conversation (NpcChat); while talking it greets no one.
     /// </summary>
     public class NpcGreeter : MonoBehaviour
     {
@@ -25,6 +26,7 @@ namespace AdvancedNPCs
         NpcBrain brain;
         NpcSprite sprite;
         NpcVoice voice;
+        NpcChat chat;
         float nextCheck;
         Transform facingTarget;
         float facingLeft;
@@ -40,6 +42,7 @@ namespace AdvancedNPCs
             brain = GetComponent<NpcBrain>();
             sprite = GetComponent<NpcSprite>();
             voice = GetComponent<NpcVoice>();
+            chat = GetComponent<NpcChat>();
             nextCheck = Time.time + Random.Range(0f, CheckInterval);
         }
 
@@ -48,6 +51,11 @@ namespace AdvancedNPCs
             if (brain == null || (sprite == null && voice == null) || brain.CurrentMode != NpcMode.Calm)
             {
                 facingTarget = null;
+                return;
+            }
+            if (chat != null && chat.Talking)
+            {
+                facingTarget = null;    // busy talking: greets no one (spec conversations §3)
                 return;
             }
             if (facingTarget != null && facingLeft > 0f)
@@ -98,6 +106,8 @@ namespace AdvancedNPCs
                 if (memory.Consider(other.Id, near, likes, now, Random.value, chance))
                 {
                     Greet(other.transform);
+                    if (chat != null)
+                        chat.OnGreeted(other);
                     return;
                 }
             }

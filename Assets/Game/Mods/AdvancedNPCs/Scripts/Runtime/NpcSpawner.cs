@@ -373,7 +373,10 @@ namespace AdvancedNPCs
             go.AddComponent<NpcVoice>().Init(sounds, def.Sounds, owner.Sounds != null ? owner.Sounds.DefaultSteps : null);
             if (sounds != null)
                 greets |= sounds.Pools.Contains(SoundPools.Greet);
-            if (greets)
+            if (def.Conversation.Enabled)
+                go.AddComponent<NpcChat>().Init(def.Conversation);
+            // A talker without greet files greets silently: greetings start conversations (spec conversations §1).
+            if (greets || def.Conversation.Enabled)
                 go.AddComponent<NpcGreeter>();
             gait.Init(def);
             AdvancedNpcsMod.Log(instance.Key + " (" + instance.Name + "): spawned" +
