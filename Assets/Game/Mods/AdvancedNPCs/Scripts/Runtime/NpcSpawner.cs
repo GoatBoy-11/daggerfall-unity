@@ -352,6 +352,7 @@ namespace AdvancedNPCs
             // Custom sprites (spec 1b): one of the folder's sprite sets, chosen by the person's seed.
             List<LoadedSpriteSet> spriteSets = owner.Sprites.For(def.Folder);
             float spawnHeight = 0f;
+            bool greets = false;
             NpcGait gait = go.AddComponent<NpcGait>();
             if (spriteSets.Count > 0)
             {
@@ -362,11 +363,19 @@ namespace AdvancedNPCs
                 sprite.RangedSheet = def.RangedAnimation;
                 sprite.UseGait(gait);
                 sprite.Begin(spriteSet, height, def.SpriteHeightScale);
-                if (SpriteStates.Variants(spriteSet.Set, SpriteStates.Greet).Count > 0)
-                    go.AddComponent<NpcGreeter>();
+                greets = SpriteStates.Variants(spriteSet.Set, SpriteStates.Greet).Count > 0;
                 if (def.RangedAnimation != null && !spriteSet.Set.Animations.ContainsKey(def.RangedAnimation))
                     AdvancedNpcsMod.Log(spriteSet.Label + ": no " + def.RangedAnimation + ".png for combat.rangedAnimation; bow shots play attack_range*/attack* sheets.");
             }
+            // Custom sounds (spec sounds): the folder's Sounds, also for an ANPC with the vanilla sprite.
+            LoadedSoundSet sounds = owner.Sounds != null ? owner.Sounds.For(def.Folder) : null;
+            if (sounds != null)
+            {
+                go.AddComponent<NpcVoice>().Init(sounds, def.Sounds);
+                greets |= sounds.Pools.Contains(SoundPools.Greet);
+            }
+            if (greets)
+                go.AddComponent<NpcGreeter>();
             gait.Init(def);
             AdvancedNpcsMod.Log(instance.Key + " (" + instance.Name + "): spawned" +
                 (spawnHeight > 0 ? " (sprite " + spawnHeight.ToString("0.00") + " m tall)." : "."));

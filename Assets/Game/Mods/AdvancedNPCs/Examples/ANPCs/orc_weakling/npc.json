@@ -19,5 +19,6 @@
       "count": [1, 3],
       "dungeonTypes": ["OrcStronghold", "NaturalCave", "Mine"]
     }
-  }
+  },
+  "sounds": { "combatChance": 60, "soundPitch": 0.75, "soundPitchVariation": 0.08, "stepPitch": 0.9, "stepPitchVariation": 0.1 }
 }

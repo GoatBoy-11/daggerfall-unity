@@ -29,6 +29,7 @@ namespace AdvancedNPCs
         MeshRenderer quadRenderer;
         NpcGait gait;
         NpcBrain brain;
+        NpcVoice voice;
         LoadedSpriteSet waitingSet;     // chosen, still loading: nothing drawn yet
         float waitingHeight;
         float waitingScale = 1f;
@@ -346,6 +347,7 @@ namespace AdvancedNPCs
             if (gait == null)
                 gait = GetComponent<NpcGait>();
             brain = GetComponent<NpcBrain>();
+            voice = GetComponent<NpcVoice>();
 
             quad = CreateQuad(transform, "AnpcSprite");
             quadRenderer = quad.GetComponent<MeshRenderer>();
@@ -378,6 +380,9 @@ namespace AdvancedNPCs
         /// </summary>
         void Start()
         {
+            // The spawner adds the voice after the sprite: a set already loaded ran Init before it existed.
+            if (voice == null)
+                voice = GetComponent<NpcVoice>();
             if (heldSet == null || acquired)
                 return;
             heldSet.Acquire();
@@ -675,6 +680,8 @@ namespace AdvancedNPCs
             {
                 frame = f;
                 frameChanges++;
+                if (voice != null && (state == SpriteStates.Walk || state == SpriteStates.Run))
+                    voice.OnSheetFrame(anim, f);
             }
 
             float k = worldPerPixel;

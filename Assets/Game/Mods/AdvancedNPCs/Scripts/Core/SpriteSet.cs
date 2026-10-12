@@ -11,6 +11,8 @@ namespace AdvancedNPCs.Core
         public int Frames;
         /// <summary>Attack and attack_range sheets: the frame (from 0) on which the blow lands or the arrow flies; -1 keeps DFU's own timing.</summary>
         public int ActionFrame = -1;
+        /// <summary>Walk and run sheets: footfall frames (from 0) for step sounds; null = the first and the middle frame.</summary>
+        public int[] StepFrames;
     }
 
     /// <summary>A sprite set's sprites.json (spec 1b §5.1), as written by the Blender render script.</summary>
@@ -147,6 +149,22 @@ namespace AdvancedNPCs.Core
                     if (FieldReader.Number(a, "actionFrame", 0, out action) != null || action != Math.Floor(action) || action < 1 || action > anim.Frames)
                         return label + ": " + field + ".actionFrame: must be a whole number from 1 to " + anim.Frames;
                     anim.ActionFrame = (int)action - 1;     // written from 1, like the sheet's columns
+                }
+                if (a.ContainsKey("stepFrames"))
+                {
+                    string state = SpriteStates.StateOf(kv.Key);
+                    if (state != SpriteStates.Walk && state != SpriteStates.Run)
+                        return label + ": " + field + ".stepFrames: only walk and run sheets have step frames";
+                    double[] steps;
+                    if (!FieldReader.Numbers(a, "stepFrames", out steps) || steps == null || steps.Length == 0)
+                        return label + ": " + field + ".stepFrames: must be a list of frame numbers, like [1, 5]";
+                    anim.StepFrames = new int[steps.Length];
+                    for (int i = 0; i < steps.Length; i++)
+                    {
+                        if (steps[i] != Math.Floor(steps[i]) || steps[i] < 1 || steps[i] > anim.Frames)
+                            return label + ": " + field + ".stepFrames: each must be a whole number from 1 to " + anim.Frames;
+                        anim.StepFrames[i] = (int)steps[i] - 1;     // written from 1, like the sheet's columns
+                    }
                 }
                 s.Animations[kv.Key] = anim;
             }

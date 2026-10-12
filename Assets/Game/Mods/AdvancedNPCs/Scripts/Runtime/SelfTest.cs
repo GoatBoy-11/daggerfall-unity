@@ -836,6 +836,10 @@ namespace AdvancedNPCs
             mod.Portraits.Remove("selftest_face_3");
             yield return Settle;
 
+            IEnumerator soundProbe = SoundProbeSteps();
+            while (soundProbe.MoveNext())
+                yield return soundProbe.Current;
+
             IEnumerator lazySprites = LazySpriteSteps(location, playerTransform);
             while (lazySprites.MoveNext())
                 yield return lazySprites.Current;
@@ -847,6 +851,10 @@ namespace AdvancedNPCs
             IEnumerator combat = CombatSteps(location, playerTransform);
             while (combat.MoveNext())
                 yield return combat.Current;
+
+            IEnumerator sounds = SoundSteps(location, playerTransform);
+            while (sounds.MoveNext())
+                yield return sounds.Current;
 
             IEnumerator opinion = OpinionSteps(location, playerTransform);
             while (opinion.MoveNext())

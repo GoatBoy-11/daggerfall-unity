@@ -22,5 +22,6 @@
     "spells": [],
     "usesMagicka": true,
     "maxMagicka": 0
-  }
+  },
+  "sounds": { "combatChance": 40, "greetChance": 60, "soundPitchVariation": 0.04, "stepPitchVariation": 0.08 }
 }

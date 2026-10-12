@@ -30,6 +30,7 @@ namespace AdvancedNPCs
         public PortraitLibrary Portraits { get; private set; }
         public NameLists Names { get; private set; }
         public SpriteLibrary Sprites { get; private set; }
+        public SoundLibrary Sounds { get; private set; }
         public ModConfig Config { get; private set; }
         public NpcMagicWorld MagicWorld { get; private set; }
         /// <summary>Dialogue types from ANPCs/_Dialogue.</summary>
@@ -67,6 +68,8 @@ namespace AdvancedNPCs
         {
             if (Sprites != null)
                 Sprites.Tick(Time.unscaledTime);
+            if (Sounds != null)
+                Sounds.Tick(Time.unscaledTime);
         }
 
         void Awake()
@@ -84,6 +87,7 @@ namespace AdvancedNPCs
             List<NpcDefinition> all = new List<NpcDefinition>(Catalog.ById.Values);
             all.AddRange(Catalog.Generics);
             Sprites = SpriteLibrary.Load(AnpcFiles.Root, all);
+            Sounds = SoundLibrary.Load(AnpcFiles.Root, all);
             Flags = new FlagSet();
             Dialogue = DialogueFiles.Load(AnpcFiles.Root);
             DialogueFiles.Check(Dialogue, Catalog);
@@ -109,9 +113,11 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_info",
                 "Shows the ANPC in front of you (or <id>): mode, bravery, health, opinion, sprite set, target and update rate.",
                 "anpc_info [id or key]", InfoCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_reload_assets",
+                "Re-reads the sprite sets and Sounds of one ANPC folder (or all) from disk and uses them on spawned ANPCs.",
+                "anpc_reload_assets [id]", ReloadSpritesCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_reload_sprites",
-                "Re-reads the sprite sets of one ANPC folder (or all) from disk and shows them on spawned ANPCs.",
-                "anpc_reload_sprites [id]", ReloadSpritesCommand);
+                "Old name of anpc_reload_assets.", "anpc_reload_sprites [id]", ReloadSpritesCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_topics",
                 "Shows the dialogue topics of the ANPC in front of you (or <id>): which are shown, and why the others are hidden.",
                 "anpc_topics [id]", TopicsCommand);
@@ -195,13 +201,20 @@ namespace AdvancedNPCs
                     folders.Add(d.Folder);
             }
             if (folders.Count == 0)
-                return "No ANPC folder \"" + args[0] + "\". Give an id from ANPCs/ (or nothing for all).";
-            int sets = 0;
+                return args != null && args.Length > 0 ? "No ANPC folder \"" + args[0] + "\". Give an id from ANPCs/ (or nothing for all)." : "No ANPC folders loaded.";
+            int sets = 0, soundFolders = 0;
             foreach (string folder in folders)
-                sets += Instance.Sprites.Reload(folder, Path.Combine(AnpcFiles.Root, folder));
+            {
+                string dir = Path.Combine(AnpcFiles.Root, folder);
+                sets += Instance.Sprites.Reload(folder, dir);
+                if (Instance.Sounds.Reload(folder, dir))
+                    soundFolders++;
+            }
             int updated = SwapSprites(folders);
-            string text = "Reloaded " + sets + " sprite set(s) in " + folders.Count + " folder(s); " + updated + " ANPC(s) updated. " +
-                "ANPCs that had the vanilla sprite, and walk/run/greet or npc.json changes, update when they next spawn.";
+            int voices = SwapSounds(folders);
+            string text = "Reloaded " + sets + " sprite set(s) and " + soundFolders + " Sounds folder(s) in " + folders.Count + " folder(s); " +
+                updated + " sprite(s) and " + voices + " voice(s) updated. " +
+                "ANPCs that had the vanilla sprite or no Sounds, and walk/run/greet or npc.json changes, update when they next spawn.";
             Log(text);
             return text;
         }
@@ -219,6 +232,23 @@ namespace AdvancedNPCs
                     continue;
                 List<LoadedSpriteSet> sets = Instance.Sprites.For(b.Instance.Definition.Folder);
                 sprite.Swap(sets.Count > 0 ? sets[SpriteStates.PickSet(sets.Count, b.Instance.Seed)] : null);
+                updated++;
+            }
+            return updated;
+        }
+
+        /// <summary>Spawned, living ANPCs of these folders with a voice switch to the folder's new Sounds (none: vanilla voice).</summary>
+        internal static int SwapSounds(IList<string> folders)
+        {
+            int updated = 0;
+            foreach (NpcBrain b in NpcBrain.All())
+            {
+                if (b.Instance == null || b.CurrentMode == NpcMode.Dead || !folders.Contains(b.Instance.Definition.Folder))
+                    continue;
+                NpcVoice voice = b.GetComponent<NpcVoice>();
+                if (voice == null)
+                    continue;
+                voice.Swap(Instance.Sounds.For(b.Instance.Definition.Folder));
                 updated++;
             }
             return updated;

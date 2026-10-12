@@ -1,0 +1,9 @@
+Advanced NPCs example sounds
+============================
+
+Voice lines (greet, death, and the wench's hit sounds) are from the Super Dialogue Audio Pack V1 by Dillon Becker
+(dillonbecker.com), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changes: chosen lines
+converted to mono 22 kHz OGG and renamed.
+
+Attack and hit voices (NOX_SOUND Voices Essentials) and footsteps (NOX_SOUND Footsteps Essentials) are by Nox Sound,
+released under CC0. Changes: converted to mono 22 kHz OGG and renamed.

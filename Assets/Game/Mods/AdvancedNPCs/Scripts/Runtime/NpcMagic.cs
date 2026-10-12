@@ -147,6 +147,9 @@ namespace AdvancedNPCs
                     sprite.PlayCast();
             }
             attack.ResetMeleeTimer();
+            NpcVoice castVoice = GetComponent<NpcVoice>();
+            if (castVoice != null)
+                castVoice.Play(SoundPools.Cast);
             state.magicCooldown = Random.Range(config.CooldownMin, config.CooldownMax);
             Capture();
             CastCount++;

@@ -71,6 +71,7 @@ if npc:
     same("npc.json spawn.wilderness", p["spawn"]["properties"]["wilderness"]["properties"], array(outside, "WildernessKeys"))
     same("npc.json magic", p["magic"]["properties"], array(source("NpcMagicDefinition.cs"), "Keys"))
     same("npc.json combat", p["combat"]["properties"], array(source("CombatRules.cs"), "Keys"))
+    same("npc.json sounds", p["sounds"]["properties"], array(source("SoundRules.cs"), "Keys"))
 
 if sprites:
     sprite_source = source("SpriteSet.cs")

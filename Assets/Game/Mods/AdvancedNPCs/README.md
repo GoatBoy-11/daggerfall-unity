@@ -127,10 +127,10 @@ folder name is the old id.
 - `anpc_hostile <id or key> [on|off]` — turns an ANPC into an enemy or calms it (without on/off it toggles); saved with your game. See [Enemies](#enemies).
 - `anpc_opinion <id or key> [value]` — shows or sets an ANPC's personal opinion of you (−100 to 100); saved with your game.
 
-- `anpc_info [id or key]` — the ANPC in front of you (within 5 m) or that ANPC: id, key, kind, folder, bravery, mode, health, opinion, sprite set (loaded, loading or vanilla) and height, its current target, distance and update rate.
+- `anpc_info [id or key]` — the ANPC in front of you (within 5 m) or that ANPC: id, key, kind, folder, bravery, mode, health, opinion, sprite set (loaded, loading or vanilla) and height, sound pools, its current target, distance and update rate.
 - `anpc_topics [id or key]` — the dialogue topics of the ANPC in front of you (within 5 m) or of that ANPC: which are shown, and for the others the condition that hides them. See [Dialogue topics](#dialogue-topics).
 - `anpc_reload_dialogue` — re-reads `_Dialogue/*.json` and every `dialogue.json` without restarting (a change to `npc.json` still needs a restart).
-- `anpc_reload_sprites [id]` — re-reads the sprite sets of that ANPC folder (or of all) from disk; spawned ANPCs wearing them switch to the new sheets. ANPCs that had the vanilla sprite, and changes to walk/run/greet sheets or `npc.json`, take effect when they next spawn.
+- `anpc_reload_assets [id]` — re-reads the sprite sets and [Sounds](#sounds) of that ANPC folder (or of all) from disk; spawned ANPCs using them switch to the new files. ANPCs that had the vanilla sprite or no Sounds, and changes to walk/run/greet sheets or `npc.json`, take effect when they next spawn. (`anpc_reload_sprites` is the old name.)
 - `anpc_flag` — lists the dialogue flags that are set; `anpc_flag <name> on|off` sets or clears one (saved with your game).
 - `anpc_here` — in a dungeon, building or the wilderness: which templates can appear there and what happened (filter, `when`, the chance roll, how many came). See [Spawning outside towns](#spawning-outside-towns).
 - `anpc_selftest` — runs the behaviour checks with temporary ANPCs next to you (god mode on, crimes recorded instead of punished, game clock untouched); results on screen and in `Player.log`.
@@ -497,6 +497,54 @@ ANPCs/wench/
 - Action frame (optional): `"actionFrame": n` on an attack or attack_range sheet in `sprites.json` makes the blow (melee damage, or the arrow for archers) land when the sheet shows frame `n`, counted from 1 like the sheet's columns:
   `"attack_1": { "cellWidth": 272, "frames": 6, "actionFrame": 4 }`
   Without it, DFU's own timing is kept, which can look slightly early or late. Spells keep DFU's timing. The render script writes `actionFrame` itself from a pose marker named `action` on the attack Action, so it survives re-rendering.
+
+## Sounds
+
+An ANPC folder can have its own sounds in a `Sounds` folder (`.wav`, `.ogg` or `.mp3`; an `.ogg` must be audio only — one with embedded cover art does not load):
+
+```
+ANPCs/wench/
+  npc.json
+  Sounds/
+    greet_1.ogg   greet_2.ogg
+    attack_1.wav  attack_2.wav  attack_3.wav
+    hit_1.wav
+    death_1.ogg
+    step_1.ogg    step_2.ogg   step_3.ogg
+```
+
+- A file's name says when it plays: `greet`, `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `hit` (hurt but alive), `death` and `step`. A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
+- Sounds follow what happens, not the sprite, so an ANPC with the vanilla sprite can have them too.
+- `death` always plays. `step` plays on every footfall while walking or running, but only when you are within `stepDistance`. The others play by chance.
+- With a walk/run sheet, footsteps fall on its first and middle frame; `"stepFrames": [2, 6]` on a `walk*`/`run*` animation in `sprites.json` picks the frames (counted from 1). Without one, a step every 0.5 s walking, 0.33 s running.
+- DFU's own voice grunts (attack, pain) are replaced for the events the folder has sounds for, and kept for the others; a creature base class (an orc, say) with `attack` sounds also stops its own attack growl. Weapon swing, impact and parry sounds, and a creature's idle barks, are never changed.
+- Sounds come from the ANPC in 3D, fade out by 30 m, follow DFU's sound volume, load when the first ANPC using them appears and unload a while after the last one goes.
+
+Settings in `npc.json`, all optional:
+
+```json
+"sounds": {
+  "combatChance": 50,
+  "greetChance": 50,
+  "stepDistance": 15,
+  "soundPitch": 1.0,
+  "soundPitchVariation": 0.05,
+  "stepPitch": 1.0,
+  "stepPitchVariation": 0.1
+}
+```
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `combatChance` | 50 | percent chance of an attack, attack_range, cast or hit sound |
+| `greetChance` | 50 | percent chance of a greet sound |
+| `stepDistance` | 15 | metres; no footsteps when you are farther |
+| `soundPitch` | 1 | pitch of every sound except steps (0.25–3) |
+| `soundPitchVariation` | 0 | each play changes that pitch by up to ± this (0–1) |
+| `stepPitch` | 1 | pitch of footsteps (0.25–3) |
+| `stepPitchVariation` | 0 | each footstep changes that pitch by up to ± this (0–1) |
+
+After changing files, `anpc_reload_assets` re-reads them; `anpc_info` lists an ANPC's sound pools.
 
 ## Name lists
 
