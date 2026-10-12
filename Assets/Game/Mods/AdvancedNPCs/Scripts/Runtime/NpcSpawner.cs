@@ -370,7 +370,7 @@ namespace AdvancedNPCs
             // Custom sounds (spec sounds): the folder's Sounds, also for an ANPC with the vanilla sprite. Every ANPC has a
             // voice, so the "ANPC sounds" setting can hand it to DFU or silence it at any time.
             LoadedSoundSet sounds = owner.Sounds != null ? owner.Sounds.For(def.Folder) : null;
-            go.AddComponent<NpcVoice>().Init(sounds, def.Sounds);
+            go.AddComponent<NpcVoice>().Init(sounds, def.Sounds, owner.Sounds != null ? owner.Sounds.DefaultSteps : null);
             if (sounds != null)
                 greets |= sounds.Pools.Contains(SoundPools.Greet);
             if (greets)

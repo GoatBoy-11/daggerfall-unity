@@ -111,7 +111,8 @@
         "soundPitch": { "type": "number", "minimum": 0.25, "maximum": 3, "default": 1, "description": "Pitch of every sound except steps." },
         "soundPitchVariation": { "type": "number", "minimum": 0, "maximum": 1, "default": 0, "description": "Random pitch change (±) each time a sound plays." },
         "stepPitch": { "type": "number", "minimum": 0.25, "maximum": 3, "default": 1 },
-        "stepPitchVariation": { "type": "number", "minimum": 0, "maximum": 1, "default": 0 }
+        "stepPitchVariation": { "type": "number", "minimum": 0, "maximum": 1, "default": 0 },
+        "defaultSteps": { "type": "boolean", "default": true, "description": "Without step files of its own, play the shared ANPCs/_Sounds steps." }
       }
     },
     "combat": {

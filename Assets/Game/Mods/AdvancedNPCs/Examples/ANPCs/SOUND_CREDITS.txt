@@ -5,5 +5,6 @@ Voice lines (greet, death, and the wench's hit sounds) are from the Super Dialog
 (dillonbecker.com), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changes: chosen lines
 converted to mono 22 kHz OGG and renamed.
 
-Attack and hit voices (NOX_SOUND Voices Essentials) and footsteps (NOX_SOUND Footsteps Essentials) are by Nox Sound,
+Attack and hit voices (NOX_SOUND Voices Essentials) and footsteps (NOX_SOUND Footsteps Essentials; the default steps in
+_Sounds are its DirtyGround walk steps, as orc_weakling's) are by Nox Sound,
 released under CC0. Changes: converted to mono 22 kHz OGG and renamed.

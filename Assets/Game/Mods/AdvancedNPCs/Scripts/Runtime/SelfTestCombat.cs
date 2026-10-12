@@ -62,7 +62,9 @@ namespace AdvancedNPCs
             Transform postHome = post.transform.parent;
             post.transform.SetParent(offTown.transform, true);
             yield return new WaitForSeconds(1.5f);
-            Check("a brave ANPC ignores an enemy in a switched-off town", brave.CurrentMode == NpcMode.Calm, brave.Status);
+            // Its target, not its mode: a stray vanilla creature in town may pick a fight with it meanwhile.
+            Check("a brave ANPC ignores an enemy in a switched-off town", brave.Threat != post.EntityBehaviour,
+                brave.Status + ", target " + (brave.Threat != null ? brave.Threat.name : "none"));
             post.transform.SetParent(postHome, true);
             Object.Destroy(offTown);
 

@@ -333,6 +333,8 @@ namespace AdvancedNPCs
                 sb.Append("  sounds: ").Append(sounds.Label).Append(sounds.IsReady ? ", loaded: " : ", loading: ").Append(sounds.Summary());
             if (config != null && config.VoiceMode != VoiceModes.Anpc)
                 sb.Append(" (ANPC sounds setting: ").Append(ModConfig.VoiceModeName(config.VoiceMode)).Append(')');
+            if (voice != null)
+                sb.Append("; steps: ").Append(voice.StepsSource);
             if (config != null && !config.Footsteps)
                 sb.Append(" (footsteps off)");
             sb.Append('\n');
