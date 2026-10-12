@@ -338,6 +338,23 @@ namespace AdvancedNPCs
             if (config != null && !config.Footsteps)
                 sb.Append(" (footsteps off)");
             sb.Append('\n');
+            NpcChat chat = GetComponent<NpcChat>();
+            if (chat == null)
+            {
+                sb.Append("  conversation: off\n");
+            }
+            else
+            {
+                sb.Append("  conversation: chance ").Append(chat.Settings.Chance).Append("%, talk sounds ")
+                  .Append(voice != null ? voice.TalkClips : 0).Append(", talk sheets ").Append(sprite != null ? sprite.TalkSheets : 0);
+                string why = chat.Talking ? null : chat.WhyNot();
+                if (chat.Talking && chat.Partner != null)
+                    sb.Append(", talking with ").Append(chat.Partner.Brain.DisplayName).Append(", line ")
+                      .Append(chat.Session.Line).Append(" of ").Append(chat.Session.Lines);
+                else if (why != null)
+                    sb.Append(", cannot talk now: ").Append(why);
+                sb.Append('\n');
+            }
 
             GameObject playerObject = GameManager.Instance.PlayerObject;
             float distance = playerObject != null ? Vector3.Distance(playerObject.transform.position, transform.position) : 0f;

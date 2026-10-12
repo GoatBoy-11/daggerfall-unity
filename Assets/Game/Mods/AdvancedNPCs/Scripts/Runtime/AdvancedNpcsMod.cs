@@ -113,6 +113,9 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_info",
                 "Shows the ANPC in front of you (or <id>): mode, bravery, health, opinion, sprite set, target and update rate.",
                 "anpc_info [id or key]", InfoCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_chat",
+                "Starts a conversation between the ANPC in front of you and the nearest other ANPC within 4 m (ignores chance and the 2-hour wait).",
+                "anpc_chat", ChatCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_reload_assets",
                 "Re-reads the sprite sets and Sounds of one ANPC folder (or all) from disk and uses them on spawned ANPCs.",
                 "anpc_reload_assets [id]", ReloadSpritesCommand);
@@ -294,6 +297,38 @@ namespace AdvancedNPCs
                 return named ? "No spawned ANPC \"" + args[0] + "\". Try anpc_list." : "No ANPC within 5 m. Stand in front of one or give an id (anpc_list).";
             string text = b.Describe();
             Log("anpc_info\n" + text);
+            return text;
+        }
+
+        /// <summary>anpc_chat (spec conversations §3); internal for the self-test.</summary>
+        internal static string ChatCommand(params string[] args)
+        {
+            NpcBrain a = Nearest(5f);
+            if (a == null)
+                return "No ANPC within 5 m. Stand in front of one.";
+            NpcBrain b = null;
+            float best = ChatRules.StartDistance;
+            foreach (NpcBrain other in NpcBrain.All())
+            {
+                if (other == a || other.CurrentMode == NpcMode.Dead)
+                    continue;
+                float d = Vector3.Distance(other.transform.position, a.transform.position);
+                if (d <= best)
+                {
+                    best = d;
+                    b = other;
+                }
+            }
+            if (b == null)
+                return "No other ANPC within " + ChatRules.StartDistance + " m of " + a.DisplayName + ".";
+            NpcChat ca = a.GetComponent<NpcChat>();
+            NpcChat cb = b.GetComponent<NpcChat>();
+            if (ca == null || cb == null)
+                return (ca == null ? a : b).DisplayName + " does not converse (no \"conversation\" in its npc.json).";
+            string why = ca.TryStart(cb, true);
+            string text = why == null ? a.DisplayName + " and " + b.DisplayName + " are talking (" + ca.Session.Lines + " lines)."
+                                      : a.DisplayName + " and " + b.DisplayName + " cannot talk: " + why + ".";
+            Log("anpc_chat: " + text);
             return text;
         }
 
