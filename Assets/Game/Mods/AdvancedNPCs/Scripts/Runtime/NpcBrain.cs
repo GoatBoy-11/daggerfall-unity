@@ -53,7 +53,8 @@ namespace AdvancedNPCs
         float holdStill;        // seconds the calm NPC stands still (greeting)
         NpcGait gait;
         float patrolTimer;
-        static readonly Collider[] nearby = new Collider[64];
+        static Collider[] nearby = new Collider[64];
+        const int MaxNearby = 512;
         System.Random rng;
 
         /// <summary>The spawned copy of an NPC, or null.</summary>
@@ -469,6 +470,7 @@ namespace AdvancedNPCs
             if (foe == null)
                 return false;
             AdvancedNpcsMod.Log(key + ": attacks " + foe.name + " on sight.");
+            senses.Target = foe;        // DFU's senses chase it now instead of waiting to notice it
             OnAttackedByCreature(foe);
             return true;
         }
@@ -479,7 +481,7 @@ namespace AdvancedNPCs
             float bestDistance = range;
             foreach (NpcBrain other in All())
             {
-                if (other == this || other.entityBehaviour == null || other.entityBehaviour.Entity == null)
+                if (other == this || !other.isActiveAndEnabled || other.entityBehaviour == null || other.entityBehaviour.Entity == null)
                     continue;
                 bool alive = other.mode != NpcMode.Dead && other.entityBehaviour.Entity.CurrentHealth > 0;
                 if (!AggroRules.IsFoe(true, other.IsEnemy, false, false, alive))
@@ -492,6 +494,11 @@ namespace AdvancedNPCs
                 }
             }
             int count = Physics.OverlapSphereNonAlloc(transform.position, range, nearby, ~0, QueryTriggerInteraction.Ignore);
+            while (count == nearby.Length && nearby.Length < MaxNearby)
+            {
+                nearby = new Collider[nearby.Length * 2];      // a crowded spot: look again with room for all
+                count = Physics.OverlapSphereNonAlloc(transform.position, range, nearby, ~0, QueryTriggerInteraction.Ignore);
+            }
             for (int i = 0; i < count; i++)
             {
                 DaggerfallEntityBehaviour e = nearby[i].GetComponentInParent<DaggerfallEntityBehaviour>();
@@ -592,13 +599,7 @@ namespace AdvancedNPCs
         {
             if (ThreatGone())
             {
-                DaggerfallEntityBehaviour player = GameManager.Instance.PlayerEntityBehaviour;
-                if (threat != null && threat != player && threat.Entity != null && threat.Entity.CurrentHealth <= 0 && player != null &&
-                    Vector3.Distance(player.transform.position, transform.position) <= OpinionRules.HelpRange)
-                {
-                    ChangeOpinion(OpinionRules.Helped);
-                    AdvancedNpcsMod.Log(key + ": the player helped in a fight (opinion " + Opinion + ").");
-                }
+                CountHelp();
                 EndCreatureFight();
                 return;
             }
@@ -608,10 +609,23 @@ namespace AdvancedNPCs
                 SetMode(NpcMode.Fleeing);
         }
 
+        /// <summary>The creature this ANPC fought or fled from died with the player close by: +10 opinion.</summary>
+        void CountHelp()
+        {
+            DaggerfallEntityBehaviour player = GameManager.Instance.PlayerEntityBehaviour;
+            if (threat != null && threat != player && threat.Entity != null && threat.Entity.CurrentHealth <= 0 && player != null &&
+                Vector3.Distance(player.transform.position, transform.position) <= OpinionRules.HelpRange)
+            {
+                ChangeOpinion(OpinionRules.Helped);
+                AdvancedNpcsMod.Log(key + ": the player helped in a fight (opinion " + Opinion + ").");
+            }
+        }
+
         void UpdateFleeing()
         {
             if (ThreatGone())
             {
+                CountHelp();
                 EndCreatureFight();
                 return;
             }

@@ -62,6 +62,7 @@ namespace AdvancedNPCs
             if (playerObject != null && Vector3.Distance(playerObject.transform.position, transform.position) > NpcLod.GreetDistance)
             {
                 nextCheck = Time.time + CheckInterval;
+                memory.LeaveAll();      // not watching: whoever comes back is a new encounter
                 return;     // no one sees a greeting this far away (spec opinion-lod §B)
             }
             nextCheck = Time.time + CheckInterval;

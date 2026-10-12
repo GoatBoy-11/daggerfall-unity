@@ -74,6 +74,9 @@ namespace AdvancedNPCs
             behaviour = GetComponent<DaggerfallEntityBehaviour>();
             NpcSprite sprite = GetComponent<NpcSprite>();
             turret = sprite != null && sprite.ChosenSet != null && SpriteStates.IsStationary(sprite.ChosenSet.Set);
+            if (turret)
+                AdvancedNpcsMod.Log(sprite.ChosenSet.Label + ": no usable walk* or run* sheet; " + (brain != null ? brain.Id : name) +
+                    " stands still (a turret).");
             Repin();
             lodPhase = Mathf.Abs(GetInstanceID()) % NpcLod.Phases;
         }
@@ -123,7 +126,9 @@ namespace AdvancedNPCs
             {
                 gait = GaitRules.Fighting(senses != null && senses.TargetInSight, senses != null ? senses.DistanceToTarget : 0f,
                     gait == Gait.Run, def.CanRun);
-                if (gait == Gait.Run && moving && (motor == null || motor.KnockbackSpeed <= 0) &&
+                // Over a skipped LOD gap "moved" spans several frames: boosting it would be one big jump.
+                bool spansGap = dt > Time.deltaTime * 1.5f;
+                if (gait == Gait.Run && moving && !spansGap && (motor == null || motor.KnockbackSpeed <= 0) &&
                     (mobile == null || !mobile.IsPlayingOneShot()))
                 {
                     Vector3 extra = moved * (def.RunSpeed - 1f);

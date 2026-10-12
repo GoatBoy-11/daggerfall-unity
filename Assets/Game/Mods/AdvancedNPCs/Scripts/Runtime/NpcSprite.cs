@@ -28,6 +28,7 @@ namespace AdvancedNPCs
         GameObject quad;
         MeshRenderer quadRenderer;
         NpcGait gait;
+        NpcBrain brain;
         LoadedSpriteSet waitingSet;     // chosen, still loading: nothing drawn yet
         float waitingHeight;
         float waitingScale = 1f;
@@ -80,7 +81,8 @@ namespace AdvancedNPCs
             get
             {
                 return oneShotLeft > 0 || pendingBlow != NoBlow || (gait != null && gait.Current == Core.Gait.Run) ||
-                       (mobile != null && IsAttack(mobile.EnemyState));
+                       (mobile != null && IsAttack(mobile.EnemyState)) ||
+                       (brain != null && (brain.CurrentMode == NpcMode.Fighting || brain.CurrentMode == NpcMode.Fleeing));
             }
         }
 
@@ -222,12 +224,19 @@ namespace AdvancedNPCs
             }
         }
 
-        /// <summary>Stops drawing (the corpse sprite takes over).</summary>
+        /// <summary>Stops drawing and lets go of the set (the corpse sprite takes over and holds its own).</summary>
         public void Hide()
         {
             if (quadRenderer != null)
                 quadRenderer.enabled = false;
             set = null;
+            waitingSet = null;
+            if (acquired)
+            {
+                heldSet.Release();
+                acquired = false;
+            }
+            heldSet = null;
         }
 
         static Mesh billboardMesh;
@@ -286,6 +295,7 @@ namespace AdvancedNPCs
             entityBehaviour = GetComponent<DaggerfallEntityBehaviour>();
             if (gait == null)
                 gait = GetComponent<NpcGait>();
+            brain = GetComponent<NpcBrain>();
 
             quad = CreateQuad(transform, "AnpcSprite");
             quadRenderer = quad.GetComponent<MeshRenderer>();
@@ -403,6 +413,8 @@ namespace AdvancedNPCs
 
             if (oneShotLeft > 0)
                 oneShotLeft -= dt;
+            if (state == SpriteStates.Greet && oneShotLeft > 0 && brain != null && brain.CurrentMode != NpcMode.Calm)
+                oneShotLeft = 0;        // turned hostile mid-greeting: no friendly wave in a fight
             if (oneShotLeft <= 0)
             {
                 if (hitWaiting)
@@ -460,14 +472,10 @@ namespace AdvancedNPCs
             return true;
         }
 
-        /// <summary>Seconds a greet sheet plays (0 without one).</summary>
+        /// <summary>Seconds the greet sheet now playing lasts (0 when none plays).</summary>
         public float GreetSeconds
         {
-            get
-            {
-                List<SpriteAnimation> greets = set != null ? SpriteStates.Variants(set.Set, SpriteStates.Greet) : null;
-                return greets != null && greets.Count > 0 ? (float)greets[0].Frames / set.Set.Fps : 0f;
-            }
+            get { return set != null && state == SpriteStates.Greet && anim != null ? (float)anim.Frames / set.Set.Fps : 0f; }
         }
 
         /// <summary>A cast* or attack* sheet exists; without one a spell plays no animation.</summary>

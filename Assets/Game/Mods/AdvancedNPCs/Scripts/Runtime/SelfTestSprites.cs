@@ -2,6 +2,7 @@ using System.Collections;
 using System.IO;
 using UnityEngine;
 using DaggerfallWorkshop;
+using DaggerfallWorkshop.Game;
 using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
@@ -65,6 +66,25 @@ namespace AdvancedNPCs
                 yield return new WaitForSeconds(1.5f);
                 Check("a set whose user left mid-load settles unloaded", !lazy.IsReady && lazy.Sheets.Count == 0 && lazy.Users == 0,
                     "ready=" + lazy.IsReady + ", sheets=" + lazy.Sheets.Count + ", users=" + lazy.Users);
+
+                // Killed: the living sprite lets go of the set, the corpse holds it (spec tools-quality B2.4).
+                NpcDefinition deadDef = TestDefinition("selftest_lazy_dead", Bravery.Normal, location, player, 1f);
+                deadDef.Folder = "selftest_lazy";
+                NpcBrain dead = SpawnDefinition(deadDef, location);
+                NpcSprite deadSprite = dead.GetComponent<NpcSprite>();
+                float deadUntil = Time.time + 3f;
+                while (Time.time < deadUntil && deadSprite != null && deadSprite.Pending)
+                    yield return null;
+                int corpsesBefore = NpcCorpseSprite.All.Count;
+                PlayerHit(dead, GameManager.Instance.PlayerEntityBehaviour, 100000);
+                yield return new WaitForSeconds(1f);
+                NpcCorpseSprite deadBody = NpcCorpseSprite.All.Count > corpsesBefore ? NpcCorpseSprite.All[NpcCorpseSprite.All.Count - 1] : null;
+                Check("a dead ANPC lets go of its set and its corpse holds it", deadBody != null && lazy.Users == 1,
+                    "corpse=" + (deadBody != null) + ", users=" + lazy.Users);
+                if (deadBody != null)
+                    UnityEngine.Object.Destroy(deadBody.gameObject);
+                NpcBrain.Discard(dead);
+                yield return null;
             }
             finally
             {
