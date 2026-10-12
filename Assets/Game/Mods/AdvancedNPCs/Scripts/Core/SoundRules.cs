@@ -101,6 +101,8 @@ namespace AdvancedNPCs.Core
         public float SoundPitchVariation = 0f;
         public float StepPitch = 1f;
         public float StepPitchVariation = 0f;
+        /// <summary>Without step files of its own, the shared _Sounds steps play (spec default steps).</summary>
+        public bool DefaultSteps = true;
     }
 
     /// <summary>Settings, chances, pitch and footfall frames of custom sounds (spec sounds §C-E). No Unity or DFU types.</summary>
@@ -113,7 +115,7 @@ namespace AdvancedNPCs.Core
         /// <summary>Metres beyond which nothing of an ANPC is heard.</summary>
         public const float MaxAudibleDistance = 30f;
         static readonly string[] Keys =
-            { "combatChance", "greetChance", "stepDistance", "soundPitch", "soundPitchVariation", "stepPitch", "stepPitchVariation" };
+            { "combatChance", "greetChance", "stepDistance", "soundPitch", "soundPitchVariation", "stepPitch", "stepPitchVariation", "defaultSteps" };
 
         /// <summary>Reads "sounds" from an npc.json root: null, or a problem with its key ("sounds.greetChance"). Unknown keys only warn.</summary>
         public static string Read(Dictionary<string, object> root, out string key, out SoundSettings settings, List<string> warnings)
@@ -150,6 +152,13 @@ namespace AdvancedNPCs.Core
             settings.StepPitch = (float)v;
             if ((problem = Ranged(o, "stepPitchVariation", 0, 0, 1, false, out v, ref key)) != null) return problem;
             settings.StepPitchVariation = (float)v;
+            bool defaultSteps;
+            if (FieldReader.Bool(o, "defaultSteps", true, out defaultSteps) != null || (o.ContainsKey("defaultSteps") && o["defaultSteps"] == null))
+            {
+                key = "sounds.defaultSteps";
+                return "must be true or false";
+            }
+            settings.DefaultSteps = defaultSteps;
             key = "sounds";
             return null;
         }
@@ -208,6 +217,15 @@ namespace AdvancedNPCs.Core
         public static float RetireDelay(float longestClipSeconds)
         {
             return Math.Max(0f, longestClipSeconds) / MinPitch + 0.5f;
+        }
+
+        /// <summary>
+        /// The shared default footsteps (ANPCs/_Sounds) play for an ANPC whose own Sounds folder has no step files,
+        /// unless its npc.json turns them off with "defaultSteps": false (spec default steps).
+        /// </summary>
+        public static bool UseDefaultSteps(bool ownStepFiles, bool defaultStepsSetting)
+        {
+            return !ownStepFiles && defaultStepsSetting;
         }
 
         /// <summary>One-shot voices of an ANPC take turns over this many audio sources, so each keeps its own pitch.</summary>

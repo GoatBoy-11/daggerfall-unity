@@ -99,8 +99,64 @@ namespace AdvancedNPCs
                 if (set != null)
                     library.Add(def.Folder, set);
             }
-            AdvancedNpcsMod.Log("Indexed " + library.Count + " sound folder(s).");
+            library.SetDefaultSteps(IndexDefaults(root));
+            AdvancedNpcsMod.Log("Indexed " + library.Count + " sound folder(s)" +
+                (library.defaultSteps != null ? " and " + library.defaultSteps.Files[SoundPools.Step].Count + " default step sound(s)." : "."));
             return library;
+        }
+
+        /// <summary>The shared folder of default sounds: ANPCs/_Sounds.</summary>
+        public const string SharedFolder = "_Sounds";
+        LoadedSoundSet defaultSteps;
+
+        /// <summary>
+        /// The shared footsteps (ANPCs/_Sounds/step_*) for ANPCs without step files of their own (spec default steps);
+        /// null when there are none.
+        /// </summary>
+        public LoadedSoundSet DefaultSteps
+        {
+            get { return defaultSteps; }
+        }
+
+        /// <summary>Replaces the default steps (anpc_reload_assets, self-test); the old set goes once unused.</summary>
+        public void SetDefaultSteps(LoadedSoundSet s)
+        {
+            if (defaultSteps != null && defaultSteps != s)
+                Retire(defaultSteps);
+            defaultSteps = s;
+            if (s != null)
+                s.Library = this;
+        }
+
+        /// <summary>Re-reads ANPCs/_Sounds (anpc_reload_assets); true when it has default steps.</summary>
+        public bool ReloadDefaults(string root)
+        {
+            SetDefaultSteps(IndexDefaults(root));
+            return defaultSteps != null;
+        }
+
+        /// <summary>ANPCs/_Sounds indexed, step files only (others are logged and ignored); null without any.</summary>
+        static LoadedSoundSet IndexDefaults(string root)
+        {
+            string dir = Path.Combine(root, SharedFolder);
+            if (!Directory.Exists(dir))
+                return null;
+            LoadedSoundSet set = IndexSet(SharedFolder, dir);
+            if (set == null)
+                return null;
+            foreach (string pool in new List<string>(set.Files.Keys))
+            {
+                if (pool == SoundPools.Step)
+                    continue;
+                AdvancedNpcsMod.Log(SharedFolder + ": " + pool + " sounds are not used as defaults (only step); ignored");
+                set.Files.Remove(pool);
+            }
+            if (set.Files.Count == 0)
+            {
+                AdvancedNpcsMod.Log(SharedFolder + ": no step sounds; ANPCs without their own have no footsteps");
+                return null;
+            }
+            return set;
         }
 
         /// <summary>The Sounds folder (any case) of an NPC folder, indexed; null when it has none or no usable file.</summary>
@@ -262,10 +318,9 @@ namespace AdvancedNPCs
                 }
             }
             foreach (LoadedSoundSet s in byFolder.Values)
-            {
-                if (s.Users == 0 && s.UnloadAt >= 0f && now >= s.UnloadAt && s.Pending == null && s.IsReady)
-                    Unload(s, true);
-            }
+                UnloadIfUnused(s, now);
+            if (defaultSteps != null)
+                UnloadIfUnused(defaultSteps, now);
             for (int i = retired.Count - 1; i >= 0; i--)
             {
                 if (retired[i].Users > 0 || now < retired[i].UnloadAt)
@@ -273,6 +328,12 @@ namespace AdvancedNPCs
                 Unload(retired[i], false);      // replaced or removed and no longer used: gone for good
                 retired.RemoveAt(i);
             }
+        }
+
+        static void UnloadIfUnused(LoadedSoundSet s, float now)
+        {
+            if (s.Users == 0 && s.UnloadAt >= 0f && now >= s.UnloadAt && s.Pending == null && s.IsReady)
+                Unload(s, true);
         }
 
         static void LoadNext(LoadedSoundSet s)

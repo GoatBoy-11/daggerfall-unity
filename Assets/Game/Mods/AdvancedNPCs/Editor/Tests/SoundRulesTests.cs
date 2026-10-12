@@ -175,6 +175,28 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void DefaultSteps_OnlyWithoutOwnStepFiles_AndNotOptedOut()
+        {
+            Assert.IsTrue(SoundRules.UseDefaultSteps(false, true));
+            Assert.IsFalse(SoundRules.UseDefaultSteps(true, true));       // its own steps replace the defaults
+            Assert.IsFalse(SoundRules.UseDefaultSteps(false, false));     // "defaultSteps": false
+            Assert.IsFalse(SoundRules.UseDefaultSteps(true, false));
+        }
+
+        [Test]
+        public void Read_DefaultStepsIsOnUnlessTurnedOff()
+        {
+            string key;
+            SoundSettings s;
+            Assert.IsNull(SoundRules.Read(Root("{ }"), out key, out s, new List<string>()));
+            Assert.IsTrue(s.DefaultSteps);
+            Assert.IsNull(SoundRules.Read(Root("{ \"sounds\": { \"defaultSteps\": false } }"), out key, out s, new List<string>()));
+            Assert.IsFalse(s.DefaultSteps);
+            Assert.IsNotNull(SoundRules.Read(Root("{ \"sounds\": { \"defaultSteps\": \"no\" } }"), out key, out s, new List<string>()));
+            Assert.AreEqual("sounds.defaultSteps", key);
+        }
+
+        [Test]
         public void VoiceModes_FromTheSettingsChoice()
         {
             Assert.AreEqual(VoiceModes.Vanilla, VoiceModes.FromSetting(0));

@@ -33,6 +33,10 @@ namespace AdvancedNPCs
         Races voiceRace = Races.None;
         bool acquired;
         bool started;
+        bool gone;
+        LoadedSoundSet defaultsOffered;     // the library's shared steps
+        LoadedSoundSet stepDefaults;        // ... when this ANPC uses them
+        bool defaultsAcquired;
         int lastHealth = -1;
         MobileStates lastState;
         float stepTimer;
@@ -96,11 +100,27 @@ namespace AdvancedNPCs
             }
         }
 
-        /// <summary>Every ANPC has one; sounds is null for an ANPC without a Sounds folder.</summary>
-        public void Init(LoadedSoundSet sounds, SoundSettings soundSettings)
+        /// <summary>Where its footsteps come from: "own", "default" or "none" (anpc_info, self-test).</summary>
+        public string StepsSource
+        {
+            get { return OwnSteps ? "own" : stepDefaults != null ? "default" : "none"; }
+        }
+
+        bool OwnSteps
+        {
+            get { return set != null && set.Files.ContainsKey(SoundPools.Step); }
+        }
+
+        /// <summary>
+        /// Every ANPC has one; sounds is null for an ANPC without a Sounds folder. defaultSteps: the shared _Sounds steps
+        /// (null: none), used when it has no step files of its own (spec default steps).
+        /// </summary>
+        public void Init(LoadedSoundSet sounds, SoundSettings soundSettings, LoadedSoundSet defaultSteps)
         {
             set = sounds;
             settings = soundSettings ?? new SoundSettings();
+            defaultsOffered = defaultSteps;
+            ChooseSteps();
             enemySounds = GetComponent<EnemySounds>();
             if (enemySounds != null && enemySounds.RaceForSounds != Races.None)
             {
@@ -152,6 +172,31 @@ namespace AdvancedNPCs
                 set.Acquire();
                 acquired = true;
             }
+            ChooseSteps();
+        }
+
+        /// <summary>Uses other shared steps (anpc_reload_assets re-read _Sounds); null: none.</summary>
+        public void SwapDefaultSteps(LoadedSoundSet next)
+        {
+            defaultsOffered = next;
+            ChooseSteps();
+        }
+
+        /// <summary>The shared steps when it has none of its own and npc.json allows them; held while it is in the world.</summary>
+        void ChooseSteps()
+        {
+            LoadedSoundSet want = defaultsOffered != null && SoundRules.UseDefaultSteps(OwnSteps, settings.DefaultSteps) ? defaultsOffered : null;
+            if (want == stepDefaults)
+                return;
+            if (defaultsAcquired)
+                stepDefaults.Release();
+            defaultsAcquired = false;
+            stepDefaults = want;
+            if (started && !gone && stepDefaults != null)
+            {
+                stepDefaults.Acquire();
+                defaultsAcquired = true;
+            }
         }
 
         /// <summary>Sources that take turns, so overlapping one-shots each keep their own pitch.</summary>
@@ -197,6 +242,11 @@ namespace AdvancedNPCs
                 set.Acquire();
                 acquired = true;
             }
+            if (stepDefaults != null && !defaultsAcquired)
+            {
+                stepDefaults.Acquire();
+                defaultsAcquired = true;
+            }
         }
 
         void OnDestroy()
@@ -204,9 +254,17 @@ namespace AdvancedNPCs
             if (effects != null)
                 effects.OnAssignBundle -= OnAssignBundle;
             EntityEffectBroker.OnNewMagicRound -= OnNewMagicRound;
+            ReleaseAll();
+        }
+
+        void ReleaseAll()
+        {
             if (acquired && set != null)
                 set.Release();
             acquired = false;
+            if (defaultsAcquired && stepDefaults != null)
+                stepDefaults.Release();
+            defaultsAcquired = false;
         }
 
         // Spells and damage over time hurt in the frame a bundle lands or a magic round runs; DFU voices no grunt for them.
@@ -264,9 +322,8 @@ namespace AdvancedNPCs
         public void OnDied()
         {
             PlayDeath();
-            if (acquired && set != null)
-                set.Release();
-            acquired = false;
+            gone = true;
+            ReleaseAll();
         }
 
         void PlayDeath()
@@ -297,14 +354,16 @@ namespace AdvancedNPCs
 
         void Step()
         {
-            if (!FootstepsOn || Playable(SoundPools.Step) == null || steps == null || brain == null || brain.CurrentMode == NpcMode.Dead)
+            // Its own step files, else the shared defaults; its own replace the defaults even while they load.
+            LoadedSoundSet source = OwnSteps ? set : stepDefaults;
+            if (!FootstepsOn || source == null || steps == null || brain == null || brain.CurrentMode == NpcMode.Dead)
                 return;
             if (behaviour != null && behaviour.Entity != null && behaviour.Entity.IsParalyzed)
                 return;
             GameObject player = GameManager.Instance.PlayerObject;
             if (player == null || Vector3.Distance(player.transform.position, transform.position) > settings.StepDistance)
                 return;
-            AudioClip clip = set.Pick(SoundPools.Step);
+            AudioClip clip = source.Pick(SoundPools.Step);
             if (clip == null)
                 return;
             AudioSource step = steps[nextStep];
@@ -312,6 +371,8 @@ namespace AdvancedNPCs
             step.pitch = SoundRules.Pitch(settings.StepPitch, settings.StepPitchVariation, Random.value);
             step.PlayOneShot(clip, DaggerfallUnity.Settings.SoundVolume);
             Count(SoundPools.Step);
+            if (source == stepDefaults)
+                Count("default_step");
         }
 
         void Count(string pool)

@@ -200,6 +200,21 @@ namespace AdvancedNPCs
                 if (wanted && !folders.Contains(d.Folder))
                     folders.Add(d.Folder);
             }
+            bool everyFolder = args == null || args.Length == 0;
+            bool defaultsOnly = !everyFolder && args[0] == SoundLibrary.SharedFolder;
+            if (everyFolder || defaultsOnly)
+            {
+                // The shared default steps (ANPCs/_Sounds) too.
+                bool hasDefaults = Instance.Sounds.ReloadDefaults(AnpcFiles.Root);
+                foreach (NpcBrain b in NpcBrain.All())
+                {
+                    NpcVoice v = b.CurrentMode != NpcMode.Dead ? b.GetComponent<NpcVoice>() : null;
+                    if (v != null)
+                        v.SwapDefaultSteps(Instance.Sounds.DefaultSteps);
+                }
+                if (defaultsOnly)
+                    return "Reloaded " + SoundLibrary.SharedFolder + ": " + (hasDefaults ? "default step sounds found." : "no default step sounds.");
+            }
             if (folders.Count == 0)
                 return args != null && args.Length > 0 ? "No ANPC folder \"" + args[0] + "\". Give an id from ANPCs/ (or nothing for all)." : "No ANPC folders loaded.";
             int sets = 0, soundFolders = 0;

@@ -363,6 +363,69 @@ namespace AdvancedNPCs
                 mod.Sounds.Remove("selftest_voice_modes");
             }
 
+            // Default steps (ANPCs/_Sounds): for ANPCs without step files of their own, unless "defaultSteps": false.
+            string defaultsRoot = Path.Combine(Application.temporaryCachePath, "anpc_selftest_defaults");
+            string defaultsDir = Path.Combine(defaultsRoot, SoundLibrary.SharedFolder);
+            Directory.CreateDirectory(defaultsDir);
+            foreach (string n in new[] { "step_1", "step_2", "greet_1" })
+                File.WriteAllBytes(Path.Combine(defaultsDir, n + ".wav"), ToneWav(0.1f));
+            mod.Sounds.ReloadDefaults(defaultsRoot);
+            LoadedSoundSet defaults = mod.Sounds.DefaultSteps;
+            Check("_Sounds gives default steps, and only steps",
+                defaults != null && defaults.Files.Count == 1 && defaults.Files.ContainsKey(SoundPools.Step) &&
+                defaults.Files[SoundPools.Step].Count == 2, defaults == null ? "none" : defaults.Summary());
+            LoadedSoundSet ownSteps = SoundLibrary.IndexSet("selftest_steps_own/Sounds", dir);
+            mod.Sounds.Add("selftest_steps_own", ownSteps);
+            try
+            {
+                NpcDefinition ad = TestDefinition("selftest_steps_default", Bravery.Normal, location, player, -6f);
+                NpcDefinition od = TestDefinition("selftest_steps_own", Bravery.Normal, location, player, 0f);
+                NpcDefinition nd = TestDefinition("selftest_steps_none", Bravery.Normal, location, player, 6f);
+                ad.Sounds = new SoundSettings();
+                od.Sounds = new SoundSettings { CombatChance = 0, GreetChance = 0 };
+                nd.Sounds = new SoundSettings { DefaultSteps = false };
+                NpcBrain withDefaults = SpawnDefinition(ad, location);
+                NpcBrain withOwn = SpawnDefinition(od, location);
+                NpcBrain withNone = SpawnDefinition(nd, location);
+                yield return Settle;
+                NpcVoice dv = withDefaults.GetComponent<NpcVoice>();
+                NpcVoice ov = withOwn.GetComponent<NpcVoice>();
+                NpcVoice nv = withNone.GetComponent<NpcVoice>();
+                Vector3 side = Vector3.Cross(Vector3.up, open).normalized;
+                NpcBrain[] walkers = { withDefaults, withOwn, withNone };
+                for (int i = 0; i < walkers.Length; i++)
+                {
+                    walkers[i].Teleport(player.position + open * 12f + side * (i - 1) * 2.5f);
+                    FaceToward(walkers[i], player.position);
+                    walkers[i].SwitchHostile(true);
+                }
+                float stepsUntil = Time.time + 5f;
+                while (Time.time < stepsUntil && (dv.Played("default_step") == 0 || ov.Played(SoundPools.Step) == 0))
+                    yield return null;
+                yield return new WaitForSeconds(0.5f);
+                Check("an ANPC without step files of its own plays the default steps",
+                    dv.StepsSource == "default" && dv.Played("default_step") > 0,
+                    "source=" + dv.StepsSource + ", default steps=" + dv.Played("default_step") + ", " + withDefaults.Status);
+                Check("an ANPC with its own step files never uses the defaults",
+                    ov.StepsSource == "own" && ov.Played(SoundPools.Step) > 0 && ov.Played("default_step") == 0,
+                    "source=" + ov.StepsSource + ", steps=" + ov.Played(SoundPools.Step) + ", default steps=" + ov.Played("default_step"));
+                Check("\"defaultSteps\": false keeps an ANPC without step files silent",
+                    nv.StepsSource == "none" && nv.Played(SoundPools.Step) == 0, "source=" + nv.StepsSource + ", steps=" + nv.Played(SoundPools.Step));
+                string stepInfo = AdvancedNpcsMod.InfoCommand(withDefaults.Id);
+                Check("anpc_info names where the footsteps come from", stepInfo.Contains("steps: default"), stepInfo);
+                foreach (NpcBrain w in walkers)
+                {
+                    w.SwitchHostile(false);
+                    NpcBrain.Discard(w);
+                }
+                yield return null;
+            }
+            finally
+            {
+                mod.Sounds.Remove("selftest_steps_own");
+                mod.Sounds.ReloadDefaults(AnpcFiles.Root);     // the installed defaults again
+            }
+
             // The wench example (when installed with the examples): parses, and anpc_spawn brings her with her sprites and sounds.
             NpcDefinition wench = mod.Catalog.Generics.Find(delegate (NpcDefinition t) { return t.Folder == "wench"; });
             if (wench != null)
