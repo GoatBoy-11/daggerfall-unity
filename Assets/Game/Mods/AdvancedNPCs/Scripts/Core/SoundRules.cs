@@ -230,6 +230,19 @@ namespace AdvancedNPCs.Core
             return !ownStepFiles && defaultStepsSetting;
         }
 
+        /// <summary>The shared default footsteps play this much quieter than an ANPC's own (user tuning, 0.21.0).</summary>
+        public const float DefaultStepVolume = 0.85f;
+
+        /// <summary>
+        /// Volume scale of one footstep (times DFU's sound volume): the "Steps volume" setting (percent, 0-100), and the
+        /// shared default steps a little quieter.
+        /// </summary>
+        public static float StepVolume(bool defaultStep, int stepsVolumePercent)
+        {
+            float scale = Math.Max(0, Math.Min(100, stepsVolumePercent)) / 100f;
+            return defaultStep ? scale * DefaultStepVolume : scale;
+        }
+
         /// <summary>One-shot voices of an ANPC take turns over this many audio sources, so each keeps its own pitch.</summary>
         public const int VoiceSources = 3, StepSources = 2;
 

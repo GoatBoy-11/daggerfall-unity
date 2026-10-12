@@ -55,11 +55,12 @@ namespace AdvancedNPCs
             // The checks expect the corpse and sound settings at their defaults; the player's own come back at the end.
             ModConfig config = mod.Config;
             bool deathAnimation = config.DeathAnimation, directionalCorpses = config.DirectionalCorpses, footsteps = config.Footsteps;
-            int voiceMode = config.VoiceMode;
+            int voiceMode = config.VoiceMode, stepsVolume = config.StepsVolume;
             config.DeathAnimation = true;
             config.DirectionalCorpses = false;
             config.VoiceMode = VoiceModes.Anpc;
             config.Footsteps = true;
+            config.StepsVolume = 100;
             AdvancedNpcsMod.Log(Prefix + "START");
 
             // Step through manually so an exception in one check is reported and cleanup still runs.
@@ -94,6 +95,7 @@ namespace AdvancedNPCs
                 config.DirectionalCorpses = directionalCorpses;
                 config.VoiceMode = voiceMode;
                 config.Footsteps = footsteps;
+                config.StepsVolume = stepsVolume;
             }
             Running = false;
 

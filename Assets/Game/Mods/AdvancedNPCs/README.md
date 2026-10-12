@@ -117,7 +117,8 @@ These apply the next time a town loads.
 **Sounds** (apply at once):
 
 - **ANPC sounds** — *ANPC* (default): each ANPC's own [Sounds](#sounds) folder, Daggerfall's voice where it has none. *Vanilla*: Daggerfall's voice for every ANPC; Sounds folders are not used for voices. *Off*: ANPCs make no voice sounds at all (weapon and creature idle sounds stay).
-- **Footsteps** — on (default) or off: footsteps from Sounds folders, whichever **ANPC sounds** is set to.
+- **Footsteps** — on (default) or off: ANPC footsteps (own and default), whichever **ANPC sounds** is set to.
+- **Steps volume** — 0 to 100 (default 100): footstep volume in percent of Daggerfall's sound volume.
 
 ## Upgrading from 0.1
 
@@ -528,7 +529,7 @@ ANPCs/wench/
 
 - A file's name says when it plays: `greet`, `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `hit` (hurt but alive), `death`, `step` and `talk` (a line in a [conversation](#conversations); always plays there, no chance roll, and nowhere else). A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
 - Sounds follow what happens, not the sprite, so an ANPC with the vanilla sprite can have them too.
-- Default footsteps: `step_*` files in the shared `ANPCs/_Sounds` folder play for every ANPC whose own `Sounds` folder has no `step` files (the examples ship four dirt-ground steps there). An ANPC with step files of its own uses only those; `"defaultSteps": false` turns the defaults off for one ANPC. Other names in `_Sounds` are ignored (logged).
+- Default footsteps: `step_*` files in the shared `ANPCs/_Sounds` folder play for every ANPC whose own `Sounds` folder has no `step` files (the examples ship four dirt-ground steps there). They play 15% quieter than an ANPC's own steps. An ANPC with step files of its own uses only those; `"defaultSteps": false` turns the defaults off for one ANPC. Other names in `_Sounds` are ignored (logged).
 - `death` always plays. `step` plays on every footfall while walking or running, but only when you are within `stepDistance`. The others play by chance.
 - With a walk/run sheet, footsteps fall on its first and middle frame; `"stepFrames": [2, 6]` on a `walk*`/`run*` animation in `sprites.json` picks the frames (counted from 1). Without one, a step every 0.5 s walking, 0.33 s running.
 - With **ANPC sounds** set to *ANPC* (the default, see [Settings](#settings)): DFU's own voice grunts (attack, pain) are replaced for the events the folder has sounds for, and kept for the others where DFU plays them: a melee attack, and a hit by a weapon (never for bow shots, spells or damage over time). While the folder's sounds are still loading, or when none of an event's files could be read, DFU's grunt stands in. A creature base class (an orc, say) with `attack` sounds also stops its own attack growl. Weapon swing, impact and parry sounds, and a creature's idle barks, are never changed.

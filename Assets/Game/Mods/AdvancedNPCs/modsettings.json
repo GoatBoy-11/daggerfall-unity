@@ -13,7 +13,7 @@
                     ],
                     "Value": 0,
                     "Name": "GenericPeople",
-                    "Description": "Same people every visit: each town keeps its generic NPCs and what happens to them is saved. Random each visit: re-rolled whenever a town loads; nothing about them is saved.",
+                    "Description": "Same people every visit: each town keeps its generic NPCs\rand what happens to them is saved.\rRandom each visit: re-rolled whenever a town loads;\rnothing about them is saved.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.MultipleChoiceKey"
                 },
@@ -36,14 +36,14 @@
                 {
                     "Value": true,
                     "Name": "Interiors",
-                    "Description": "Generic ANPCs with an \"interiors\" spawn block appear in taverns, guild halls, temples, shops and houses.",
+                    "Description": "Generic ANPCs with an \"interiors\" spawn block appear in taverns,\rguild halls, temples, shops and houses.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
                 },
                 {
                     "Value": true,
                     "Name": "Wilderness",
-                    "Description": "Generic ANPCs with a \"wilderness\" spawn block appear around you in the wilderness.",
+                    "Description": "Generic ANPCs with a \"wilderness\" spawn block appear\raround you in the wilderness.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
                 },
@@ -67,14 +67,14 @@
                 {
                     "Value": true,
                     "Name": "DeathAnimation",
-                    "Description": "Play the death animation before the body lies still. Off: the body appears at once, as in vanilla Daggerfall.",
+                    "Description": "Play the death animation before the body lies still.\rOff: the body appears at once, as in vanilla Daggerfall.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
                 },
                 {
                     "Value": false,
                     "Name": "DirectionalCorpses",
-                    "Description": "A body on its last death frame keeps showing the side you see it from. Off: it shows its front or back and always faces you, like vanilla corpses.",
+                    "Description": "A body on its last death frame keeps showing the side you see it from.\rOff: it shows its front or back and always faces you, like vanilla corpses.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
                 }
@@ -94,16 +94,25 @@
                     ],
                     "Value": 1,
                     "Name": "ANPCSounds",
-                    "Description": "ANPC: each ANPC's own Sounds folder, Daggerfall's voice where it has none. Vanilla: Daggerfall's voice for every ANPC. Off: ANPCs make no voice sounds.",
+                    "Description": "ANPC: each ANPC's own Sounds folder, Daggerfall's voice where it has none.\rVanilla: Daggerfall's voice for every ANPC.\rOff: ANPCs make no voice sounds.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.MultipleChoiceKey"
                 },
                 {
                     "Value": true,
                     "Name": "Footsteps",
-                    "Description": "Footsteps from an ANPC's Sounds folder.",
+                    "Description": "Play ANPC footsteps",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
+                {
+                    "Min": 0,
+                    "Max": 100,
+                    "Value": 100,
+                    "Name": "StepsVolume",
+                    "Description": "Volume of ANPC footsteps, in percent of the sound volume.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderIntKey"
                 }
             ],
             "$version": "v1"

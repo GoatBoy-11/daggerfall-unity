@@ -51,6 +51,9 @@ namespace AdvancedNPCs
             get { return set; }
         }
 
+        /// <summary>Volume scale the last footstep played at, DFU's sound volume included (self-test).</summary>
+        public float LastStepVolume { get; private set; }
+
         /// <summary>How often a pool's event played a sound (self-test); steps count as "step".</summary>
         public int Played(string pool)
         {
@@ -100,6 +103,15 @@ namespace AdvancedNPCs
             {
                 AdvancedNpcsMod mod = AdvancedNpcsMod.Instance;
                 return mod == null || mod.Config == null || mod.Config.Footsteps;
+            }
+        }
+
+        static int StepsVolumePercent
+        {
+            get
+            {
+                AdvancedNpcsMod mod = AdvancedNpcsMod.Instance;
+                return mod != null && mod.Config != null ? mod.Config.StepsVolume : 100;
             }
         }
 
@@ -440,7 +452,8 @@ namespace AdvancedNPCs
             AudioSource step = steps[nextStep];
             nextStep = SoundRules.NextVoice(nextStep, steps.Length);
             step.pitch = SoundRules.Pitch(settings.StepPitch, settings.StepPitchVariation, Random.value);
-            step.PlayOneShot(clip, DaggerfallUnity.Settings.SoundVolume);
+            LastStepVolume = DaggerfallUnity.Settings.SoundVolume * SoundRules.StepVolume(source == stepDefaults, StepsVolumePercent);
+            step.PlayOneShot(clip, LastStepVolume);
             Count(SoundPools.Step);
             if (source == stepDefaults)
                 Count("default_step");

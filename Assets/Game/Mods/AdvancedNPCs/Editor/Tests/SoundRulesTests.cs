@@ -184,6 +184,18 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void StepVolume_DefaultStepsQuieter_ScaledBySetting()
+        {
+            Assert.AreEqual(1f, SoundRules.StepVolume(false, 100), 1e-5f);
+            Assert.AreEqual(0.85f, SoundRules.StepVolume(true, 100), 1e-5f);   // the shared _Sounds steps, 15% quieter
+            Assert.AreEqual(0.5f, SoundRules.StepVolume(false, 50), 1e-5f);
+            Assert.AreEqual(0.425f, SoundRules.StepVolume(true, 50), 1e-5f);
+            Assert.AreEqual(0f, SoundRules.StepVolume(false, 0), 1e-5f);
+            Assert.AreEqual(1f, SoundRules.StepVolume(false, 250), 1e-5f);     // clamped to 0-100
+            Assert.AreEqual(0f, SoundRules.StepVolume(true, -10), 1e-5f);
+        }
+
+        [Test]
         public void Read_DefaultStepsIsOnUnlessTurnedOff()
         {
             string key;

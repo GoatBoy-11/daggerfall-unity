@@ -416,6 +416,23 @@ namespace AdvancedNPCs
                     "source=" + ov.StepsSource + ", steps=" + ov.Played(SoundPools.Step) + ", default steps=" + ov.Played("default_step"));
                 Check("\"defaultSteps\": false keeps an ANPC without step files silent",
                     nv.StepsSource == "none" && nv.Played(SoundPools.Step) == 0, "source=" + nv.StepsSource + ", steps=" + nv.Played(SoundPools.Step));
+                float soundVolume = DaggerfallUnity.Settings.SoundVolume;
+                Check("default steps play 15% quieter than an ANPC's own",
+                    Mathf.Abs(dv.LastStepVolume - soundVolume * SoundRules.DefaultStepVolume) < 0.001f &&
+                    Mathf.Abs(ov.LastStepVolume - soundVolume) < 0.001f,
+                    "default=" + dv.LastStepVolume + ", own=" + ov.LastStepVolume + ", sound volume=" + soundVolume);
+                // The "Steps volume" setting scales every footstep, read as each one plays.
+                mod.Config.StepsVolume = 50;
+                int ownBefore = ov.Played(SoundPools.Step), defaultBefore = dv.Played("default_step");
+                float halfUntil = Time.time + 4f;
+                while (Time.time < halfUntil && (ov.Played(SoundPools.Step) == ownBefore || dv.Played("default_step") == defaultBefore))
+                    yield return null;
+                mod.Config.StepsVolume = 100;
+                Check("Steps volume 50% halves footsteps, own and default",
+                    ov.Played(SoundPools.Step) > ownBefore && dv.Played("default_step") > defaultBefore &&
+                    Mathf.Abs(ov.LastStepVolume - soundVolume * 0.5f) < 0.001f &&
+                    Mathf.Abs(dv.LastStepVolume - soundVolume * 0.5f * SoundRules.DefaultStepVolume) < 0.001f,
+                    "own=" + ov.LastStepVolume + ", default=" + dv.LastStepVolume + ", sound volume=" + soundVolume);
                 string stepInfo = AdvancedNpcsMod.InfoCommand(withDefaults.Id);
                 Check("anpc_info names where the footsteps come from", stepInfo.Contains("steps: default"), stepInfo);
                 foreach (NpcBrain w in walkers)
@@ -430,6 +447,7 @@ namespace AdvancedNPCs
             }
             finally
             {
+                mod.Config.StepsVolume = 100;
                 mod.Sounds.Remove("selftest_steps_own");
                 mod.Sounds.Remove("selftest_steps_defaults");
             }
