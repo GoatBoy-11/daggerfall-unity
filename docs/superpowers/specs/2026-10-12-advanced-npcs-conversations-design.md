@@ -16,7 +16,7 @@ Sections 1 and 2 were approved by the user in chat; section 3 was decided while 
 ```
 
 - Missing, `null`, `false` or `"enabled": false`: never converses (the default). `"conversation": true` is short for
-  `{ "enabled": true }`.
+  `{ "enabled": true }`. Inside the object `enabled` defaults to true: writing the block opts in.
 - `chance`: whole percent 0–100, default 50. Anything else is an error for that key, like other npc.json fields;
   unknown keys inside warn and are ignored.
 - Shared key (unique and generic ANPCs). Added to `Schemas~/npc.schema.json`.
