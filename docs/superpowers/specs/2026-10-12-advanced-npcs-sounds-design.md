@@ -37,11 +37,28 @@ Sounds follow the game event, not the sprite, so an ANPC with the vanilla sprite
 ## C. Settings (npc.json)
 
 ```json
-"sounds": { "combatChance": 50, "greetChance": 50, "stepDistance": 15 }
+"sounds": {
+  "combatChance": 50, "greetChance": 50, "stepDistance": 15,
+  "soundPitch": 1.0, "soundPitchVariation": 0.05,
+  "stepPitch": 1.0, "stepPitchVariation": 0.1
+}
 ```
 
-All optional: chances 0–100 (default 50), `stepDistance` metres > 0 (default 15). Unknown keys warn like other
-blocks. Schema and `check-schemas.py` cover the block.
+All optional. Unknown keys warn like other blocks. Schema and `check-schemas.py` cover the block.
+
+| Key | Range | Default | Applies to |
+|---|---|---|---|
+| combatChance | 0–100 | 50 | attack, attack_range, cast, hit |
+| greetChance | 0–100 | 50 | greet |
+| stepDistance | > 0 m | 15 | step (no steps farther from the player) |
+| soundPitch | 0.25–3 | 1 (normal pitch) | every pool except step |
+| soundPitchVariation | 0–1 | 0 (none) | every pool except step |
+| stepPitch | 0.25–3 | 1 | step |
+| stepPitchVariation | 0–1 | 0 | step |
+
+Each time a sound plays, its pitch is `pitch + random(−variation, +variation)`, at least 0.1. Requested by the
+user as sound_pitch / step_pitch / pitch_variation; camelCase like the other npc.json keys. The vanilla grunts the
+mod replays (§E) keep DFU's own pitch.
 
 ## D. Steps
 
@@ -75,6 +92,7 @@ blocks. Schema and `check-schemas.py` cover the block.
 - Core (unit): pool name parsing (`attack_3` → attack, `attack_range_2` → attack_range, `greet` → greet,
   `foo_1` → unknown, `step_10` → step); pool choice incl. the `attack_range` → `attack` fallback; chance roll;
   default step frames and `stepFrames` parsing/validation; `sounds` block parsing (defaults, ranges, unknown keys);
+  pitch with variation stays within `pitch ± variation` and never below 0.1;
   the vanilla-voice decision table.
 - In-game self-test: a test ANPC with generated clips plays `greet` on greeting, `attack` on an attack, `hit` on
   damage, `death` on death (chance 100); no step beyond `stepDistance`, steps within it while walking; vanilla
@@ -82,4 +100,4 @@ blocks. Schema and `check-schemas.py` cover the block.
 
 ## Out of scope
 
-Idle/ambient barks, per-sound volume or pitch, lip sync, music.
+Idle/ambient barks, per-file volume or pitch, lip sync, music.
