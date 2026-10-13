@@ -588,8 +588,9 @@ Two ANPCs that greet each other sometimes stop and chat, in turns: the one speak
   talk to one of them (the talk window opens as usual), or when one leaves (the town unloads). A line in progress
   is cut off. Leaving and loading a game ends every conversation.
 - `anpc_chat` starts one right away for testing; `anpc_info` shows an ANPC's conversation setting and state.
-- The examples `wench`, `castle_guard_1` and `argonian_female_acrobat_1` (spawning in towns) and
-  `dunmer_citizen_1` and `khajiit_citizen_1` (via `anpc_spawn`) converse.
+- Every example with a sprite set of its own has `talk` sounds and `"conversation"` on. The hostile ones
+  (`iron_sentinel`, `nord_barbarian_1`, `orc_weakling`) never converse while hostile, and the templates without
+  a sprite set (`baker`, `bandit`, `commoner`, `cooper`, `patron`, `smith`, `spellcaster`) never do.
 
 ## Name lists
 

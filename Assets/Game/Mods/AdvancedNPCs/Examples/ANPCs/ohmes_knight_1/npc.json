@@ -29,5 +29,11 @@
     "spells": [],
     "usesMagicka": true,
     "maxMagicka": 0
+  },
+  "sounds": {
+    "soundPitch": 1.06
+  },
+  "conversation": {
+    "enabled": true
   }
 }

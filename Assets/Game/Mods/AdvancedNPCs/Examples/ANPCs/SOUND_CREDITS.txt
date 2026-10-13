@@ -11,4 +11,9 @@ released under CC0. Changes: converted to mono 22 kHz OGG and renamed.
 
 Talk sounds (conversations between ANPCs) are confirmations, refusals and murmurs from the same Super Dialogue
 Audio Pack V1, each example keeping the actor of its greetings (wench: Karen Cenon, argonian_female_acrobat_1: Meghan
-Christian, castle_guard_1: Sean Lenhart, dunmer_citizen_1: Alex Brodie, khajiit_citizen_1: Ian Lampert).
+Christian, castle_guard_1: Sean Lenhart, dunmer_citizen_1: Alex Brodie, khajiit_citizen_1: Ian Lampert). breton_nightblade
+(Alex Brodie), dunmer_mercenary and ohmes_knight_1 (Ian Lampert) and iron_sentinel (Sean Lenhart) use another mix of
+the same actors' confirmations, refusals and murmurs, at a different pitch.
+The talk sounds of argonian_staff_fighter_1 (female V1), dunmer_spellblade and nord_barbarian_1 (male V1), and
+orc_weakling and temple_monk_1 (male V2) are nods, thinking sounds, short laughs, sighs and surprise from NOX_SOUND
+Voices Essentials (CC0). Changes: converted to mono 22 kHz OGG, peak-normalized and renamed.

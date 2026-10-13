@@ -28,5 +28,11 @@
     ],
     "skill": 80
   },
-  "nameList": "dunmer_morrowind"
+  "nameList": "dunmer_morrowind",
+  "sounds": {
+    "soundPitch": 0.92
+  },
+  "conversation": {
+    "enabled": true
+  }
 }

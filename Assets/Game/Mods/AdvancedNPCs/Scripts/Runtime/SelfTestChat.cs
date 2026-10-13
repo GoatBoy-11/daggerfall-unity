@@ -17,6 +17,29 @@ namespace AdvancedNPCs
         IEnumerator ChatSteps(DaggerfallLocation location, Transform player)
         {
             DaggerfallEntityBehaviour playerBehaviour = GameManager.Instance.PlayerEntityBehaviour;
+
+            // Every installed example with a sprite set of its own converses: "conversation" on and 16 talk sounds.
+            string[] talkers = { "argonian_female_acrobat_1", "argonian_staff_fighter_1", "breton_nightblade", "castle_guard_1",
+                "dunmer_citizen_1", "dunmer_mercenary", "dunmer_spellblade", "iron_sentinel", "khajiit_citizen_1",
+                "nord_barbarian_1", "ohmes_knight_1", "orc_weakling", "wench" };
+            List<NpcDefinition> examples = new List<NpcDefinition>(mod.Catalog.ById.Values);
+            examples.AddRange(mod.Catalog.Generics);
+            List<string> silent = new List<string>();
+            int found = 0;
+            foreach (string folder in talkers)
+            {
+                NpcDefinition d = examples.Find(delegate (NpcDefinition e) { return e.Folder == folder; });
+                if (d == null)
+                    continue;       // not installed
+                found++;
+                LoadedSoundSet sounds = mod.Sounds.For(folder);
+                if (!d.Conversation.Enabled || sounds == null || !sounds.Files.ContainsKey(SoundPools.Talk) ||
+                    sounds.Files[SoundPools.Talk].Count != 16)
+                    silent.Add(folder);
+            }
+            Check("every example with its own sprite set converses (conversation on, 16 talk sounds)",
+                found > 0 && silent.Count == 0, found + " installed; without: " + string.Join(", ", silent.ToArray()));
+
             string root = Path.Combine(Application.temporaryCachePath, "anpc_selftest_chat");
             string talkDir = Path.Combine(root, "Sounds");
             string muteDir = Path.Combine(Path.Combine(root, "mute"), "Sounds");
