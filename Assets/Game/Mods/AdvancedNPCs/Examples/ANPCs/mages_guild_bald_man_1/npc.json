@@ -7,7 +7,7 @@
   "wanderRadius": 2,
   "portrait": "mages_guild_bald_man_1",
   "replaces": ["177.2"],
-  "replacePortrait": true,
+  "replacePortrait": false,
   "replaceName": false,
   "stayNear": 2,
   "combat": {
@@ -23,6 +23,7 @@
     "castCooldown": [5, 9],
     "skill": 70
   },
+  "sounds": { "soundPitch": 0.88, "soundPitchVariation": 0.03 },
   "conversation": {
     "enabled": true
   }

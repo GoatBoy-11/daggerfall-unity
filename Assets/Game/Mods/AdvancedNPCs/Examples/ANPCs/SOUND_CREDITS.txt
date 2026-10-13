@@ -32,6 +32,7 @@ Who uses what
 - dunmer_mercenary: Super Dialogue, Ian Lampert (greet, talk, attack, hit, death).
 - dunmer_spellblade: John Carroll, Mage Voice Pack (greet, talk, attack, cast, hit, death).
 - khajiit_citizen_1, ohmes_knight_1: Voice Jam KK (greet, talk, attack, hit, death).
+- mages_guild_bald_man_1: John Carroll, Mage Voice Pack, pitched down (greet, talk, attack, attack_range, cast, hit, death).
 - nord_barbarian_1: skpy gruff (greet, talk, attack, hit, death).
 - orc_weakling: John Carroll, Orc Voice Pack (talk, attack, hit, death).
 - patron: Super Dialogue, Alex Brodie / Meghan Christian (talk_male / talk_female).

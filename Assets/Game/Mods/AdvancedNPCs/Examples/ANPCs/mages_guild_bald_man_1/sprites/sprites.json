@@ -1,5 +1,5 @@
 {
-  "pixelsPerUnit": 109.8683,
+  "pixelsPerUnit": 109.962,
   "cellHeight": 256,
   "groundY": 26,
   "anchorX": "centre",
@@ -30,7 +30,7 @@
       "frames": 4
     },
     "death_1": {
-      "cellWidth": 416,
+      "cellWidth": 400,
       "frames": 7
     },
     "greet_1": {

@@ -2,7 +2,7 @@ Mages Guild bald mage / stand-in for Daggerfall's own bald mage (flat 177.2)
 
 "replaces": ["177.2"]: he takes the place of every vanilla bald-man flat (Mages Guild
 halls and elsewhere). Clicking him opens that NPC's own talk, quests and guild
-services; the talk window shows his portrait, the vanilla name is kept. He stays
+services; the vanilla face and name are kept (replacePortrait and replaceName false). He stays
 within 2 m of the flat's spot when calm. No spawn block: he never appears otherwise.
 Calm Redguard Mage, Prudent: fights back when attacked. Reads a floating spell book.
 
