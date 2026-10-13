@@ -60,7 +60,10 @@ namespace AdvancedNPCs
                 // Loaded inside a dungeon or building: the towns outside are switched off and their navigation is
                 // not linked yet, so their generics wait until the player steps out.
                 if (town.gameObject.activeInHierarchy)
+                {
                     SpawnGenerics(town, owner.Catalog.Generics, owner.Config.Mode, owner.Config.MaxGenericPerTown);
+                    ReplaceFlats(town);
+                }
                 else
                     owner.StartCoroutine(SpawnGenericsNextFrame(town));
             }
@@ -163,6 +166,13 @@ namespace AdvancedNPCs
             if (location == null || !location.gameObject.activeInHierarchy)
                 yield break;
             SpawnGenerics(location, owner.Catalog.Generics, owner.Config.Mode, owner.Config.MaxGenericPerTown);
+            ReplaceFlats(location);
+        }
+
+        /// <summary>Stand-ins for the town's own street flats ("replaces"); building and dungeon flats are done on entry.</summary>
+        void ReplaceFlats(DaggerfallLocation town)
+        {
+            owner.Flats.ReplaceIn(town.transform, town.Summary.MapID, "town", DefaultRace(town), IndoorSpawner.IndoorWander);
         }
 
         /// <summary>Walkable cell count each town's generics were planned on, by map id (read by the self-test).</summary>

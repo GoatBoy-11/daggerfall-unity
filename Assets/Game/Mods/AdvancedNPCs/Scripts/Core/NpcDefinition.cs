@@ -94,5 +94,7 @@ namespace AdvancedNPCs.Core
         public string Folder = "";
         /// <summary>Path used in messages, e.g. "bram/npc.json".</summary>
         public string SourceFile;
+        /// <summary>"replaces": vanilla flat NPCs this generic ANPC stands in for, or null.</summary>
+        public ReplaceSettings Replace;
     }
 }

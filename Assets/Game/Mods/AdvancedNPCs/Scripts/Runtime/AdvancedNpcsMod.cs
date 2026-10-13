@@ -41,6 +41,8 @@ namespace AdvancedNPCs
         public TopicInjector Topics { get; private set; }
         /// <summary>People in dungeons and buildings.</summary>
         public IndoorSpawner Indoors { get; private set; }
+        /// <summary>ANPCs standing in for vanilla flat NPCs ("replaces").</summary>
+        public FlatReplacer Flats { get; private set; }
         /// <summary>Wilderness encounters around the player.</summary>
         public WildernessSpawner Wilderness { get; private set; }
 
@@ -138,6 +140,8 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_summon",
                 "Moves a spawned Advanced NPC in front of you (testing only, not saved).", "anpc_summon <id>", SummonCommand);
             spawner = new NpcSpawner(this);
+            Flats = gameObject.AddComponent<FlatReplacer>();
+            Flats.Init(this, spawner);
             spawner.Enable();
             // After the town spawner: on a load its handler clears every ANPC first, then this one refills the place inside.
             Indoors = new IndoorSpawner(this, spawner);

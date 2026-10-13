@@ -317,6 +317,37 @@ its `spawn`:
   patron can be talked to. Indoors people wander at most 3 m.
 - Not sure why someone is (or isn't) there? Type `anpc_here`.
 
+## Replacing vanilla NPCs
+
+A generic ANPC can stand in for Daggerfall's own flat (non-moving) NPCs: shopkeepers, innkeepers, guild members,
+quest givers. Name the vanilla NPC in `"replaces"`:
+
+```json
+"replaces": ["177.2", "faction:1003"],
+"replacePortrait": true,
+"replaceName": false,
+"stayNear": 3
+```
+
+- **`replaces`**: one id or a list. A sprite id is the flat's texture archive and record (`"177.2"`; `"177 2"` and
+  `"177_2"` work too); `"faction:<id>"` matches every flat of that faction (named NPCs have their own faction).
+- The flat stays in the world but is hidden, and the ANPC appears on its spot with all its own sprites, AI, sounds
+  and combat. Clicking it does exactly what clicking the vanilla NPC does: the same dialogue, quest offers, quest
+  people, shop, bank, inn rooms and guild services (vanilla's own click is used, so other mods' services work too).
+- **`replacePortrait`** (default `true`): the talk window shows the ANPC's own portrait (a PNG portrait; with a
+  vanilla face the vanilla NPC's face stays). **`replaceName`** (default `false`): show the ANPC's own name instead
+  of the vanilla NPC's (quest text always uses the vanilla name).
+- **`stayNear`** (metres, default `0` = off): keeps a calm stand-in within this distance of its spot, so a
+  shopkeeper stays by the counter; after a fight or flight it walks back. Indoors they wander at most 3 m anyway.
+- When several ANPCs replace the same vanilla NPC, each vanilla person gets one of them at random, and keeps that
+  one for the whole game (seeded by the flat itself, not saved).
+- Stand-ins can be fought and can die. A dead stand-in stays dead, and so does the vanilla NPC it replaced: that
+  shop or guild has no one at the counter any more.
+- A quest that hides or shows the vanilla NPC hides or shows its stand-in. NPCs with their own scripted action (the
+  Daggerfall castle gate guard, Sheogorath) are never replaced.
+- Without a `spawn` block the ANPC only appears as a stand-in; with one it also spawns as usual.
+- Works in buildings, dungeons (castles) and on town streets. Only generic ANPCs can replace.
+
 ## Talking and portraits
 
 - Click a calm ANPC in Talk or Grab mode to open DFU's citizen talk window with its name and portrait; vanilla topics work as for any citizen.

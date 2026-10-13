@@ -92,6 +92,9 @@ namespace AdvancedNPCs
         /// <summary>Most metres this person wanders from its spot (indoors 3 m, spec outside-towns §7).</summary>
         public float WanderCap = float.MaxValue;
 
+        /// <summary>A stand-in's "stayNear": metres it keeps to around its spot while calm (walks back after a fight); 0 = none.</summary>
+        public float Leash;
+
         public NpcMode CurrentMode
         {
             get { return mode; }
@@ -666,7 +669,20 @@ namespace AdvancedNPCs
                 return;
             }
             float wanderRadius = Mathf.Min(def.WanderRadius, WanderCap);
-            if (wanderRadius <= 0f)
+            if (Leash > 0f)
+            {
+                wanderRadius = Mathf.Min(wanderRadius, Leash);
+                Vector3 homeWorld = transform.parent != null ? transform.parent.TransformPoint(homeLocal) : homeLocal;
+                Vector3 away = homeWorld - transform.position;
+                away.y = 0f;
+                if (away.magnitude > Leash + 0.5f)
+                {
+                    // Pushed or chased out of its area: walk straight back.
+                    wanderTargetLocal = homeLocal;
+                    hasWanderTarget = true;
+                }
+            }
+            if (wanderRadius <= 0f && !hasWanderTarget)
             {
                 mover.Stop();
                 return;
