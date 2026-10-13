@@ -96,6 +96,7 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestOutside.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestReplies.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestRanged.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestReplace.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestSprites.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/NpcMagicDefinition.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcMagicWorld.cs",

@@ -1,0 +1,29 @@
+{
+  "kind": "generic",
+  "race": "Redguard",
+  "gender": "Male",
+  "baseClass": "Mage",
+  "bravery": "Prudent",
+  "wanderRadius": 2,
+  "portrait": "mages_guild_bald_man_1",
+  "replaces": ["177.2"],
+  "replacePortrait": true,
+  "replaceName": false,
+  "stayNear": 2,
+  "combat": {
+    "rangedAtDistance": true,
+    "rangedAnimation": "attack_range_1",
+    "projectileDamage": [4, 10]
+  },
+  "magic": {
+    "spells": ["Fireball", "Wizard's Fire", "Resist Fire"],
+    "usesMagicka": true,
+    "maxMagicka": 100,
+    "recovery": "onAreaEntry",
+    "castCooldown": [5, 9],
+    "skill": 70
+  },
+  "conversation": {
+    "enabled": true
+  }
+}

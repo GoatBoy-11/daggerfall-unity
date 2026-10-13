@@ -37,7 +37,7 @@ namespace AdvancedNPCs
         int passed;
         int failed;
 
-        /// <summary>null runs every check; RangedSuite only the ranged-attack ones (a short run).</summary>
+        /// <summary>null runs every check; RangedSuite / ReplaceSuite only the ranged-attack / flat replacement ones (a short run).</summary>
         public string Suite;
 
         public SelfTest(AdvancedNpcsMod mod, NpcSpawner spawner)
@@ -120,9 +120,9 @@ namespace AdvancedNPCs
             }
             DaggerfallEntityBehaviour playerBehaviour = gm.PlayerEntityBehaviour;
             Transform playerTransform = gm.PlayerObject.transform;
-            if (Suite == RangedSuite)
+            if (Suite == RangedSuite || Suite == ReplaceSuite)
             {
-                IEnumerator only = RangedSteps(location, playerTransform);
+                IEnumerator only = Suite == RangedSuite ? RangedSteps(location, playerTransform) : ReplaceSteps(location, playerTransform);
                 while (only.MoveNext())
                     yield return only.Current;
                 yield break;
@@ -921,6 +921,9 @@ namespace AdvancedNPCs
             IEnumerator rangedSteps = RangedSteps(location, playerTransform);
             while (rangedSteps.MoveNext())
                 yield return rangedSteps.Current;
+            IEnumerator replaceSteps = ReplaceSteps(location, playerTransform);
+            while (replaceSteps.MoveNext())
+                yield return replaceSteps.Current;
 
             IEnumerator sounds = SoundSteps(location, playerTransform);
             while (sounds.MoveNext())

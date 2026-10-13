@@ -546,8 +546,8 @@ namespace AdvancedNPCs
             if (SelfTest.Running)
                 return "The self-test is already running.";
             SelfTest test = new SelfTest(Instance, Instance.spawner);
-            if (args.Length > 0 && args[0] == SelfTest.RangedSuite)
-                test.Suite = SelfTest.RangedSuite;
+            if (args.Length > 0 && (args[0] == SelfTest.RangedSuite || args[0] == SelfTest.ReplaceSuite))
+                test.Suite = args[0];
             Instance.StartCoroutine(test.Run(null));
             return "Self-test started; results appear on screen and in Player.log (SELFTEST lines).";
         }
@@ -555,8 +555,8 @@ namespace AdvancedNPCs
         /// <summary>
         /// Unattended start used by Tools~/selftest.sh and Tools~/play.sh: the flag file's first two lines name a
         /// character and a save, which is loaded straight from the title screen. A third line "play" stops there
-        /// (manual testing; the flag file is removed so the next start is normal); "ranged" runs only the ranged-attack
-        /// checks (Tools~/selftest-ranged.sh); otherwise the whole self-test runs. Then the game quits.
+        /// (manual testing; the flag file is removed so the next start is normal); "ranged" / "replace" run only the
+        /// ranged-attack / flat replacement checks (Tools~/selftest-ranged.sh, selftest-replace.sh); otherwise the whole self-test runs. Then the game quits.
         /// </summary>
         IEnumerator AutoRun(string path)
         {
@@ -570,7 +570,8 @@ namespace AdvancedNPCs
             string character = lines[0].Trim();
             string save = lines[1].Trim();
             bool play = lines.Length > 2 && lines[2].Trim() == "play";
-            string suite = lines.Length > 2 && lines[2].Trim() == SelfTest.RangedSuite ? SelfTest.RangedSuite : null;
+            string third = lines.Length > 2 ? lines[2].Trim() : "";
+            string suite = third == SelfTest.RangedSuite || third == SelfTest.ReplaceSuite ? third : null;
             if (play)
                 File.Delete(path);
             Log(SelfTest.Prefix + "autorun: loading save '" + save + "' of '" + character + "'" + (play ? " to play" : ""));

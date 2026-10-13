@@ -671,7 +671,7 @@ taverns) show spawning outside towns. `dunmer_spellblade` is a manual-spawn Dunm
 sheets, her own portrait, the `tavern_wench` dialogue and her own greet, hit, death and step sounds (see
 `SOUND_CREDITS.txt`). Try `anpc_spawn wench`.
 
-Seven fully animated characters (14 sheets each, hit/death/cast effects, custom portraits):
+Eight fully animated characters (custom portraits; all but the bald mage with 14 sheets and hit/death/cast effects):
 
 - `iron_sentinel`: hostile Breton knight with a two-handed claymore. Dungeons only (ruined castles, human strongholds, prisons).
 - `orc_weakling`: a lower-tier orc with a crude club, on the `Orc` creature, made weaker and quicker with `"combat"`
@@ -685,6 +685,10 @@ Seven fully animated characters (14 sheets each, hit/death/cast effects, custom 
   rarely on the road by day. His tail is rigged and animated; `sprites.json` carries `"standingHeight"`.
 - `argonian_female_acrobat_1`: a calm Argonian acrobat who fights barehanded (karate chop and front kick), with a
   rigged tail; towns and sometimes taverns. Uses `"race": "Argonian"`.
+- `mages_guild_bald_man_1`: Daggerfall's bald Mages Guild mage as an ANPC. `"replaces": ["177.2"]` puts him in
+  place of every vanilla bald-man flat (talk, quests and guild services stay the vanilla NPC's). Reads a floating
+  spell book with his arms folded, smashes you with it up close, hurls fireballs (`projectile.png`) and casts
+  Fireball and Wizard's Fire. No spawn block: he appears only as that stand-in.
 - `argonian_staff_fighter_1`: the same Argonian in a red top, fighting with a two-handed quarterstaff (overhead
   strike and lunging thrust); towns, temples and Fighters Guild halls.
 
