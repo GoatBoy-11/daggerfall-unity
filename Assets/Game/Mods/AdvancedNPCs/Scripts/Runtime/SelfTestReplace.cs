@@ -19,18 +19,16 @@ namespace AdvancedNPCs
     {
         public const string ReplaceSuite = "replace";
         const string BaldMage = "mages_guild_bald_man_1";
+        const string CowledOldMan = "cowled_old_man_1";
         static readonly FieldInfo FlatDataField = typeof(StaticNPC).GetField("npcData", BindingFlags.Instance | BindingFlags.NonPublic);
 
         IEnumerator ReplaceSteps(DaggerfallLocation location, Transform player)
         {
             DiscardTestPeople();
 
-            // The installed example: replaces 177.2, with its fireball and ranged sheet.
-            NpcDefinition mage = mod.Catalog.Generics.Find(delegate (NpcDefinition d) { return d.Id == BaldMage; });
-            List<LoadedSpriteSet> sets = mod.Sprites.For(BaldMage);
-            Check("bald mage example replaces 177.2 and has its fireball", mage != null && mage.Replace != null && mage.Replace.Matches(177, 2, 0) &&
-                sets.Count > 0 && sets[0].Set.Animations.ContainsKey("attack_range_1") && sets[0].Set.Projectiles.Count > 0,
-                mage == null ? BaldMage + " not installed" : "replace " + (mage.Replace != null) + ", sprite sets " + sets.Count);
+            // The installed examples: each replaces its vanilla flat, with its fireball and ranged sheet.
+            NpcDefinition mage = CheckStandInExample(BaldMage, 2, "bald mage");
+            CheckStandInExample(CowledOldMan, 0, "cowled old man");
             NpcDefinition added = null;
             if (mage == null)
             {
@@ -119,6 +117,16 @@ namespace AdvancedNPCs
             Object.Destroy(parent);
             if (added != null)
                 mod.Catalog.Generics.Remove(added);
+        }
+
+        NpcDefinition CheckStandInExample(string id, int record, string label)
+        {
+            NpcDefinition d = mod.Catalog.Generics.Find(delegate (NpcDefinition t) { return t.Id == id; });
+            List<LoadedSpriteSet> sets = mod.Sprites.For(id);
+            Check(label + " example replaces 177." + record + " and has its fireball", d != null && d.Replace != null && d.Replace.Matches(177, record, 0) &&
+                sets.Count > 0 && sets[0].Set.Animations.ContainsKey("attack_range_1") && sets[0].Set.Projectiles.Count > 0,
+                d == null ? id + " not installed" : "replace " + (d.Replace != null) + ", sprite sets " + sets.Count);
+            return d;
         }
 
         static Vector3 Flatten(Vector3 v)

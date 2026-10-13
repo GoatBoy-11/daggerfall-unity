@@ -671,7 +671,7 @@ taverns) show spawning outside towns. `dunmer_spellblade` is a manual-spawn Dunm
 sheets, her own portrait, the `tavern_wench` dialogue and her own greet, hit, death and step sounds (see
 `SOUND_CREDITS.txt`). Try `anpc_spawn wench`.
 
-Eight fully animated characters (custom portraits; all but the bald mage with 14 sheets and hit/death/cast effects):
+Nine fully animated characters (custom portraits; hit/death/cast effects; the two mages have 10-11 sheets, the rest 14):
 
 - `iron_sentinel`: hostile Breton knight with a two-handed claymore. Dungeons only (ruined castles, human strongholds, prisons).
 - `orc_weakling`: a lower-tier orc with a crude club, on the `Orc` creature, made weaker and quicker with `"combat"`
@@ -689,6 +689,9 @@ Eight fully animated characters (custom portraits; all but the bald mage with 14
   place of every vanilla bald-man flat (talk, quests and guild services stay the vanilla NPC's). Reads a floating
   spell book with his arms folded, smashes you with it up close, hurls fireballs (`projectile.png`) and casts
   Fireball and Wizard's Fire. No spawn block: he appears only as that stand-in.
+- `cowled_old_man_1`: Daggerfall's cowled old man (`"replaces": ["177.0"]`), with his dragon-wing staff planted
+  at arm's length as in the vanilla sprite, its head pulsing with light. Walks with the staff as a walking stick,
+  strikes with it two-handed, looses blue fireballs from it and casts Shock, Paralysis, Heal and Shield.
 - `argonian_staff_fighter_1`: the same Argonian in a red top, fighting with a two-handed quarterstaff (overhead
   strike and lunging thrust); towns, temples and Fighters Guild halls.
 

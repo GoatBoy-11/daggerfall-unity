@@ -28,6 +28,7 @@ Who uses what
 - castle_guard_1, iron_sentinel: Voice Jam Gruff (greet, talk, attack, hit, death).
 - commoner: Super Dialogue, Ian Lampert / Karen Cenon (talk_male / talk_female).
 - cooper: Super Dialogue, Sean Lenhart (talk). smith: Super Dialogue, Alex Brodie (talk).
+- cowled_old_man_1: skpy raspy, pitched down (greet, talk, attack, attack_range, cast, hit, death).
 - dunmer_citizen_1: skpy whiny (greet, talk, attack, hit, death).
 - dunmer_mercenary: Super Dialogue, Ian Lampert (greet, talk, attack, hit, death).
 - dunmer_spellblade: John Carroll, Mage Voice Pack (greet, talk, attack, cast, hit, death).
