@@ -30,6 +30,7 @@ namespace AdvancedNPCs
         NpcGait gait;
         NpcBrain brain;
         NpcVoice voice;
+        NpcRanged ranged;       // own ranged attack (creature throws, projectile images): fired here on the action frame
         LoadedSpriteSet waitingSet;     // chosen, still loading: nothing drawn yet
         float waitingHeight;
         float waitingScale = 1f;
@@ -64,7 +65,7 @@ namespace AdvancedNPCs
         int blowsDelivered;
         int vanillaBlowsHeld;
 
-        /// <summary>npc.json "combat.rangedAnimation": the sheet a bow shot plays; null or missing picks attack_range*, else attack*.</summary>
+        /// <summary>npc.json "combat.rangedAnimation": the sheet a bow shot or throw plays; null or missing picks attack_range*, else attack*.</summary>
         public string RangedSheet;
 
         public LoadedSpriteSet Set
@@ -350,6 +351,7 @@ namespace AdvancedNPCs
                 gait = GetComponent<NpcGait>();
             brain = GetComponent<NpcBrain>();
             voice = GetComponent<NpcVoice>();
+            ranged = GetComponent<NpcRanged>();
 
             quad = CreateQuad(transform, "AnpcSprite");
             quadRenderer = quad.GetComponent<MeshRenderer>();
@@ -385,6 +387,8 @@ namespace AdvancedNPCs
             // The spawner adds the voice after the sprite: a set already loaded ran Init before it existed.
             if (voice == null)
                 voice = GetComponent<NpcVoice>();
+            if (ranged == null)
+                ranged = GetComponent<NpcRanged>();
             if (heldSet == null || acquired)
                 return;
             heldSet.Acquire();
@@ -587,16 +591,17 @@ namespace AdvancedNPCs
         {
             if (s == MobileStates.Spell && !HasCastSheet)
                 return;
+            bool thrown = IsThrow(s);
             if (s == MobileStates.Spell)
                 StartOneShot(SpriteStates.Cast);
-            else if (IsRanged(s))
+            else if (IsRanged(s) || thrown)
                 StartOneShot(SpriteStates.RangedAttack, RangedSheet);
             else
                 StartOneShot(SpriteStates.Attack);
             hitWaiting = false;
             // Only attack sheets with an action frame take over the timing; spells keep DFU's own.
             bool ours = anim.ActionFrame >= 0 && SpriteStates.IsAttackSheet(anim.Name) && s != MobileStates.Spell;
-            pendingBlow = ours ? (s == MobileStates.PrimaryAttack ? MeleeBlow : ArrowBlow) : NoBlow;
+            pendingBlow = ours ? (s == MobileStates.PrimaryAttack && !thrown ? MeleeBlow : ArrowBlow) : NoBlow;
             vanillaToHold = ours ? 1 : 0;
         }
 
@@ -624,14 +629,28 @@ namespace AdvancedNPCs
                 vanillaToHold--;
                 vanillaBlowsHeld++;
             }
+            else if (ranged != null)
+            {
+                ranged.TakeVanillaBlow();       // a sheet without an action frame: DFU's moment, our projectile
+            }
 
-            if (pendingBlow != NoBlow && state == SpriteStates.Attack && frame >= anim.ActionFrame)
+            if (pendingBlow != NoBlow && (state == SpriteStates.Attack || state == SpriteStates.RangedAttack) && frame >= anim.ActionFrame)
             {
                 if (pendingBlow == MeleeBlow)
+                {
                     mobile.DoMeleeDamage = true;
+                    sentBlow = pendingBlow;
+                }
+                else if (ranged != null)
+                {
+                    ranged.Fire();
+                    blowsDelivered++;
+                }
                 else
+                {
                     mobile.ShootArrow = true;
-                sentBlow = pendingBlow;
+                    sentBlow = pendingBlow;
+                }
                 pendingBlow = NoBlow;
                 blowsLanded++;
             }
@@ -652,15 +671,21 @@ namespace AdvancedNPCs
                 return SpriteStates.Hit;
             if (s == MobileStates.Spell && HasCastSheet)
                 return SpriteStates.Cast;
-            if (s == MobileStates.PrimaryAttack)
+            if (s == MobileStates.PrimaryAttack && !IsThrow(s))
                 return SpriteStates.Attack;
-            if (IsRanged(s))
+            if (IsRanged(s) || IsThrow(s))
                 return SpriteStates.RangedAttack;
             if (talkLeft > 0 && speed <= WalkSpeed)
                 return SpriteStates.Talk;
             if (speed <= WalkSpeed)
                 return SpriteStates.Idle;       // standing, or turning on the spot
             return gait != null && gait.Current == Gait.Run ? SpriteStates.Run : SpriteStates.Walk;
+        }
+
+        /// <summary>A creature's attack state that NpcRanged started as a throw.</summary>
+        bool IsThrow(MobileStates s)
+        {
+            return s == MobileStates.PrimaryAttack && ranged != null && ranged.Throwing;
         }
 
         static bool IsRanged(MobileStates s)

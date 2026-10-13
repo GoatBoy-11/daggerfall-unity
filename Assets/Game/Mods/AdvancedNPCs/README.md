@@ -207,13 +207,20 @@ enemies. Bravery still applies (a Coward enemy runs).
   setting) after each melee attack; 1.3 waits 1/1.3 as long.
 - `rangedAtDistance` (true/false, default false): DFU gives every human class a bow and shoots it at random when
   the target is far away. ANPCs fight in melee only unless this is `true`. Mage, Healer and other casters without
-  a bow are not affected; creatures have no bow (an error).
-- `rangedAnimation` (optional): the sheet a bow shot plays, e.g. `"attack_range_1"`. Without it, a random
-  `attack_range*` sheet plays, or an `attack*` sheet if the set has none. A name the sprite set lacks is noted in
-  `Player.log` and the same fallback is used.
+  a bow are not affected. A creature `baseClass` has no bow in DFU: with `true` it throws instead, now and then,
+  when its target is 6–51 m away, in sight and in front of it (DFU's own bow rules), and keeps closing in to melee.
+- `rangedAnimation` (optional): the sheet a bow shot or throw plays, e.g. `"attack_range_1"`. Without it, a random
+  `attack_range*` (or `attack_ranged*`) sheet plays, or an `attack*` sheet if the set has none. A name the sprite
+  set lacks is noted in `Player.log` and the same fallback is used. Its `actionFrame` is when the shot leaves.
+- `projectileDamage` (optional, needs `rangedAtDistance`): what a ranged hit does, `[min, max]` or one number
+  (whole numbers 1–1000), instead of DFU's own bow (or creature melee) damage. DFU's to-hit roll still decides
+  whether it hits; the amount is then rolled from min to max.
+- Projectiles: a `projectile.png` (or several, `projectile_1.png`, `projectile_2.png`, ..., one picked at random
+  per shot) in the sprite set folder is what flies, at the person's scale, instead of DFU's arrow; without one, DFU's
+  arrow flies. See [Projectile images](#projectile-images).
 
 ```json
-"combat": { "rangedAtDistance": true, "rangedAnimation": "attack_range_1" }
+"combat": { "rangedAtDistance": true, "rangedAnimation": "attack_ranged_1", "projectileDamage": [2, 4] }
 ```
 
 - `runSpeed` (1–2, default 1.2): how much faster than walking the ANPC runs. A fighting ANPC runs when it sees its
@@ -492,7 +499,7 @@ ANPCs/wench/
 - For characters with a separate weapon mesh, `Tools~/render-character-sprites.py` includes both meshes in rendering and bounds: `--mesh body,sword`. `--keep-last death_1` keeps the final corpse pose. The Dunmer example documents a complete command.
 - A character whose idle holds a weapon above its head (a guard's upright spear) would look smaller in game, because the standing height is measured from the tallest idle pixel. Add `--standing-mesh body` (the body mesh alone) and the renderer writes `"standingHeight"` (pixels above the feet row, without the weapon) into `sprites.json`; the game then sizes the person by the body.
 - Sprite sets load when an ANPC using them appears (it may show up a moment after spawning) and unload a minute after the last one is gone; at startup only the files and their sizes are checked.
-- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `run*` (running), `hit*` (hurt), `attack*` (attacking), `attack_range*` (shooting a bow, see `rangedAtDistance`), `cast*` (spellcasting), `greet*` (greeting), `talk*` (speaking in a [conversation](#conversations)), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing run sheets use walk sheets and missing walk sheets use run sheets, then idle; missing hit/attack sheets use idle; greet sheets have no fallback; missing talk sheets use idle; a set needs at least one idle sheet.
+- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `run*` (running), `hit*` (hurt), `attack*` (attacking), `attack_range*` or `attack_ranged*` (shooting a bow or throwing, see `rangedAtDistance`), `cast*` (spellcasting), `greet*` (greeting), `talk*` (speaking in a [conversation](#conversations)), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing run sheets use walk sheets and missing walk sheets use run sheets, then idle; missing hit/attack sheets use idle; greet sheets have no fallback; missing talk sheets use idle; a set needs at least one idle sheet.
 - Turret: a set with no `walk*` and no `run*` sheet never moves: it does not wander, chase, flee or get knocked
   back, but still turns to its target and attacks, shoots or casts from where it stands. Like any DFU enemy it only
   notices a quiet player in front of it, so place turrets facing where trouble comes from. When `sprites.json` lists
@@ -508,8 +515,25 @@ ANPCs/wench/
 - Death: the death sheet plays (shown from the side you see it from) and the body stays as the corpse, on the last frame of its front or back row, always facing you; see the **Corpses** [settings](#settings) to skip the animation or keep the body showing the side you see it from. `death_static.png` (one picture, always facing you) replaces the last death frame; `"deathStatic": { "groundY": n }` in `sprites.json` sets its ground row. The loot pile stays clickable. After leaving the area or reloading, DFU shows its own corpse picture again.
 - Sheets may be edited in an image editor, but must keep the size `sprites.json` describes (checked at start; wrong sizes are reported in `Player.log`). Other files in the folder (`.psd`, backups) are ignored.
 - Every attack plays its attack sheet from the first frame to the last.
-- Action frame (optional): `"actionFrame": n` on an attack or attack_range sheet in `sprites.json` makes the blow (melee damage, or the arrow for archers) land when the sheet shows frame `n`, counted from 1 like the sheet's columns:
+- Action frame (optional): `"actionFrame": n` on an attack or attack_range (attack_ranged) sheet in `sprites.json` makes the blow (melee damage, or the arrow for archers) land when the sheet shows frame `n`, counted from 1 like the sheet's columns:
   `"attack_1": { "cellWidth": 272, "frames": 6, "actionFrame": 4 }`
+
+#### Projectile images
+
+`projectile.png` / `projectile_<n>.png` in a sprite set folder are flown by that ANPC's ranged attack (see
+`rangedAtDistance`). A lone image needs no `sprites.json` entry: it is one frame, always facing you. An entry
+describes a sheet of frames:
+
+```json
+"projectile": { "cellWidth": 52, "cellHeight": 52, "frames": 8, "pixelsPerUnit": 214.819, "fps": 12 }
+```
+
+- One row of frames is a billboard (the same from every side, e.g. a tumbling rock). Eight rows, in the usual
+  direction order, are directional: row `front` shows it flying at you, `right` flying past to your left, and so on.
+- `cellHeight` (default: the image height, one row), `pixelsPerUnit` (default: the set's, so it is drawn at the
+  person's scale; a larger value draws a small object in more pixels) and `fps` (default: the set's) are optional.
+- Frames loop while it flies. It flies straight, as fast as DFU's arrow, and hits like one (only the shooter's
+  target is hurt). A thrown rock leaves no arrow behind.
   Without it, DFU's own timing is kept, which can look slightly early or late. Spells keep DFU's timing. The render script writes `actionFrame` itself from a pose marker named `action` on the attack Action, so it survives re-rendering.
 
 ## Sounds
@@ -620,7 +644,8 @@ Seven fully animated characters (14 sheets each, hit/death/cast effects, custom 
 
 - `iron_sentinel`: hostile Breton knight with a two-handed claymore. Dungeons only (ruined castles, human strongholds, prisons).
 - `orc_weakling`: a lower-tier orc with a crude club, on the `Orc` creature, made weaker and quicker with `"combat"`
-  (70% health and damage, 1.3x attack speed). Orc strongholds, caves and mines.
+  (70% health and damage, 1.3x attack speed). Throws rocks from afar (`attack_ranged_1`, a tumbling `projectile.png`,
+  2–4 damage a hit). Orc strongholds, caves and mines.
 - `nord_barbarian_1`: hostile Nord raider with a two-handed battle axe and 1.2x health. Barbarian and human strongholds,
   rarely in the wilderness.
 - `castle_guard_1`: a friendly town guard with a spear, after Daggerfall's city guard. His idle holds the spear above his

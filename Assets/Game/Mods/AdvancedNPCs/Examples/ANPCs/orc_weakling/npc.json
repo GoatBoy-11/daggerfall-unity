@@ -11,7 +11,10 @@
   "combat": {
     "health": 0.7,
     "damage": 0.7,
-    "attackSpeed": 1.3
+    "attackSpeed": 1.3,
+    "rangedAtDistance": true,
+    "rangedAnimation": "attack_ranged_1",
+    "projectileDamage": [2, 4]
   },
   "spawn": {
     "dungeons": {

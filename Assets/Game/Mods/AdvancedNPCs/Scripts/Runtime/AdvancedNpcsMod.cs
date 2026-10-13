@@ -541,15 +541,18 @@ namespace AdvancedNPCs
         {
             if (SelfTest.Running)
                 return "The self-test is already running.";
-            Instance.StartCoroutine(new SelfTest(Instance, Instance.spawner).Run(null));
+            SelfTest test = new SelfTest(Instance, Instance.spawner);
+            if (args.Length > 0 && args[0] == SelfTest.RangedSuite)
+                test.Suite = SelfTest.RangedSuite;
+            Instance.StartCoroutine(test.Run(null));
             return "Self-test started; results appear on screen and in Player.log (SELFTEST lines).";
         }
 
         /// <summary>
         /// Unattended start used by Tools~/selftest.sh and Tools~/play.sh: the flag file's first two lines name a
         /// character and a save, which is loaded straight from the title screen. A third line "play" stops there
-        /// (manual testing; the flag file is removed so the next start is normal); otherwise the self-test runs
-        /// and the game quits.
+        /// (manual testing; the flag file is removed so the next start is normal); "ranged" runs only the ranged-attack
+        /// checks (Tools~/selftest-ranged.sh); otherwise the whole self-test runs. Then the game quits.
         /// </summary>
         IEnumerator AutoRun(string path)
         {
@@ -563,6 +566,7 @@ namespace AdvancedNPCs
             string character = lines[0].Trim();
             string save = lines[1].Trim();
             bool play = lines.Length > 2 && lines[2].Trim() == "play";
+            string suite = lines.Length > 2 && lines[2].Trim() == SelfTest.RangedSuite ? SelfTest.RangedSuite : null;
             if (play)
                 File.Delete(path);
             Log(SelfTest.Prefix + "autorun: loading save '" + save + "' of '" + character + "'" + (play ? " to play" : ""));
@@ -609,7 +613,9 @@ namespace AdvancedNPCs
                 yield break;
             }
             yield return new WaitForSecondsRealtime(5f); // let the town and its NPCs finish spawning
-            yield return StartCoroutine(new SelfTest(this, spawner).Run(null));
+            SelfTest run = new SelfTest(this, spawner);
+            run.Suite = suite;
+            yield return StartCoroutine(run.Run(null));
             yield return new WaitForSecondsRealtime(1f);
             Application.Quit();
         }

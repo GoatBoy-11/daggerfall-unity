@@ -136,8 +136,15 @@
         "health": { "type": "number", "exclusiveMinimum": 0, "description": "Scale of the class's health." },
         "damage": { "type": "number", "exclusiveMinimum": 0, "description": "Scale of the damage (creatures only)." },
         "attackSpeed": { "type": "number", "exclusiveMinimum": 0 },
-        "rangedAtDistance": { "type": "boolean", "default": false, "description": "Shoot arrows at range (melee classes only when true)." },
-        "rangedAnimation": { "type": "string", "description": "The sheet a bow shot plays (default attack_range*, else attack*)." },
+        "rangedAtDistance": { "type": "boolean", "default": false, "description": "Shoot arrows at range (human classes) or throw (creatures); melee only unless true." },
+        "rangedAnimation": { "type": "string", "description": "The sheet a bow shot or throw plays (default attack_range* / attack_ranged*, else attack*)." },
+        "projectileDamage": {
+          "description": "Damage of a ranged hit (needs rangedAtDistance): one number or [min, max], 1-1000; DFU's to-hit roll stays.",
+          "oneOf": [
+            { "type": "integer", "minimum": 1, "maximum": 1000 },
+            { "type": "array", "items": { "type": "integer", "minimum": 1, "maximum": 1000 }, "minItems": 2, "maxItems": 2 }
+          ]
+        },
         "runSpeed": { "type": "number", "exclusiveMinimum": 0, "default": 1.2 },
         "canRun": { "type": "boolean", "default": true }
       }

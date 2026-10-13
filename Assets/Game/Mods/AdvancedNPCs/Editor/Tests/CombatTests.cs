@@ -117,9 +117,64 @@ namespace AdvancedNPCs.Tests
             ParseResult notSheet = With("\"baseClass\": \"Knight\", \"combat\": { \"rangedAtDistance\": true, \"rangedAnimation\": \"dance_1\" }");
             Assert.IsFalse(notSheet.Ok);
             StringAssert.Contains("combat.rangedAnimation", notSheet.Error);
-            ParseResult creature = With(Orc + ", \"combat\": { \"rangedAtDistance\": true }");
-            Assert.IsFalse(creature.Ok);
-            StringAssert.Contains("combat.rangedAtDistance", creature.Error);
+        }
+
+        [Test]
+        public void Ranged_CreaturesThrow()
+        {
+            ParseResult r = With(Orc + ", \"combat\": { \"rangedAtDistance\": true, \"rangedAnimation\": \"attack_ranged_1\" }");
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.IsTrue(r.Definition.RangedAtDistance);
+            Assert.AreEqual("attack_ranged_1", r.Definition.RangedAnimation);
+            Assert.AreEqual(0, r.Definition.ProjectileDamageMax);
+        }
+
+        [TestCase("[2, 5]", 2, 5)]
+        [TestCase("4", 4, 4)]
+        public void ProjectileDamage_RangeOrNumber(string value, int min, int max)
+        {
+            ParseResult r = With(Orc + ", \"combat\": { \"rangedAtDistance\": true, \"projectileDamage\": " + value + " }");
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.AreEqual(min, r.Definition.ProjectileDamageMin);
+            Assert.AreEqual(max, r.Definition.ProjectileDamageMax);
+        }
+
+        [TestCase("[5, 2]")]
+        [TestCase("0")]
+        [TestCase("1.5")]
+        [TestCase("[1, 2, 3]")]
+        [TestCase("\"lots\"")]
+        public void ProjectileDamage_RejectsBadValues(string value)
+        {
+            ParseResult r = With(Orc + ", \"combat\": { \"rangedAtDistance\": true, \"projectileDamage\": " + value + " }");
+            Assert.IsFalse(r.Ok);
+            StringAssert.Contains("combat.projectileDamage", r.Error);
+        }
+
+        [Test]
+        public void ProjectileDamage_NeedsRangedAtDistance()
+        {
+            ParseResult r = With(Orc + ", \"combat\": { \"projectileDamage\": 3 }");
+            Assert.IsFalse(r.Ok);
+            StringAssert.Contains("needs \"rangedAtDistance\": true", r.Error);
+        }
+
+        [TestCase(5f, false)]
+        [TestCase(6.5f, true)]
+        [TestCase(50f, true)]
+        [TestCase(52f, false)]
+        public void ThrowRange_IsDfuBowRange(float distance, bool expected)
+        {
+            Assert.AreEqual(expected, CombatRules.InThrowRange(distance));
+        }
+
+        [TestCase(0f, 2)]
+        [TestCase(0.5f, 4)]
+        [TestCase(0.9999f, 5)]
+        [TestCase(1f, 5)]
+        public void ProjectileDamage_RollCoversRange(float roll, int expected)
+        {
+            Assert.AreEqual(expected, CombatRules.RollProjectileDamage(2, 5, roll));
         }
 
         [Test]

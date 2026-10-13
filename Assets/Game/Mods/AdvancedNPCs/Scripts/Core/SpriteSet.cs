@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace AdvancedNPCs.Core
 {
-    /// <summary>One sheet of a sprite set: 8 direction rows of Frames cells, each CellWidth wide.</summary>
+    /// <summary>One sheet of a sprite set: 8 direction rows of Frames cells, each CellWidth wide (projectiles: 1 or 8 rows).</summary>
     public class SpriteAnimation
     {
         public string Name;
@@ -13,6 +13,14 @@ namespace AdvancedNPCs.Core
         public int ActionFrame = -1;
         /// <summary>Walk and run sheets: footfall frames (from 0) for step sounds; null = the first and the middle frame.</summary>
         public int[] StepFrames;
+        /// <summary>Projectiles: cell height in pixels (0 = the image height, one row).</summary>
+        public int CellHeight;
+        /// <summary>Projectiles: 1 row (a billboard, the same from every side) or 8 (by view around its flight); set by CheckProjectileSize.</summary>
+        public int Rows = 1;
+        /// <summary>Projectiles: their own pixelsPerUnit (0 = the set's), so a small object can be drawn finer.</summary>
+        public float PixelsPerUnit;
+        /// <summary>Projectiles: their own frame rate (0 = the set's).</summary>
+        public int Fps;
     }
 
     /// <summary>A sprite set's sprites.json (spec 1b §5.1), as written by the Blender render script.</summary>
@@ -29,6 +37,8 @@ namespace AdvancedNPCs.Core
         /// <summary>Ground row of death_static.png, counted from its bottom edge.</summary>
         public int DeathStaticGroundY;
         public readonly Dictionary<string, SpriteAnimation> Animations = new Dictionary<string, SpriteAnimation>(StringComparer.Ordinal);
+        /// <summary>projectile* images a ranged attack flies (one picked at random per shot); kept out of Animations.</summary>
+        public readonly Dictionary<string, SpriteAnimation> Projectiles = new Dictionary<string, SpriteAnimation>(StringComparer.Ordinal);
     }
 
     public class SpriteSetResult
@@ -77,6 +87,52 @@ namespace AdvancedNPCs.Core
                 return null;
             return folderLabel + "/" + a.Name + ".png: file: must be " + w + " x " + h + " (" + a.Frames + " frames of " +
                    a.CellWidth + " x " + cellHeight + ", " + Directions.Length + " directions), got " + width + " x " + height;
+        }
+
+        /// <summary>
+        /// Null if a projectile image fits its entry, else the error line. Sets its Rows (1 or 8) and, without a
+        /// cellHeight, its CellHeight (the image height).
+        /// </summary>
+        public static string CheckProjectileSize(string folderLabel, SpriteAnimation a, int width, int height)
+        {
+            int w = a.Frames * a.CellWidth;
+            int cell = a.CellHeight > 0 ? a.CellHeight : height;
+            if (width == w && (height == cell || height == cell * Directions.Length))
+            {
+                a.CellHeight = cell;
+                a.Rows = height == cell ? 1 : Directions.Length;
+                return null;
+            }
+            return folderLabel + "/" + a.Name + ".png: file: must be " + w + " x " + cell + " (one row) or " + w + " x " +
+                   cell * Directions.Length + " (8 directions), got " + width + " x " + height;
+        }
+
+        /// <summary>A projectile image without a sprites.json entry: the whole image, one frame, one row.</summary>
+        public static SpriteAnimation SingleFrameProjectile(string name, int width, int height)
+        {
+            SpriteAnimation a = new SpriteAnimation();
+            a.Name = name;
+            a.CellWidth = width;
+            a.CellHeight = height;
+            a.Frames = 1;
+            return a;
+        }
+
+        static string ReadProjectile(string label, string field, Dictionary<string, object> a, SpriteAnimation anim)
+        {
+            if (a.ContainsKey("actionFrame") || a.ContainsKey("stepFrames"))
+                return label + ": " + field + "." + (a.ContainsKey("actionFrame") ? "actionFrame" : "stepFrames") + ": projectiles have none";
+            if (a.ContainsKey("cellHeight") && !WholeAbove(a, "cellHeight", 0, out anim.CellHeight))
+                return label + ": " + field + ".cellHeight: must be a whole number above 0";
+            double ppu;
+            if (FieldReader.Number(a, "pixelsPerUnit", 0, out ppu) != null || ppu < 0 || (a.ContainsKey("pixelsPerUnit") && !(ppu > 0)))
+                return label + ": " + field + ".pixelsPerUnit: must be a number above 0";
+            anim.PixelsPerUnit = (float)ppu;
+            double fps;
+            if (FieldReader.Number(a, "fps", 0, out fps) != null || fps < 0 || (a.ContainsKey("fps") && !(fps > 0)))
+                return label + ": " + field + ".fps: must be a number above 0";
+            anim.Fps = fps > 0 ? (int)Math.Max(1, Math.Round(fps)) : 0;
+            return null;
         }
 
         static string Read(string label, Dictionary<string, object> o, SpriteSet s)
@@ -141,6 +197,14 @@ namespace AdvancedNPCs.Core
                     return label + ": " + field + ".cellWidth: must be a whole number above 0";
                 if (!WholeAbove(a, "frames", 0, out anim.Frames))
                     return label + ": " + field + ".frames: must be a whole number above 0";
+                if (SpriteStates.IsProjectile(kv.Key))
+                {
+                    string problem = ReadProjectile(label, field, a, anim);
+                    if (problem != null)
+                        return problem;
+                    s.Projectiles[kv.Key] = anim;
+                    continue;
+                }
                 if (a.ContainsKey("actionFrame"))
                 {
                     if (!SpriteStates.IsAttackSheet(kv.Key))

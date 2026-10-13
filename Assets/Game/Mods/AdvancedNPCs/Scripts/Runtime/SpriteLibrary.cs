@@ -245,7 +245,7 @@ namespace AdvancedNPCs
                 }
                 if (SpriteStates.StateOf(a.Name) == null)
                 {
-                    AdvancedNpcsMod.Log(label + "/" + a.Name + ".png: not an idle*, walk*, run*, hit*, attack*, attack_range*, cast*, greet* or death* sheet; not loaded");
+                    AdvancedNpcsMod.Log(label + "/" + a.Name + ".png: not an idle*, walk*, run*, hit*, attack*, attack_range*, cast*, greet*, death* or projectile* sheet; not loaded");
                     skipped.Add(a.Name);
                     continue;
                 }
@@ -267,6 +267,7 @@ namespace AdvancedNPCs
             }
             foreach (string name in skipped)
                 set.Animations.Remove(name);
+            IndexProjectiles(label, dir, set);
             if (!SpriteStates.IsValid(set))
             {
                 AdvancedNpcsMod.LogError(label + ": no usable idle sheet; sprite set skipped");
@@ -276,6 +277,51 @@ namespace AdvancedNPCs
             loaded.Dir = dir;
             loaded.HasDeathStatic = File.Exists(Path.Combine(dir, DeathStaticFile));
             return loaded;
+        }
+
+        /// <summary>
+        /// projectile* images: those in sprites.json are size-checked, the others in the folder join as single-frame
+        /// billboards (a lone projectile.png needs no entry).
+        /// </summary>
+        static void IndexProjectiles(string label, string dir, SpriteSet set)
+        {
+            foreach (SpriteAnimation p in new List<SpriteAnimation>(set.Projectiles.Values))
+            {
+                int w, h;
+                string problem = ReadSize(Path.Combine(dir, p.Name + ".png"), out w, out h);
+                if (problem == null)
+                    problem = SpriteSetParser.CheckProjectileSize(label, p, w, h);
+                else
+                    problem = label + "/" + p.Name + ".png: file: " + problem;
+                if (problem != null)
+                {
+                    AdvancedNpcsMod.LogError(problem + " (projectile skipped)");
+                    set.Projectiles.Remove(p.Name);
+                }
+            }
+            string[] files;
+            try
+            {
+                files = Directory.GetFiles(dir, "*.png");
+            }
+            catch (Exception)
+            {
+                return;
+            }
+            foreach (string file in files)
+            {
+                string name = Path.GetFileNameWithoutExtension(file);
+                if (!SpriteStates.IsProjectile(name) || set.Projectiles.ContainsKey(name))
+                    continue;
+                int w, h;
+                string problem = ReadSize(file, out w, out h);
+                if (problem != null)
+                {
+                    AdvancedNpcsMod.LogError(label + "/" + name + ".png: file: " + problem + " (projectile skipped)");
+                    continue;
+                }
+                set.Projectiles[name] = SpriteSetParser.SingleFrameProjectile(name, w, h);
+            }
         }
 
         /// <summary>Null and the size, or what is wrong with the file.</summary>
@@ -309,6 +355,7 @@ namespace AdvancedNPCs
                 return;
             s.Pending = new Queue<string>();
             List<string> names = new List<string>(s.Set.Animations.Keys);
+            names.AddRange(s.Set.Projectiles.Keys);
             names.Sort(StringComparer.Ordinal);
             foreach (string n in names)
                 s.Pending.Enqueue(n);
@@ -371,6 +418,11 @@ namespace AdvancedNPCs
                 return;
             }
             SpriteAnimation a;
+            if (s.Set.Projectiles.TryGetValue(name, out a))
+            {
+                LoadProjectile(s, a);
+                return;
+            }
             if (!s.Set.Animations.TryGetValue(name, out a))
                 return;
             Texture2D t = LoadPng(s.Label + "/" + name + ".png", Path.Combine(s.Dir, name + ".png"), true);
@@ -388,6 +440,23 @@ namespace AdvancedNPCs
                 s.IdleHeight = Math.Max(s.IdleHeight, IdleHeight(s.Set, a, t));
             Finish(t);
             s.Sheets[name] = t;
+        }
+
+        static void LoadProjectile(LoadedSpriteSet s, SpriteAnimation a)
+        {
+            Texture2D t = LoadPng(s.Label + "/" + a.Name + ".png", Path.Combine(s.Dir, a.Name + ".png"), true);
+            string sizeError = t != null ? SpriteSetParser.CheckProjectileSize(s.Label, a, t.width, t.height) : null;
+            if (t == null || sizeError != null)
+            {
+                if (sizeError != null)
+                    AdvancedNpcsMod.LogError(sizeError + " (projectile skipped)");
+                if (t != null)
+                    UnityEngine.Object.Destroy(t);
+                s.Set.Projectiles.Remove(a.Name);
+                return;
+            }
+            Finish(t);
+            s.Sheets[a.Name] = t;
         }
 
         void FinishLoading(LoadedSpriteSet s)

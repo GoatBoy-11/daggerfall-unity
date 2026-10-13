@@ -86,6 +86,45 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void Projectile_KeptApartFromAnimations()
+        {
+            string json = With(IdleSheet, IdleSheet + ", \"projectile_1\": { \"cellWidth\": 48, \"cellHeight\": 40, \"frames\": 8, \"pixelsPerUnit\": 200, \"fps\": 12 }");
+            SpriteSetResult r = SpriteSetParser.Parse(Label, json);
+            Assert.IsNull(r.Error, r.Error);
+            Assert.IsFalse(r.Set.Animations.ContainsKey("projectile_1"));
+            SpriteAnimation p = r.Set.Projectiles["projectile_1"];
+            Assert.AreEqual(48, p.CellWidth);
+            Assert.AreEqual(40, p.CellHeight);
+            Assert.AreEqual(8, p.Frames);
+            Assert.AreEqual(200f, p.PixelsPerUnit, 1e-4);
+            Assert.AreEqual(12, p.Fps);
+        }
+
+        [Test]
+        public void Projectile_SizeGivesBillboardOrEightRows()
+        {
+            SpriteAnimation p = new SpriteAnimation { Name = "projectile", CellWidth = 48, Frames = 8, CellHeight = 40 };
+            Assert.IsNull(SpriteSetParser.CheckProjectileSize("orc/sprites", p, 384, 40));
+            Assert.AreEqual(1, p.Rows);
+            Assert.IsNull(SpriteSetParser.CheckProjectileSize("orc/sprites", p, 384, 320));
+            Assert.AreEqual(8, p.Rows);
+            Assert.AreEqual("orc/sprites/projectile.png: file: must be 384 x 40 (one row) or 384 x 320 (8 directions), got 384 x 80",
+                SpriteSetParser.CheckProjectileSize("orc/sprites", p, 384, 80));
+            // No cellHeight: the whole image height is one billboard row.
+            SpriteAnimation single = new SpriteAnimation { Name = "projectile_2", CellWidth = 30, Frames = 1 };
+            Assert.IsNull(SpriteSetParser.CheckProjectileSize("orc/sprites", single, 30, 22));
+            Assert.AreEqual(22, single.CellHeight);
+            Assert.AreEqual(1, single.Rows);
+        }
+
+        [Test]
+        public void Projectile_RejectsActionFrame()
+        {
+            string json = With(IdleSheet, IdleSheet + ", \"projectile\": { \"cellWidth\": 48, \"frames\": 8, \"actionFrame\": 2 }");
+            StringAssert.Contains("animations.projectile.actionFrame", SpriteSetParser.Parse(Label, json).Error);
+        }
+
+        [Test]
         public void ActionFrame_OnlyOnAttackSheets()
         {
             SpriteSetResult r = SpriteSetParser.Parse(Label, With("\"cellWidth\": 344, \"frames\": 6", "\"cellWidth\": 344, \"frames\": 6, \"actionFrame\": 2"));

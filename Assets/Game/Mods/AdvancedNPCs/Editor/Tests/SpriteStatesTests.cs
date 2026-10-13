@@ -41,7 +41,10 @@ namespace AdvancedNPCs.Tests
         [TestCase("attack_range_1", "attack_range")]
         [TestCase("Attack_Range_12", "attack_range")]
         [TestCase("attack_range_x", null)]
-        [TestCase("attack_ranged_1", null)]
+        [TestCase("attack_ranged_1", "attack_range")]
+        [TestCase("Attack_Ranged", "attack_range")]
+        [TestCase("attack_rangedx_1", null)]
+        [TestCase("projectile", null)]
         [TestCase("run", "run")]
         [TestCase("Run_2", "run")]
         [TestCase("greet", "greet")]
@@ -93,6 +96,16 @@ namespace AdvancedNPCs.Tests
             CollectionAssert.AreEqual(new[] { "attack_1" }, Names(SpriteStates.Variants(both, SpriteStates.Attack)));
             CollectionAssert.AreEqual(new[] { "attack_1" }, Names(SpriteStates.Variants(Set("idle_1", "attack_1"), SpriteStates.RangedAttack)));
             CollectionAssert.AreEqual(new[] { "idle_1" }, Names(SpriteStates.Variants(Set("idle_1"), SpriteStates.RangedAttack)));
+        }
+
+        [TestCase("projectile", true)]
+        [TestCase("Projectile_2", true)]
+        [TestCase("projectile_x", false)]
+        [TestCase("projectiles", false)]
+        [TestCase("attack_1", false)]
+        public void IsProjectile(string sheet, bool expected)
+        {
+            Assert.AreEqual(expected, SpriteStates.IsProjectile(sheet));
         }
 
         [Test]

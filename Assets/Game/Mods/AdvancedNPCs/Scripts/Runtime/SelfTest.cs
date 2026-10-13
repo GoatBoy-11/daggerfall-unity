@@ -37,6 +37,9 @@ namespace AdvancedNPCs
         int passed;
         int failed;
 
+        /// <summary>null runs every check; RangedSuite only the ranged-attack ones (a short run).</summary>
+        public string Suite;
+
         public SelfTest(AdvancedNpcsMod mod, NpcSpawner spawner)
         {
             this.mod = mod;
@@ -117,6 +120,13 @@ namespace AdvancedNPCs
             }
             DaggerfallEntityBehaviour playerBehaviour = gm.PlayerEntityBehaviour;
             Transform playerTransform = gm.PlayerObject.transform;
+            if (Suite == RangedSuite)
+            {
+                IEnumerator only = RangedSteps(location, playerTransform);
+                while (only.MoveNext())
+                    yield return only.Current;
+                yield break;
+            }
 
             NpcDefinition normalDef = TestDefinition("selftest_normal", Bravery.Normal, location, playerTransform, -3f);
             normalDef.Bravery = Bravery.Prudent;     // the old Normal (flees below fleeHealthPercent); keeps its test name
@@ -907,6 +917,10 @@ namespace AdvancedNPCs
             IEnumerator combat = CombatSteps(location, playerTransform);
             while (combat.MoveNext())
                 yield return combat.Current;
+
+            IEnumerator rangedSteps = RangedSteps(location, playerTransform);
+            while (rangedSteps.MoveNext())
+                yield return rangedSteps.Current;
 
             IEnumerator sounds = SoundSteps(location, playerTransform);
             while (sounds.MoveNext())

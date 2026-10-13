@@ -523,7 +523,7 @@ namespace AdvancedNPCs.Core
             d.SpriteScale = (float)spriteScale;
             string combatKey;
             if ((problem = CombatRules.Read(o, d.IsCreature, out combatKey, out d.HealthScale, out d.DamageScale, out d.AttackSpeed,
-                    out d.RangedAtDistance, out d.RangedAnimation, out d.RunSpeed, out d.CanRun)) != null)
+                    out d.RangedAtDistance, out d.RangedAnimation, out d.ProjectileDamageMin, out d.ProjectileDamageMax, out d.RunSpeed, out d.CanRun)) != null)
                 return Problem(r, file, combatKey, problem);
             string soundsKey;
             List<string> soundWarnings = new List<string>();

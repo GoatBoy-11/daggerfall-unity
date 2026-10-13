@@ -490,7 +490,10 @@ namespace AdvancedNPCs
             MobileStates s = mobile != null ? mobile.EnemyState : MobileStates.Idle;
             if (s != lastState)
             {
-                if (s == MobileStates.PrimaryAttack)
+                NpcRanged ranged = GetComponent<NpcRanged>();
+                if (s == MobileStates.PrimaryAttack && ranged != null && ranged.Throwing)
+                    OnEvent(SoundPools.AttackRange, true, false, 20, false);
+                else if (s == MobileStates.PrimaryAttack)
                     OnEvent(SoundPools.Attack, true, false, 20, false);
                 else if (s == MobileStates.RangedAttack1 || s == MobileStates.RangedAttack2)
                     OnEvent(SoundPools.AttackRange, true, false, 20, false);

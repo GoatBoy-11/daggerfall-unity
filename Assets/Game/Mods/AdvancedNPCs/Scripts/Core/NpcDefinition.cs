@@ -71,10 +71,13 @@ namespace AdvancedNPCs.Core
         /// <summary>"combat": melee attack rate; 1.3 waits 1/1.3 as long between swings (1 = unchanged).</summary>
         public float AttackSpeed = 1f;
         public bool HasCombatTuning { get { return HealthScale != 1f || DamageScale != 1f || AttackSpeed != 1f; } }
-        /// <summary>"combat": shoot DFU's bow at a distant target (human classes that have one); off by default.</summary>
+        /// <summary>"combat": shoot DFU's bow at a distant target (human classes), or throw (creatures); off by default.</summary>
         public bool RangedAtDistance;
-        /// <summary>"combat": the sheet played for a bow shot; null picks attack_range* sheets, else attack*.</summary>
+        /// <summary>"combat": the sheet played for a bow shot or throw; null picks attack_range* sheets, else attack*.</summary>
         public string RangedAnimation;
+        /// <summary>"combat.projectileDamage": damage of a ranged hit, min to max (0 = DFU's own).</summary>
+        public int ProjectileDamageMin;
+        public int ProjectileDamageMax;
         /// <summary>"combat": running speed as a multiple of walk speed (1-2).</summary>
         public float RunSpeed = GaitRules.DefaultRunSpeed;
         /// <summary>"combat": false = never runs (chases and flees at walk speed).</summary>
