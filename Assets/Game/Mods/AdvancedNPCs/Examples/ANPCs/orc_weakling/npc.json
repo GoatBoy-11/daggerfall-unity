@@ -11,7 +11,10 @@
   "combat": {
     "health": 0.7,
     "damage": 0.7,
-    "attackSpeed": 1.3
+    "attackSpeed": 1.3,
+    "rangedAtDistance": true,
+    "rangedAnimation": "attack_ranged_1",
+    "projectileDamage": [2, 4]
   },
   "spawn": {
     "dungeons": {
@@ -20,5 +23,8 @@
       "dungeonTypes": ["OrcStronghold", "NaturalCave", "Mine"]
     }
   },
-  "sounds": { "combatChance": 60, "soundPitch": 0.75, "soundPitchVariation": 0.08, "stepPitch": 0.9, "stepPitchVariation": 0.1 }
+  "sounds": { "combatChance": 60, "soundPitch": 1.0, "soundPitchVariation": 0.08, "stepPitch": 0.9, "stepPitchVariation": 0.1 },
+  "conversation": {
+    "enabled": true
+  }
 }

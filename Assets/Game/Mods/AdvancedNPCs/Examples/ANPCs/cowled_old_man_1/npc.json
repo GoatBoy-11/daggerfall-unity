@@ -1,0 +1,30 @@
+{
+  "kind": "generic",
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Sorcerer",
+  "bravery": "Prudent",
+  "wanderRadius": 2,
+  "portrait": "cowled_old_man_1",
+  "replaces": ["177.0"],
+  "replacePortrait": false,
+  "replaceName": false,
+  "stayNear": 2,
+  "combat": {
+    "rangedAtDistance": true,
+    "rangedAnimation": "attack_range_1",
+    "projectileDamage": [5, 11]
+  },
+  "magic": {
+    "spells": ["Shock", "Paralysis", "Heal", "Shield"],
+    "usesMagicka": true,
+    "maxMagicka": 120,
+    "recovery": "onAreaEntry",
+    "castCooldown": [5, 9],
+    "skill": 75
+  },
+  "sounds": { "soundPitch": 0.8, "soundPitchVariation": 0.03 },
+  "conversation": {
+    "enabled": true
+  }
+}

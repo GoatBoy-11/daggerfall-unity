@@ -22,5 +22,8 @@
     "usesMagicka": true,
     "maxMagicka": 0
   },
-  "sounds": { "soundPitchVariation": 0.03, "stepPitch": 1.15, "stepPitchVariation": 0.08 }
+  "sounds": { "soundPitchVariation": 0.03, "stepPitch": 1.15, "stepPitchVariation": 0.08 },
+  "conversation": {
+    "enabled": true
+  }
 }

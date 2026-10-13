@@ -47,6 +47,8 @@ namespace AdvancedNPCs
         public int VoiceMode = VoiceModes.Anpc;
         /// <summary>Footsteps from Sounds folders.</summary>
         public bool Footsteps = true;
+        /// <summary>Footstep volume in percent (0-100), times DFU's sound volume.</summary>
+        public int StepsVolume = 100;
 
         /// <summary>True once values were read from the mod's settings (false: defaults).</summary>
         public bool FromSettings;
@@ -91,12 +93,14 @@ namespace AdvancedNPCs
             DirectionalCorpses = Read("DirectionalCorpses", delegate { return settings.GetBool(CorpsesSection, "DirectionalCorpses"); }, false);
             VoiceMode = VoiceModes.FromSetting(Read("ANPCSounds", delegate { return settings.GetInt(SoundsSection, "ANPCSounds"); }, VoiceModes.Anpc));
             Footsteps = Read("Footsteps", delegate { return settings.GetBool(SoundsSection, "Footsteps"); }, true);
+            StepsVolume = Mathf.Clamp(Read("StepsVolume", delegate { return settings.GetInt(SoundsSection, "StepsVolume"); }, 100), 0, 100);
             if (MissingKeys.Count > 0)
                 AdvancedNpcsMod.LogError("Settings without " + string.Join(", ", MissingKeys.ToArray()) + " (modsettings.json out of date); using defaults for them.");
             FromSettings = true;
             AdvancedNpcsMod.Log("Settings: generic people " + Mode + ", at most " + MaxGenericPerTown + " per town; dungeons " + Dungeons +
                 ", interiors " + Interiors + ", wilderness " + Wilderness + " (at most " + MaxWildernessAround + " around you); death animation " +
-                DeathAnimation + ", directional corpses " + DirectionalCorpses + ", ANPC sounds " + VoiceModeName(VoiceMode) + ", footsteps " + Footsteps + ".");
+                DeathAnimation + ", directional corpses " + DirectionalCorpses + ", ANPC sounds " + VoiceModeName(VoiceMode) + ", footsteps " + Footsteps +
+                " (volume " + StepsVolume + "%).");
         }
 
         public static string VoiceModeName(int mode)

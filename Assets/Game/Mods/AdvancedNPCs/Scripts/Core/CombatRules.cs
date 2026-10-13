@@ -7,23 +7,26 @@ namespace AdvancedNPCs.Core
     /// Optional "combat" tuning in npc.json: { "health": x, "damage": x, "attackSpeed": x }, all multipliers
     /// of DFU's own values (1 = unchanged). "damage" scales a creature's melee damage ranges; human classes take
     /// their damage from weapons, so it needs a creature baseClass. "rangedAtDistance": true lets a human class
-    /// shoot DFU's bow at a distant target (off by default); "rangedAnimation" names the sheet it plays.
+    /// shoot DFU's bow at a distant target, and a creature throw (off by default); "rangedAnimation" names the sheet
+    /// it plays; "projectileDamage" ([min, max] or one number) sets what a ranged hit does (DFU's to-hit roll stays).
     /// "runSpeed" (1-2, default 1.2) is running speed as a multiple of walking; "canRun": false never runs.
     /// No Unity or DFU types.
     /// </summary>
     public static class CombatRules
     {
         public const double MinScale = 0.05, MaxScale = 10, MinSpeed = 0.25, MaxSpeed = 4;
-        static readonly string[] Keys = { "health", "damage", "attackSpeed", "rangedAtDistance", "rangedAnimation", "runSpeed", "canRun" };
+        public const int MaxProjectileDamage = 1000;
+        static readonly string[] Keys = { "health", "damage", "attackSpeed", "rangedAtDistance", "rangedAnimation", "projectileDamage", "runSpeed", "canRun" };
 
         /// <summary>Reads "combat" from an npc.json root. Returns null, or a problem with its key ("combat.health").</summary>
         public static string Read(Dictionary<string, object> root, bool isCreature, out string key,
             out float health, out float damage, out float attackSpeed, out bool rangedAtDistance, out string rangedAnimation,
-            out float runSpeed, out bool canRun)
+            out int projectileMin, out int projectileMax, out float runSpeed, out bool canRun)
         {
             health = damage = attackSpeed = 1f;
             rangedAtDistance = false;
             rangedAnimation = null;
+            projectileMin = projectileMax = 0;
             runSpeed = GaitRules.DefaultRunSpeed;
             canRun = true;
             key = "combat";
@@ -38,7 +41,7 @@ namespace AdvancedNPCs.Core
                 if (Array.IndexOf(Keys, k) < 0)
                 {
                     key = "combat." + k;
-                    return "unknown setting (use health, damage, attackSpeed, rangedAtDistance, rangedAnimation, runSpeed or canRun)";
+                    return "unknown setting (use health, damage, attackSpeed, rangedAtDistance, rangedAnimation, projectileDamage, runSpeed or canRun)";
                 }
             }
             double h, d, s;
@@ -57,8 +60,6 @@ namespace AdvancedNPCs.Core
                 key = "combat.rangedAtDistance";
                 if (!(rawRanged is bool))
                     return "must be true or false";
-                if ((bool)rawRanged && isCreature)
-                    return "needs a human baseClass (creatures have no bow)";
                 rangedAtDistance = (bool)rawRanged;
             }
             object rawSheet;
@@ -67,8 +68,17 @@ namespace AdvancedNPCs.Core
                 key = "combat.rangedAnimation";
                 string sheet = rawSheet as string;
                 if (sheet == null || !SpriteStates.IsAttackSheet(sheet))
-                    return "must be the name of an attack_range* or attack* sheet, like \"attack_range_1\"";
+                    return "must be the name of an attack_range*, attack_ranged* or attack* sheet, like \"attack_range_1\"";
                 rangedAnimation = sheet;
+            }
+            if (o.ContainsKey("projectileDamage"))
+            {
+                key = "combat.projectileDamage";
+                problem = ProjectileDamage(o["projectileDamage"], out projectileMin, out projectileMax);
+                if (problem != null)
+                    return problem;
+                if (!rangedAtDistance)
+                    return "needs \"rangedAtDistance\": true";
             }
             if (o.ContainsKey("runSpeed"))
             {
@@ -100,6 +110,48 @@ namespace AdvancedNPCs.Core
             if (problem != null)
                 key = "combat." + name;
             return problem;
+        }
+
+        static string ProjectileDamage(object raw, out int min, out int max)
+        {
+            min = max = 0;
+            const string Shape = "must be a whole number from 1 to 1000, or [min, max] of them";
+            List<object> pair = raw as List<object>;
+            if (raw is double)
+            {
+                if (!Whole((double)raw, out min))
+                    return Shape;
+                max = min;
+                return null;
+            }
+            if (pair == null || pair.Count != 2 || !(pair[0] is double) || !(pair[1] is double) ||
+                !Whole((double)pair[0], out min) || !Whole((double)pair[1], out max))
+                return Shape;
+            if (max < min)
+                return "min must not be above max";
+            return null;
+        }
+
+        static bool Whole(double d, out int value)
+        {
+            value = 0;
+            if (d != Math.Floor(d) || d < 1 || d > MaxProjectileDamage)
+                return false;
+            value = (int)d;
+            return true;
+        }
+
+        /// <summary>DFU's bow range (EnemyAttack min/maxRangedDistance, 6 to 51.2 m): where a creature may throw.</summary>
+        public static bool InThrowRange(float distance)
+        {
+            return distance > 6f && distance < 51.2f;
+        }
+
+        /// <summary>A projectileDamage hit: min to max (both included) from a roll in [0, 1).</summary>
+        public static int RollProjectileDamage(int min, int max, float roll)
+        {
+            int n = min + (int)Math.Floor(roll * (max - min + 1));
+            return Math.Min(max, Math.Max(min, n));
         }
 
         /// <summary>Scaled max health: rounded, never below 1 (0 stays 0).</summary>

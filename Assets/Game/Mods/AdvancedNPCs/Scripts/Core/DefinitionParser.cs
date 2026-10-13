@@ -28,7 +28,7 @@ namespace AdvancedNPCs.Core
         {
             "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "fleeChance", "aggroRange", "calmDownHours",
             "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight", "spriteHeightScale", "spriteScale", "attitude", "hostileHours", "dialogue", "magic",
-            "combat", "sounds",
+            "combat", "sounds", "conversation", "replaces", "replacePortrait", "replaceName", "stayNear",
         };
         static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
         static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
@@ -235,7 +235,12 @@ namespace AdvancedNPCs.Core
             if ((problem = FieldReader.Object(o, "spawn", out spawn)) != null)
                 return Problem(r, file, "spawn", problem);
             if (spawn == null)
+            {
+                // A stand-in for vanilla flat NPCs with no spawn block appears only in their place.
+                if (o.ContainsKey("replaces") && o["replaces"] != null)
+                    d.Spawn.HasTownRules = false;
                 return true;
+            }
             foreach (string key in FieldReader.UnknownKeys(spawn, SpawnKeys))
             {
                 string hint = Typos.Closest(key, SpawnKeys);
@@ -523,7 +528,7 @@ namespace AdvancedNPCs.Core
             d.SpriteScale = (float)spriteScale;
             string combatKey;
             if ((problem = CombatRules.Read(o, d.IsCreature, out combatKey, out d.HealthScale, out d.DamageScale, out d.AttackSpeed,
-                    out d.RangedAtDistance, out d.RangedAnimation, out d.RunSpeed, out d.CanRun)) != null)
+                    out d.RangedAtDistance, out d.RangedAnimation, out d.ProjectileDamageMin, out d.ProjectileDamageMax, out d.RunSpeed, out d.CanRun)) != null)
                 return Problem(r, file, combatKey, problem);
             string soundsKey;
             List<string> soundWarnings = new List<string>();
@@ -531,6 +536,17 @@ namespace AdvancedNPCs.Core
                 return Problem(r, file, soundsKey, problem);
             foreach (string w in soundWarnings)
                 r.Warnings.Add(file + ": " + w);
+            string chatKey;
+            List<string> chatWarnings = new List<string>();
+            if ((problem = ChatRules.Read(o, out chatKey, out d.Conversation, chatWarnings)) != null)
+                return Problem(r, file, chatKey, problem);
+            foreach (string w in chatWarnings)
+                r.Warnings.Add(file + ": " + w);
+            string replaceKey;
+            if ((problem = ReplaceRules.Read(o, out replaceKey, out d.Replace)) != null)
+                return Problem(r, file, replaceKey, problem);
+            if (d.Replace != null && d.Kind != NpcKind.Generic)
+                return Problem(r, file, "replaces", "only generic ANPCs can replace vanilla NPCs (one person cannot stand in several places)");
             ReadDialogueTypes(file, o, d, r);
             return true;
         }

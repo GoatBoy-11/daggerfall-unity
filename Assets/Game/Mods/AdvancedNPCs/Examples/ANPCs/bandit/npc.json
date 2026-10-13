@@ -14,5 +14,8 @@
       "max": 2,
       "when": { "time": "night" }
     }
+  },
+  "conversation": {
+    "enabled": true
   }
 }

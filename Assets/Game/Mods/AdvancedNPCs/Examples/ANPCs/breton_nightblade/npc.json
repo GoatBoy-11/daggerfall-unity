@@ -28,5 +28,8 @@
       7
     ],
     "skill": 80
+  },
+  "conversation": {
+    "enabled": true
   }
 }

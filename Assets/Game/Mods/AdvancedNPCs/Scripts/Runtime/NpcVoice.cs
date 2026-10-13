@@ -41,12 +41,18 @@ namespace AdvancedNPCs
         MobileStates lastState;
         float stepTimer;
         readonly Dictionary<string, int> played = new Dictionary<string, int>();
+        int lastTalk = -1;
+        AudioSource talkSource;
+        AudioSource greetSource;
 
         /// <summary>The ANPC's sound set (anpc_info).</summary>
         public LoadedSoundSet Set
         {
             get { return set; }
         }
+
+        /// <summary>Volume scale the last footstep played at, DFU's sound volume included (self-test).</summary>
+        public float LastStepVolume { get; private set; }
 
         /// <summary>How often a pool's event played a sound (self-test); steps count as "step".</summary>
         public int Played(string pool)
@@ -97,6 +103,15 @@ namespace AdvancedNPCs
             {
                 AdvancedNpcsMod mod = AdvancedNpcsMod.Instance;
                 return mod == null || mod.Config == null || mod.Config.Footsteps;
+            }
+        }
+
+        static int StepsVolumePercent
+        {
+            get
+            {
+                AdvancedNpcsMod mod = AdvancedNpcsMod.Instance;
+                return mod != null && mod.Config != null ? mod.Config.StepsVolume : 100;
             }
         }
 
@@ -318,8 +333,82 @@ namespace AdvancedNPCs
             voice.pitch = SoundRules.Pitch(settings.SoundPitch, settings.SoundPitchVariation, Random.value);
             voice.PlayOneShot(clip, DaggerfallUnity.Settings.SoundVolume);
             lastVoice = voice;
+            if (pool == SoundPools.Greet)
+                greetSource = voice;
             Count(pool);
             return true;
+        }
+
+        /// <summary>Loaded talk clips (spec conversations §1).</summary>
+        public int TalkClips
+        {
+            get
+            {
+                string pool = TalkPoolName;
+                List<AudioClip> clips;
+                return pool != null && set.Clips.TryGetValue(pool, out clips) ? clips.Count : 0;
+            }
+        }
+
+        /// <summary>Its talk pool: talk_male / talk_female for its gender, else talk; null without one (SoundPools.TalkPool).</summary>
+        public string TalkPoolName
+        {
+            get
+            {
+                if (set == null)
+                    return null;
+                string gender = brain != null && brain.Instance != null ? brain.Instance.Gender : null;
+                return SoundPools.TalkPool(gender, set.Clips.Keys);
+            }
+        }
+
+        /// <summary>The "ANPC sounds" setting lets the folder's voices play.</summary>
+        public bool CustomVoiceOn
+        {
+            get { return VoiceModes.CustomVoice(Mode); }
+        }
+
+        /// <summary>
+        /// Plays a talk clip with no chance roll, not the one before when there are more (spec conversations §2).
+        /// Returns its seconds at the pitch used; 0 when nothing played.
+        /// </summary>
+        public float PlayTalk()
+        {
+            if (voices == null || gone || !CustomVoiceOn || TalkClips == 0)
+                return 0f;
+            List<AudioClip> clips = set.Clips[TalkPoolName];
+            lastTalk = ChatRules.NextClip(clips.Count, lastTalk, Random.value);
+            AudioClip clip = clips[lastTalk];
+            if (clip == null)
+                return 0f;
+            AudioSource voice = voices[nextVoice];
+            nextVoice = SoundRules.NextVoice(nextVoice, voices.Length);
+            voice.pitch = SoundRules.Pitch(settings.SoundPitch, settings.SoundPitchVariation, Random.value);
+            voice.PlayOneShot(clip, DaggerfallUnity.Settings.SoundVolume);
+            lastVoice = voice;
+            talkSource = voice;
+            Count(SoundPools.Talk);
+            return clip.length / Mathf.Max(SoundRules.MinPitch, voice.pitch);
+        }
+
+        /// <summary>A greet sound is still playing (a conversation's first line waits for it).</summary>
+        public bool PlayingGreet
+        {
+            get { return greetSource != null && greetSource.isPlaying; }
+        }
+
+        /// <summary>A talk clip is still playing (self-test).</summary>
+        public bool TalkPlaying
+        {
+            get { return talkSource != null && talkSource.isPlaying; }
+        }
+
+        /// <summary>Cuts the talk clip short (a conversation ended early).</summary>
+        public void StopTalk()
+        {
+            if (talkSource != null)
+                talkSource.Stop();
+            talkSource = null;
         }
 
         /// <summary>
@@ -376,7 +465,8 @@ namespace AdvancedNPCs
             AudioSource step = steps[nextStep];
             nextStep = SoundRules.NextVoice(nextStep, steps.Length);
             step.pitch = SoundRules.Pitch(settings.StepPitch, settings.StepPitchVariation, Random.value);
-            step.PlayOneShot(clip, DaggerfallUnity.Settings.SoundVolume);
+            LastStepVolume = DaggerfallUnity.Settings.SoundVolume * SoundRules.StepVolume(source == stepDefaults, StepsVolumePercent);
+            step.PlayOneShot(clip, LastStepVolume);
             Count(SoundPools.Step);
             if (source == stepDefaults)
                 Count("default_step");
@@ -400,7 +490,10 @@ namespace AdvancedNPCs
             MobileStates s = mobile != null ? mobile.EnemyState : MobileStates.Idle;
             if (s != lastState)
             {
-                if (s == MobileStates.PrimaryAttack)
+                NpcRanged ranged = GetComponent<NpcRanged>();
+                if (s == MobileStates.PrimaryAttack && ranged != null && ranged.Throwing)
+                    OnEvent(SoundPools.AttackRange, true, false, 20, false);
+                else if (s == MobileStates.PrimaryAttack)
                     OnEvent(SoundPools.Attack, true, false, 20, false);
                 else if (s == MobileStates.RangedAttack1 || s == MobileStates.RangedAttack2)
                     OnEvent(SoundPools.AttackRange, true, false, 20, false);

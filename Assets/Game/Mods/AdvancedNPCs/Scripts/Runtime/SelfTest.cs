@@ -37,6 +37,9 @@ namespace AdvancedNPCs
         int passed;
         int failed;
 
+        /// <summary>null runs every check; RangedSuite / ReplaceSuite only the ranged-attack / flat replacement ones (a short run).</summary>
+        public string Suite;
+
         public SelfTest(AdvancedNpcsMod mod, NpcSpawner spawner)
         {
             this.mod = mod;
@@ -55,11 +58,12 @@ namespace AdvancedNPCs
             // The checks expect the corpse and sound settings at their defaults; the player's own come back at the end.
             ModConfig config = mod.Config;
             bool deathAnimation = config.DeathAnimation, directionalCorpses = config.DirectionalCorpses, footsteps = config.Footsteps;
-            int voiceMode = config.VoiceMode;
+            int voiceMode = config.VoiceMode, stepsVolume = config.StepsVolume;
             config.DeathAnimation = true;
             config.DirectionalCorpses = false;
             config.VoiceMode = VoiceModes.Anpc;
             config.Footsteps = true;
+            config.StepsVolume = 100;
             AdvancedNpcsMod.Log(Prefix + "START");
 
             // Step through manually so an exception in one check is reported and cleanup still runs.
@@ -94,6 +98,7 @@ namespace AdvancedNPCs
                 config.DirectionalCorpses = directionalCorpses;
                 config.VoiceMode = voiceMode;
                 config.Footsteps = footsteps;
+                config.StepsVolume = stepsVolume;
             }
             Running = false;
 
@@ -115,6 +120,13 @@ namespace AdvancedNPCs
             }
             DaggerfallEntityBehaviour playerBehaviour = gm.PlayerEntityBehaviour;
             Transform playerTransform = gm.PlayerObject.transform;
+            if (Suite == RangedSuite || Suite == ReplaceSuite)
+            {
+                IEnumerator only = Suite == RangedSuite ? RangedSteps(location, playerTransform) : ReplaceSteps(location, playerTransform);
+                while (only.MoveNext())
+                    yield return only.Current;
+                yield break;
+            }
 
             NpcDefinition normalDef = TestDefinition("selftest_normal", Bravery.Normal, location, playerTransform, -3f);
             normalDef.Bravery = Bravery.Prudent;     // the old Normal (flees below fleeHealthPercent); keeps its test name
@@ -906,9 +918,20 @@ namespace AdvancedNPCs
             while (combat.MoveNext())
                 yield return combat.Current;
 
+            IEnumerator rangedSteps = RangedSteps(location, playerTransform);
+            while (rangedSteps.MoveNext())
+                yield return rangedSteps.Current;
+            IEnumerator replaceSteps = ReplaceSteps(location, playerTransform);
+            while (replaceSteps.MoveNext())
+                yield return replaceSteps.Current;
+
             IEnumerator sounds = SoundSteps(location, playerTransform);
             while (sounds.MoveNext())
                 yield return sounds.Current;
+
+            IEnumerator chat = ChatSteps(location, playerTransform);
+            while (chat.MoveNext())
+                yield return chat.Current;
 
             IEnumerator opinion = OpinionSteps(location, playerTransform);
             while (opinion.MoveNext())

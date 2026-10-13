@@ -41,12 +41,15 @@ namespace AdvancedNPCs.Tests
         [TestCase("attack_range_1", "attack_range")]
         [TestCase("Attack_Range_12", "attack_range")]
         [TestCase("attack_range_x", null)]
-        [TestCase("attack_ranged_1", null)]
+        [TestCase("attack_ranged_1", "attack_range")]
+        [TestCase("Attack_Ranged", "attack_range")]
+        [TestCase("attack_rangedx_1", null)]
+        [TestCase("projectile", null)]
         [TestCase("run", "run")]
         [TestCase("Run_2", "run")]
         [TestCase("greet", "greet")]
         [TestCase("greet_1", "greet")]
-        [TestCase("talk_1", null)]
+        [TestCase("talk_1", "talk")]
         [TestCase("pray_1", null)]
         [TestCase("idle_x", null)]
         [TestCase("death_static", null)]
@@ -93,6 +96,16 @@ namespace AdvancedNPCs.Tests
             CollectionAssert.AreEqual(new[] { "attack_1" }, Names(SpriteStates.Variants(both, SpriteStates.Attack)));
             CollectionAssert.AreEqual(new[] { "attack_1" }, Names(SpriteStates.Variants(Set("idle_1", "attack_1"), SpriteStates.RangedAttack)));
             CollectionAssert.AreEqual(new[] { "idle_1" }, Names(SpriteStates.Variants(Set("idle_1"), SpriteStates.RangedAttack)));
+        }
+
+        [TestCase("projectile", true)]
+        [TestCase("Projectile_2", true)]
+        [TestCase("projectile_x", false)]
+        [TestCase("projectiles", false)]
+        [TestCase("attack_1", false)]
+        public void IsProjectile(string sheet, bool expected)
+        {
+            Assert.AreEqual(expected, SpriteStates.IsProjectile(sheet));
         }
 
         [Test]
@@ -217,6 +230,15 @@ namespace AdvancedNPCs.Tests
         {
             Assert.AreEqual(0, SpriteDirections.Row(0f, 0f, 0f, 1f));
             Assert.AreEqual(0, SpriteDirections.Row(1f, 0f, 0f, 0f));
+        }
+
+        [TestCase("talk_1", true, true)]
+        [TestCase("talk_1", false, false)]
+        [TestCase("idle_1", false, true)]
+        [TestCase("pray_1", true, false)]
+        public void Loads_TalkSheetsOnlyForTalkers(string sheet, bool converses, bool expected)
+        {
+            Assert.AreEqual(expected, SpriteStates.Loads(sheet, converses));
         }
     }
 }

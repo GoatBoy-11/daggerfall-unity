@@ -71,16 +71,21 @@ namespace AdvancedNPCs.Core
         /// <summary>"combat": melee attack rate; 1.3 waits 1/1.3 as long between swings (1 = unchanged).</summary>
         public float AttackSpeed = 1f;
         public bool HasCombatTuning { get { return HealthScale != 1f || DamageScale != 1f || AttackSpeed != 1f; } }
-        /// <summary>"combat": shoot DFU's bow at a distant target (human classes that have one); off by default.</summary>
+        /// <summary>"combat": shoot DFU's bow at a distant target (human classes), or throw (creatures); off by default.</summary>
         public bool RangedAtDistance;
-        /// <summary>"combat": the sheet played for a bow shot; null picks attack_range* sheets, else attack*.</summary>
+        /// <summary>"combat": the sheet played for a bow shot or throw; null picks attack_range* sheets, else attack*.</summary>
         public string RangedAnimation;
+        /// <summary>"combat.projectileDamage": damage of a ranged hit, min to max (0 = DFU's own).</summary>
+        public int ProjectileDamageMin;
+        public int ProjectileDamageMax;
         /// <summary>"combat": running speed as a multiple of walk speed (1-2).</summary>
         public float RunSpeed = GaitRules.DefaultRunSpeed;
         /// <summary>"combat": false = never runs (chases and flees at walk speed).</summary>
         public bool CanRun = true;
         /// <summary>npc.json "sounds": chances, step distance and pitch of the folder's custom sounds (spec sounds §C).</summary>
         public SoundSettings Sounds = new SoundSettings();
+        /// <summary>npc.json "conversation": talks with other ANPCs it greets (spec conversations §1); off by default.</summary>
+        public ConversationSettings Conversation = new ConversationSettings();
         /// <summary>Dialogue type ids (files in _Dialogue), in the order given in npc.json.</summary>
         public readonly List<string> Dialogue = new List<string>();
         /// <summary>The folder's own dialogue.json, or null.</summary>
@@ -89,5 +94,7 @@ namespace AdvancedNPCs.Core
         public string Folder = "";
         /// <summary>Path used in messages, e.g. "bram/npc.json".</summary>
         public string SourceFile;
+        /// <summary>"replaces": vanilla flat NPCs this generic ANPC stands in for, or null.</summary>
+        public ReplaceSettings Replace;
     }
 }

@@ -19,6 +19,8 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual(SoundPools.AttackRange, SoundPools.PoolOf("attack_range_2"));
             Assert.AreEqual(SoundPools.AttackRange, SoundPools.PoolOf("attack_range"));
             Assert.AreEqual(SoundPools.Greet, SoundPools.PoolOf("greet"));
+            Assert.AreEqual(SoundPools.TalkMale, SoundPools.PoolOf("talk_male_3"));
+            Assert.AreEqual(SoundPools.TalkFemale, SoundPools.PoolOf("talk_female"));
             Assert.AreEqual(SoundPools.Step, SoundPools.PoolOf("step_10"));
             Assert.AreEqual(SoundPools.Death, SoundPools.PoolOf("Death_1"));      // case does not matter
         }
@@ -181,6 +183,32 @@ namespace AdvancedNPCs.Tests
             Assert.IsFalse(SoundRules.UseDefaultSteps(true, true));       // its own steps replace the defaults
             Assert.IsFalse(SoundRules.UseDefaultSteps(false, false));     // "defaultSteps": false
             Assert.IsFalse(SoundRules.UseDefaultSteps(true, false));
+        }
+
+        [Test]
+        public void TalkPool_OwnGenderFirst_ThenPlainTalk()
+        {
+            string[] both = { SoundPools.TalkMale, SoundPools.TalkFemale };
+            string[] all = { SoundPools.TalkMale, SoundPools.TalkFemale, SoundPools.Talk };
+            Assert.AreEqual(SoundPools.TalkFemale, SoundPools.TalkPool("Female", both));
+            Assert.AreEqual(SoundPools.TalkMale, SoundPools.TalkPool("Male", both));
+            Assert.AreEqual(SoundPools.TalkMale, SoundPools.TalkPool("male", all));
+            Assert.AreEqual(SoundPools.Talk, SoundPools.TalkPool("Male", new[] { SoundPools.TalkFemale, SoundPools.Talk }));
+            Assert.AreEqual(SoundPools.Talk, SoundPools.TalkPool(null, all));
+            Assert.IsNull(SoundPools.TalkPool("Male", new[] { SoundPools.TalkFemale }));     // never the other gender's voice
+            Assert.IsNull(SoundPools.TalkPool("Female", new string[0]));
+        }
+
+        [Test]
+        public void StepVolume_DefaultStepsQuieter_ScaledBySetting()
+        {
+            Assert.AreEqual(1f, SoundRules.StepVolume(false, 100), 1e-5f);
+            Assert.AreEqual(0.85f, SoundRules.StepVolume(true, 100), 1e-5f);   // the shared _Sounds steps, 15% quieter
+            Assert.AreEqual(0.5f, SoundRules.StepVolume(false, 50), 1e-5f);
+            Assert.AreEqual(0.425f, SoundRules.StepVolume(true, 50), 1e-5f);
+            Assert.AreEqual(0f, SoundRules.StepVolume(false, 0), 1e-5f);
+            Assert.AreEqual(1f, SoundRules.StepVolume(false, 250), 1e-5f);     // clamped to 0-100
+            Assert.AreEqual(0f, SoundRules.StepVolume(true, -10), 1e-5f);
         }
 
         [Test]

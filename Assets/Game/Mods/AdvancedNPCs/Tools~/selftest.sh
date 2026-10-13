@@ -8,6 +8,8 @@
 #
 # Usage: selftest.sh [character] [save name] [DFU install]
 #        defaults: Testo AtDaggerfall F:/_Projects/Dagerfall/DFU_testing
+# ANPC_BACKGROUND=1: the game starts minimized in a small window (settings.ini changed for the run only), so it
+# never takes the mouse or the screen; it keeps running because RunInBackground is on.
 CHAR="${1:-Testo}"
 SAVE="${2:-AtDaggerfall}"
 DFU="${3:-/f/_Projects/Dagerfall/DFU_testing}"
@@ -29,11 +31,19 @@ restore() {
 trap restore EXIT
 
 sed -i 's/^ShowOptionsAtStart = True/ShowOptionsAtStart = False/' "$INI"
+if [ "${ANPC_BACKGROUND:-0}" = 1 ]; then
+  sed -i -e 's/^Fullscreen = True/Fullscreen = False/' -e 's/^ResolutionWidth = .*/ResolutionWidth = 960/' \
+         -e 's/^ResolutionHeight = .*/ResolutionHeight = 540/' -e 's/^RunInBackground = False/RunInBackground = True/' "$INI"
+fi
 mkdir -p "$(dirname "$FLAG")"
 printf '%s\n%s\n' "$CHAR" "$SAVE" > "$FLAG"
 
 echo "Starting Daggerfall Unity; loading '$SAVE' ($CHAR) and running the self-test..."
-(cd "$DFU" && cmd //c start "" DaggerfallUnity.exe)
+if [ "${ANPC_BACKGROUND:-0}" = 1 ]; then
+  powershell -NoProfile -Command "Start-Process -FilePath '$(cygpath -w "$DFU")\DaggerfallUnity.exe' -WorkingDirectory '$(cygpath -w "$DFU")' -WindowStyle Minimized"
+else
+  (cd "$DFU" && cmd //c start "" DaggerfallUnity.exe)
+fi
 sleep 10
 for i in $(seq 1 60); do
   tasklist | grep -qi DaggerfallUnity.exe || break

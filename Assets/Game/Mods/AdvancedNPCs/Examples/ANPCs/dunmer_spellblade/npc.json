@@ -28,5 +28,8 @@
     ],
     "skill": 80
   },
-  "nameList": "dunmer_morrowind"
+  "nameList": "dunmer_morrowind",
+  "conversation": {
+    "enabled": true
+  }
 }

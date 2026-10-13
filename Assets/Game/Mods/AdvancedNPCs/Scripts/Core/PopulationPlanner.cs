@@ -117,6 +117,34 @@ namespace AdvancedNPCs.Core
             return i;
         }
 
+        /// <summary>
+        /// The stand-in for one vanilla flat NPC (ReplaceRules): rolled from its key like a placed person, standing on the
+        /// flat's spot. A template without a fixed gender takes the flat's ("Male"/"Female").
+        /// </summary>
+        public static NpcInstance ForReplacement(NpcDefinition t, string key, string flatGender, string defaultRace, INameSource names,
+            float x, float y, float z)
+        {
+            NpcInstance i = new NpcInstance();
+            i.Key = key;
+            i.Definition = t;
+            i.Persistent = true;
+            i.Seed = StableHash.Of(key);
+            RollPerson(t, i, defaultRace, names);
+            if (string.IsNullOrEmpty(t.Gender) && !string.IsNullOrEmpty(flatGender) && flatGender != i.Gender && t.Names.Count == 0 && string.IsNullOrEmpty(t.Name))
+            {
+                // Re-roll with the flat's gender so the name fits it.
+                i.Gender = flatGender;
+                i.Name = PickName(t, i, new SeededRandom(i.Seed ^ 0x5bd1e995u), names);
+            }
+            else if (string.IsNullOrEmpty(t.Gender) && !string.IsNullOrEmpty(flatGender))
+                i.Gender = flatGender;
+            i.HasFixedPosition = true;
+            i.X = x;
+            i.Y = y;
+            i.Z = z;
+            return i;
+        }
+
         /// <summary>Gender, race, name, portrait and face from the person's seed; returns the generator for what follows.</summary>
         internal static SeededRandom RollPerson(NpcDefinition t, NpcInstance i, string defaultRace, INameSource names)
         {

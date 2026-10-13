@@ -60,7 +60,10 @@ namespace AdvancedNPCs
                 // Loaded inside a dungeon or building: the towns outside are switched off and their navigation is
                 // not linked yet, so their generics wait until the player steps out.
                 if (town.gameObject.activeInHierarchy)
+                {
                     SpawnGenerics(town, owner.Catalog.Generics, owner.Config.Mode, owner.Config.MaxGenericPerTown);
+                    ReplaceFlats(town);
+                }
                 else
                     owner.StartCoroutine(SpawnGenericsNextFrame(town));
             }
@@ -163,6 +166,13 @@ namespace AdvancedNPCs
             if (location == null || !location.gameObject.activeInHierarchy)
                 yield break;
             SpawnGenerics(location, owner.Catalog.Generics, owner.Config.Mode, owner.Config.MaxGenericPerTown);
+            ReplaceFlats(location);
+        }
+
+        /// <summary>Stand-ins for the town's own street flats ("replaces"); building and dungeon flats are done on entry.</summary>
+        void ReplaceFlats(DaggerfallLocation town)
+        {
+            owner.Flats.ReplaceIn(town.transform, town.Summary.MapID, "town", DefaultRace(town), IndoorSpawner.IndoorWander);
         }
 
         /// <summary>Walkable cell count each town's generics were planned on, by map id (read by the self-test).</summary>
@@ -351,12 +361,14 @@ namespace AdvancedNPCs
 
             // Custom sprites (spec 1b): one of the folder's sprite sets, chosen by the person's seed.
             List<LoadedSpriteSet> spriteSets = owner.Sprites.For(def.Folder);
+            LoadedSpriteSet wornSet = null;
             float spawnHeight = 0f;
             bool greets = false;
             NpcGait gait = go.AddComponent<NpcGait>();
             if (spriteSets.Count > 0)
             {
                 LoadedSpriteSet spriteSet = spriteSets[SpriteStates.PickSet(spriteSets.Count, instance.Seed)];
+                wornSet = spriteSet;
                 float height = (def.SpriteHeight > 0 ? def.SpriteHeight : NpcSprite.DefaultHeight(go)) * def.SpriteScale;
                 spawnHeight = height;
                 NpcSprite sprite = go.AddComponent<NpcSprite>();
@@ -365,16 +377,22 @@ namespace AdvancedNPCs
                 sprite.Begin(spriteSet, height, def.SpriteHeightScale);
                 greets = SpriteStates.Variants(spriteSet.Set, SpriteStates.Greet).Count > 0;
                 if (def.RangedAnimation != null && !spriteSet.Set.Animations.ContainsKey(def.RangedAnimation))
-                    AdvancedNpcsMod.Log(spriteSet.Label + ": no " + def.RangedAnimation + ".png for combat.rangedAnimation; bow shots play attack_range*/attack* sheets.");
+                    AdvancedNpcsMod.Log(spriteSet.Label + ": no " + def.RangedAnimation + ".png for combat.rangedAnimation; ranged attacks play attack_range*/attack* sheets.");
             }
+            // Own ranged attack: creatures throw, projectile* images, projectileDamage (else DFU's own arrow).
+            if (NpcRanged.Wanted(def, wornSet))
+                go.AddComponent<NpcRanged>().Init(def);
             // Custom sounds (spec sounds): the folder's Sounds, also for an ANPC with the vanilla sprite. Every ANPC has a
             // voice, so the "ANPC sounds" setting can hand it to DFU or silence it at any time.
             LoadedSoundSet sounds = owner.Sounds != null ? owner.Sounds.For(def.Folder) : null;
             go.AddComponent<NpcVoice>().Init(sounds, def.Sounds, owner.Sounds != null ? owner.Sounds.DefaultSteps : null);
             if (sounds != null)
                 greets |= sounds.Pools.Contains(SoundPools.Greet);
-            if (greets)
-                go.AddComponent<NpcGreeter>();
+            if (def.Conversation.Enabled)
+                go.AddComponent<NpcChat>().Init(def.Conversation);
+            // A talker without greet files greets other ANPCs silently: greetings start conversations (spec conversations §1).
+            if (GreetRules.NeedsGreeter(greets, def.Conversation.Enabled))
+                go.AddComponent<NpcGreeter>().Silent = !greets;
             gait.Init(def);
             AdvancedNpcsMod.Log(instance.Key + " (" + instance.Name + "): spawned" +
                 (spawnHeight > 0 ? " (sprite " + spawnHeight.ToString("0.00") + " m tall)." : "."));

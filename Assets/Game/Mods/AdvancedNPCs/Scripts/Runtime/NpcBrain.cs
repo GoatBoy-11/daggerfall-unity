@@ -92,6 +92,9 @@ namespace AdvancedNPCs
         /// <summary>Most metres this person wanders from its spot (indoors 3 m, spec outside-towns §7).</summary>
         public float WanderCap = float.MaxValue;
 
+        /// <summary>A stand-in's "stayNear": metres it keeps to around its spot while calm (walks back after a fight); 0 = none.</summary>
+        public float Leash;
+
         public NpcMode CurrentMode
         {
             get { return mode; }
@@ -101,6 +104,25 @@ namespace AdvancedNPCs
         public bool IsEnemy
         {
             get { return enemy; }
+        }
+
+        /// <summary>
+        /// An enemy of the player with no one to fight yet: DFU's AI has no target (none seen, or it gave up searching),
+        /// so it stands where it is (spec conversations: hostile ANPCs talk among themselves until they spot someone).
+        /// </summary>
+        public bool IdleEnemy
+        {
+            get
+            {
+                return enemy && mode == NpcMode.Fighting && senses != null && motor != null &&
+                       (senses.Target == null || motor.GiveUpTimer <= 0);
+            }
+        }
+
+        /// <summary>Who it can greet and talk with now (GreetRules.Peaceful, IdleEnemy or Busy).</summary>
+        public int ChatSide
+        {
+            get { return GreetRules.Side(mode == NpcMode.Calm, state != null && state.hostile, enemy, IdleEnemy); }
         }
 
         /// <summary>Re-reads the enemy rules now (normally every few seconds).</summary>
@@ -338,6 +360,23 @@ namespace AdvancedNPCs
             if (config != null && !config.Footsteps)
                 sb.Append(" (footsteps off)");
             sb.Append('\n');
+            NpcChat chat = GetComponent<NpcChat>();
+            if (chat == null)
+            {
+                sb.Append("  conversation: off\n");
+            }
+            else
+            {
+                sb.Append("  conversation: chance ").Append(chat.Settings.Chance).Append("%, talk sounds ")
+                  .Append(voice != null ? voice.TalkClips : 0).Append(", talk sheets ").Append(sprite != null ? sprite.TalkSheets : 0);
+                string why = chat.Talking ? null : chat.WhyNot();
+                if (chat.Talking && chat.Partner != null)
+                    sb.Append(", talking with ").Append(chat.Partner.Brain.DisplayName).Append(", line ")
+                      .Append(chat.Session.Line).Append(" of ").Append(chat.Session.Lines);
+                else if (why != null)
+                    sb.Append(", cannot talk now: ").Append(why);
+                sb.Append('\n');
+            }
 
             GameObject playerObject = GameManager.Instance.PlayerObject;
             float distance = playerObject != null ? Vector3.Distance(playerObject.transform.position, transform.position) : 0f;
@@ -630,7 +669,20 @@ namespace AdvancedNPCs
                 return;
             }
             float wanderRadius = Mathf.Min(def.WanderRadius, WanderCap);
-            if (wanderRadius <= 0f)
+            if (Leash > 0f)
+            {
+                wanderRadius = Mathf.Min(wanderRadius, Leash);
+                Vector3 homeWorld = transform.parent != null ? transform.parent.TransformPoint(homeLocal) : homeLocal;
+                Vector3 away = homeWorld - transform.position;
+                away.y = 0f;
+                if (away.magnitude > Leash + 0.5f)
+                {
+                    // Pushed or chased out of its area: walk straight back.
+                    wanderTargetLocal = homeLocal;
+                    hasWanderTarget = true;
+                }
+            }
+            if (wanderRadius <= 0f && !hasWanderTarget)
             {
                 mover.Stop();
                 return;

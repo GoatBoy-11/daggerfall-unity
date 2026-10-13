@@ -11,14 +11,30 @@ namespace AdvancedNPCs.Core
         public const string Run = "run";
         public const string Hit = "hit";
         public const string Attack = "attack";
-        /// <summary>Bow shots ("rangedAtDistance" in npc.json); melee swings never use these sheets.</summary>
+        /// <summary>Bow shots and throws ("rangedAtDistance" in npc.json); melee swings never use these sheets.</summary>
         public const string RangedAttack = "attack_range";
+        /// <summary>Another spelling of attack_range: attack_ranged_1 is a ranged sheet too.</summary>
+        public const string RangedAttackAlias = "attack_ranged";
+        /// <summary>Projectile images (projectile.png, projectile_1.png, ...): flown by a ranged attack, not an animation state.</summary>
+        public const string Projectile = "projectile";
         public const string Cast = "cast";
         public const string Death = "death";
         /// <summary>Greeting someone it likes (NpcGreeter); never a fallback for anything.</summary>
         public const string Greet = "greet";
+        /// <summary>Speaking in a conversation with another ANPC (NpcChat); NpcSprite shows idle without one.</summary>
+        public const string Talk = "talk";
 
-        static readonly string[] All = { Idle, Walk, Run, Hit, Attack, RangedAttack, Cast, Death, Greet };
+        static readonly string[] All = { Idle, Walk, Run, Hit, Attack, RangedAttack, Cast, Death, Greet, Talk };
+
+        /// <summary>
+        /// A sheet is loaded when it names a state; talk* sheets only for an ANPC that converses (no texture memory spent
+        /// on sheets that never show).
+        /// </summary>
+        public static bool Loads(string sheetName, bool converses)
+        {
+            string state = StateOf(sheetName);
+            return state != null && (state != Talk || converses);
+        }
 
         /// <summary>The state of a sheet name ("walk" or "walk_&lt;number&gt;", any case), or null.</summary>
         public static string StateOf(string sheetName)
@@ -26,11 +42,11 @@ namespace AdvancedNPCs.Core
             if (string.IsNullOrEmpty(sheetName))
                 return null;
             string n = sheetName.ToLowerInvariant();
+            if (Named(n, RangedAttackAlias))
+                return RangedAttack;
             foreach (string state in All)
             {
-                if (n == state)
-                    return state;
-                if (n.Length > state.Length + 1 && n.StartsWith(state + "_", StringComparison.Ordinal) && IsDigits(n, state.Length + 1))
+                if (Named(n, state))
                     return state;
             }
             return null;
@@ -39,7 +55,7 @@ namespace AdvancedNPCs.Core
         /// <summary>
         /// Sheets for a state, sorted by name; cast falls back to attack sheets only (none: the spell plays no animation);
         /// attack_range falls back to attack, then idle; run falls back to walk and walk to run, then idle; hit and
-        /// attack fall back to idle; death and greet have no fallback.
+        /// attack fall back to idle; death, greet and talk have no fallback.
         /// </summary>
         public static List<SpriteAnimation> Variants(SpriteSet set, string state)
         {
@@ -72,7 +88,7 @@ namespace AdvancedNPCs.Core
             return found;
         }
 
-        /// <summary>Attack and attack_range sheets: the ones that may carry an action frame.</summary>
+        /// <summary>Attack and attack_range (attack_ranged) sheets: the ones that may carry an action frame.</summary>
         public static bool IsAttackSheet(string sheetName)
         {
             string s = StateOf(sheetName);
@@ -111,6 +127,18 @@ namespace AdvancedNPCs.Core
             if (count <= 1)
                 return 0;
             return new SeededRandom(seed ^ 0x2545F491u).Next(count);
+        }
+
+        /// <summary>A projectile image name: "projectile" or "projectile_&lt;number&gt;", any case.</summary>
+        public static bool IsProjectile(string sheetName)
+        {
+            return !string.IsNullOrEmpty(sheetName) && Named(sheetName.ToLowerInvariant(), Projectile);
+        }
+
+        /// <summary>n (lower case) is the name itself or the name, "_" and a number.</summary>
+        static bool Named(string n, string name)
+        {
+            return n == name || (n.Length > name.Length + 1 && n.StartsWith(name + "_", StringComparison.Ordinal) && IsDigits(n, name.Length + 1));
         }
 
         static bool IsDigits(string s, int from)

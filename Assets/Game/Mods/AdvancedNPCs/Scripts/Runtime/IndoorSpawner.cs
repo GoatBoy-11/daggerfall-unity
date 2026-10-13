@@ -86,7 +86,9 @@ namespace AdvancedNPCs
             // The player's own house only holds the people they placed there themselves.
             string off = !owner.Config.Interiors ? "(Interiors are turned off in the mod settings)" :
                 DaggerfallBankManager.IsHouseOwned(place.BuildingKey) ? "(this is your own house: only people you placed with anpc_spawn)" : null;
-            return SpawnPlace(place, parent, candidates, null, 0f, doors, DoorDistance, off, owner.Config.MaxGenericPerTown, IndoorWander);
+            List<NpcBrain> people = SpawnPlace(place, parent, candidates, null, 0f, doors, DoorDistance, off, owner.Config.MaxGenericPerTown, IndoorWander);
+            people.AddRange(owner.Flats.ReplaceIn(parent, place.MapId, "b" + place.BuildingKey, place.DefaultRace, IndoorWander));
+            return people;
         }
 
         public List<NpcBrain> SpawnDungeon()
@@ -103,9 +105,11 @@ namespace AdvancedNPCs
             Vector3 entrance = marker != null ? marker.transform.position : GameManager.Instance.PlayerObject.transform.position;
             Vector3 local = parent.InverseTransformPoint(entrance);
             // Group members stand up to ~4.5 m from their spot, so spots keep 5 m more than the 20 m rule.
-            return SpawnPlace(place, parent, SpotFinder.DungeonCandidates(dungeon), new float[] { local.x, local.y, local.z },
+            List<NpcBrain> people = SpawnPlace(place, parent, SpotFinder.DungeonCandidates(dungeon), new float[] { local.x, local.y, local.z },
                 DungeonEntranceDistance + 5f, new List<Vector3> { entrance }, DungeonEntranceDistance,
                 owner.Config.Dungeons ? null : "(Dungeons are turned off in the mod settings)", MaxPerDungeon, float.MaxValue);
+            people.AddRange(owner.Flats.ReplaceIn(parent, s.ID, "dungeon", place.DefaultRace, IndoorWander));
+            return people;
         }
 
         /// <param name="keepAway">World points no person may stand closer to than keepAwayRadius (doors, the dungeon entrance).</param>

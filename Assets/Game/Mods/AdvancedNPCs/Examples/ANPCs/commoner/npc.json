@@ -6,5 +6,8 @@
   },
   "baseClass": "Bard",
   "bravery": "Coward",
-  "wanderRadius": 12
+  "wanderRadius": 12,
+  "conversation": {
+    "enabled": true
+  }
 }

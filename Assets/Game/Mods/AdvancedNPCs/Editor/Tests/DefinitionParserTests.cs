@@ -193,5 +193,23 @@ namespace AdvancedNPCs.Tests
             Assert.IsFalse(r.Ok);
             Assert.AreEqual(expected, r.Error);
         }
+
+        [Test]
+        public void Conversation_ReadIntoDefinition()
+        {
+            ParseResult r = DefinitionParser.Parse("bram.json", With("\"conversation\": { \"chance\": 30 }"));
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.IsTrue(r.Definition.Conversation.Enabled);
+            Assert.AreEqual(30, r.Definition.Conversation.Chance);
+            Assert.IsFalse(DefinitionParser.Parse("bram.json", Minimal).Definition.Conversation.Enabled);
+        }
+
+        [Test]
+        public void Conversation_BadChance_Fails()
+        {
+            ParseResult r = DefinitionParser.Parse("bram.json", With("\"conversation\": { \"chance\": 300 }"));
+            Assert.IsFalse(r.Ok);
+            StringAssert.Contains("conversation.chance", r.Error);
+        }
     }
 }

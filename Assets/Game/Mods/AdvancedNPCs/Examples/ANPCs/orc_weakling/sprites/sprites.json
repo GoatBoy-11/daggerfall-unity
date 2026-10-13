@@ -25,6 +25,11 @@
       "frames": 5,
       "actionFrame": 3
     },
+    "attack_ranged_1": {
+      "cellWidth": 224,
+      "frames": 6,
+      "actionFrame": 4
+    },
     "cast_1": {
       "cellWidth": 232,
       "frames": 4
@@ -56,6 +61,13 @@
     "idle_3": {
       "cellWidth": 216,
       "frames": 6
+    },
+    "projectile": {
+      "cellWidth": 52,
+      "cellHeight": 52,
+      "frames": 8,
+      "pixelsPerUnit": 214.819,
+      "fps": 12
     },
     "run": {
       "cellWidth": 152,

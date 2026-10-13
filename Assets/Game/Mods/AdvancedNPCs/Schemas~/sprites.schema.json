@@ -25,8 +25,8 @@
     },
     "animations": {
       "type": "object",
-      "description": "Names start with idle, walk, run, hit, attack, attack_range, cast, greet or death (e.g. idle_1, attack_2).",
-      "propertyNames": { "pattern": "^(idle|walk|run|hit|attack|attack_range|cast|greet|death)(_[A-Za-z0-9]+)?$" },
+      "description": "Names start with idle, walk, run, hit, attack, attack_range (or attack_ranged), cast, greet or death (e.g. idle_1, attack_2); projectile / projectile_<n> are the images a ranged attack flies (1 or 8 rows).",
+      "propertyNames": { "pattern": "^(idle|walk|run|hit|attack|attack_range|attack_ranged|cast|greet|death|projectile)(_[A-Za-z0-9]+)?$" },
       "additionalProperties": {
         "type": "object",
         "required": ["cellWidth", "frames"],
@@ -35,7 +35,10 @@
           "cellWidth": { "type": "integer", "minimum": 1 },
           "frames": { "type": "integer", "minimum": 1 },
           "actionFrame": { "type": "integer", "minimum": 1, "description": "Attack sheets: the frame (1-based) the blow lands on." },
-          "stepFrames": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "minItems": 1, "description": "Walk and run sheets: the frames (1-based) a footstep sound plays on (default: the first and the middle frame)." }
+          "stepFrames": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "minItems": 1, "description": "Walk and run sheets: the frames (1-based) a footstep sound plays on (default: the first and the middle frame)." },
+          "cellHeight": { "type": "integer", "minimum": 1, "description": "Projectiles: cell height in pixels (default: the image height, one row)." },
+          "pixelsPerUnit": { "type": "number", "exclusiveMinimum": 0, "description": "Projectiles: their own scale (default: the set's)." },
+          "fps": { "type": "number", "exclusiveMinimum": 0, "description": "Projectiles: their own frame rate (default: the set's)." }
         }
       }
     }

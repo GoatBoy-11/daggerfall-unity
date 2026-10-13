@@ -41,6 +41,8 @@ namespace AdvancedNPCs
         public TopicInjector Topics { get; private set; }
         /// <summary>People in dungeons and buildings.</summary>
         public IndoorSpawner Indoors { get; private set; }
+        /// <summary>ANPCs standing in for vanilla flat NPCs ("replaces").</summary>
+        public FlatReplacer Flats { get; private set; }
         /// <summary>Wilderness encounters around the player.</summary>
         public WildernessSpawner Wilderness { get; private set; }
 
@@ -113,6 +115,9 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_info",
                 "Shows the ANPC in front of you (or <id>): mode, bravery, health, opinion, sprite set, target and update rate.",
                 "anpc_info [id or key]", InfoCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_chat",
+                "Starts a conversation between the ANPC in front of you and the nearest other ANPC within 4 m (ignores chance and the 2-hour wait).",
+                "anpc_chat", ChatCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_reload_assets",
                 "Re-reads the sprite sets and Sounds of one ANPC folder (or all) from disk and uses them on spawned ANPCs.",
                 "anpc_reload_assets [id]", ReloadSpritesCommand);
@@ -135,6 +140,8 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_summon",
                 "Moves a spawned Advanced NPC in front of you (testing only, not saved).", "anpc_summon <id>", SummonCommand);
             spawner = new NpcSpawner(this);
+            Flats = gameObject.AddComponent<FlatReplacer>();
+            Flats.Init(this, spawner);
             spawner.Enable();
             // After the town spawner: on a load its handler clears every ANPC first, then this one refills the place inside.
             Indoors = new IndoorSpawner(this, spawner);
@@ -194,11 +201,13 @@ namespace AdvancedNPCs
             List<string> folders = new List<string>();
             List<NpcDefinition> all = new List<NpcDefinition>(Instance.Catalog.ById.Values);
             all.AddRange(Instance.Catalog.Generics);
+            Dictionary<string, bool> converses = new Dictionary<string, bool>(StringComparer.Ordinal);
             foreach (NpcDefinition d in all)
             {
                 bool wanted = args == null || args.Length == 0 || d.Id == args[0] || d.Folder == args[0];
                 if (wanted && !folders.Contains(d.Folder))
                     folders.Add(d.Folder);
+                converses[d.Folder] = d.Conversation.Enabled;
             }
             bool everyFolder = args == null || args.Length == 0;
             bool defaultsOnly = !everyFolder && string.Equals(args[0], SoundLibrary.SharedFolder, StringComparison.OrdinalIgnoreCase);
@@ -221,7 +230,8 @@ namespace AdvancedNPCs
             foreach (string folder in folders)
             {
                 string dir = Path.Combine(AnpcFiles.Root, folder);
-                sets += Instance.Sprites.Reload(folder, dir);
+                bool talks;
+                sets += Instance.Sprites.Reload(folder, dir, converses.TryGetValue(folder, out talks) && talks);
                 if (Instance.Sounds.Reload(folder, dir))
                     soundFolders++;
             }
@@ -294,6 +304,38 @@ namespace AdvancedNPCs
                 return named ? "No spawned ANPC \"" + args[0] + "\". Try anpc_list." : "No ANPC within 5 m. Stand in front of one or give an id (anpc_list).";
             string text = b.Describe();
             Log("anpc_info\n" + text);
+            return text;
+        }
+
+        /// <summary>anpc_chat (spec conversations §3); internal for the self-test.</summary>
+        internal static string ChatCommand(params string[] args)
+        {
+            NpcBrain a = Nearest(5f);
+            if (a == null)
+                return "No ANPC within 5 m. Stand in front of one.";
+            NpcBrain b = null;
+            float best = ChatRules.StartDistance;
+            foreach (NpcBrain other in NpcBrain.All())
+            {
+                if (other == a || other.CurrentMode == NpcMode.Dead || !other.isActiveAndEnabled)
+                    continue;
+                float d = Vector3.Distance(other.transform.position, a.transform.position);
+                if (d <= best)
+                {
+                    best = d;
+                    b = other;
+                }
+            }
+            if (b == null)
+                return "No other ANPC within " + ChatRules.StartDistance + " m of " + a.DisplayName + ".";
+            NpcChat ca = a.GetComponent<NpcChat>();
+            NpcChat cb = b.GetComponent<NpcChat>();
+            if (ca == null || cb == null)
+                return (ca == null ? a : b).DisplayName + " does not converse (no \"conversation\" in its npc.json).";
+            string why = ca.TryStart(cb, true);
+            string text = why == null ? a.DisplayName + " and " + b.DisplayName + " are talking (" + ca.Session.Lines + " lines)."
+                                      : a.DisplayName + " and " + b.DisplayName + " cannot talk: " + why + ".";
+            Log("anpc_chat: " + text);
             return text;
         }
 
@@ -503,15 +545,18 @@ namespace AdvancedNPCs
         {
             if (SelfTest.Running)
                 return "The self-test is already running.";
-            Instance.StartCoroutine(new SelfTest(Instance, Instance.spawner).Run(null));
+            SelfTest test = new SelfTest(Instance, Instance.spawner);
+            if (args.Length > 0 && (args[0] == SelfTest.RangedSuite || args[0] == SelfTest.ReplaceSuite))
+                test.Suite = args[0];
+            Instance.StartCoroutine(test.Run(null));
             return "Self-test started; results appear on screen and in Player.log (SELFTEST lines).";
         }
 
         /// <summary>
         /// Unattended start used by Tools~/selftest.sh and Tools~/play.sh: the flag file's first two lines name a
         /// character and a save, which is loaded straight from the title screen. A third line "play" stops there
-        /// (manual testing; the flag file is removed so the next start is normal); otherwise the self-test runs
-        /// and the game quits.
+        /// (manual testing; the flag file is removed so the next start is normal); "ranged" / "replace" run only the
+        /// ranged-attack / flat replacement checks (Tools~/selftest-ranged.sh, selftest-replace.sh); otherwise the whole self-test runs. Then the game quits.
         /// </summary>
         IEnumerator AutoRun(string path)
         {
@@ -525,6 +570,8 @@ namespace AdvancedNPCs
             string character = lines[0].Trim();
             string save = lines[1].Trim();
             bool play = lines.Length > 2 && lines[2].Trim() == "play";
+            string third = lines.Length > 2 ? lines[2].Trim() : "";
+            string suite = third == SelfTest.RangedSuite || third == SelfTest.ReplaceSuite ? third : null;
             if (play)
                 File.Delete(path);
             Log(SelfTest.Prefix + "autorun: loading save '" + save + "' of '" + character + "'" + (play ? " to play" : ""));
@@ -571,7 +618,9 @@ namespace AdvancedNPCs
                 yield break;
             }
             yield return new WaitForSecondsRealtime(5f); // let the town and its NPCs finish spawning
-            yield return StartCoroutine(new SelfTest(this, spawner).Run(null));
+            SelfTest run = new SelfTest(this, spawner);
+            run.Suite = suite;
+            yield return StartCoroutine(run.Run(null));
             yield return new WaitForSecondsRealtime(1f);
             Application.Quit();
         }

@@ -117,7 +117,8 @@ These apply the next time a town loads.
 **Sounds** (apply at once):
 
 - **ANPC sounds** — *ANPC* (default): each ANPC's own [Sounds](#sounds) folder, Daggerfall's voice where it has none. *Vanilla*: Daggerfall's voice for every ANPC; Sounds folders are not used for voices. *Off*: ANPCs make no voice sounds at all (weapon and creature idle sounds stay).
-- **Footsteps** — on (default) or off: footsteps from Sounds folders, whichever **ANPC sounds** is set to.
+- **Footsteps** — on (default) or off: ANPC footsteps (own and default), whichever **ANPC sounds** is set to.
+- **Steps volume** — 0 to 100 (default 100): footstep volume in percent of Daggerfall's sound volume.
 
 ## Upgrading from 0.1
 
@@ -137,7 +138,8 @@ folder name is the old id.
 - `anpc_hostile <id or key> [on|off]` — turns an ANPC into an enemy or calms it (without on/off it toggles); saved with your game. See [Enemies](#enemies).
 - `anpc_opinion <id or key> [value]` — shows or sets an ANPC's personal opinion of you (−100 to 100); saved with your game.
 
-- `anpc_info [id or key]` — the ANPC in front of you (within 5 m) or that ANPC: id, key, kind, folder, bravery, mode, health, opinion, sprite set (loaded, loading, vanilla, or shown by a dead ANPC's corpse) and height, sound pools and where its footsteps come from (`steps: own`, `default` or `none`), its current target, distance and update rate.
+- `anpc_info [id or key]` — the ANPC in front of you (within 5 m) or that ANPC: id, key, kind, folder, bravery, mode, health, opinion, sprite set (loaded, loading, vanilla, or shown by a dead ANPC's corpse) and height, sound pools and where its footsteps come from (`steps: own`, `default` or `none`), its conversation setting (and partner and line while talking, or why it cannot talk now), its current target, distance and update rate.
+- `anpc_chat` — starts a conversation at once between the ANPC in front of you (within 5 m) and the nearest other ANPC within 4 m of it, ignoring the chance and the 2-hour wait; says why not when one of them cannot talk. See [Conversations](#conversations).
 - `anpc_topics [id or key]` — the dialogue topics of the ANPC in front of you (within 5 m) or of that ANPC: which are shown, and for the others the condition that hides them. See [Dialogue topics](#dialogue-topics).
 - `anpc_reload_dialogue` — re-reads `_Dialogue/*.json` and every `dialogue.json` without restarting (a change to `npc.json` still needs a restart).
 - `anpc_reload_assets [id]` — re-reads the sprite sets and [Sounds](#sounds) of that ANPC folder (or of all, with the default steps in `_Sounds`; `anpc_reload_assets _Sounds` re-reads only those) from disk; spawned ANPCs using them switch to the new files (also ANPCs that had no Sounds). ANPCs that had the vanilla sprite, and changes to walk/run/greet sheets or `npc.json`, take effect when they next spawn; only whether they can move at all changes at once (a set left without walk/run sheets makes them stand still, see turrets). (`anpc_reload_sprites` is the old name.)
@@ -205,13 +207,20 @@ enemies. Bravery still applies (a Coward enemy runs).
   setting) after each melee attack; 1.3 waits 1/1.3 as long.
 - `rangedAtDistance` (true/false, default false): DFU gives every human class a bow and shoots it at random when
   the target is far away. ANPCs fight in melee only unless this is `true`. Mage, Healer and other casters without
-  a bow are not affected; creatures have no bow (an error).
-- `rangedAnimation` (optional): the sheet a bow shot plays, e.g. `"attack_range_1"`. Without it, a random
-  `attack_range*` sheet plays, or an `attack*` sheet if the set has none. A name the sprite set lacks is noted in
-  `Player.log` and the same fallback is used.
+  a bow are not affected. A creature `baseClass` has no bow in DFU: with `true` it throws instead, now and then,
+  when its target is 6–51 m away, in sight and in front of it (DFU's own bow rules), and keeps closing in to melee.
+- `rangedAnimation` (optional): the sheet a bow shot or throw plays, e.g. `"attack_range_1"`. Without it, a random
+  `attack_range*` (or `attack_ranged*`) sheet plays, or an `attack*` sheet if the set has none. A name the sprite
+  set lacks is noted in `Player.log` and the same fallback is used. Its `actionFrame` is when the shot leaves.
+- `projectileDamage` (optional, needs `rangedAtDistance`): what a ranged hit does, `[min, max]` or one number
+  (whole numbers 1–1000), instead of DFU's own bow (or creature melee) damage. DFU's to-hit roll still decides
+  whether it hits; the amount is then rolled from min to max.
+- Projectiles: a `projectile.png` (or several, `projectile_1.png`, `projectile_2.png`, ..., one picked at random
+  per shot) in the sprite set folder is what flies, at the person's scale, instead of DFU's arrow; without one, DFU's
+  arrow flies. See [Projectile images](#projectile-images).
 
 ```json
-"combat": { "rangedAtDistance": true, "rangedAnimation": "attack_range_1" }
+"combat": { "rangedAtDistance": true, "rangedAnimation": "attack_ranged_1", "projectileDamage": [2, 4] }
 ```
 
 - `runSpeed` (1–2, default 1.2): how much faster than walking the ANPC runs. A fighting ANPC runs when it sees its
@@ -307,6 +316,37 @@ its `spawn`:
 - Attitude, bravery, sprites, portraits and dialogue work as in towns: a hostile bandit attacks on sight, a calm
   patron can be talked to. Indoors people wander at most 3 m.
 - Not sure why someone is (or isn't) there? Type `anpc_here`.
+
+## Replacing vanilla NPCs
+
+A generic ANPC can stand in for Daggerfall's own flat (non-moving) NPCs: shopkeepers, innkeepers, guild members,
+quest givers. Name the vanilla NPC in `"replaces"`:
+
+```json
+"replaces": ["177.2", "faction:1003"],
+"replacePortrait": true,
+"replaceName": false,
+"stayNear": 3
+```
+
+- **`replaces`**: one id or a list. A sprite id is the flat's texture archive and record (`"177.2"`; `"177 2"` and
+  `"177_2"` work too); `"faction:<id>"` matches every flat of that faction (named NPCs have their own faction).
+- The flat stays in the world but is hidden, and the ANPC appears on its spot with all its own sprites, AI, sounds
+  and combat. Clicking it does exactly what clicking the vanilla NPC does: the same dialogue, quest offers, quest
+  people, shop, bank, inn rooms and guild services (vanilla's own click is used, so other mods' services work too).
+- **`replacePortrait`** (default `true`): the talk window shows the ANPC's own portrait (a PNG portrait; with a
+  vanilla face the vanilla NPC's face stays). **`replaceName`** (default `false`): show the ANPC's own name instead
+  of the vanilla NPC's (quest text always uses the vanilla name).
+- **`stayNear`** (metres, default `0` = off): keeps a calm stand-in within this distance of its spot, so a
+  shopkeeper stays by the counter; after a fight or flight it walks back. Indoors they wander at most 3 m anyway.
+- When several ANPCs replace the same vanilla NPC, each vanilla person gets one of them at random, and keeps that
+  one for the whole game (seeded by the flat itself, not saved).
+- Stand-ins can be fought and can die. A dead stand-in stays dead, and so does the vanilla NPC it replaced: that
+  shop or guild has no one at the counter any more.
+- A quest that hides or shows the vanilla NPC hides or shows its stand-in. NPCs with their own scripted action (the
+  Daggerfall castle gate guard, Sheogorath) are never replaced.
+- Without a `spawn` block the ANPC only appears as a stand-in; with one it also spawns as usual.
+- Works in buildings, dungeons (castles) and on town streets. Only generic ANPCs can replace.
 
 ## Talking and portraits
 
@@ -490,7 +530,7 @@ ANPCs/wench/
 - For characters with a separate weapon mesh, `Tools~/render-character-sprites.py` includes both meshes in rendering and bounds: `--mesh body,sword`. `--keep-last death_1` keeps the final corpse pose. The Dunmer example documents a complete command.
 - A character whose idle holds a weapon above its head (a guard's upright spear) would look smaller in game, because the standing height is measured from the tallest idle pixel. Add `--standing-mesh body` (the body mesh alone) and the renderer writes `"standingHeight"` (pixels above the feet row, without the weapon) into `sprites.json`; the game then sizes the person by the body.
 - Sprite sets load when an ANPC using them appears (it may show up a moment after spawning) and unload a minute after the last one is gone; at startup only the files and their sizes are checked.
-- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `run*` (running), `hit*` (hurt), `attack*` (attacking), `attack_range*` (shooting a bow, see `rangedAtDistance`), `cast*` (spellcasting), `greet*` (greeting), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing run sheets use walk sheets and missing walk sheets use run sheets, then idle; missing hit/attack sheets use idle; greet sheets have no fallback; a set needs at least one idle sheet.
+- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `run*` (running), `hit*` (hurt), `attack*` (attacking), `attack_range*` or `attack_ranged*` (shooting a bow or throwing, see `rangedAtDistance`), `cast*` (spellcasting), `greet*` (greeting), `talk*` (speaking in a [conversation](#conversations)), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing run sheets use walk sheets and missing walk sheets use run sheets, then idle; missing hit/attack sheets use idle; greet sheets have no fallback; missing talk sheets use idle; a set needs at least one idle sheet.
 - Turret: a set with no `walk*` and no `run*` sheet never moves: it does not wander, chase, flee or get knocked
   back, but still turns to its target and attacks, shoots or casts from where it stands. Like any DFU enemy it only
   notices a quiet player in front of it, so place turrets facing where trouble comes from. When `sprites.json` lists
@@ -506,8 +546,25 @@ ANPCs/wench/
 - Death: the death sheet plays (shown from the side you see it from) and the body stays as the corpse, on the last frame of its front or back row, always facing you; see the **Corpses** [settings](#settings) to skip the animation or keep the body showing the side you see it from. `death_static.png` (one picture, always facing you) replaces the last death frame; `"deathStatic": { "groundY": n }` in `sprites.json` sets its ground row. The loot pile stays clickable. After leaving the area or reloading, DFU shows its own corpse picture again.
 - Sheets may be edited in an image editor, but must keep the size `sprites.json` describes (checked at start; wrong sizes are reported in `Player.log`). Other files in the folder (`.psd`, backups) are ignored.
 - Every attack plays its attack sheet from the first frame to the last.
-- Action frame (optional): `"actionFrame": n` on an attack or attack_range sheet in `sprites.json` makes the blow (melee damage, or the arrow for archers) land when the sheet shows frame `n`, counted from 1 like the sheet's columns:
+- Action frame (optional): `"actionFrame": n` on an attack or attack_range (attack_ranged) sheet in `sprites.json` makes the blow (melee damage, or the arrow for archers) land when the sheet shows frame `n`, counted from 1 like the sheet's columns:
   `"attack_1": { "cellWidth": 272, "frames": 6, "actionFrame": 4 }`
+
+#### Projectile images
+
+`projectile.png` / `projectile_<n>.png` in a sprite set folder are flown by that ANPC's ranged attack (see
+`rangedAtDistance`). A lone image needs no `sprites.json` entry: it is one frame, always facing you. An entry
+describes a sheet of frames:
+
+```json
+"projectile": { "cellWidth": 52, "cellHeight": 52, "frames": 8, "pixelsPerUnit": 214.819, "fps": 12 }
+```
+
+- One row of frames is a billboard (the same from every side, e.g. a tumbling rock). Eight rows, in the usual
+  direction order, are directional: row `front` shows it flying at you, `right` flying past to your left, and so on.
+- `cellHeight` (default: the image height, one row), `pixelsPerUnit` (default: the set's, so it is drawn at the
+  person's scale; a larger value draws a small object in more pixels) and `fps` (default: the set's) are optional.
+- Frames loop while it flies. It flies straight, as fast as DFU's arrow, and hits like one (only the shooter's
+  target is hurt). A thrown rock leaves no arrow behind.
   Without it, DFU's own timing is kept, which can look slightly early or late. Spells keep DFU's timing. The render script writes `actionFrame` itself from a pose marker named `action` on the attack Action, so it survives re-rendering.
 
 ## Sounds
@@ -525,9 +582,9 @@ ANPCs/wench/
     step_1.ogg    step_2.ogg   step_3.ogg
 ```
 
-- A file's name says when it plays: `greet`, `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `hit` (hurt but alive), `death` and `step`. A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
+- A file's name says when it plays: `greet`, `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `hit` (hurt but alive), `death`, `step` and `talk` (a line in a [conversation](#conversations); always plays there, no chance roll, and nowhere else; `talk_male` / `talk_female` for one gender only). A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
 - Sounds follow what happens, not the sprite, so an ANPC with the vanilla sprite can have them too.
-- Default footsteps: `step_*` files in the shared `ANPCs/_Sounds` folder play for every ANPC whose own `Sounds` folder has no `step` files (the examples ship four dirt-ground steps there). An ANPC with step files of its own uses only those; `"defaultSteps": false` turns the defaults off for one ANPC. Other names in `_Sounds` are ignored (logged).
+- Default footsteps: `step_*` files in the shared `ANPCs/_Sounds` folder play for every ANPC whose own `Sounds` folder has no `step` files (the examples ship four dirt-ground steps there). They play 15% quieter than an ANPC's own steps. An ANPC with step files of its own uses only those; `"defaultSteps": false` turns the defaults off for one ANPC. Other names in `_Sounds` are ignored (logged).
 - `death` always plays. `step` plays on every footfall while walking or running, but only when you are within `stepDistance`. The others play by chance.
 - With a walk/run sheet, footsteps fall on its first and middle frame; `"stepFrames": [2, 6]` on a `walk*`/`run*` animation in `sprites.json` picks the frames (counted from 1). Without one, a step every 0.5 s walking, 0.33 s running.
 - With **ANPC sounds** set to *ANPC* (the default, see [Settings](#settings)): DFU's own voice grunts (attack, pain) are replaced for the events the folder has sounds for, and kept for the others where DFU plays them: a melee attack, and a hit by a weapon (never for bow shots, spells or damage over time). While the folder's sounds are still loading, or when none of an event's files could be read, DFU's grunt stands in. A creature base class (an orc, say) with `attack` sounds also stops its own attack growl. Weapon swing, impact and parry sounds, and a creature's idle barks, are never changed.
@@ -560,6 +617,41 @@ Settings in `npc.json`, all optional:
 
 After changing files, `anpc_reload_assets` re-reads them; `anpc_info` lists an ANPC's sound pools.
 
+## Conversations
+
+Two ANPCs that greet each other sometimes stop and chat, in turns: the one speaking plays a `talk` sound and its
+`talk*` sheet, the other listens. No text: you only hear them, like Gothic's townsfolk.
+
+```json
+"conversation": { "enabled": true, "chance": 50 }
+```
+
+- Off unless `npc.json` has `"conversation"`. `"conversation": true` is the same as `{ "enabled": true }`; the
+  object turns it on unless it says `"enabled": false`. `chance` (0–100, default 50) is the percent chance after
+  this ANPC greets another one (the greeting itself happens 25 % of the time per encounter, see
+  [Sprites](#sprites)).
+- Both ANPCs need it on, `talk` files in their `Sounds` folder (see [Sounds](#sounds)) and the **ANPC sounds**
+  setting on *ANPC*. An ANPC with the vanilla class sprite talks too (it shows its standing sprite). An ANPC
+  without `greet` files still greets other ANPCs silently (it neither turns nor greets you), which is how
+  conversations start. `talk*` sheets load only for ANPCs with `"conversation"` on.
+- Who talks with whom: two calm ANPCs, or two enemies of yours (hostile ANPCs) while they have no one to fight,
+  like bandits waiting in a dungeon. A calm ANPC never talks with an enemy. Once an enemy spots you (or anyone to
+  fight), its conversation ends. `"conversation": false` (or no `"conversation"`) keeps an ANPC out of it.
+- `talk_male_*` and `talk_female_*` files are lines for one gender only, for an ANPC whose gender is picked at
+  random (no `"gender"` in `npc.json`): it uses its own gender's files, else plain `talk` files, never the other
+  gender's.
+- A conversation has 4 to 8 lines. The one who greeted speaks first, then they take turns; each line lasts as long
+  as its sound (a different sound from the speaker's last one when it has two or more), with a short pause
+  (0.4–1 s) after it; the first line waits for a greeting wave or hello to finish. The speaker loops a random `talk*` sheet, or its idle sheet without one.
+- They stop and face each other while talking, and greet no one else.
+- The same two talk at most once every 2 game hours (not saved).
+- It ends at once when either is attacked, turns hostile or dies, when they end up more than 6 m apart, when you
+  talk to one of them (the talk window opens as usual), or when one leaves (the town unloads). A line in progress
+  is cut off. Leaving and loading a game ends every conversation.
+- `anpc_chat` starts one right away for testing; `anpc_info` shows an ANPC's conversation setting and state.
+- Every example has talk sounds and `"conversation"` on; `bandit`, `commoner`, `patron` and `spellcaster` (random
+  gender) have `talk_male` and `talk_female` files.
+
 ## Name lists
 
 - Generic people without `name`/`names` get generated names. `"nameList"` chooses the list: a custom file in `ANPCs/_Namelists/` (without `.json`) or a vanilla one: `default_breton`, `default_redguard`, `default_nord`, `default_darkelf`, `default_highelf`, `default_woodelf`, `default_khajiit`, `default_imperial`. Without `nameList` the person's own race is used.
@@ -579,11 +671,12 @@ taverns) show spawning outside towns. `dunmer_spellblade` is a manual-spawn Dunm
 sheets, her own portrait, the `tavern_wench` dialogue and her own greet, hit, death and step sounds (see
 `SOUND_CREDITS.txt`). Try `anpc_spawn wench`.
 
-Seven fully animated characters (14 sheets each, hit/death/cast effects, custom portraits):
+Nine fully animated characters (custom portraits; hit/death/cast effects; the two mages have 10-11 sheets, the rest 14):
 
 - `iron_sentinel`: hostile Breton knight with a two-handed claymore. Dungeons only (ruined castles, human strongholds, prisons).
 - `orc_weakling`: a lower-tier orc with a crude club, on the `Orc` creature, made weaker and quicker with `"combat"`
-  (70% health and damage, 1.3x attack speed). Orc strongholds, caves and mines.
+  (70% health and damage, 1.3x attack speed). Throws rocks from afar (`attack_ranged_1`, a tumbling `projectile.png`,
+  2–4 damage a hit). Orc strongholds, caves and mines.
 - `nord_barbarian_1`: hostile Nord raider with a two-handed battle axe and 1.2x health. Barbarian and human strongholds,
   rarely in the wilderness.
 - `castle_guard_1`: a friendly town guard with a spear, after Daggerfall's city guard. His idle holds the spear above his
@@ -592,6 +685,13 @@ Seven fully animated characters (14 sheets each, hit/death/cast effects, custom 
   rarely on the road by day. His tail is rigged and animated; `sprites.json` carries `"standingHeight"`.
 - `argonian_female_acrobat_1`: a calm Argonian acrobat who fights barehanded (karate chop and front kick), with a
   rigged tail; towns and sometimes taverns. Uses `"race": "Argonian"`.
+- `mages_guild_bald_man_1`: Daggerfall's bald Mages Guild mage as an ANPC. `"replaces": ["177.2"]` puts him in
+  place of every vanilla bald-man flat (talk, quests and guild services stay the vanilla NPC's). Reads a floating
+  spell book with his arms folded, smashes you with it up close, hurls fireballs (`projectile.png`) and casts
+  Fireball and Wizard's Fire. No spawn block: he appears only as that stand-in.
+- `cowled_old_man_1`: Daggerfall's cowled old man (`"replaces": ["177.0"]`), with his dragon-wing staff planted
+  at arm's length as in the vanilla sprite, its head pulsing with light. Walks with the staff as a walking stick,
+  strikes with it two-handed, looses blue fireballs from it and casts Shock, Paralysis, Heal and Shield.
 - `argonian_staff_fighter_1`: the same Argonian in a red top, fighting with a two-handed quarterstaff (overhead
   strike and lunging thrust); towns, temples and Fighters Guild halls.
 
@@ -603,7 +703,7 @@ Sources live in `Scripts/Core` (pure logic, unit-tested) and `Scripts/Runtime` (
 - `run-tests.sh` — runs the Core NUnit tests in a small Unity host project.
 - `compile-check.sh` — compiles every mod source against a DFU install's own assemblies.
 - `runtime-check.sh` — compiles the sources with DFU's own in-memory runtime compiler and loads every type, catching problems only the game's compiler has (e.g. nested enums cause TypeLoadException there).
-- `build-mod.sh` — builds `advancednpcs.dfmod` with Unity 2019.4.41f2 (a windowed editor that closes itself) and installs it, plus `Examples/ANPCs`, into a DFU install. In the editor the same build is under **Daggerfall Tools → Build Advanced NPCs mod**.
+- `build-mod.sh` — builds `advancednpcs.dfmod` with Unity 2019.4.41f2 (a windowed editor that closes itself) and installs it, plus `Examples/ANPCs`, into a DFU install. In the editor the same build is under **Daggerfall Tools → Build Advanced NPCs mod**. Sounds you may not share (bought packs) can live outside git in `ANPC_LOCAL_SOUNDS` (default `F:/_Projects/Dagerfall/anpc_local_sounds`): `<anpc>/Sounds/<pool>_N.ogg` there replaces that ANPC's whole pool in the install.
 - `selftest.sh [character] [save]` — fully unattended in-game test: starts DFU, loads a save standing outdoors in a town, runs `anpc_selftest`, quits and prints the results. Temporarily skips the startup options screen (settings.ini is restored).
   With an `ANPCs/selftest-looks.txt` file present, it also stands every installed sprite set in front of the
   camera and saves front and side screenshots in `anpc-looks/` next to `Player.log`.

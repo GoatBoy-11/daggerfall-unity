@@ -17,12 +17,24 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
-        public void SameSide_NeedsBothCalmAndNoEnemy()
+        public void SameSide_BothPeaceful_OrBothIdleEnemies()
         {
-            Assert.IsTrue(GreetRules.SameSide(true, false, true, false));
-            Assert.IsFalse(GreetRules.SameSide(true, false, false, false));
-            Assert.IsFalse(GreetRules.SameSide(true, true, true, false));
-            Assert.IsFalse(GreetRules.SameSide(true, false, true, true));
+            Assert.IsTrue(GreetRules.SameSide(GreetRules.Peaceful, GreetRules.Peaceful));
+            Assert.IsTrue(GreetRules.SameSide(GreetRules.IdleEnemy, GreetRules.IdleEnemy));    // bandits before they spot you
+            Assert.IsFalse(GreetRules.SameSide(GreetRules.Peaceful, GreetRules.IdleEnemy));
+            Assert.IsFalse(GreetRules.SameSide(GreetRules.IdleEnemy, GreetRules.Peaceful));
+            Assert.IsFalse(GreetRules.SameSide(GreetRules.Busy, GreetRules.Busy));
+            Assert.IsFalse(GreetRules.SameSide(GreetRules.Peaceful, GreetRules.Busy));
+        }
+
+        [Test]
+        public void Side_PeacefulIdleEnemyOrBusy()
+        {
+            Assert.AreEqual(GreetRules.Peaceful, GreetRules.Side(true, false, false, false));
+            Assert.AreEqual(GreetRules.Busy, GreetRules.Side(true, true, false, false));       // angry at the player
+            Assert.AreEqual(GreetRules.Busy, GreetRules.Side(false, false, false, false));     // fleeing a creature
+            Assert.AreEqual(GreetRules.IdleEnemy, GreetRules.Side(false, true, true, true));   // an enemy that has no target
+            Assert.AreEqual(GreetRules.Busy, GreetRules.Side(false, true, true, false));       // an enemy that spotted someone
         }
 
         [Test]
@@ -83,6 +95,27 @@ namespace AdvancedNPCs.Tests
             m.Consider("bob", false, true, 11.5, 0.0, 1.0);
             Assert.IsTrue(m.Consider("bob", true, true, 12.1, 0.0, 1.0));     // over 2 hours later
             Assert.IsTrue(m.Consider("ann", true, true, 12.1, 0.0, 1.0));     // another target is separate
+        }
+
+        [Test]
+        public void Met_CountsAsTheSameEncounter()
+        {
+            // After a conversation the partner is not greeted again until it leaves and comes back.
+            GreetMemory m = new GreetMemory();
+            m.Met("anna");
+            Assert.IsFalse(m.Consider("anna", true, true, 10.0, 0.0, 1.0));
+            Assert.IsFalse(m.Consider("anna", false, true, 10.1, 0.0, 1.0));
+            Assert.IsTrue(m.Consider("anna", true, true, 10.2, 0.0, 1.0));
+        }
+
+        [TestCase(true, false, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, true, true)]
+        [TestCase(false, false, false)]
+        public void NeedsGreeter_GreetFilesOrAConversation(bool greetFiles, bool converses, bool expected)
+        {
+            // Without greet files the greeter only starts conversations (also with the vanilla sprite).
+            Assert.AreEqual(expected, GreetRules.NeedsGreeter(greetFiles, converses));
         }
     }
 }

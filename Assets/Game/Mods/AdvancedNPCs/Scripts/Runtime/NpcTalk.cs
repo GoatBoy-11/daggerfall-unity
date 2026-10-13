@@ -53,6 +53,15 @@ namespace AdvancedNPCs
             set { portrait = value; }
         }
 
+        /// <summary>The ANPC's own name.</summary>
+        public string DisplayName
+        {
+            get { return displayName; }
+        }
+
+        /// <summary>The vanilla flat NPC this ANPC stands in for ("replaces"), or null. Clicks go to that NPC's vanilla services.</summary>
+        public StaticNPC StandIn { get; set; }
+
         public void Init(NpcInstance instance, Texture2D portraitTexture, string portraitFileName, bool lockPortraitAtFirstTalk)
         {
             GameObject proxyObject = new GameObject("TalkProxy");
@@ -80,6 +89,11 @@ namespace AdvancedNPCs
             if (mode == PlayerActivateModes.Steal)
                 return; // vanilla enemy pickpocketing handles this
             RemoveVanillaYouSee();
+            if (StandIn != null)
+            {
+                HandleStandIn(mode, distance);
+                return;
+            }
             if (mode == PlayerActivateModes.Info)
             {
                 Say("You see " + displayName + "."); // replaces vanilla's "You see a <class>."
@@ -90,6 +104,31 @@ namespace AdvancedNPCs
             TryTalk();
         }
 
+        /// <summary>A stand-in shows the vanilla NPC's name (unless replaceName) and hands the click to vanilla's own click on the flat.</summary>
+        void HandleStandIn(PlayerActivateModes mode, float distance)
+        {
+            ReplaceSettings settings = brain != null && brain.Instance != null ? brain.Instance.Definition.Replace : null;
+            string shownName = settings != null && settings.Name ? displayName : StandIn.DisplayName;
+            if (mode == PlayerActivateModes.Info)
+            {
+                Say("You see " + shownName + ".");
+                return;
+            }
+            if (distance > PlayerActivate.StaticNPCActivationDistance)
+                return;
+            if (brain != null && brain.CurrentMode != NpcMode.Calm)
+            {
+                Say(shownName + " will not talk to you now.");
+                return;
+            }
+            NpcChat chat = brain != null ? brain.GetComponent<NpcChat>() : null;
+            if (chat != null && chat.Talking)
+                chat.End(true);
+            AdvancedNpcsMod mod = AdvancedNpcsMod.Instance;
+            if (mod == null || mod.Flats == null || !mod.Flats.ClickFlat(StandIn))
+                TryTalk();
+        }
+
         /// <summary>Opens the talk window if the ANPC is calm. Returns false if it refused.</summary>
         public bool TryTalk()
         {
@@ -98,6 +137,9 @@ namespace AdvancedNPCs
                 Say(displayName + " will not talk to you now.");
                 return false;
             }
+            NpcChat chat = brain != null ? brain.GetComponent<NpcChat>() : null;
+            if (chat != null && chat.Talking)
+                chat.End(true);     // the player interrupts (spec conversations §3)
             TalkManager.Instance.TalkToMobileNPC(proxy);
             if (portrait != null)
                 ApplyPortrait(DaggerfallUI.Instance.TalkWindow, portrait);
@@ -174,7 +216,7 @@ namespace AdvancedNPCs
             return prefix.Length > 0 && text.StartsWith(prefix);
         }
 
-        static void ApplyPortrait(DaggerfallTalkWindow window, Texture2D texture)
+        public static void ApplyPortrait(DaggerfallTalkWindow window, Texture2D texture)
         {
             if (window == null || TexturePortraitField == null)
             {

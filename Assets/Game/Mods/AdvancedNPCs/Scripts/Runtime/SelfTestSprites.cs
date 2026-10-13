@@ -104,7 +104,7 @@ namespace AdvancedNPCs
                 float liveUntil = Time.time + 3f;
                 while (Time.time < liveUntil && liveSprite != null && liveSprite.Pending)
                     yield return null;
-                int reloaded = mod.Sprites.Reload("selftest_lazy", Path.GetDirectoryName(dir));
+                int reloaded = mod.Sprites.Reload("selftest_lazy", Path.GetDirectoryName(dir), false);
                 int swapped = AdvancedNpcsMod.SwapSprites(new[] { "selftest_lazy" });
                 LoadedSpriteSet fresh = liveSprite != null ? liveSprite.ChosenSet : null;
                 liveUntil = Time.time + 3f;

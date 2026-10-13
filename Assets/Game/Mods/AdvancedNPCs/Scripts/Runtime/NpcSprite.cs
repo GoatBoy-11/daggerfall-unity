@@ -30,6 +30,7 @@ namespace AdvancedNPCs
         NpcGait gait;
         NpcBrain brain;
         NpcVoice voice;
+        NpcRanged ranged;       // own ranged attack (creature throws, projectile images): fired here on the action frame
         LoadedSpriteSet waitingSet;     // chosen, still loading: nothing drawn yet
         float waitingHeight;
         float waitingScale = 1f;
@@ -50,6 +51,8 @@ namespace AdvancedNPCs
         float speed;
         int lastHealth = -1;
         float oneShotLeft;      // seconds a hit (or attack) sheet keeps playing whatever DFU's own state says
+        float talkLeft;         // seconds the speaker in a conversation keeps its talk sheet (NpcChat)
+        int greetSide;          // its GreetRules side when the greeting began (a change ends the wave)
         int hitStarts;
         int greetStarts;
         MobileStates lastMobileState;
@@ -62,7 +65,7 @@ namespace AdvancedNPCs
         int blowsDelivered;
         int vanillaBlowsHeld;
 
-        /// <summary>npc.json "combat.rangedAnimation": the sheet a bow shot plays; null or missing picks attack_range*, else attack*.</summary>
+        /// <summary>npc.json "combat.rangedAnimation": the sheet a bow shot or throw plays; null or missing picks attack_range*, else attack*.</summary>
         public string RangedSheet;
 
         public LoadedSpriteSet Set
@@ -348,6 +351,7 @@ namespace AdvancedNPCs
                 gait = GetComponent<NpcGait>();
             brain = GetComponent<NpcBrain>();
             voice = GetComponent<NpcVoice>();
+            ranged = GetComponent<NpcRanged>();
 
             quad = CreateQuad(transform, "AnpcSprite");
             quadRenderer = quad.GetComponent<MeshRenderer>();
@@ -383,6 +387,8 @@ namespace AdvancedNPCs
             // The spawner adds the voice after the sprite: a set already loaded ran Init before it existed.
             if (voice == null)
                 voice = GetComponent<NpcVoice>();
+            if (ranged == null)
+                ranged = GetComponent<NpcRanged>();
             if (heldSet == null || acquired)
                 return;
             heldSet.Acquire();
@@ -468,8 +474,10 @@ namespace AdvancedNPCs
 
             if (oneShotLeft > 0)
                 oneShotLeft -= dt;
-            if (state == SpriteStates.Greet && oneShotLeft > 0 && brain != null && brain.CurrentMode != NpcMode.Calm)
-                oneShotLeft = 0;        // turned hostile mid-greeting: no friendly wave in a fight
+            if (talkLeft > 0)
+                talkLeft -= dt;
+            if (state == SpriteStates.Greet && oneShotLeft > 0 && brain != null && brain.ChatSide != greetSide)
+                oneShotLeft = 0;        // turned hostile, or an enemy spotted someone, mid-greeting: no wave in a fight
             if (oneShotLeft <= 0)
             {
                 if (hitWaiting)
@@ -523,8 +531,48 @@ namespace AdvancedNPCs
                 (oneShotLeft > 0 && state != SpriteStates.Greet))
                 return false;
             StartOneShot(SpriteStates.Greet);
+            greetSide = brain != null ? brain.ChatSide : GreetRules.Peaceful;
             greetStarts++;
             return true;
+        }
+
+        /// <summary>A custom sprite set is loaded (conversations need one).</summary>
+        public bool HasSet
+        {
+            get { return set != null; }
+        }
+
+        /// <summary>talk* sheets of the set (0: talking shows idle).</summary>
+        public int TalkSheets
+        {
+            get { return set != null ? SpriteStates.Variants(set.Set, SpriteStates.Talk).Count : 0; }
+        }
+
+        /// <summary>A greet sheet is playing.</summary>
+        public bool Greeting
+        {
+            get { return state == SpriteStates.Greet && oneShotLeft > 0; }
+        }
+
+        /// <summary>
+        /// Loops a random talk* sheet (idle without one) for this long while standing; each call picks again
+        /// (spec conversations §2). A hit, attack or greeting sheet finishes first.
+        /// </summary>
+        public void Talk(float seconds)
+        {
+            if (set == null)
+                return;
+            talkLeft = seconds;
+            if (oneShotLeft > 0)
+                return;
+            state = null;
+            SetState(SpriteStates.Talk);
+        }
+
+        /// <summary>Back to idle (or whatever the ANPC does) at the next update.</summary>
+        public void StopTalk()
+        {
+            talkLeft = 0f;
         }
 
         /// <summary>Seconds the greet sheet now playing lasts (0 when none plays).</summary>
@@ -543,16 +591,17 @@ namespace AdvancedNPCs
         {
             if (s == MobileStates.Spell && !HasCastSheet)
                 return;
+            bool thrown = IsThrow(s);
             if (s == MobileStates.Spell)
                 StartOneShot(SpriteStates.Cast);
-            else if (IsRanged(s))
+            else if (IsRanged(s) || thrown)
                 StartOneShot(SpriteStates.RangedAttack, RangedSheet);
             else
                 StartOneShot(SpriteStates.Attack);
             hitWaiting = false;
             // Only attack sheets with an action frame take over the timing; spells keep DFU's own.
             bool ours = anim.ActionFrame >= 0 && SpriteStates.IsAttackSheet(anim.Name) && s != MobileStates.Spell;
-            pendingBlow = ours ? (s == MobileStates.PrimaryAttack ? MeleeBlow : ArrowBlow) : NoBlow;
+            pendingBlow = ours ? (s == MobileStates.PrimaryAttack && !thrown ? MeleeBlow : ArrowBlow) : NoBlow;
             vanillaToHold = ours ? 1 : 0;
         }
 
@@ -580,14 +629,28 @@ namespace AdvancedNPCs
                 vanillaToHold--;
                 vanillaBlowsHeld++;
             }
+            else if (ranged != null)
+            {
+                ranged.TakeVanillaBlow();       // a sheet without an action frame: DFU's moment, our projectile
+            }
 
-            if (pendingBlow != NoBlow && state == SpriteStates.Attack && frame >= anim.ActionFrame)
+            if (pendingBlow != NoBlow && (state == SpriteStates.Attack || state == SpriteStates.RangedAttack) && frame >= anim.ActionFrame)
             {
                 if (pendingBlow == MeleeBlow)
+                {
                     mobile.DoMeleeDamage = true;
+                    sentBlow = pendingBlow;
+                }
+                else if (ranged != null)
+                {
+                    ranged.Fire();
+                    blowsDelivered++;
+                }
                 else
+                {
                     mobile.ShootArrow = true;
-                sentBlow = pendingBlow;
+                    sentBlow = pendingBlow;
+                }
                 pendingBlow = NoBlow;
                 blowsLanded++;
             }
@@ -608,13 +671,21 @@ namespace AdvancedNPCs
                 return SpriteStates.Hit;
             if (s == MobileStates.Spell && HasCastSheet)
                 return SpriteStates.Cast;
-            if (s == MobileStates.PrimaryAttack)
+            if (s == MobileStates.PrimaryAttack && !IsThrow(s))
                 return SpriteStates.Attack;
-            if (IsRanged(s))
+            if (IsRanged(s) || IsThrow(s))
                 return SpriteStates.RangedAttack;
+            if (talkLeft > 0 && speed <= WalkSpeed)
+                return SpriteStates.Talk;
             if (speed <= WalkSpeed)
                 return SpriteStates.Idle;       // standing, or turning on the spot
             return gait != null && gait.Current == Gait.Run ? SpriteStates.Run : SpriteStates.Walk;
+        }
+
+        /// <summary>A creature's attack state that NpcRanged started as a throw.</summary>
+        bool IsThrow(MobileStates s)
+        {
+            return s == MobileStates.PrimaryAttack && ranged != null && ranged.Throwing;
         }
 
         static bool IsRanged(MobileStates s)
@@ -673,7 +744,7 @@ namespace AdvancedNPCs
                 row = SpriteDirections.Row(toCamera.x, toCamera.z, fwd.x, fwd.z);
             }
 
-            bool loop = state == SpriteStates.Idle || state == SpriteStates.Walk || state == SpriteStates.Run;
+            bool loop = state == SpriteStates.Idle || state == SpriteStates.Walk || state == SpriteStates.Run || state == SpriteStates.Talk;
             int f = (int)(time * set.Set.Fps);
             f = loop ? f % anim.Frames : Mathf.Min(f, anim.Frames - 1);
             if (f != frame)

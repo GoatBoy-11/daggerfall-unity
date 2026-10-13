@@ -16,7 +16,11 @@ namespace AdvancedNPCs.Core
         public const string Hit = "hit";
         public const string Death = "death";
         public const string Step = "step";
-        public static readonly string[] All = { Greet, Attack, AttackRange, Cast, Hit, Death, Step };
+        /// <summary>Lines in a conversation with another ANPC (NpcChat); always play there, nowhere else.</summary>
+        public const string Talk = "talk";
+        /// <summary>Talk lines for one gender only (an ANPC whose gender is picked at random); before plain talk.</summary>
+        public const string TalkMale = "talk_male", TalkFemale = "talk_female";
+        public static readonly string[] All = { Greet, Attack, AttackRange, Cast, Hit, Death, Step, Talk, TalkMale, TalkFemale };
 
         /// <summary>The pool a file name (without extension) belongs to; null for any other name.</summary>
         public static string PoolOf(string name)
@@ -34,6 +38,19 @@ namespace AdvancedNPCs.Core
                 lower = lower.Substring(0, end - 1);
             }
             return Array.IndexOf(All, lower) >= 0 ? lower : null;
+        }
+
+        /// <summary>
+        /// The talk pool of an ANPC of this gender ("Male"/"Female", any case): talk_male or talk_female when the folder
+        /// has it, else talk; null when it has neither (never the other gender's lines).
+        /// </summary>
+        public static string TalkPool(string gender, ICollection<string> available)
+        {
+            string own = string.Equals(gender, "Female", StringComparison.OrdinalIgnoreCase) ? TalkFemale :
+                string.Equals(gender, "Male", StringComparison.OrdinalIgnoreCase) ? TalkMale : null;
+            if (own != null && available.Contains(own))
+                return own;
+            return available.Contains(Talk) ? Talk : null;
         }
 
         /// <summary>attack, attack_range, cast and hit roll combatChance.</summary>
@@ -226,6 +243,19 @@ namespace AdvancedNPCs.Core
         public static bool UseDefaultSteps(bool ownStepFiles, bool defaultStepsSetting)
         {
             return !ownStepFiles && defaultStepsSetting;
+        }
+
+        /// <summary>The shared default footsteps play this much quieter than an ANPC's own (user tuning, 0.21.0).</summary>
+        public const float DefaultStepVolume = 0.85f;
+
+        /// <summary>
+        /// Volume scale of one footstep (times DFU's sound volume): the "Steps volume" setting (percent, 0-100), and the
+        /// shared default steps a little quieter.
+        /// </summary>
+        public static float StepVolume(bool defaultStep, int stepsVolumePercent)
+        {
+            float scale = Math.Max(0, Math.Min(100, stepsVolumePercent)) / 100f;
+            return defaultStep ? scale * DefaultStepVolume : scale;
         }
 
         /// <summary>One-shot voices of an ANPC take turns over this many audio sources, so each keeps its own pitch.</summary>
