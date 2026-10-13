@@ -161,7 +161,7 @@ namespace AdvancedNPCs
             }
             else
             {
-                gait = GaitRules.Calm(moving);
+                gait = moving && brain.PackageRunning ? Gait.Run : GaitRules.Calm(moving);
             }
             lastLocal = transform.localPosition;
         }

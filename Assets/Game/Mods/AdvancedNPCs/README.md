@@ -170,6 +170,69 @@ Performance: ANPCs far from you update their animation and calm decisions less o
 
 Use `../../_Schemas/sprites.schema.json` in a `sprites` folder and `../_Schemas/dialogue.schema.json` in `_Dialogue/` or an ANPC folder. The mod ignores the `"$schema"` member. `Tools~/check-schemas.py` keeps the schemas in step with the mod's own field lists.
 
+## AI packages and schedules
+
+Packages are optional. Without a schedule, ANPCs use their current AI. A schedule only changes
+routine movement; combat, flight, greetings, conversations and healing can interrupt it.
+
+Put reusable packages in `ANPCs/_Packages/<name>.json`:
+
+```json
+{
+  "type": "wander",
+  "parameters": { "radius": 6, "pause": 5 }
+}
+```
+
+Reference that filename (without `.json`) in any unique or generic NPC:
+
+```json
+"schedule": [
+  { "hours": ["08:00", "18:00"], "package": "local_patrol" },
+  { "hours": ["18:00", "23:00"], "package": "local_wander", "parameters": { "radius": 3 } },
+  { "package": "stand" }
+]
+```
+
+- Times use the in-game clock, exactly `HH:mm`, 00:00–23:59. Start included, end excluded.
+  `["23:00", "07:00"]` crosses midnight. Equal endpoints are invalid; omit hours for all day.
+- One entry may omit `hours`: it is the all-day fallback. Timed entries always take precedence.
+  With no fallback, gaps use the original wander/leash AI. Entries can be written in any order.
+- At most 64 entries. Overlapping timed slots, multiple fallbacks and malformed schedules disable
+  the whole schedule with a warning; the NPC still loads normally. A missing or invalid selected
+  package falls back to current AI for that slot, including when an all-day fallback exists.
+- A slot's optional `parameters` override the package defaults for that NPC only. Unknown or invalid
+  parameters disable that slot's package. Nothing edits the shared package or NPC definition.
+- While running, a package replaces `wanderRadius` and `stayNear`, including the normal indoor
+  wandering cap. Keep routes inside the current area. Stationary sprite sets still cannot move.
+- Packages use positions relative to the NPC's original home (spawn/replacement position),
+  as `[x,y,z]` metre offsets in that area's axes, each component between -100 and 100.
+  They remain portable across generic instances. Summoning/repositioning an NPC resets its home.
+- Routes use direct collision-aware movement along authored waypoints. Place points around obstacles.
+  Automatic pathfinding, opening doors, changing interiors, named anchors, sequences and C# extension
+  handlers are not part of this first version.
+- After 10 active seconds without progress, the selected package falls back to current AI until
+  the next schedule occurrence, a time jump or a reload. Paused/interrupted time does not count.
+- On save load or area entry, the current schedule is selected and navigation starts fresh.
+  Resting/travel/time jumps do not replay missed activities. Package waits use in-game seconds.
+
+| Type | Parameters |
+|---|---|
+| `stand` | None; stand where the NPC is when this package takes control. |
+| `wander` | `center` (default `[0,0,0]`), `radius` (0–50, default 8), `pause` (0–3600 game seconds, default 3), `run` (default false). |
+| `travel_to` | Required `target: [x,y,z]`; `run` (default false). Hold at the target, returning after displacement. |
+| `patrol` | Required `points: [[x,y,z], ...]` (2–32); `pauseAtStops` (0–3600 game seconds, default 10), `run` (default false). Loop through the points. |
+
+Running respects `combat.canRun` and uses `combat.runSpeed` as its multiplier.
+Use `Schemas~/package.schema.json` for package autocomplete and the updated NPC schema for schedules.
+
+- `anpc_selftest packages`: focused in-game checks of takeover, holds, fallback and combat interruption.
+- `anpc_reload_packages`: re-read package JSON files and restart the current activities. Schedule changes
+  in `npc.json` require a game restart.
+- `anpc_info [id or key]`: includes selected slot/package, fallback reason and interruption status.
+- `anpc_spawn package_tester`: opt-in example with day patrol, evening wander and night stand.
+  From 07:00 to 08:00 it uses its original AI. It does not spawn automatically.
+
 ## Enemies
 
 `"attitude": "hostile"` (unique or generic) makes an enemy: it attacks you on sight with DFU's own enemy AI, never
@@ -701,6 +764,7 @@ Sources live in `Scripts/Core` (pure logic, unit-tested) and `Scripts/Runtime` (
 `Tools~` (ignored by Unity) holds:
 
 - `run-tests.sh` — runs the Core NUnit tests in a small Unity host project.
+- `run-core-tests.ps1` — runs the same Core NUnit suite with cached NUnit and Mono, without opening the Unity Editor.
 - `compile-check.sh` — compiles every mod source against a DFU install's own assemblies.
 - `runtime-check.sh` — compiles the sources with DFU's own in-memory runtime compiler and loads every type, catching problems only the game's compiler has (e.g. nested enums cause TypeLoadException there).
 - `build-mod.sh` — builds `advancednpcs.dfmod` with Unity 2019.4.41f2 (a windowed editor that closes itself) and installs it, plus `Examples/ANPCs`, into a DFU install. In the editor the same build is under **Daggerfall Tools → Build Advanced NPCs mod**. Sounds you may not share (bought packs) can live outside git in `ANPC_LOCAL_SOUNDS` (default `F:/_Projects/Dagerfall/anpc_local_sounds`): `<anpc>/Sounds/<pool>_N.ogg` there replaces that ANPC's whole pool in the install.

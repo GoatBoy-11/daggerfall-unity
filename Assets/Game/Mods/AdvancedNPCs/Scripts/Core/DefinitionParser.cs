@@ -28,7 +28,7 @@ namespace AdvancedNPCs.Core
         {
             "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "fleeChance", "aggroRange", "calmDownHours",
             "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight", "spriteHeightScale", "spriteScale", "attitude", "hostileHours", "dialogue", "magic",
-            "combat", "sounds", "conversation", "replaces", "replacePortrait", "replaceName", "stayNear",
+            "combat", "sounds", "conversation", "replaces", "replacePortrait", "replaceName", "stayNear", "schedule",
         };
         static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
         static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
@@ -547,6 +547,14 @@ namespace AdvancedNPCs.Core
                 return Problem(r, file, replaceKey, problem);
             if (d.Replace != null && d.Kind != NpcKind.Generic)
                 return Problem(r, file, "replaces", "only generic ANPCs can replace vanilla NPCs (one person cannot stand in several places)");
+            object schedule;
+            if (o.TryGetValue("schedule", out schedule))
+            {
+                string scheduleError;
+                d.Schedule = AiSchedule.Read(schedule, out scheduleError);
+                if (scheduleError != null)
+                    r.Warnings.Add(file + ": schedule: " + scheduleError + "; using current AI");
+            }
             ReadDialogueTypes(file, o, d, r);
             return true;
         }

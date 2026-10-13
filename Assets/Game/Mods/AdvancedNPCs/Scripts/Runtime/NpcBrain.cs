@@ -53,6 +53,10 @@ namespace AdvancedNPCs
         float holdStill;        // seconds the calm NPC stands still (greeting)
         NpcGait gait;
         float patrolTimer;
+        NpcPackageDriver packages;
+        bool packageControlled;
+        public bool PackageRunning { get { return mode == NpcMode.Calm && packages != null && packages.Running; } }
+        public string PackageDescription { get { return packages != null ? packages.Description : "current AI (no schedule)"; } }
         static Collider[] nearby = new Collider[64];
         const int MaxNearby = 512;
         System.Random rng;
@@ -317,6 +321,10 @@ namespace AdvancedNPCs
                 sb.Append("  key ").Append(key).Append(", ").Append(def.Kind == NpcKind.Unique ? "unique" : "generic")
                   .Append(", folder ").Append(def.Folder).Append(", bravery ").Append(def.Bravery).Append('\n');
             sb.Append("  ").Append(Status).Append('\n');
+            sb.Append("  package: ").Append(PackageDescription);
+            if (packages != null && (mode != NpcMode.Calm || holdStill > 0 || IsTurret || GameManager.IsGamePaused))
+                sb.Append(" (interrupted)");
+            sb.Append('\n');
             sb.Append("  enemy: ").Append(enemy ? "yes" : "no");
             if (state != null && state.hostile)
             {
@@ -400,6 +408,7 @@ namespace AdvancedNPCs
             controller.enabled = wasEnabled;
             homeLocal = transform.localPosition;
             hasWanderTarget = false;
+            if (packages != null) packages = new NpcPackageDriver(this, mover);
             NpcGait g = GetComponent<NpcGait>();
             if (g != null)
                 g.Repin();
@@ -435,6 +444,8 @@ namespace AdvancedNPCs
             gait = GetComponent<NpcGait>();
             patrolTimer = Random.Range(0f, AggroRules.CheckInterval);
             homeLocal = transform.localPosition;
+            if (def.Schedule != null && def.Schedule.Count > 0)
+                packages = new NpcPackageDriver(this, mover);
 
             // No language pacification roll: it would turn a player's attack back off before Update sees it.
             senses.HasEncounteredPlayer = true;
@@ -478,6 +489,11 @@ namespace AdvancedNPCs
             if (mode == NpcMode.Dead || entityBehaviour == null)
                 return;
 
+            if (packages != null)
+            {
+                packages.Pause();
+                packages.Select(AdvancedNpcsMod.Instance != null ? AdvancedNpcsMod.Instance.Packages : null, Now());
+            }
             DaggerfallEntityBehaviour player = GameManager.Instance.PlayerEntityBehaviour;
             int health = entityBehaviour.Entity.CurrentHealth;
             bool healthDropped = health < lastHealth;
@@ -662,11 +678,24 @@ namespace AdvancedNPCs
 
         void UpdateCalm()
         {
+            if (packages != null && GameManager.IsGamePaused)
+            {
+                mover.Stop();
+                return;
+            }
             if (holdStill > 0f || IsTurret)
             {
                 holdStill = Mathf.Max(0f, holdStill - Time.deltaTime);
                 mover.Stop();
                 return;
+            }
+            if (packages != null)
+            {
+                bool controlled = packages.Tick(homeLocal, Now(), Time.deltaTime);
+                if (controlled != packageControlled)
+                    hasWanderTarget = false;
+                packageControlled = controlled;
+                if (controlled) return;
             }
             float wanderRadius = Mathf.Min(def.WanderRadius, WanderCap);
             if (Leash > 0f)

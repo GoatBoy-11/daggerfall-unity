@@ -120,9 +120,10 @@ namespace AdvancedNPCs
             }
             DaggerfallEntityBehaviour playerBehaviour = gm.PlayerEntityBehaviour;
             Transform playerTransform = gm.PlayerObject.transform;
-            if (Suite == RangedSuite || Suite == ReplaceSuite)
+            if (Suite == RangedSuite || Suite == ReplaceSuite || Suite == PackageSuite)
             {
-                IEnumerator only = Suite == RangedSuite ? RangedSteps(location, playerTransform) : ReplaceSteps(location, playerTransform);
+                IEnumerator only = Suite == PackageSuite ? PackageSteps(location, playerTransform) :
+                    Suite == RangedSuite ? RangedSteps(location, playerTransform) : ReplaceSteps(location, playerTransform);
                 while (only.MoveNext())
                     yield return only.Current;
                 yield break;
@@ -924,6 +925,10 @@ namespace AdvancedNPCs
             IEnumerator replaceSteps = ReplaceSteps(location, playerTransform);
             while (replaceSteps.MoveNext())
                 yield return replaceSteps.Current;
+
+            IEnumerator packageSteps = PackageSteps(location, playerTransform);
+            while (packageSteps.MoveNext())
+                yield return packageSteps.Current;
 
             IEnumerator sounds = SoundSteps(location, playerTransform);
             while (sounds.MoveNext())

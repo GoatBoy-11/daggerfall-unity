@@ -24,6 +24,7 @@ namespace AdvancedNPCs
         public static AdvancedNpcsMod Instance { get; private set; }
 
         public DefinitionCatalog Catalog { get; private set; }
+        public PackageLibrary Packages { get; private set; }
         public NpcStateTable States { get; private set; }
         /// <summary>People placed with anpc_spawn in this game (saved with it).</summary>
         public PlacedNpcList Placed { get; private set; }
@@ -82,6 +83,7 @@ namespace AdvancedNPCs
             Placed = new PlacedNpcList();
             AnpcFiles.MigrateLegacy();
             Catalog = LoadCatalog();
+            ReloadPackages();
             Portraits = PortraitLibrary.Load(AnpcFiles.PortraitsFolder);
             Portraits.WarnMissing(Catalog.ReferencedPortraits());
             Names = NameLists.Load(Path.Combine(AnpcFiles.Root, NameLists.FolderName));
@@ -126,6 +128,9 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_topics",
                 "Shows the dialogue topics of the ANPC in front of you (or <id>): which are shown, and why the others are hidden.",
                 "anpc_topics [id]", TopicsCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_reload_packages",
+                "Re-reads ANPCs/_Packages/*.json; active schedules restart with the new settings (npc.json changes need a restart).",
+                "anpc_reload_packages", ReloadPackagesCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_reload_dialogue",
                 "Re-reads ANPCs/_Dialogue/*.json and every dialogue.json (changes to npc.json need a restart).",
                 "anpc_reload_dialogue", ReloadDialogueCommand);
@@ -154,6 +159,21 @@ namespace AdvancedNPCs
             string autorun = Path.Combine(AnpcFiles.Root, AutoRunFile);
             if (File.Exists(autorun))
                 StartCoroutine(AutoRun(autorun));
+        }
+
+        void ReloadPackages()
+        {
+            Packages = PackageLibrary.Load(AnpcFiles.Root);
+            foreach (NpcDefinition d in Catalog.ById.Values) Packages.Check(d);
+            foreach (NpcDefinition d in Catalog.Generics) Packages.Check(d);
+        }
+
+        static string ReloadPackagesCommand(params string[] args)
+        {
+            Instance.ReloadPackages();
+            string text = "Reloaded " + Instance.Packages.Count + " AI package(s). See Player.log for invalid definitions. Schedules in npc.json need a restart.";
+            Log(text);
+            return text;
         }
 
         void OnDestroy()
@@ -546,7 +566,7 @@ namespace AdvancedNPCs
             if (SelfTest.Running)
                 return "The self-test is already running.";
             SelfTest test = new SelfTest(Instance, Instance.spawner);
-            if (args.Length > 0 && (args[0] == SelfTest.RangedSuite || args[0] == SelfTest.ReplaceSuite))
+            if (args.Length > 0 && (args[0] == SelfTest.RangedSuite || args[0] == SelfTest.ReplaceSuite || args[0] == SelfTest.PackageSuite))
                 test.Suite = args[0];
             Instance.StartCoroutine(test.Run(null));
             return "Self-test started; results appear on screen and in Player.log (SELFTEST lines).";
@@ -571,7 +591,7 @@ namespace AdvancedNPCs
             string save = lines[1].Trim();
             bool play = lines.Length > 2 && lines[2].Trim() == "play";
             string third = lines.Length > 2 ? lines[2].Trim() : "";
-            string suite = third == SelfTest.RangedSuite || third == SelfTest.ReplaceSuite ? third : null;
+            string suite = third == SelfTest.RangedSuite || third == SelfTest.ReplaceSuite || third == SelfTest.PackageSuite ? third : null;
             if (play)
                 File.Delete(path);
             Log(SelfTest.Prefix + "autorun: loading save '" + save + "' of '" + character + "'" + (play ? " to play" : ""));

@@ -1,0 +1,40 @@
+{
+  "$schema": "../_Schemas/npc.schema.json",
+  "kind": "generic",
+  "name": "Package Tester",
+  "baseClass": "Warrior",
+  "bravery": "Prudent",
+  "wanderRadius": 2,
+  "spawn": {
+    "count": [
+      0,
+      0
+    ]
+  },
+  "schedule": [
+    {
+      "package": "local_patrol",
+      "hours": [
+        "08:00",
+        "18:00"
+      ]
+    },
+    {
+      "package": "local_wander",
+      "hours": [
+        "18:00",
+        "23:00"
+      ],
+      "parameters": {
+        "radius": 3
+      }
+    },
+    {
+      "package": "stand",
+      "hours": [
+        "23:00",
+        "07:00"
+      ]
+    }
+  ]
+}

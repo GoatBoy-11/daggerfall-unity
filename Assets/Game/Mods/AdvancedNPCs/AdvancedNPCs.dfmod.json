@@ -8,6 +8,12 @@
     "GUID": "cdeaee86-3114-4004-b08e-e98f8db44241",
     "Files": [
         "Assets/Game/Mods/AdvancedNPCs/modsettings.json",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/AiSchedule.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/AiPackage.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/PackageMotion.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/PackageLibrary.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestPackages.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcPackageDriver.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/Bearing.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/Condition.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Core/Conversation.cs",

@@ -62,6 +62,8 @@ namespace AdvancedNPCs.Core
         /// <summary>BaseClass is a DFU creature (Creatures), not a human class.</summary>
         public bool IsCreature;
         public float WanderRadius;
+        /// <summary>Optional daily routine; empty keeps the original AI.</summary>
+        public List<AiScheduleEntry> Schedule = new List<AiScheduleEntry>();
         /// <summary>Optional spellcasting override; null keeps vanilla class behaviour.</summary>
         public NpcMagicDefinition Magic;
         /// <summary>"combat": multiplier on DFU's rolled max health (1 = unchanged).</summary>

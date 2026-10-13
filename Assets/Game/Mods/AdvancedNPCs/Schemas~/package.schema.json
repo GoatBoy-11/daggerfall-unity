@@ -1,0 +1,181 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ANPC AI package",
+  "description": "Optional reusable local AI behaviour. Durations are game seconds.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "stand"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "wander"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "center": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": -100,
+                "maximum": 100
+              },
+              "minItems": 3,
+              "maxItems": 3,
+              "description": "Metre offsets from the NPC's home, in its area's local axes."
+            },
+            "radius": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 50,
+              "default": 8
+            },
+            "pause": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3600,
+              "default": 3
+            },
+            "run": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "travel_to"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "target": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": -100,
+                "maximum": 100
+              },
+              "minItems": 3,
+              "maxItems": 3,
+              "description": "Metre offsets from the NPC's home, in its area's local axes."
+            },
+            "run": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "target"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "parameters"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "patrol"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "points": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": -100,
+                  "maximum": 100
+                },
+                "minItems": 3,
+                "maxItems": 3,
+                "description": "Metre offsets from the NPC's home, in its area's local axes."
+              },
+              "minItems": 2,
+              "maxItems": 32
+            },
+            "pauseAtStops": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3600,
+              "default": 10
+            },
+            "run": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "points"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "parameters"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}
