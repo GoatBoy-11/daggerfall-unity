@@ -12,16 +12,18 @@ namespace AdvancedNPCs
     /// <summary>Self-test: conversations between ANPCs (spec conversations).</summary>
     public partial class SelfTest
     {
-        static readonly string[] ChatFolders = { "selftest_chat_a", "selftest_chat_b", "selftest_chat_c", "selftest_chat_d", "selftest_chat_mute", "selftest_chat_plain", "selftest_chat_quiet", "selftest_chat_ghost" };
+        static readonly string[] ChatFolders = { "selftest_chat_a", "selftest_chat_b", "selftest_chat_c", "selftest_chat_d", "selftest_chat_mute", "selftest_chat_plain", "selftest_chat_quiet", "selftest_chat_ghost", "selftest_chat_enemy_a", "selftest_chat_enemy_b", "selftest_chat_gender" };
 
         IEnumerator ChatSteps(DaggerfallLocation location, Transform player)
         {
             DaggerfallEntityBehaviour playerBehaviour = GameManager.Instance.PlayerEntityBehaviour;
 
-            // Every installed example with a sprite set of its own converses: "conversation" on and 16 talk sounds.
+            // Every installed example converses: "conversation" on and 16 talk sounds (talk, or talk_male and talk_female
+            // for a template whose gender is picked at random).
             string[] talkers = { "argonian_female_acrobat_1", "argonian_staff_fighter_1", "breton_nightblade", "castle_guard_1",
                 "dunmer_citizen_1", "dunmer_mercenary", "dunmer_spellblade", "iron_sentinel", "khajiit_citizen_1",
-                "nord_barbarian_1", "ohmes_knight_1", "orc_weakling", "wench" };
+                "nord_barbarian_1", "ohmes_knight_1", "orc_weakling", "wench", "baker", "cooper", "smith" };
+            string[] eitherGender = { "bandit", "commoner", "patron", "spellcaster" };
             List<NpcDefinition> examples = new List<NpcDefinition>(mod.Catalog.ById.Values);
             examples.AddRange(mod.Catalog.Generics);
             List<string> silent = new List<string>();
@@ -32,18 +34,29 @@ namespace AdvancedNPCs
                 if (d == null)
                     continue;       // not installed
                 found++;
-                LoadedSoundSet sounds = mod.Sounds.For(folder);
-                if (!d.Conversation.Enabled || sounds == null || !sounds.Files.ContainsKey(SoundPools.Talk) ||
-                    sounds.Files[SoundPools.Talk].Count != 16)
+                if (!d.Conversation.Enabled || TalkFiles(folder, SoundPools.Talk) != 16)
                     silent.Add(folder);
             }
-            Check("every example with its own sprite set converses (conversation on, 16 talk sounds)",
+            foreach (string folder in eitherGender)
+            {
+                NpcDefinition d = examples.Find(delegate (NpcDefinition e) { return e.Folder == folder; });
+                if (d == null)
+                    continue;
+                found++;
+                if (!d.Conversation.Enabled || TalkFiles(folder, SoundPools.TalkMale) != 16 || TalkFiles(folder, SoundPools.TalkFemale) != 16)
+                    silent.Add(folder);
+            }
+            Check("every example converses (conversation on, 16 talk sounds, per gender for random-gender templates)",
                 found > 0 && silent.Count == 0, found + " installed; without: " + string.Join(", ", silent.ToArray()));
 
             string root = Path.Combine(Application.temporaryCachePath, "anpc_selftest_chat");
             string talkDir = Path.Combine(root, "Sounds");
             string muteDir = Path.Combine(Path.Combine(root, "mute"), "Sounds");
             string quietDir = Path.Combine(Path.Combine(root, "quiet"), "Sounds");
+            string genderDir = Path.Combine(Path.Combine(root, "gender"), "Sounds");
+            Directory.CreateDirectory(genderDir);
+            foreach (string n in new[] { "talk_male_1", "talk_female_1", "talk_female_2" })
+                File.WriteAllBytes(Path.Combine(genderDir, n + ".wav"), ToneWav(0.3f));
             Directory.CreateDirectory(talkDir);
             Directory.CreateDirectory(muteDir);
             Directory.CreateDirectory(quietDir);
@@ -53,7 +66,8 @@ namespace AdvancedNPCs
             File.WriteAllBytes(Path.Combine(muteDir, "greet_1.wav"), ToneWav(0.1f));
             File.WriteAllBytes(Path.Combine(quietDir, "talk_1.wav"), ToneWav(0.3f));
             foreach (string f in ChatFolders)
-                mod.Sounds.Add(f, SoundLibrary.IndexSet(f + "/Sounds", f == "selftest_chat_mute" ? muteDir : f == "selftest_chat_quiet" ? quietDir : talkDir));
+                mod.Sounds.Add(f, SoundLibrary.IndexSet(f + "/Sounds", f == "selftest_chat_mute" ? muteDir : f == "selftest_chat_quiet" ? quietDir :
+                    f == "selftest_chat_gender" ? genderDir : talkDir));
             mod.Sprites.Add("selftest_chat_a", TestSpriteSet(false, "idle", "walk", "talk"));
             mod.Sprites.Add("selftest_chat_b", TestSpriteSet(false, "idle", "walk"));
             mod.Sprites.Add("selftest_chat_c", TestSpriteSet(false, "idle", "walk", "talk"));
@@ -61,6 +75,8 @@ namespace AdvancedNPCs
             mod.Sprites.Add("selftest_chat_mute", TestSpriteSet(false, "idle", "walk"));
             mod.Sprites.Add("selftest_chat_quiet", TestSpriteSet(false, "idle", "walk", "talk"));
             mod.Sprites.Add("selftest_chat_ghost", TestSpriteSet(false, "idle", "walk", "talk"));
+            mod.Sprites.Add("selftest_chat_enemy_a", TestSpriteSet(false, "idle", "walk", "talk"));
+            mod.Sprites.Add("selftest_chat_enemy_b", TestSpriteSet(false, "idle", "walk", "talk"));
             // selftest_chat_plain: talk sounds but no sprite set (the vanilla class sprite).
             NpcGreeter.ReactionOverride = "neutral";    // nobody greets the player
             NpcGreeter.ChanceOverride = 1f;
@@ -265,9 +281,87 @@ namespace AdvancedNPCs
                 Check("a talker without greet files never greets the player", quietGreeter != null && quietGreeter.Greetings == 0,
                     quietGreeter == null ? "no greeter" : "greetings " + quietGreeter.Greetings);
 
-                Check("no talk sounds, a vanilla sprite or no opt-in: no conversation",
-                    muteWhy != null && muteWhy.Contains("no talk sounds") && plainWhy == "vanilla sprite" && shy.GetComponent<NpcChat>() == null,
-                    "mute=" + muteWhy + ", plain=" + plainWhy + ", shy has NpcChat " + (shy.GetComponent<NpcChat>() != null));
+                Check("no talk sounds or no opt-in: no conversation",
+                    muteWhy != null && muteWhy.Contains("no talk sounds") && shy.GetComponent<NpcChat>() == null,
+                    "mute=" + muteWhy + ", shy has NpcChat " + (shy.GetComponent<NpcChat>() != null));
+
+                // The vanilla class sprite talks too (it just shows its idle sprite while it does).
+                NpcChat plainChat = plain.GetComponent<NpcChat>();
+                quiet.Teleport(plain.transform.position + side * 2f);
+                yield return null;
+                // It may already be talking with the quiet one (it greeted it): that counts as well.
+                string plainStart = plainChat.Talking ? null : plainChat.TryStart(quiet.GetComponent<NpcChat>(), true);
+                Check("an ANPC with the vanilla sprite converses", plainWhy == null && plainStart == null && plainChat.Talking &&
+                    plain.GetComponent<NpcGreeter>() != null, "why=" + plainWhy + ", start=" + plainStart + ", greeter " +
+                    (plain.GetComponent<NpcGreeter>() != null));
+                plainChat.End(true);
+
+                // talk_male / talk_female: an ANPC whose gender is picked at random speaks with its own gender's lines.
+                NpcDefinition gf = TestDefinition("selftest_chat_gender", Bravery.Normal, location, player, OutOfGreeting);
+                gf.Gender = "Female";
+                gf.Conversation = new ConversationSettings { Enabled = true, Chance = 100 };
+                NpcBrain female = SpawnDefinition(gf, location);
+                NpcDefinition gm = TestDefinition("selftest_chat_gender", Bravery.Normal, location, player, OutOfGreeting);
+                gm.Gender = "Male";
+                gm.Conversation = new ConversationSettings { Enabled = true, Chance = 100 };
+                NpcBrain male = SpawnDefinition(gm, location);
+                NpcVoice fv = female.GetComponent<NpcVoice>(), mv = male.GetComponent<NpcVoice>();
+                until = Time.time + 3f;
+                while (Time.time < until && (fv.Set == null || !fv.Set.IsReady || mv.Set == null || !mv.Set.IsReady))
+                    yield return null;
+                Check("talk_female / talk_male lines go to that gender only",
+                    fv.TalkPoolName == SoundPools.TalkFemale && fv.TalkClips == 2 && mv.TalkPoolName == SoundPools.TalkMale && mv.TalkClips == 1,
+                    "female " + fv.TalkPoolName + " x" + fv.TalkClips + ", male " + mv.TalkPoolName + " x" + mv.TalkClips);
+                NpcBrain.Discard(female);
+                NpcBrain.Discard(male);
+
+                // Enemies of the player talk among themselves while DFU's AI has no one for them to fight. Nobody else
+                // about: a calm test ANPC would go for them.
+                DiscardTestPeople();
+                yield return null;
+                PlayerEntity playerEntity = GameManager.Instance.PlayerEntity;
+                bool noTarget = playerEntity.NoTargetMode;
+                playerEntity.NoTargetMode = true;       // the AI ignores the player: they stay idle
+                try
+                {
+                    NpcBrain ea = SpawnEnemyTalker("selftest_chat_enemy_a", location, player);
+                    NpcBrain eb = SpawnEnemyTalker("selftest_chat_enemy_b", location, player);
+                    Vector3 enemySpot = player.position + open * 12f + side * 4f;
+                    ea.Teleport(enemySpot);
+                    eb.Teleport(enemySpot + side * 2.5f);
+                    FaceToward(ea, enemySpot + side * 2.5f);
+                    FaceToward(eb, enemySpot);
+                    NpcChat cea = ea.GetComponent<NpcChat>(), ceb = eb.GetComponent<NpcChat>();
+                    until = Time.time + 8f;
+                    while (Time.time < until && !cea.Talking && !ceb.Talking)
+                        yield return null;
+                    Check("two enemies with no one to fight greet each other and talk",
+                        ea.IsEnemy && eb.IsEnemy && (cea.Talking || ceb.Talking) && cea.Partner == ceb,
+                        "enemy " + ea.IsEnemy + "/" + eb.IsEnemy + ", idle " + ea.IdleEnemy + "/" + eb.IdleEnemy + ", a=" + ChatState(cea) +
+                        ", b=" + ChatState(ceb) + ", " + ea.Status);
+                    cea.End(false);
+                    yield return null;
+
+                    // Something to fight (here the player, hitting one): the conversation ends.
+                    string again = cea.TryStart(ceb, true);
+                    yield return new WaitForSeconds(0.5f);
+                    bool enemiesTalked = cea.Talking;
+                    playerEntity.NoTargetMode = noTarget;
+                    PlayerHit(eb, playerBehaviour, 1);
+                    until = Time.time + 2f;
+                    while (Time.time < until && cea.Talking)
+                        yield return null;
+                    Check("an enemy that gets someone to fight ends the conversation",
+                        again == null && enemiesTalked && !cea.Talking && !ceb.Talking && !eb.IdleEnemy,
+                        "start=" + (again ?? "ok") + ", was talking " + enemiesTalked + ", talking " + cea.Talking + "/" + ceb.Talking +
+                        ", idle " + eb.IdleEnemy + ", " + eb.Status);
+                    NpcBrain.Discard(ea);
+                    NpcBrain.Discard(eb);
+                }
+                finally
+                {
+                    playerEntity.NoTargetMode = noTarget;
+                }
             }
             finally
             {
@@ -281,6 +375,22 @@ namespace AdvancedNPCs
                 }
             }
             DiscardTestPeople();
+        }
+
+        int TalkFiles(string folder, string pool)
+        {
+            LoadedSoundSet sounds = mod.Sounds.For(folder);
+            List<string> files;
+            return sounds != null && sounds.Files.TryGetValue(pool, out files) ? files.Count : 0;
+        }
+
+        NpcBrain SpawnEnemyTalker(string id, DaggerfallLocation location, Transform player)
+        {
+            NpcDefinition d = TestDefinition(id, Bravery.Brave, location, player, OutOfGreeting);
+            d.Hostile = true;
+            d.Conversation = new ConversationSettings { Enabled = true, Chance = 100 };
+            d.Sounds = new SoundSettings { GreetChance = 100 };
+            return SpawnDefinition(d, location);
         }
 
         NpcBrain SpawnTalker(string id, bool talks, DaggerfallLocation location, Transform player)

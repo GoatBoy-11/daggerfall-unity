@@ -17,12 +17,24 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
-        public void SameSide_NeedsBothCalmAndNoEnemy()
+        public void SameSide_BothPeaceful_OrBothIdleEnemies()
         {
-            Assert.IsTrue(GreetRules.SameSide(true, false, true, false));
-            Assert.IsFalse(GreetRules.SameSide(true, false, false, false));
-            Assert.IsFalse(GreetRules.SameSide(true, true, true, false));
-            Assert.IsFalse(GreetRules.SameSide(true, false, true, true));
+            Assert.IsTrue(GreetRules.SameSide(GreetRules.Peaceful, GreetRules.Peaceful));
+            Assert.IsTrue(GreetRules.SameSide(GreetRules.IdleEnemy, GreetRules.IdleEnemy));    // bandits before they spot you
+            Assert.IsFalse(GreetRules.SameSide(GreetRules.Peaceful, GreetRules.IdleEnemy));
+            Assert.IsFalse(GreetRules.SameSide(GreetRules.IdleEnemy, GreetRules.Peaceful));
+            Assert.IsFalse(GreetRules.SameSide(GreetRules.Busy, GreetRules.Busy));
+            Assert.IsFalse(GreetRules.SameSide(GreetRules.Peaceful, GreetRules.Busy));
+        }
+
+        [Test]
+        public void Side_PeacefulIdleEnemyOrBusy()
+        {
+            Assert.AreEqual(GreetRules.Peaceful, GreetRules.Side(true, false, false, false));
+            Assert.AreEqual(GreetRules.Busy, GreetRules.Side(true, true, false, false));       // angry at the player
+            Assert.AreEqual(GreetRules.Busy, GreetRules.Side(false, false, false, false));     // fleeing a creature
+            Assert.AreEqual(GreetRules.IdleEnemy, GreetRules.Side(false, true, true, true));   // an enemy that has no target
+            Assert.AreEqual(GreetRules.Busy, GreetRules.Side(false, true, true, false));       // an enemy that spotted someone
         }
 
         [Test]
@@ -96,14 +108,14 @@ namespace AdvancedNPCs.Tests
             Assert.IsTrue(m.Consider("anna", true, true, 10.2, 0.0, 1.0));
         }
 
-        [TestCase(true, false, false, true)]
-        [TestCase(false, true, true, true)]
-        [TestCase(false, true, false, false)]
-        [TestCase(false, false, true, false)]
-        public void NeedsGreeter_GreetFilesOrAConversationThatCanHappen(bool greetFiles, bool converses, bool spriteSet, bool expected)
+        [TestCase(true, false, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, true, true)]
+        [TestCase(false, false, false)]
+        public void NeedsGreeter_GreetFilesOrAConversation(bool greetFiles, bool converses, bool expected)
         {
-            // Without greet files the greeter only starts conversations, which need a sprite set of its own.
-            Assert.AreEqual(expected, GreetRules.NeedsGreeter(greetFiles, converses, spriteSet));
+            // Without greet files the greeter only starts conversations (also with the vanilla sprite).
+            Assert.AreEqual(expected, GreetRules.NeedsGreeter(greetFiles, converses));
         }
     }
 }

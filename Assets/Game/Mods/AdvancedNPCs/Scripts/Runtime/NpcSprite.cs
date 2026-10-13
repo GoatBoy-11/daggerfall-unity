@@ -51,6 +51,7 @@ namespace AdvancedNPCs
         int lastHealth = -1;
         float oneShotLeft;      // seconds a hit (or attack) sheet keeps playing whatever DFU's own state says
         float talkLeft;         // seconds the speaker in a conversation keeps its talk sheet (NpcChat)
+        int greetSide;          // its GreetRules side when the greeting began (a change ends the wave)
         int hitStarts;
         int greetStarts;
         MobileStates lastMobileState;
@@ -471,8 +472,8 @@ namespace AdvancedNPCs
                 oneShotLeft -= dt;
             if (talkLeft > 0)
                 talkLeft -= dt;
-            if (state == SpriteStates.Greet && oneShotLeft > 0 && brain != null && brain.CurrentMode != NpcMode.Calm)
-                oneShotLeft = 0;        // turned hostile mid-greeting: no friendly wave in a fight
+            if (state == SpriteStates.Greet && oneShotLeft > 0 && brain != null && brain.ChatSide != greetSide)
+                oneShotLeft = 0;        // turned hostile, or an enemy spotted someone, mid-greeting: no wave in a fight
             if (oneShotLeft <= 0)
             {
                 if (hitWaiting)
@@ -526,6 +527,7 @@ namespace AdvancedNPCs
                 (oneShotLeft > 0 && state != SpriteStates.Greet))
                 return false;
             StartOneShot(SpriteStates.Greet);
+            greetSide = brain != null ? brain.ChatSide : GreetRules.Peaceful;
             greetStarts++;
             return true;
         }

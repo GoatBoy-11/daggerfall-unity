@@ -6,5 +6,8 @@
   "gender": "Female",
   "baseClass": "Spellsword",
   "bravery": "Coward",
-  "wanderRadius": 10
+  "wanderRadius": 10,
+  "conversation": {
+    "enabled": true
+  }
 }

@@ -60,13 +60,14 @@ namespace AdvancedNPCs.Tests
         [Test]
         public void Ineligible_Reasons()
         {
-            Assert.IsNull(ChatRules.Ineligible(true, false, true, true, 2, true));
-            Assert.AreEqual("not opted in", ChatRules.Ineligible(false, false, true, true, 2, true));
-            Assert.AreEqual("already talking", ChatRules.Ineligible(true, true, true, true, 2, true));
-            Assert.AreEqual("not calm", ChatRules.Ineligible(true, false, false, true, 2, true));
-            Assert.AreEqual("voices not ANPC", ChatRules.Ineligible(true, false, true, false, 2, true));
-            Assert.AreEqual("no talk sounds", ChatRules.Ineligible(true, false, true, true, 0, true));
-            Assert.AreEqual("vanilla sprite", ChatRules.Ineligible(true, false, true, true, 2, false));
+            int p = GreetRules.Peaceful;
+            Assert.IsNull(ChatRules.Ineligible(true, false, p, true, 2));
+            Assert.IsNull(ChatRules.Ineligible(true, false, GreetRules.IdleEnemy, true, 2));    // hostile, not yet fighting
+            Assert.AreEqual("not opted in", ChatRules.Ineligible(false, false, p, true, 2));
+            Assert.AreEqual("already talking", ChatRules.Ineligible(true, true, p, true, 2));
+            Assert.AreEqual("not calm", ChatRules.Ineligible(true, false, GreetRules.Busy, true, 2));
+            Assert.AreEqual("voices not ANPC", ChatRules.Ineligible(true, false, p, false, 2));
+            Assert.AreEqual("no talk sounds", ChatRules.Ineligible(true, false, p, true, 0));
         }
 
         [Test]

@@ -101,7 +101,7 @@
       }
     },
     "conversation": {
-      "description": "Talks with other ANPCs it greets (needs talk sounds and a sprite set). true, or an object (writing the object opts in).",
+      "description": "Talks with other ANPCs it greets (needs talk sounds; calm ANPCs with calm ones, enemies with enemies that have no one to fight). true, or an object (writing the object opts in).",
       "oneOf": [
         { "type": "boolean" },
         {
@@ -116,7 +116,7 @@
     },
     "sounds": {
       "type": "object",
-      "description": "Custom sounds in the folder's Sounds/ (greet, attack, attack_range, cast, hit, death, step, talk; _1, _2... for random picks).",
+      "description": "Custom sounds in the folder's Sounds/ (greet, attack, attack_range, cast, hit, death, step, talk, talk_male, talk_female; _1, _2... for random picks).",
       "additionalProperties": false,
       "properties": {
         "combatChance": { "type": "integer", "minimum": 0, "maximum": 100, "default": 50, "description": "Percent chance for attack, attack_range, cast and hit sounds." },

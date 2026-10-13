@@ -527,7 +527,7 @@ ANPCs/wench/
     step_1.ogg    step_2.ogg   step_3.ogg
 ```
 
-- A file's name says when it plays: `greet`, `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `hit` (hurt but alive), `death`, `step` and `talk` (a line in a [conversation](#conversations); always plays there, no chance roll, and nowhere else). A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
+- A file's name says when it plays: `greet`, `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `hit` (hurt but alive), `death`, `step` and `talk` (a line in a [conversation](#conversations); always plays there, no chance roll, and nowhere else; `talk_male` / `talk_female` for one gender only). A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
 - Sounds follow what happens, not the sprite, so an ANPC with the vanilla sprite can have them too.
 - Default footsteps: `step_*` files in the shared `ANPCs/_Sounds` folder play for every ANPC whose own `Sounds` folder has no `step` files (the examples ship four dirt-ground steps there). They play 15% quieter than an ANPC's own steps. An ANPC with step files of its own uses only those; `"defaultSteps": false` turns the defaults off for one ANPC. Other names in `_Sounds` are ignored (logged).
 - `death` always plays. `step` plays on every footfall while walking or running, but only when you are within `stepDistance`. The others play by chance.
@@ -575,10 +575,16 @@ Two ANPCs that greet each other sometimes stop and chat, in turns: the one speak
   object turns it on unless it says `"enabled": false`. `chance` (0–100, default 50) is the percent chance after
   this ANPC greets another one (the greeting itself happens 25 % of the time per encounter, see
   [Sprites](#sprites)).
-- Both ANPCs need it on, `talk` files in their `Sounds` folder (see [Sounds](#sounds)), a sprite set of their own
-  (an ANPC with the vanilla class sprite never converses), the **ANPC sounds** setting on *ANPC*, and to be calm
-  and not your enemy. An ANPC without `greet` files still greets other ANPCs silently (it neither turns nor greets
-  you), which is how conversations start. `talk*` sheets load only for ANPCs with `"conversation"` on.
+- Both ANPCs need it on, `talk` files in their `Sounds` folder (see [Sounds](#sounds)) and the **ANPC sounds**
+  setting on *ANPC*. An ANPC with the vanilla class sprite talks too (it shows its standing sprite). An ANPC
+  without `greet` files still greets other ANPCs silently (it neither turns nor greets you), which is how
+  conversations start. `talk*` sheets load only for ANPCs with `"conversation"` on.
+- Who talks with whom: two calm ANPCs, or two enemies of yours (hostile ANPCs) while they have no one to fight,
+  like bandits waiting in a dungeon. A calm ANPC never talks with an enemy. Once an enemy spots you (or anyone to
+  fight), its conversation ends. `"conversation": false` (or no `"conversation"`) keeps an ANPC out of it.
+- `talk_male_*` and `talk_female_*` files are lines for one gender only, for an ANPC whose gender is picked at
+  random (no `"gender"` in `npc.json`): it uses its own gender's files, else plain `talk` files, never the other
+  gender's.
 - A conversation has 4 to 8 lines. The one who greeted speaks first, then they take turns; each line lasts as long
   as its sound (a different sound from the speaker's last one when it has two or more), with a short pause
   (0.4–1 s) after it; the first line waits for a greeting wave or hello to finish. The speaker loops a random `talk*` sheet, or its idle sheet without one.
@@ -588,9 +594,8 @@ Two ANPCs that greet each other sometimes stop and chat, in turns: the one speak
   talk to one of them (the talk window opens as usual), or when one leaves (the town unloads). A line in progress
   is cut off. Leaving and loading a game ends every conversation.
 - `anpc_chat` starts one right away for testing; `anpc_info` shows an ANPC's conversation setting and state.
-- Every example with a sprite set of its own has `talk` sounds and `"conversation"` on. The hostile ones
-  (`iron_sentinel`, `nord_barbarian_1`, `orc_weakling`) never converse while hostile, and the templates without
-  a sprite set (`baker`, `bandit`, `commoner`, `cooper`, `patron`, `smith`, `spellcaster`) never do.
+- Every example has talk sounds and `"conversation"` on; `bandit`, `commoner`, `patron` and `spellcaster` (random
+  gender) have `talk_male` and `talk_female` files.
 
 ## Name lists
 

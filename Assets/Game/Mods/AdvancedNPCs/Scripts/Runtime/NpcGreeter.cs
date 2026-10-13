@@ -54,7 +54,8 @@ namespace AdvancedNPCs
 
         void Update()
         {
-            if (brain == null || (sprite == null && voice == null) || brain.CurrentMode != NpcMode.Calm)
+            // Calm, or an enemy with no one to fight yet (it greets only other such enemies).
+            if (brain == null || (sprite == null && voice == null) || brain.ChatSide == GreetRules.Busy)
             {
                 facingTarget = null;
                 return;
@@ -87,7 +88,8 @@ namespace AdvancedNPCs
 
         void CheckCandidates()
         {
-            bool selfCalm = brain.CurrentMode == NpcMode.Calm && !brain.State.hostile && !brain.IsEnemy;
+            int selfSide = brain.ChatSide;
+            bool selfCalm = selfSide == GreetRules.Peaceful;
             double now = DaggerfallUnity.Instance.WorldTime.Now.ToSeconds() / 3600.0;
             double chance = ChanceOverride >= 0f ? ChanceOverride : GreetRules.Chance;
 
@@ -107,8 +109,7 @@ namespace AdvancedNPCs
                 if (other == brain || other.CurrentMode == NpcMode.Dead || other.EntityBehaviour == null)
                     continue;
                 bool near = Near(other.transform) && brain.CanSee(other.EntityBehaviour);
-                bool likes = near && GreetRules.SameSide(selfCalm, brain.IsEnemy,
-                    other.CurrentMode == NpcMode.Calm && !other.State.hostile, other.IsEnemy);
+                bool likes = near && GreetRules.SameSide(selfSide, other.ChatSide);
                 if (memory.Consider(other.Id, near, likes, now, Random.value, chance))
                 {
                     Greet(other.transform);

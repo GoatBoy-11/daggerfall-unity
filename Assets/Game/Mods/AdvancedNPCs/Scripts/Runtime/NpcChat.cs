@@ -83,8 +83,8 @@ namespace AdvancedNPCs
                 sprite = GetComponent<NpcSprite>();
             if (voice == null)
                 voice = GetComponent<NpcVoice>();
-            return ChatRules.Ineligible(settings.Enabled, Talking, Calm(brain), voice != null && voice.CustomVoiceOn,
-                voice != null ? voice.TalkClips : 0, sprite != null && sprite.HasSet);
+            return ChatRules.Ineligible(settings.Enabled, Talking, brain.ChatSide, voice != null && voice.CustomVoiceOn,
+                voice != null ? voice.TalkClips : 0);
         }
 
         /// <summary>The greeter greeted another ANPC: maybe start a conversation (this one's chance, the pair's wait).</summary>
@@ -115,6 +115,8 @@ namespace AdvancedNPCs
                 NpcBrain otherBrain = other.brain != null ? other.brain : other.GetComponent<NpcBrain>();
                 return (otherBrain != null ? otherBrain.DisplayName : other.name) + ": " + why;
             }
+            if (!GreetRules.SameSide(brain.ChatSide, other.brain.ChatSide))
+                return "not on the same side (one is an enemy of yours, the other is not)";
             string pair = ChatRules.PairKey(brain.Id, other.brain.Id);
             if (!forced && !Memory.CanStart(pair, NowHours()))
                 return "they talked less than 2 game hours ago";
@@ -176,12 +178,12 @@ namespace AdvancedNPCs
                 End(false);
         }
 
-        /// <summary>Spec conversations §3: a partner gone, either not calm or without its talk sounds or sprites, or apart.</summary>
+        /// <summary>Spec conversations §3: a partner gone, either busy (an enemy spotted someone) or without its talk sounds, or apart.</summary>
         bool ShouldEnd()
         {
             if (partner == null || !partner.isActiveAndEnabled || partner.session != session)
                 return true;
-            if (!StillFit(this) || !StillFit(partner))
+            if (!StillFit(this) || !StillFit(partner) || !GreetRules.SameSide(brain.ChatSide, partner.brain.ChatSide))
                 return true;
             Vector3 d = partner.transform.position - transform.position;
             d.y = 0;
@@ -195,12 +197,7 @@ namespace AdvancedNPCs
 
         static bool StillFit(NpcChat c)
         {
-            return Calm(c.brain) && c.voice != null && c.voice.CustomVoiceOn && c.voice.TalkClips > 0 && c.sprite != null && c.sprite.HasSet;
-        }
-
-        static bool Calm(NpcBrain b)
-        {
-            return b != null && b.CurrentMode == NpcMode.Calm && !b.State.hostile && !b.IsEnemy;
+            return c.brain != null && c.voice != null && c.voice.CustomVoiceOn && c.voice.TalkClips > 0;
         }
 
         static void Face(NpcChat who, NpcChat toward, float dt)

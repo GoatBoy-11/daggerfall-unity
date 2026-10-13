@@ -98,20 +98,18 @@ namespace AdvancedNPCs.Core
         }
 
         /// <summary>Why an ANPC cannot join a conversation now, or null (spec conversations §1).</summary>
-        public static string Ineligible(bool optedIn, bool alreadyTalking, bool calm, bool customVoice, int talkClips, bool customSprite)
+        public static string Ineligible(bool optedIn, bool alreadyTalking, int side, bool customVoice, int talkClips)
         {
             if (!optedIn)
                 return "not opted in";
             if (alreadyTalking)
                 return "already talking";
-            if (!calm)
+            if (side == GreetRules.Busy)
                 return "not calm";
             if (!customVoice)
                 return "voices not ANPC";
             if (talkClips <= 0)
                 return "no talk sounds";
-            if (!customSprite)
-                return "vanilla sprite";
             return null;
         }
     }

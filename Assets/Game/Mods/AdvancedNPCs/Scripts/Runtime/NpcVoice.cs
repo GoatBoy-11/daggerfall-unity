@@ -344,8 +344,21 @@ namespace AdvancedNPCs
         {
             get
             {
+                string pool = TalkPoolName;
                 List<AudioClip> clips;
-                return set != null && set.Clips.TryGetValue(SoundPools.Talk, out clips) ? clips.Count : 0;
+                return pool != null && set.Clips.TryGetValue(pool, out clips) ? clips.Count : 0;
+            }
+        }
+
+        /// <summary>Its talk pool: talk_male / talk_female for its gender, else talk; null without one (SoundPools.TalkPool).</summary>
+        public string TalkPoolName
+        {
+            get
+            {
+                if (set == null)
+                    return null;
+                string gender = brain != null && brain.Instance != null ? brain.Instance.Gender : null;
+                return SoundPools.TalkPool(gender, set.Clips.Keys);
             }
         }
 
@@ -363,7 +376,7 @@ namespace AdvancedNPCs
         {
             if (voices == null || gone || !CustomVoiceOn || TalkClips == 0)
                 return 0f;
-            List<AudioClip> clips = set.Clips[SoundPools.Talk];
+            List<AudioClip> clips = set.Clips[TalkPoolName];
             lastTalk = ChatRules.NextClip(clips.Count, lastTalk, Random.value);
             AudioClip clip = clips[lastTalk];
             if (clip == null)

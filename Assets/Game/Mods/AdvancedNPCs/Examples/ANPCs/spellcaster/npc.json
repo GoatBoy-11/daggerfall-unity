@@ -22,5 +22,8 @@
       4,
       7
     ]
+  },
+  "conversation": {
+    "enabled": true
   }
 }

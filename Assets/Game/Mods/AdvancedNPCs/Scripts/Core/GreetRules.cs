@@ -18,18 +18,36 @@ namespace AdvancedNPCs.Core
         }
 
         /// <summary>
-        /// An ANPC gets a greeter when it has greet files (sheet or sound), or when it converses and can (a sprite set of
-        /// its own, spec conversations §1); the second kind greets silently, only other ANPCs.
+        /// An ANPC gets a greeter when it has greet files (sheet or sound), or when it converses (spec conversations §1);
+        /// the second kind greets silently, only other ANPCs.
         /// </summary>
-        public static bool NeedsGreeter(bool greetFiles, bool converses, bool spriteSet)
+        public static bool NeedsGreeter(bool greetFiles, bool converses)
         {
-            return greetFiles || (converses && spriteSet);
+            return greetFiles || converses;
         }
 
-        /// <summary>Another ANPC: both calm, neither an enemy of the player.</summary>
-        public static bool SameSide(bool selfCalm, bool selfEnemy, bool otherCalm, bool otherEnemy)
+        /// <summary>
+        /// Who an ANPC can greet and talk with now: Peaceful (calm, not angry at the player), IdleEnemy (an enemy of the
+        /// player that has no one to fight yet, like bandits waiting in a dungeon) or Busy (fighting, fleeing, angry).
+        /// Ints, not an enum (DFU's runtime compiler, see VoiceModes).
+        /// </summary>
+        public const int Busy = 0, Peaceful = 1, IdleEnemy = 2;
+
+        /// <summary>
+        /// calmMode: in its calm mode; hostile: angry at the player; enemy: an enemy of the player (attitude or
+        /// schedule); enemyIdle: DFU's AI has no target for it (none seen yet, or it gave up searching).
+        /// </summary>
+        public static int Side(bool calmMode, bool hostile, bool enemy, bool enemyIdle)
         {
-            return selfCalm && otherCalm && !selfEnemy && !otherEnemy;
+            if (enemy)
+                return enemyIdle ? IdleEnemy : Busy;
+            return calmMode && !hostile ? Peaceful : Busy;
+        }
+
+        /// <summary>Another ANPC: both peaceful, or both enemies of the player with no one to fight yet.</summary>
+        public static bool SameSide(int self, int other)
+        {
+            return self != Busy && self == other;
         }
     }
 

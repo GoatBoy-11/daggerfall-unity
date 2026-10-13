@@ -376,7 +376,7 @@ namespace AdvancedNPCs
             if (def.Conversation.Enabled)
                 go.AddComponent<NpcChat>().Init(def.Conversation);
             // A talker without greet files greets other ANPCs silently: greetings start conversations (spec conversations §1).
-            if (GreetRules.NeedsGreeter(greets, def.Conversation.Enabled, spriteSets.Count > 0))
+            if (GreetRules.NeedsGreeter(greets, def.Conversation.Enabled))
                 go.AddComponent<NpcGreeter>().Silent = !greets;
             gait.Init(def);
             AdvancedNpcsMod.Log(instance.Key + " (" + instance.Name + "): spawned" +

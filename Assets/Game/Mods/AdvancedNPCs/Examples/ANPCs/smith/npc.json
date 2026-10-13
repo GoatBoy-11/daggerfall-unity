@@ -6,5 +6,11 @@
   "gender": "Male",
   "baseClass": "Spellsword",
   "bravery": "Brave",
-  "wanderRadius": 10
+  "wanderRadius": 10,
+  "sounds": {
+    "soundPitch": 0.92
+  },
+  "conversation": {
+    "enabled": true
+  }
 }

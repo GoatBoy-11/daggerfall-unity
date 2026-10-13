@@ -103,6 +103,25 @@ namespace AdvancedNPCs
             get { return enemy; }
         }
 
+        /// <summary>
+        /// An enemy of the player with no one to fight yet: DFU's AI has no target (none seen, or it gave up searching),
+        /// so it stands where it is (spec conversations: hostile ANPCs talk among themselves until they spot someone).
+        /// </summary>
+        public bool IdleEnemy
+        {
+            get
+            {
+                return enemy && mode == NpcMode.Fighting && senses != null && motor != null &&
+                       (senses.Target == null || motor.GiveUpTimer <= 0);
+            }
+        }
+
+        /// <summary>Who it can greet and talk with now (GreetRules.Peaceful, IdleEnemy or Busy).</summary>
+        public int ChatSide
+        {
+            get { return GreetRules.Side(mode == NpcMode.Calm, state != null && state.hostile, enemy, IdleEnemy); }
+        }
+
         /// <summary>Re-reads the enemy rules now (normally every few seconds).</summary>
         public void RefreshEnemy()
         {
