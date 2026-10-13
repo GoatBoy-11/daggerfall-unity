@@ -27,9 +27,6 @@
     "usesMagicka": true,
     "maxMagicka": 0
   },
-  "sounds": {
-    "soundPitch": 0.9
-  },
   "conversation": {
     "enabled": true
   }

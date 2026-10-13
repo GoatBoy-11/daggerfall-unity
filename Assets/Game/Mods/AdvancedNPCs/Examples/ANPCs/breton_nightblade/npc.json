@@ -29,9 +29,6 @@
     ],
     "skill": 80
   },
-  "sounds": {
-    "soundPitch": 1.08
-  },
   "conversation": {
     "enabled": true
   }

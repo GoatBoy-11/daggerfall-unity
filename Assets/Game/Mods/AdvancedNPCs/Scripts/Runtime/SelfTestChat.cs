@@ -18,8 +18,8 @@ namespace AdvancedNPCs
         {
             DaggerfallEntityBehaviour playerBehaviour = GameManager.Instance.PlayerEntityBehaviour;
 
-            // Every installed example converses: "conversation" on and 16 talk sounds (talk, or talk_male and talk_female
-            // for a template whose gender is picked at random).
+            // Every installed example converses: "conversation" on and talk sounds to pick from (talk, or talk_male and
+            // talk_female for a template whose gender is picked at random).
             string[] talkers = { "argonian_female_acrobat_1", "argonian_staff_fighter_1", "breton_nightblade", "castle_guard_1",
                 "dunmer_citizen_1", "dunmer_mercenary", "dunmer_spellblade", "iron_sentinel", "khajiit_citizen_1",
                 "nord_barbarian_1", "ohmes_knight_1", "orc_weakling", "wench", "baker", "cooper", "smith" };
@@ -34,7 +34,7 @@ namespace AdvancedNPCs
                 if (d == null)
                     continue;       // not installed
                 found++;
-                if (!d.Conversation.Enabled || TalkFiles(folder, SoundPools.Talk) != 16)
+                if (!d.Conversation.Enabled || TalkFiles(folder, SoundPools.Talk) < 2)
                     silent.Add(folder);
             }
             foreach (string folder in eitherGender)
@@ -43,11 +43,41 @@ namespace AdvancedNPCs
                 if (d == null)
                     continue;
                 found++;
-                if (!d.Conversation.Enabled || TalkFiles(folder, SoundPools.TalkMale) != 16 || TalkFiles(folder, SoundPools.TalkFemale) != 16)
+                if (!d.Conversation.Enabled || TalkFiles(folder, SoundPools.TalkMale) < 2 || TalkFiles(folder, SoundPools.TalkFemale) < 2)
                     silent.Add(folder);
             }
-            Check("every example converses (conversation on, 16 talk sounds, per gender for random-gender templates)",
+            Check("every example converses (conversation on, 2+ talk sounds, per gender for random-gender templates)",
                 found > 0 && silent.Count == 0, found + " installed; without: " + string.Join(", ", silent.ToArray()));
+
+            // Every sound file of the installed examples decodes (an .ogg with a cover picture, say, does not).
+            List<LoadedSoundSet> exampleSets = new List<LoadedSoundSet>();
+            List<string> exampleFolders = new List<string>(talkers);
+            exampleFolders.AddRange(eitherGender);
+            foreach (string folder in exampleFolders)
+            {
+                LoadedSoundSet sounds = mod.Sounds.For(folder);
+                if (sounds == null)
+                    continue;
+                sounds.Acquire();
+                exampleSets.Add(sounds);
+            }
+            float decodeUntil = Time.time + 120f;
+            while (Time.time < decodeUntil && exampleSets.Exists(delegate (LoadedSoundSet s) { return !s.IsReady; }))
+                yield return null;
+            List<string> undecoded = new List<string>();
+            foreach (LoadedSoundSet s in exampleSets)
+            {
+                foreach (KeyValuePair<string, List<string>> pool in s.Files)
+                {
+                    List<AudioClip> clips;
+                    int loaded = s.Clips.TryGetValue(pool.Key, out clips) ? clips.FindAll(delegate (AudioClip c) { return c != null; }).Count : 0;
+                    if (!s.IsReady || loaded != pool.Value.Count)
+                        undecoded.Add(s.Label + " " + pool.Key + " " + loaded + "/" + pool.Value.Count);
+                }
+                s.Release();
+            }
+            Check("every sound of the installed examples decodes", exampleSets.Count > 0 && undecoded.Count == 0,
+                exampleSets.Count + " sets; not decoded: " + string.Join(", ", undecoded.ToArray()));
 
             string root = Path.Combine(Application.temporaryCachePath, "anpc_selftest_chat");
             string talkDir = Path.Combine(root, "Sounds");

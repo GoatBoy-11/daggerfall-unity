@@ -1,22 +1,41 @@
 Advanced NPCs example sounds
 ============================
 
-Voice lines (greet, death, talk, and the wench's hit sounds) are from the Super Dialogue Audio Pack V1 by Dillon Becker
-(dillonbecker.com), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changes: chosen lines
-converted to mono 22 kHz OGG and renamed.
+All clips were converted to mono 22 kHz OGG, trimmed, peak-normalized (most) and renamed; Rookie's combined damage and
+effort recordings were cut into single sounds. Clips from CC BY-SA packs stay under CC BY-SA 4.0.
 
-Attack and hit voices (NOX_SOUND Voices Essentials) and footsteps (NOX_SOUND Footsteps Essentials; the default steps in
-_Sounds are its DirtyGround walk steps, as orc_weakling's) are by Nox Sound,
-released under CC0. Changes: converted to mono 22 kHz OGG and renamed.
+Sources
+-------
+- Super Dialogue Audio Pack V1 by Dillon Becker (dillonbecker.com), CC BY 4.0
+  (https://creativecommons.org/licenses/by/4.0/). Actors: Karen Cenon, Meghan Christian, Sean Lenhart, Alex Brodie,
+  Ian Lampert.
+- Ringmaster's Voice Pack Jam by Owen Winkler (voices "Gruff" and "KK"), CC BY-SA 4.0
+  (https://creativecommons.org/licenses/by-sa/4.0/), https://ringmasterow.itch.io/rpg-voice-pack-1
+- skpy voice pack (Voice Pack Jam 2023) by Scott Merrill (voices gruff, raspy, whiny), CC BY-SA 4.0.
+- Mage Voice Pack and Orc Voice Pack by John Carroll (https://johncarroll.itch.io/), CC0.
+- Kitty Jones - Voice Pack 1, voiced by Kitty Jones (https://kittyjones.itch.io/kittyjones-pack1).
+- Free Generic Female Voice Pack, voiced by Rookie (r0okie.carrd.co).
+- RPG Voice Starter Pack and Free Voice Clips Pack (Mature Female) by Cici Fyre (https://cicifyre.itch.io/), CC0.
+- NOX_SOUND Voices Essentials and Footsteps Essentials by Nox Sound, CC0.
 
-Talk sounds (conversations between ANPCs) are confirmations, refusals and murmurs from the same Super Dialogue
-Audio Pack V1, each example keeping the actor of its greetings (wench: Karen Cenon, argonian_female_acrobat_1: Meghan
-Christian, castle_guard_1: Sean Lenhart, dunmer_citizen_1: Alex Brodie, khajiit_citizen_1: Ian Lampert). breton_nightblade
-(Alex Brodie), dunmer_mercenary and ohmes_knight_1 (Ian Lampert) and iron_sentinel (Sean Lenhart) use another mix of
-the same actors' confirmations, refusals and murmurs, at a different pitch.
-The talk sounds of argonian_staff_fighter_1 (female V1), dunmer_spellblade and nord_barbarian_1 (male V1), and
-orc_weakling and temple_monk_1 (male V2) are nods, thinking sounds, short laughs, sighs and surprise from NOX_SOUND
-Voices Essentials (CC0). Changes: converted to mono 22 kHz OGG, peak-normalized and renamed.
-The templates' talk sounds use the same two packs: baker (NOX female V2), cooper (Sean Lenhart), smith (Alex Brodie),
-bandit (NOX male V1 / female V1), commoner (Ian Lampert / Karen Cenon), patron (Alex Brodie / Meghan Christian) and
-spellcaster (NOX male V2 / female V2), male / female for the templates whose gender is picked at random.
+Who uses what
+-------------
+- argonian_female_acrobat_1: Rookie (greet, talk, hit, attack); Super Dialogue, Meghan Christian (death).
+- argonian_staff_fighter_1: Cici Fyre, RPG Voice Starter Pack (attack, hit); NOX female V1 (talk).
+- baker: Cici Fyre, Mature Female (greet, talk).
+- bandit: skpy raspy (talk_male); NOX female V1 (talk_female).
+- breton_nightblade: skpy raspy (greet, talk, attack, cast, hit, death).
+- castle_guard_1, iron_sentinel: Voice Jam Gruff (greet, talk, attack, hit, death).
+- commoner: Super Dialogue, Ian Lampert / Karen Cenon (talk_male / talk_female).
+- cooper: Super Dialogue, Sean Lenhart (talk). smith: Super Dialogue, Alex Brodie (talk).
+- dunmer_citizen_1: skpy whiny (greet, talk, attack, hit, death).
+- dunmer_mercenary: Super Dialogue, Ian Lampert (greet, talk, attack, hit, death).
+- dunmer_spellblade: John Carroll, Mage Voice Pack (greet, talk, attack, cast, hit, death).
+- khajiit_citizen_1, ohmes_knight_1: Voice Jam KK (greet, talk, attack, hit, death).
+- nord_barbarian_1: skpy gruff (greet, talk, attack, hit, death).
+- orc_weakling: John Carroll, Orc Voice Pack (talk, attack, hit, death).
+- patron: Super Dialogue, Alex Brodie / Meghan Christian (talk_male / talk_female).
+- spellcaster: John Carroll, Mage Voice Pack (talk_male); NOX female V2 (talk_female).
+- wench: Kitty Jones (greet, talk); Super Dialogue, Karen Cenon (hit, death).
+- Footsteps (orc_weakling, wench, castle_guard_1, argonian_female_acrobat_1 and the shared defaults in _Sounds):
+  NOX_SOUND Footsteps Essentials (the shared defaults and orc_weakling: its DirtyGround walk steps).

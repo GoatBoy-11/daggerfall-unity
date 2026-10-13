@@ -31,7 +31,7 @@
     "maxMagicka": 0
   },
   "sounds": {
-    "soundPitch": 1.06
+    "soundPitch": 0.92
   },
   "conversation": {
     "enabled": true
