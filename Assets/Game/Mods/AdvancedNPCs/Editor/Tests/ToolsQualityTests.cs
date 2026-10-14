@@ -12,17 +12,18 @@ namespace AdvancedNPCs.Tests
         [Test]
         public void SaveFormat_KnownVersionsLoadQuietly()
         {
-            Assert.AreEqual(1, SaveFormat.Current);
+            Assert.AreEqual(2, SaveFormat.Current);
             Assert.IsNull(SaveFormat.Check(0));     // saves from before the version existed
             Assert.IsNull(SaveFormat.Check(1));
+            Assert.IsNull(SaveFormat.Check(2));
         }
 
         [Test]
         public void SaveFormat_NewerVersionWarns()
         {
-            string warning = SaveFormat.Check(2);
+            string warning = SaveFormat.Check(3);
             Assert.IsNotNull(warning);
-            StringAssert.Contains("format 2", warning);
+            StringAssert.Contains("format 3", warning);
         }
 
         [Test]

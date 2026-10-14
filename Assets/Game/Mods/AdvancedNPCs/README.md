@@ -172,8 +172,8 @@ Use `../../_Schemas/sprites.schema.json` in a `sprites` folder and `../_Schemas/
 
 ## AI packages and schedules
 
-Packages are optional. Without a schedule, ANPCs use their current AI. A schedule only changes
-routine movement; combat, flight, greetings, conversations and healing can interrupt it.
+Packages are optional. Without a schedule, ANPCs use their current AI. Schedules select routine
+behaviour; combat, flight, greetings, conversations and healing can interrupt it.
 
 Put reusable packages in `ANPCs/_Packages/<name>.json`:
 
@@ -196,22 +196,24 @@ Reference that filename (without `.json`) in any unique or generic NPC:
 
 - Times use the in-game clock, exactly `HH:mm`, 00:00–23:59. Start included, end excluded.
   `["23:00", "07:00"]` crosses midnight. Equal endpoints are invalid; omit hours for all day.
-- One entry may omit `hours`: it is the all-day fallback. Timed entries always take precedence.
-  With no fallback, gaps use the original wander/leash AI. Entries can be written in any order.
-- At most 64 entries. Overlapping timed slots, multiple fallbacks and malformed schedules disable
+- One unconditional entry may omit `hours`: it is the all-day fallback. Unconditional timed entries
+  take precedence over that fallback. Conditional entries (`when`) take priority over both:
+  the first matching conditional entry in list order wins, provided its optional hours also match.
+  Conditional entries may overlap or omit hours. With no eligible entry, original AI fills the gap.
+- At most 64 entries. Overlapping unconditional timed slots, multiple unconditional fallbacks and malformed schedules disable
   the whole schedule with a warning; the NPC still loads normally. A missing or invalid selected
   package falls back to current AI for that slot, including when an all-day fallback exists.
 - A slot's optional `parameters` override the package defaults for that NPC only. Unknown or invalid
   parameters disable that slot's package. Nothing edits the shared package or NPC definition.
 - While running, a package replaces `wanderRadius` and `stayNear`, including the normal indoor
   wandering cap. Keep routes inside the current area. Stationary sprite sets still cannot move.
-- Packages use positions relative to the NPC's original home (spawn/replacement position),
+- `wander`, `travel_to` and `patrol` use positions relative to the NPC's original home (spawn/replacement position),
   as `[x,y,z]` metre offsets in that area's axes, each component between -100 and 100.
   They remain portable across generic instances. Summoning/repositioning an NPC resets its home.
 - Routes use direct collision-aware movement along authored waypoints. Place points around obstacles.
-  Automatic pathfinding, opening doors, changing interiors, named anchors, sequences and C# extension
-  handlers are not part of this first version.
-- After 10 active seconds without progress, the selected package falls back to current AI until
+  Automatic pathfinding, opening doors, changing interiors and C# extension handlers are unsupported.
+  Named spots and sequences compose routines within the loaded area.
+- After 10 active seconds without progress, a coordinate-based package falls back to current AI until
   the next schedule occurrence, a time jump or a reload. Paused/interrupted time does not count.
 - On save load or area entry, the current schedule is selected and navigation starts fresh.
   Resting/travel/time jumps do not replay missed activities. Package waits use in-game seconds.
@@ -219,6 +221,11 @@ Reference that filename (without `.json`) in any unique or generic NPC:
 | Type | Parameters |
 |---|---|
 | `stand` | None; stand where the NPC is when this package takes control. |
+| `work_at` | Optional `position` or `spot`, `animation` (default `idle`), `facing` (0-360 degrees), `run` (false). Walk to the post, face it, and loop a visual animation. |
+| `sequence` | Required `steps`, optional `loop` (false). Reuse packages in order; step durations use active gameplay seconds. |
+| `follow` | `target` (default `player`, otherwise exact spawned ANPC id/key), `distance` (0.5-20 m, default 2), `runDistance` (1-100 m, default 6; at least `distance + 0.5`). Follow within the loaded area, walk nearby, run farther away. |
+| `guard_spot` | Optional `position: [x,y,z]` in current-area coordinates from `anpc_pos`, or named `spot`; omitted means current position at slot start. `idleInterval: [min,max]` defaults to `[6,15]` active gameplay seconds. Temporary Brave behaviour. |
+| `play_animation` | `animation` (default `idle`), `only_interrupt_at_combat` (default false). Hold position and repeat full cycles; numbered names are exact, base names randomly select numbered variants without immediate repeats. |
 | `wander` | `center` (default `[0,0,0]`), `radius` (0–50, default 8), `pause` (0–3600 game seconds, default 3), `run` (default false). |
 | `travel_to` | Required `target: [x,y,z]`; `run` (default false). Hold at the target, returning after displacement. |
 | `patrol` | Required `points: [[x,y,z], ...]` (2–32); `pauseAtStops` (0–3600 game seconds, default 10), `run` (default false). Loop through the points. |
@@ -232,6 +239,309 @@ Use `Schemas~/package.schema.json` for package autocomplete and the updated NPC 
 - `anpc_info [id or key]`: includes selected slot/package, fallback reason and interruption status.
 - `anpc_spawn package_tester`: opt-in example with day patrol, evening wander and night stand.
   From 07:00 to 08:00 it uses its original AI. It does not spawn automatically.
+
+### Repeated animation packages
+
+`play_animation` holds the NPC's current position and loops a sheet declared in its own `sprites.json`.
+Set the requested name on a schedule entry:
+
+```json
+"schedule": [
+  { "hours": ["06:00", "08:00"], "package": "play_animation", "parameters": { "animation": "pray" } }
+]
+```
+
+`pray` matches `pray`, `pray_1`, `pray_2`, etc.; `pray_1` matches only that exact sheet.
+Names are case-insensitive. Each complete cycle uses the set's FPS and the selected sheet's frame count.
+With multiple variants, the next cycle picks a different one at random. No pose changes mid-cycle.
+Only standard sheets and custom sheets referenced by valid package schedules are loaded.
+Changing a package's animation then running `anpc_reload_packages` also refreshes affected sprite sets.
+New frames/sheets require `anpc_reload_assets`; NPC schedule changes require restarting DFU.
+
+Greetings, conversations, healing, combat and fleeing interrupt playback; resuming restarts at the first
+frame. Ending the slot releases the animation immediately. These are visual loops: selecting an attack
+or cast sheet never causes damage, projectiles or spell effects. Missing usable sheets (or a vanilla-only
+NPC) fall back to the current AI, with a diagnostic; a still-loading custom set is allowed to finish.
+Stationary sprite sets can use this package too.
+
+### Personal NPC variables and conditional routines
+
+Declare optional boolean/integer defaults in `npc.json`:
+
+```json
+"variables": { "following": false, "jobs_completed": 0 },
+"schedule": [
+  { "package": "follow", "when": { "variables": { "following": true } } },
+  { "package": "stand" }
+]
+```
+
+Each spawned instance has independent values, even when several people use the same folder. These
+are separate from player-wide dialogue flags and personal opinion. Persistent instances save explicit
+variable overrides under their instance key; random-each-visit people follow the existing rule of
+forgetting their personal state between visits. Old saves without variables read the declared defaults.
+Unchanged defaults need no saved entry; explicitly setting false or zero is still saved. Changed saved
+values take priority over definition defaults on subsequent visits. Removed declarations retain their
+saved data, but unavailable names never satisfy a condition. Changing a declaration's type logs a warning
+and prevents its conditions matching until the saved value is corrected through the API or console.
+
+Declare at most 64 variables. Names are case-sensitive, lowercase letters/digits/underscores, letter
+first, at most 64 characters. Values are booleans or signed 32-bit integers (-2147483648 to 2147483647).
+Unknown names, type changes and arithmetic overflow are rejected without changing the stored value.
+
+Use the same `when.variables` syntax in dialogue topics, answers, replies and schedule entries.
+All clauses must match. A literal value means equality; comparison objects support `eq`, `ne`, `gt`,
+`gte`, `lt`, `lte`. Booleans support `eq` and `ne`; ordered comparisons require integers. For example:
+
+```json
+"when": { "variables": { "following": false, "jobs_completed": { "gte": 3, "lt": 10 } } }
+```
+
+Schedule `when` and dialogue share the supported condition syntax, including nested `any`. Unknown variables, incompatible types and invalid conditions never unlock an
+activity. Invalid schedules warn and use current AI, as before. Matching conditional entries have
+priority in list order, followed by the normal timed entry and unconditional fallback. Setting a value
+refreshes the eligible activity on the next brain update; changing an unrelated value keeps the current
+package's progress. NPCs without variables or conditions retain their existing behaviour.
+
+Dialogue actions belong to the NPC being addressed and run when the topic/response is selected:
+
+```json
+{
+  "caption": "Follow me",
+  "when": { "variables": { "following": false } },
+  "answers": [{
+    "text": "Of course. Lead the way.",
+    "setVariables": { "following": true },
+    "addVariables": { "jobs_completed": 1 }
+  }]
+}
+```
+
+`setVariables` accepts declared boolean/integer values; `addVariables` accepts signed integer amounts.
+For each part of the selected line (topic/reply first, answer second), sets run before adds. Merely showing
+or opening a topic does not change its variables. Composed dialogue checks names and types against each
+NPC's declarations, including nested replies. Greetings support conditions, not actions.
+
+- `anpc_var <id or key>`: list that person's values.
+- `anpc_var <id or key> <name>`: read one value.
+- `anpc_var <id or key> <name> <true|false|integer>`: set a value.
+- `anpc_add_var <id or key> <name> <amount>`: add/subtract an integer.
+- `anpc_info`: includes personal variables and the selected package.
+- C# API on `NpcBrain`: `SetVariable(name, bool/int)`, `AddVariable(name, amount)`,
+  `TryGetVariable(name, out NpcVariableValue)`, `TrySetVariable(..., out error)` and
+  `TryAddVariable(..., out error)`. Public reads return a copy; writes validate the declaration.
+
+### Following
+
+`follow` defaults to the player, stopping about 2 metres away and running when at least 6 metres away.
+The NPC's normal gait speeds, `combat.canRun` and `combat.runSpeed` apply. A half-metre resume margin
+prevents constant shuffling around the stopping distance; running has a one-metre stop margin to
+avoid gait flicker around `runDistance`. Configure defaults in `_Packages/follow.json`
+or override `target`, `distance` and `runDistance` on a schedule entry. `runDistance` must be at least
+`distance + 0.5`. A named target is its exact spawned id/key from `anpc_list`, including generic keys,
+and must be a living, active, different ANPC under the same area parent.
+
+Following uses direct collision-aware movement in the currently loaded area. It does not open doors,
+move between areas, teleport to catch up, or provide automatic pathfinding. Missing/out-of-area targets
+cause the follower to stand and retry; a returned target is reacquired. After 10 active seconds without
+movement, it rests for 2 active seconds before retrying. Pausing, talk, greetings, healing and combat
+interrupt routine movement. When calm it resumes whichever package is eligible. Following does not
+change bravery. Stationary sprite sets cannot follow and fall back to current AI with a diagnostic.
+
+For an opt-in example, restart DFU and run `anpc_spawn follower_tester`. Talk to the Follower Tester
+and choose **Follow me** or **Wait here**. Recruitment sets that individual's `following` boolean and
+increments their `times_recruited` integer; dismissal selects `stand` at the current position. It has no
+automatic spawns and uses vanilla Warrior sprites. Each additional spawned tester has its own values.
+
+### Guarding a spot
+
+`guard_spot` walks to its post, holds it, and returns there after combat or displacement. Without
+`position`, it captures the NPC's current position once when the schedule occurrence starts.
+A reload, time jump, area entry or new occurrence starts fresh. Its effective bravery is `Brave`,
+including during combat; ending the slot immediately restores the configured bravery. The shared
+NPC definition is never changed. Greetings, talk and healing still interrupt the routine.
+
+```json
+"schedule": [
+  { "hours": ["20:00", "06:00"], "package": "guard_spot",
+    "parameters": { "position": [12.5, 1, -3.25], "idleInterval": [6, 15] } }
+]
+```
+
+Both parameters are optional. `position` uses absolute coordinates relative to the current area's
+origin (each component -1000000 to 1000000); outdoors, copy the position line from `anpc_pos`.
+Direct coordinates have no city/location field. Use a named area spot to scope a post to a town or building. A generic NPC uses direct coordinates in every area where it spawns,
+so use the existing `spawn.places` setting when a fixed outdoor post belongs to one particular town.
+Movement is direct and collision-aware; unreachable posts fall back to current AI. Stationary sprite
+sets can guard their current position but cannot walk to a distant post.
+
+At the post, the sprite holds frame zero of `idle_1`, otherwise `idle`, otherwise the lowest numbered
+idle sheet. After a random interval it plays any idle sheet once using that sheet's frame count and
+the set's FPS, then returns to the frozen pose and starts another interval. `idleInterval` is an ordered
+`[min,max]` pair, each 0.1-3600 seconds of active gameplay. Pausing and interruptions do not advance
+this timer; resuming an interrupted pose starts a fresh interval. Combat, healing, greetings and talk
+take animation priority. NPCs using vanilla sprites retain their normal vanilla rendering.
+
+### Working at a post
+
+`work_at` walks to an optional `position: [x,y,z]` in the current area's axes, or reserves a named `spot`.
+If neither is given, it captures the current position when the activity starts. At the post it loops the
+configured animation family/exact sheet and optionally faces a direction. `facing: 0` points along the
+area's +Z axis and `90` along +X. A package's facing overrides the spot's facing. Movement and animations
+use the existing collision, gait and sprite systems. `run` respects `combat.canRun` and `combat.runSpeed`.
+
+```json
+{
+  "type": "work_at",
+  "parameters": { "spot": "forge", "animation": "hammer", "facing": 90 }
+}
+```
+
+Animations must exist in that NPC's sprite set. Family variants switch after full cycles, as with
+`play_animation`; they are visual and do not cause attack/spell effects. Missing usable sheets fall back
+to normal AI and release reservations. Lazy-loaded sheets may finish loading. Greetings, conversation,
+healing and combat can interrupt work. Once calm, the NPC returns to its post and resumes. Stationary
+sprite sets may work at their current position but cannot walk to a distant workstation.
+
+### Reusable named spots and occupancy
+
+Put each named spot in `ANPCs/_Spots/<id>.json`. Two coordinate modes are supported:
+
+```json
+{
+  "relativeTo": "home",
+  "position": [1, 0, 0],
+  "tags": ["prayer"],
+  "facing": 180,
+  "capacity": 1
+}
+```
+
+Home-relative coordinates are offsets from each instance's original home, so generic NPCs can use
+portable routines in different towns/interiors. Each translated post is a separate resource in that area.
+An optional location restricts where a home-relative post is available.
+
+```json
+{
+  "relativeTo": "area",
+  "location": { "region": "Daggerfall", "place": "Daggerfall", "context": "outdoors" },
+  "position": [12.5, 1, -3.25],
+  "tags": ["forge"],
+  "capacity": 1
+}
+```
+
+Area-specific spots require region/place, with context `outdoors` (default), `dungeon`, or
+`b<buildingKey>` for one particular building. `anpc_spot_pos` prints a ready-to-save definition at your
+position in a loaded town, building or dungeon. Save it under `_Spots`, add tags/facing as needed, then
+run `anpc_reload_spots`. Use `Schemas~/spot.schema.json` for autocomplete. An absent `_Spots` folder is
+normal and affects only packages that request a named spot.
+
+`work_at`, `guard_spot` and `travel_to` accept `spot` as a filename id, tag, or list of 1-16 ids/tags.
+It is mutually exclusive with a coordinate `position`/`target`. Matching is local to the current area;
+no NPC travels to another town or enters a building to use a spot. Matching free spots are tried nearest
+first. Default capacity is one NPC; configurable capacity is 1-16. An NPC reserves its post while
+approaching/working. It tries another matching free post if the nearest is occupied. When none is free,
+it uses its normal wander/leash AI and retries once per active second. Sequence timing pauses during
+that fallback. Unreachable named posts are skipped temporarily and retried after a bounded interval.
+
+Reservations are transient and are released on step/slot changes, completion, combat, death, despawn,
+disabling the brain or spot reload. Brief greetings/conversations retain the reservation while the worker
+is still using that post. Returning from combat reacquires a free post, which may be a different match.
+The bundled `home_prayer` demonstrates portable offsets; `example_daggerfall_post` demonstrates
+a fixed outdoor position in Daggerfall, selected explicitly by id or `example_workstation` tag.
+
+Reload/area entry/save load reconstruct reservations; they are never written into save data. Diagnose
+which post was selected, or why current AI is being used, with `anpc_info`.
+
+### Sequences of packages
+
+A sequence references reusable leaf package files with optional per-step parameters:
+
+```json
+{
+  "type": "sequence",
+  "parameters": {
+    "loop": true,
+    "steps": [
+      { "package": "return_home" },
+      { "package": "work_at", "parameters": { "spot": "prayer", "animation": "pray" }, "duration": 15 },
+      { "package": "stand", "duration": 5 }
+    ]
+  }
+}
+```
+
+The filename `return_home` is a `travel_to` package, so it completes automatically on arrival when no
+`duration` is given. Every other leaf type requires a duration (0.1-86400 active gameplay seconds).
+For work/guard/travel steps, a duration starts at the destination; for wandering/patrol/follow it includes
+active movement. Interruptions, loading and unavailable named spots do not consume step time.
+A sequence resumes its current step after interruptions. `loop` restarts from the first step; a non-looping
+sequence completes and holds the current position until the schedule changes. Each NPC owns its own
+step index, elapsed time and movement state. Save load, area entry, time jumps or package/spot reload
+restart the current sequence. No missed steps are replayed.
+
+At most 32 steps. This version supports references to leaf packages; nested sequences/cycles are
+rejected with a diagnostic. Missing/invalid referenced packages release to current AI. Sequence
+animations are included in sprite metadata indexing and refresh when packages reload.
+
+### Broader schedule conditions
+
+Schedule `when` now uses the shared condition syntax, including weather, season, region/town, time,
+player level/race/gender, gold/items/guild membership, global flags, asked topics, quest globals,
+reaction and nested `any`, alongside personal `variables`. `tone` is dialogue-answer-only.
+Schedules use live regional reaction plus personal opinion rather than a cached conversation reaction.
+
+New personal conditions, also available in dialogue, are `minOpinion`/`maxOpinion` (-100 to 100)
+and `minHealth`/`maxHealth` (0-100 health percentage). Bounds are inclusive and require an individual
+NPC context. These can be combined with existing clauses:
+
+```json
+"when": {
+  "weather": "rain",
+  "minOpinion": 20,
+  "maxHealth": 60,
+  "variables": { "hired": true }
+}
+```
+
+Every clause must hold; `any` is an OR of condition objects. Conditions are reevaluated on brain updates,
+and the first eligible conditional schedule entry wins. Optional outer `hours` still use exact HH:mm;
+`when.hours` follows the existing whole-hour condition format. Invalid conditions warn and cannot
+activate a package. NPCs with old schedules retain their existing selection rules.
+
+### Protecting an animation from social interruptions
+
+`play_animation` accepts `only_interrupt_at_combat`, default false, in its package parameters or the
+NPC's schedule parameters:
+
+```json
+"parameters": { "animation": "pray", "only_interrupt_at_combat": true }
+```
+
+False retains the normal interruption behaviour. True suppresses greetings, NPC chat, movement holds,
+talk poses and calm healing casts while this animation is selected. Player dialogue may still open;
+game pause freezes the current animation without switching its pose. Being attacked (including fleeing)
+or a Brave NPC spotting an enemy lets combat take over immediately. Normal playback resumes when calm.
+Death, paralysis and the game clock retain their normal authority. Ending/changing the schedule or
+finishing a sequence step still selects the next activity. This setting does not change bravery.
+
+### Example NPC routines
+
+The installed examples now include these optional schedules:
+
+| NPC | Routine |
+|---|---|
+| `castle_guard_1` | 06:00-20:00: patrol/watch sequence (45/25 active seconds); rain or snow selects a named home post instead. Overnight: guard the home post. |
+| `wench` | 07:00-23:00, health at least 60%: work/roam sequence (20/15 active seconds). At 30% health or less: return home. Other daytime health: tavern roam. Overnight: return home. |
+| `cowled_old_man_1` | 07:00-08:00, health at least 50%: protected idle animation. 18:00-20:00, opinion at least 20 and health at least 50%: work at a home study post using existing idle poses. Original AI in gaps. |
+| `smith` | 18:00-23:00: `local_wander` within 3 m, with 10 game-second pauses. Otherwise `return_home` holds his original spot. |
+| `follower_tester` | Manual spawn only. Dialogue enables `follow` or returns to `stand`; personal variables saved for that spawned person. |
+| `temple_monk_1` | 06:00-08:00: work/stand sequence at a home-relative prayer spot when health is at least 50%. 12:00-13:00: protected prayer. 18:00-20:00: work at a prayer-tagged spot in clear weather. Original AI in gaps; manual spawn only. |
+
+These are local routines around each instance's spawn. They do not locate a particular castle,
+tavern or forge, change areas, or sleep. Prayer uses the selected sheet directly. Blocked routes fall back
+to the NPC's original AI. Restart DFU after changing these NPC schedules.
 
 ## Enemies
 

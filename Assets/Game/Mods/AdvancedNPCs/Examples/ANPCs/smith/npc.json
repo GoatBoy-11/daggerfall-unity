@@ -12,5 +12,21 @@
   },
   "conversation": {
     "enabled": true
-  }
+  },
+  "schedule": [
+    {
+      "hours": [
+        "18:00",
+        "23:00"
+      ],
+      "package": "local_wander",
+      "parameters": {
+        "radius": 3,
+        "pause": 10
+      }
+    },
+    {
+      "package": "return_home"
+    }
+  ]
 }

@@ -77,6 +77,18 @@ namespace AdvancedNPCs
                 mod.Packages.RemoveForTest(stand.Id);
                 mod.Packages.RemoveForTest(travel.Id);
             }
+            IEnumerator animations = AnimationPackageSteps(location, player);
+            while (animations.MoveNext())
+                yield return animations.Current;
+            IEnumerator guards = GuardPackageSteps(location, player);
+            while (guards.MoveNext())
+                yield return guards.Current;
+            IEnumerator followers = VariableFollowSteps(location, player);
+            while (followers.MoveNext())
+                yield return followers.Current;
+            IEnumerator routines = RoutineSteps(location, player);
+            while (routines.MoveNext())
+                yield return routines.Current;
         }
     }
 }

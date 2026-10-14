@@ -1,0 +1,7 @@
+{
+  "$schema": "../_Schemas/package.schema.json",
+  "type": "play_animation",
+  "parameters": {
+    "animation": "idle"
+  }
+}

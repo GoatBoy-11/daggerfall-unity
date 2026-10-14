@@ -25,8 +25,8 @@
     },
     "animations": {
       "type": "object",
-      "description": "Names start with idle, walk, run, hit, attack, attack_range (or attack_ranged), cast, greet or death (e.g. idle_1, attack_2); projectile / projectile_<n> are the images a ranged attack flies (1 or 8 rows).",
-      "propertyNames": { "pattern": "^(idle|walk|run|hit|attack|attack_range|attack_ranged|cast|greet|death|projectile)(_[A-Za-z0-9]+)?$" },
+      "description": "Standard state names include idle, walk, run, hit, attack, attack_range, cast, heal, greet, talk and death. Custom names such as pray_1 or eat_2 load when referenced by a play_animation package. Projectiles are images a ranged attack flies.",
+      "propertyNames": { "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
       "additionalProperties": {
         "type": "object",
         "required": ["cellWidth", "frames"],

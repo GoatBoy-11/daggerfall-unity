@@ -28,7 +28,7 @@ namespace AdvancedNPCs.Core
         {
             "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "fleeChance", "aggroRange", "calmDownHours",
             "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight", "spriteHeightScale", "spriteScale", "attitude", "hostileHours", "dialogue", "magic",
-            "combat", "sounds", "conversation", "replaces", "replacePortrait", "replaceName", "stayNear", "schedule",
+            "combat", "sounds", "conversation", "replaces", "replacePortrait", "replaceName", "stayNear", "schedule", "variables",
         };
         static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
         static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
@@ -547,11 +547,18 @@ namespace AdvancedNPCs.Core
                 return Problem(r, file, replaceKey, problem);
             if (d.Replace != null && d.Kind != NpcKind.Generic)
                 return Problem(r, file, "replaces", "only generic ANPCs can replace vanilla NPCs (one person cannot stand in several places)");
+            object variableDefaults;
+            if (o.TryGetValue("variables", out variableDefaults))
+            {
+                string variableError;
+                d.Variables = NpcVariables.Read(variableDefaults, false, out variableError);
+                if (d.Variables == null) return Problem(r, file, "variables", variableError);
+            }
             object schedule;
             if (o.TryGetValue("schedule", out schedule))
             {
                 string scheduleError;
-                d.Schedule = AiSchedule.Read(schedule, out scheduleError);
+                d.Schedule = AiSchedule.Read(schedule, out scheduleError, d);
                 if (scheduleError != null)
                     r.Warnings.Add(file + ": schedule: " + scheduleError + "; using current AI");
             }

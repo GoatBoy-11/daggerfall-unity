@@ -1,0 +1,9 @@
+{
+  "$schema": "../_Schemas/package.schema.json",
+  "type": "wander",
+  "parameters": {
+    "radius": 1.5,
+    "pause": 8,
+    "run": false
+  }
+}

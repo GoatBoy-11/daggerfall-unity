@@ -83,6 +83,7 @@ namespace AdvancedNPCs
                 sprite = GetComponent<NpcSprite>();
             if (voice == null)
                 voice = GetComponent<NpcVoice>();
+            if (brain.PackageOnlyCombatInterrupts) return "animation package only interrupts for combat";
             return ChatRules.Ineligible(settings.Enabled, Talking, brain.ChatSide, voice != null && voice.CustomVoiceOn,
                 voice != null ? voice.TalkClips : 0);
         }
@@ -197,7 +198,7 @@ namespace AdvancedNPCs
 
         static bool StillFit(NpcChat c)
         {
-            return c.brain != null && c.voice != null && c.voice.CustomVoiceOn && c.voice.TalkClips > 0;
+            return c.brain != null && !c.brain.PackageOnlyCombatInterrupts && c.voice != null && c.voice.CustomVoiceOn && c.voice.TalkClips > 0;
         }
 
         static void Face(NpcChat who, NpcChat toward, float dt)

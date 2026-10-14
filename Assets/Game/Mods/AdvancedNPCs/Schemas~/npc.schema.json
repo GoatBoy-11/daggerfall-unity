@@ -6,83 +6,302 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "$schema": { "type": "string" },
-    "id": { "type": "string", "pattern": "^[a-z0-9_]+$", "description": "Optional; must match the folder name." },
-    "kind": { "enum": ["unique", "generic"], "default": "unique", "description": "unique: one named person at a fixed spot. generic: a template spawned by rules." },
-    "name": { "type": "string", "description": "Display name (unique), or a fixed name for every generic copy." },
-    "names": { "type": "array", "items": { "type": "string" }, "description": "Generic only: names to pick from." },
-    "nameList": { "type": "string", "description": "A list in ANPCs/_Namelists (without .txt)." },
-    "race": { "type": "string", "description": "Breton, Redguard, Nord, DarkElf (Dunmer), Khajiit or Argonian.", "examples": ["Breton", "Redguard", "Nord", "DarkElf", "Khajiit", "Argonian"] },
-    "baseClass": { "type": "string", "description": "A DFU class (Warrior, Rogue, Spellsword...) or, with attitude hostile, a creature.", "examples": ["Warrior", "Rogue", "Spellsword", "Mage", "Knight", "Barbarian"] },
-    "gender": { "type": "string", "examples": ["Male", "Female"] },
-    "bravery": { "enum": ["Coward", "Normal", "Brave", "Prudent"], "default": "Normal" },
-    "fleeHealthPercent": { "type": "number", "minimum": 0, "maximum": 100 },
-    "fleeChance": { "type": "number", "minimum": 0, "maximum": 100, "default": 30, "description": "Normal bravery: chance to flee, rolled once below half of fleeHealthPercent." },
-    "aggroRange": { "type": "number", "exclusiveMinimum": 0, "default": 15, "description": "Brave: metres within which a calm ANPC attacks enemies it sees." },
-    "calmDownHours": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "[min, max] game hours before an angered ANPC calms down." },
-    "crimeOnAttack": { "type": "boolean" },
-    "wanderRadius": { "type": "number", "minimum": 0 },
-    "spriteHeight": { "type": "number", "exclusiveMinimum": 0, "description": "World height in metres (default: the vanilla class sprite's height)." },
-    "spriteHeightScale": { "type": "number", "exclusiveMinimum": 0, "description": "Vertical-only stretch of the sprite." },
-    "spriteScale": { "type": "number", "exclusiveMinimum": 0, "description": "Uniform scale of the sprite height." },
-    "attitude": { "enum": ["calm", "hostile"], "default": "calm" },
-    "hostileHours": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 23 }, "minItems": 2, "maxItems": 2, "description": "With attitude hostile: [from, to] hours when it is an enemy." },
-    "dialogue": { "type": "string", "description": "A dialogue file in ANPCs/_Dialogue (without .json)." },
-    "portrait": { "type": "string" },
-    "portraits": { "type": "array", "items": { "type": "string" } },
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Optional; must match the folder name."
+    },
+    "kind": {
+      "enum": [
+        "unique",
+        "generic"
+      ],
+      "default": "unique",
+      "description": "unique: one named person at a fixed spot. generic: a template spawned by rules."
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name (unique), or a fixed name for every generic copy."
+    },
+    "names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Generic only: names to pick from."
+    },
+    "nameList": {
+      "type": "string",
+      "description": "A list in ANPCs/_Namelists (without .txt)."
+    },
+    "race": {
+      "type": "string",
+      "description": "Breton, Redguard, Nord, DarkElf (Dunmer), Khajiit or Argonian.",
+      "examples": [
+        "Breton",
+        "Redguard",
+        "Nord",
+        "DarkElf",
+        "Khajiit",
+        "Argonian"
+      ]
+    },
+    "baseClass": {
+      "type": "string",
+      "description": "A DFU class (Warrior, Rogue, Spellsword...) or, with attitude hostile, a creature.",
+      "examples": [
+        "Warrior",
+        "Rogue",
+        "Spellsword",
+        "Mage",
+        "Knight",
+        "Barbarian"
+      ]
+    },
+    "gender": {
+      "type": "string",
+      "examples": [
+        "Male",
+        "Female"
+      ]
+    },
+    "bravery": {
+      "enum": [
+        "Coward",
+        "Normal",
+        "Brave",
+        "Prudent"
+      ],
+      "default": "Normal"
+    },
+    "fleeHealthPercent": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "fleeChance": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 30,
+      "description": "Normal bravery: chance to flee, rolled once below half of fleeHealthPercent."
+    },
+    "aggroRange": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "default": 15,
+      "description": "Brave: metres within which a calm ANPC attacks enemies it sees."
+    },
+    "calmDownHours": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2,
+      "description": "[min, max] game hours before an angered ANPC calms down."
+    },
+    "crimeOnAttack": {
+      "type": "boolean"
+    },
+    "wanderRadius": {
+      "type": "number",
+      "minimum": 0
+    },
+    "spriteHeight": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "World height in metres (default: the vanilla class sprite's height)."
+    },
+    "spriteHeightScale": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Vertical-only stretch of the sprite."
+    },
+    "spriteScale": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Uniform scale of the sprite height."
+    },
+    "attitude": {
+      "enum": [
+        "calm",
+        "hostile"
+      ],
+      "default": "calm"
+    },
+    "hostileHours": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 23
+      },
+      "minItems": 2,
+      "maxItems": 2,
+      "description": "With attitude hostile: [from, to] hours when it is an enemy."
+    },
+    "dialogue": {
+      "type": "string",
+      "description": "A dialogue file in ANPCs/_Dialogue (without .json)."
+    },
+    "portrait": {
+      "type": "string"
+    },
+    "portraits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "location": {
       "type": "object",
       "description": "Unique only: the town the ANPC lives in.",
-      "properties": { "region": { "type": "string" }, "place": { "type": "string" } },
-      "required": ["region", "place"]
+      "properties": {
+        "region": {
+          "type": "string"
+        },
+        "place": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "region",
+        "place"
+      ]
     },
-    "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3, "description": "Unique only: [x, y, z] in the town (use anpc_pos or anpc_place)." },
+    "position": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "Unique only: [x, y, z] in the town (use anpc_pos or anpc_place)."
+    },
     "spawn": {
       "type": "object",
       "description": "Generic only: where copies appear.",
       "additionalProperties": false,
       "properties": {
-        "locationTypes": { "type": "array", "items": { "type": "string" } },
+        "locationTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "places": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "region": { "type": "string" },
-              "place": { "type": "string" },
-              "positions": { "type": "array", "items": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 } }
+              "region": {
+                "type": "string"
+              },
+              "place": {
+                "type": "string"
+              },
+              "positions": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                }
+              }
             }
           }
         },
-        "count": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 2, "maxItems": 2 },
+        "count": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
         "dungeons": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "chance": { "type": "number", "minimum": 0, "maximum": 100 },
-            "count": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 2, "maxItems": 2 },
-            "dungeonTypes": { "type": "array", "items": { "type": "string" } },
-            "when": { "type": "object" }
+            "chance": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "count": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "dungeonTypes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "when": {
+              "type": "object"
+            }
           }
         },
         "interiors": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "chance": { "type": "number", "minimum": 0, "maximum": 100 },
-            "count": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 2, "maxItems": 2 },
-            "buildings": { "type": "array", "items": { "type": "string" } },
-            "when": { "type": "object" }
+            "chance": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "count": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "buildings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "when": {
+              "type": "object"
+            }
           }
         },
         "wilderness": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "chance": { "type": "number", "minimum": 0, "maximum": 100 },
-            "max": { "type": "integer", "minimum": 0 },
-            "when": { "type": "object" }
+            "chance": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "when": {
+              "type": "object"
+            }
           }
         }
       }
@@ -91,72 +310,220 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "spells": { "type": "array", "items": { "type": "string" }, "description": "Standard spell names (see anpc_spells)." },
-        "usesMagicka": { "type": "boolean" },
-        "maxMagicka": { "type": "number", "minimum": 0 },
-        "recovery": { "enum": ["onAreaEntry", "rest"], "default": "onAreaEntry" },
-        "castCooldown": { "type": "array", "items": { "type": "number", "minimum": 0 }, "minItems": 2, "maxItems": 2 },
-        "restHours": { "type": "number", "minimum": 0 },
-        "skill": { "type": "number", "minimum": 0, "maximum": 100 }
+        "spells": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Standard spell names (see anpc_spells)."
+        },
+        "usesMagicka": {
+          "type": "boolean"
+        },
+        "maxMagicka": {
+          "type": "number",
+          "minimum": 0
+        },
+        "recovery": {
+          "enum": [
+            "onAreaEntry",
+            "rest"
+          ],
+          "default": "onAreaEntry"
+        },
+        "castCooldown": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "restHours": {
+          "type": "number",
+          "minimum": 0
+        },
+        "skill": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
       }
     },
     "replaces": {
       "description": "Vanilla flat NPCs this generic ANPC stands in for: sprite ids like \"177.2\" or \"faction:1003\". Clicking it then opens the vanilla NPC's talk, quests, shop, inn or guild services.",
       "oneOf": [
-        { "type": "string", "pattern": "^\\s*(\\d+\\s*[._ ]\\s*\\d+|[Ff]action\\s*:\\s*\\d+)\\s*$" },
-        { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^\\s*(\\d+\\s*[._ ]\\s*\\d+|[Ff]action\\s*:\\s*\\d+)\\s*$" } }
+        {
+          "type": "string",
+          "pattern": "^\\s*(\\d+\\s*[._ ]\\s*\\d+|[Ff]action\\s*:\\s*\\d+)\\s*$"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^\\s*(\\d+\\s*[._ ]\\s*\\d+|[Ff]action\\s*:\\s*\\d+)\\s*$"
+          }
+        }
       ]
     },
-    "replacePortrait": { "type": "boolean", "default": true, "description": "With replaces: the talk window shows this ANPC's portrait." },
-    "replaceName": { "type": "boolean", "default": false, "description": "With replaces: show this ANPC's name instead of the vanilla NPC's." },
-    "stayNear": { "type": "number", "minimum": 0, "maximum": 50, "default": 0, "description": "With replaces: metres a calm stand-in keeps to around its spot (0 = off)." },
+    "replacePortrait": {
+      "type": "boolean",
+      "default": true,
+      "description": "With replaces: the talk window shows this ANPC's portrait."
+    },
+    "replaceName": {
+      "type": "boolean",
+      "default": false,
+      "description": "With replaces: show this ANPC's name instead of the vanilla NPC's."
+    },
+    "stayNear": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 50,
+      "default": 0,
+      "description": "With replaces: metres a calm stand-in keeps to around its spot (0 = off)."
+    },
     "conversation": {
       "description": "Talks with other ANPCs it greets (needs talk sounds; calm ANPCs with calm ones, enemies with enemies that have no one to fight). true, or an object (writing the object opts in).",
       "oneOf": [
-        { "type": "boolean" },
+        {
+          "type": "boolean"
+        },
         {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "enabled": { "type": "boolean", "default": true },
-            "chance": { "type": "integer", "minimum": 0, "maximum": 100, "default": 50, "description": "Percent chance after greeting another ANPC." }
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "chance": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100,
+              "default": 50,
+              "description": "Percent chance after greeting another ANPC."
+            }
           }
         }
       ]
     },
     "sounds": {
       "type": "object",
-      "description": "Custom sounds in the folder's Sounds/ (greet, attack, attack_range, cast, hit, death, step, talk, talk_male, talk_female; _1, _2... for random picks).",
+      "description": "Custom sounds in the folder's Sounds/ (greet, attack, attack_range, cast, heal, hit, death, step, talk, talk_male, talk_female; _1, _2... for random picks).",
       "additionalProperties": false,
       "properties": {
-        "combatChance": { "type": "integer", "minimum": 0, "maximum": 100, "default": 50, "description": "Percent chance for attack, attack_range, cast and hit sounds." },
-        "greetChance": { "type": "integer", "minimum": 0, "maximum": 100, "default": 50, "description": "Percent chance for greet sounds." },
-        "stepDistance": { "type": "number", "exclusiveMinimum": 0, "default": 15, "description": "No step sounds when the player is farther than this (metres)." },
-        "soundPitch": { "type": "number", "minimum": 0.25, "maximum": 3, "default": 1, "description": "Pitch of every sound except steps." },
-        "soundPitchVariation": { "type": "number", "minimum": 0, "maximum": 1, "default": 0, "description": "Random pitch change (±) each time a sound plays." },
-        "stepPitch": { "type": "number", "minimum": 0.25, "maximum": 3, "default": 1 },
-        "stepPitchVariation": { "type": "number", "minimum": 0, "maximum": 1, "default": 0 },
-        "defaultSteps": { "type": "boolean", "default": true, "description": "Without step files of its own, play the shared ANPCs/_Sounds steps." }
+        "combatChance": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 50,
+          "description": "Percent chance for attack, attack_range, cast, heal and hit sounds (heal also outside combat)."
+        },
+        "greetChance": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 50,
+          "description": "Percent chance for greet sounds."
+        },
+        "stepDistance": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 15,
+          "description": "No step sounds when the player is farther than this (metres)."
+        },
+        "soundPitch": {
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 3,
+          "default": 1,
+          "description": "Pitch of every sound except steps."
+        },
+        "soundPitchVariation": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0,
+          "description": "Random pitch change (\u00b1) each time a sound plays."
+        },
+        "stepPitch": {
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 3,
+          "default": 1
+        },
+        "stepPitchVariation": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0
+        },
+        "defaultSteps": {
+          "type": "boolean",
+          "default": true,
+          "description": "Without step files of its own, play the shared ANPCs/_Sounds steps."
+        }
       }
     },
     "combat": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "health": { "type": "number", "exclusiveMinimum": 0, "description": "Scale of the class's health." },
-        "damage": { "type": "number", "exclusiveMinimum": 0, "description": "Scale of the damage (creatures only)." },
-        "attackSpeed": { "type": "number", "exclusiveMinimum": 0 },
-        "rangedAtDistance": { "type": "boolean", "default": false, "description": "Shoot arrows at range (human classes) or throw (creatures); melee only unless true." },
-        "rangedAnimation": { "type": "string", "description": "The sheet a bow shot or throw plays (default attack_range* / attack_ranged*, else attack*)." },
+        "health": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Scale of the class's health."
+        },
+        "damage": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Scale of the damage (creatures only)."
+        },
+        "attackSpeed": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "rangedAtDistance": {
+          "type": "boolean",
+          "default": false,
+          "description": "Shoot arrows at range (human classes) or throw (creatures); melee only unless true."
+        },
+        "rangedAnimation": {
+          "type": "string",
+          "description": "The sheet a bow shot or throw plays (default attack_range* / attack_ranged*, else attack*)."
+        },
         "projectileDamage": {
           "description": "Damage of a ranged hit (needs rangedAtDistance): one number or [min, max], 1-1000; DFU's to-hit roll stays.",
           "oneOf": [
-            { "type": "integer", "minimum": 1, "maximum": 1000 },
-            { "type": "array", "items": { "type": "integer", "minimum": 1, "maximum": 1000 }, "minItems": 2, "maxItems": 2 }
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
           ]
         },
-        "runSpeed": { "type": "number", "exclusiveMinimum": 0, "default": 1.2 },
-        "canRun": { "type": "boolean", "default": true }
+        "runSpeed": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 1.2
+        },
+        "canRun": {
+          "type": "boolean",
+          "default": true
+        }
       }
     },
     "schedule": {
@@ -189,6 +556,9 @@
           "parameters": {
             "type": "object",
             "description": "Optional overrides of the selected package's parameters."
+          },
+          "when": {
+            "$ref": "#/definitions/scheduleWhen"
           }
         },
         "required": [
@@ -196,7 +566,261 @@
         ],
         "additionalProperties": false
       },
-      "description": "Optional routine. At most one untimed fallback; timed slots must not overlap. Gaps use current AI."
+      "description": "Conditional entries have priority in list order. At most one unconditional untimed fallback; unconditional timed slots must not overlap. Gaps use current AI."
+    },
+    "variables": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,63}$"
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          }
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "scheduleWhen": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "hours": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 23
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "time": {
+          "$ref": "#/definitions/names",
+          "examples": [
+            "day",
+            "night"
+          ]
+        },
+        "season": {
+          "$ref": "#/definitions/names"
+        },
+        "weather": {
+          "$ref": "#/definitions/names"
+        },
+        "region": {
+          "$ref": "#/definitions/names"
+        },
+        "town": {
+          "$ref": "#/definitions/names"
+        },
+        "minLevel": {
+          "type": "integer"
+        },
+        "maxLevel": {
+          "type": "integer"
+        },
+        "playerRace": {
+          "$ref": "#/definitions/names"
+        },
+        "playerGender": {
+          "enum": [
+            "male",
+            "female"
+          ]
+        },
+        "minGold": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hasItem": {
+          "type": "string"
+        },
+        "guild": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "Guild name or list; any matching membership."
+        },
+        "minGuildRank": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reaction": {
+          "$ref": "#/definitions/names",
+          "examples": [
+            "dislikes",
+            "neutral",
+            "likes",
+            "loves"
+          ]
+        },
+        "asked": {
+          "$ref": "#/definitions/flags"
+        },
+        "notAsked": {
+          "$ref": "#/definitions/flags"
+        },
+        "flags": {
+          "$ref": "#/definitions/flags"
+        },
+        "notFlags": {
+          "$ref": "#/definitions/flags"
+        },
+        "questGlobal": {
+          "type": "string"
+        },
+        "notQuestGlobal": {
+          "type": "string"
+        },
+        "variables": {
+          "$ref": "#/definitions/variableConditions"
+        },
+        "any": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/scheduleWhen"
+          }
+        },
+        "minOpinion": {
+          "type": "integer",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "maxOpinion": {
+          "type": "integer",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "minHealth": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "This NPC health percentage."
+        },
+        "maxHealth": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "This NPC health percentage."
+        }
+      },
+      "additionalProperties": false
+    },
+    "names": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "flags": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "variableConditions": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 64,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,63}$"
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": false,
+            "properties": {
+              "eq": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                ]
+              },
+              "ne": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                ]
+              },
+              "gt": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              },
+              "gte": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              },
+              "lt": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              },
+              "lte": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              }
+            }
+          }
+        ]
+      }
     }
   }
 }

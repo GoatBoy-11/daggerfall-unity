@@ -1,0 +1,73 @@
+{
+  "kind": "generic",
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Monk",
+  "bravery": "Normal",
+  "wanderRadius": 5,
+  "portrait": "temple_monk_1",
+  "nameList": "breton_oblivion_skyrim",
+  "spawn": {
+    "count": [
+      0,
+      0
+    ]
+  },
+  "magic": {
+    "spells": [
+      "Heal",
+      "Shield"
+    ],
+    "usesMagicka": true,
+    "maxMagicka": 120,
+    "recovery": "onAreaEntry",
+    "castCooldown": [
+      5,
+      8
+    ],
+    "skill": 80
+  },
+  "sounds": {
+    "soundPitch": 0.92
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "schedule": [
+    {
+      "hours": [
+        "06:00",
+        "08:00"
+      ],
+      "package": "monk_work_cycle",
+      "when": {
+        "minHealth": 50
+      }
+    },
+    {
+      "hours": [
+        "12:00",
+        "13:00"
+      ],
+      "package": "play_animation",
+      "parameters": {
+        "animation": "pray",
+        "only_interrupt_at_combat": true
+      }
+    },
+    {
+      "hours": [
+        "18:00",
+        "20:00"
+      ],
+      "package": "work_at",
+      "parameters": {
+        "spot": "prayer",
+        "animation": "pray"
+      },
+      "when": {
+        "weather": "clear"
+      }
+    }
+  ]
+}

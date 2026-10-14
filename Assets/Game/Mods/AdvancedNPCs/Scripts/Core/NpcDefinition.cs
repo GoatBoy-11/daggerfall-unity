@@ -63,6 +63,7 @@ namespace AdvancedNPCs.Core
         public bool IsCreature;
         public float WanderRadius;
         /// <summary>Optional daily routine; empty keeps the original AI.</summary>
+        public Dictionary<string, NpcVariableValue> Variables = new Dictionary<string, NpcVariableValue>();
         public List<AiScheduleEntry> Schedule = new List<AiScheduleEntry>();
         /// <summary>Optional spellcasting override; null keeps vanilla class behaviour.</summary>
         public NpcMagicDefinition Magic;

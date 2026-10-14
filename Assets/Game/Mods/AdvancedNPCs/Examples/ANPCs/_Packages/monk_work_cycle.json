@@ -1,0 +1,20 @@
+{
+  "type": "sequence",
+  "parameters": {
+    "loop": true,
+    "steps": [
+      {
+        "package": "work_at",
+        "parameters": {
+          "spot": "home_prayer",
+          "animation": "pray"
+        },
+        "duration": 15
+      },
+      {
+        "package": "stand",
+        "duration": 5
+      }
+    ]
+  }
+}

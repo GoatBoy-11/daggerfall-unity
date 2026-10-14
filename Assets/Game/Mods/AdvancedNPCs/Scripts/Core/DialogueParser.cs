@@ -21,7 +21,7 @@ namespace AdvancedNPCs.Core
         static readonly string[] FileKeys = { "topics", "greetings" };
         public const int MaxReplyDepth = 8;
 
-        static readonly string[] ActionKeys = { "giveGold", "takeGold", "giveItem", "takeItem", "reputation", "opinion", "startQuest", "becomeEnemy", "endConversation" };
+        static readonly string[] ActionKeys = { "giveGold", "takeGold", "giveItem", "takeItem", "reputation", "opinion", "startQuest", "becomeEnemy", "endConversation", "setVariables", "addVariables" };
         static readonly string[] TopicKeys = Join(new[] { "caption", "id", "answers", "when", "question", "sets", "clears", "once", "replies" }, ActionKeys);
         static readonly string[] AnswerKeys = Join(new[] { "text", "when", "sets", "clears", "replies" }, ActionKeys);
         static readonly string[] ReplyKeys = Join(new[] { "text", "id", "when", "answers", "replies", "sets", "clears" }, ActionKeys);
@@ -375,6 +375,20 @@ namespace AdvancedNPCs.Core
         /// <summary>giveGold, takeGold, giveItem, takeItem, reputation, startQuest, becomeEnemy, endConversation (C2 spec §4).</summary>
         static void ReadActions(string where, Dictionary<string, object> o, DialogueActions a, List<string> messages)
         {
+            object raw;
+            string error;
+            if (o.TryGetValue("setVariables", out raw))
+            {
+                var values = NpcVariables.Read(raw, false, out error);
+                if (values == null) messages.Add(where + ": setVariables: " + error + ", ignored");
+                else a.SetVariables = values;
+            }
+            if (o.TryGetValue("addVariables", out raw))
+            {
+                var values = NpcVariables.Read(raw, true, out error);
+                if (values == null) messages.Add(where + ": addVariables: " + error + ", ignored");
+                else a.AddVariables = values;
+            }
             a.GiveGold = Amount(where, o, "giveGold", 1, 100000, "a whole number 1-100000", messages);
             a.TakeGold = Amount(where, o, "takeGold", 1, 100000, "a whole number 1-100000", messages);
             a.Reputation = Amount(where, o, "reputation", -20, 20, "a whole number -20 to 20 (not 0)", messages);

@@ -25,8 +25,8 @@ namespace AdvancedNPCs.Core
         /// <summary>Returns a movement target, or null to stand. gameSeconds drives waits; activeSeconds drives stall detection.</summary>
         public PackagePoint Tick(PackagePoint current, double gameSeconds, double activeSeconds)
         {
-            if (Failed || settings.Type == "stand") return null;
-            if (settings.Type == "travel_to")
+            if (Failed || settings.Type == "stand" || settings.Type == "play_animation" || settings.Type == "follow") return null;
+            if (settings.Type == "travel_to" || settings.Type == "guard_spot" || settings.Type == "work_at")
                 target = settings.Target;
             else if (target == null)
             {
@@ -50,7 +50,7 @@ namespace AdvancedNPCs.Core
             {
                 stuckSeconds = 0;
                 bestDistance = double.MaxValue;
-                if (settings.Type != "travel_to")
+                if (settings.Type != "travel_to" && settings.Type != "guard_spot" && settings.Type != "work_at")
                 {
                     target = null;
                     waitUntil = gameSeconds + settings.Pause;

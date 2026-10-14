@@ -6,25 +6,72 @@
   "bravery": "Prudent",
   "wanderRadius": 2,
   "portrait": "cowled_old_man_1",
-  "replaces": ["177.0"],
+  "replaces": [
+    "177.0"
+  ],
   "replacePortrait": false,
   "replaceName": false,
   "stayNear": 2,
   "combat": {
     "rangedAtDistance": true,
     "rangedAnimation": "attack_range_1",
-    "projectileDamage": [5, 11]
+    "projectileDamage": [
+      5,
+      11
+    ]
   },
   "magic": {
-    "spells": ["Shock", "Paralysis", "Heal", "Shield"],
+    "spells": [
+      "Shock",
+      "Paralysis",
+      "Heal",
+      "Shield"
+    ],
     "usesMagicka": true,
     "maxMagicka": 120,
     "recovery": "onAreaEntry",
-    "castCooldown": [5, 9],
+    "castCooldown": [
+      5,
+      9
+    ],
     "skill": 75
   },
-  "sounds": { "soundPitch": 0.8, "soundPitchVariation": 0.03 },
+  "sounds": {
+    "soundPitch": 0.8,
+    "soundPitchVariation": 0.03
+  },
   "conversation": {
     "enabled": true
-  }
+  },
+  "schedule": [
+    {
+      "hours": [
+        "07:00",
+        "08:00"
+      ],
+      "package": "play_animation",
+      "parameters": {
+        "animation": "idle",
+        "only_interrupt_at_combat": true
+      },
+      "when": {
+        "minHealth": 50
+      }
+    },
+    {
+      "hours": [
+        "18:00",
+        "20:00"
+      ],
+      "package": "work_at",
+      "parameters": {
+        "spot": "home_study_post",
+        "animation": "idle"
+      },
+      "when": {
+        "minOpinion": 20,
+        "minHealth": 50
+      }
+    }
+  ]
 }

@@ -1,0 +1,14 @@
+{
+  "$schema": "../_Schemas/spot.schema.json",
+  "relativeTo": "home",
+  "position": [
+    0,
+    0,
+    0
+  ],
+  "tags": [
+    "guard_post"
+  ],
+  "capacity": 1,
+  "facing": 0
+}

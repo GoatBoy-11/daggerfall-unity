@@ -6,6 +6,9 @@ namespace AdvancedNPCs.Core
     public class AiScheduleEntry
     {
         public string Package;
+        public NpcVariableCondition When;
+        public Condition Rules;
+        public bool Conditional { get { return When != null || Rules != null; } }
         public int From = -1;
         public int To = -1;
         public Dictionary<string, object> Parameters = new Dictionary<string, object>();
@@ -18,9 +21,11 @@ namespace AdvancedNPCs.Core
     /// <summary>Optional schedules fail independently of NPC definitions. All times are game minutes.</summary>
     public static class AiSchedule
     {
-        public static readonly string[] Keys = { "hours", "package", "parameters" };
+        public static readonly string[] Keys = { "hours", "package", "parameters", "when" };
 
-        public static List<AiScheduleEntry> Read(object raw, out string error)
+        public static List<AiScheduleEntry> Read(object raw, out string error) { return Read(raw, out error, null); }
+
+        public static List<AiScheduleEntry> Read(object raw, out string error, NpcDefinition definition)
         {
             error = null;
             List<AiScheduleEntry> result = new List<AiScheduleEntry>();
@@ -41,6 +46,19 @@ namespace AdvancedNPCs.Core
                 string problem = FieldReader.Text(row, "package", null, out entry.Package);
                 if (problem != null || !DefinitionParser.IsValidFolderName(entry.Package))
                     return Fail(where + "package must be a lowercase package filename without .json", out error);
+                object when;
+                if (row.TryGetValue("when", out when))
+                {
+                    var clauses = when as Dictionary<string, object>;
+                    if (clauses == null || clauses.Count == 0) return Fail(where + "when must be a nonempty condition object", out error);
+                    var messages = new List<string>();
+                    entry.Rules = ConditionParser.Parse(clauses, where, messages, false);
+                    if (entry.Rules.UsesTone) return Fail(where + "tone is not supported in schedules", out error);
+                    if (messages.Count > 0) return Fail(messages[0], out error);
+                    if (definition != null)
+                        foreach (var variables in entry.Rules.VariableConditions)
+                            if ((problem = variables.CheckDefinition(definition)) != null) return Fail(where + "when: " + problem, out error);
+                }
                 object hours;
                 if (row.TryGetValue("hours", out hours))
                 {
@@ -50,14 +68,15 @@ namespace AdvancedNPCs.Core
                     for (int minute = 0; minute < 1440; minute++)
                     {
                         if (!entry.Includes(minute)) continue;
+                        if (entry.Conditional) continue;
                         if (occupied[minute]) return Fail(where + "hours overlap another timed entry", out error);
                         occupied[minute] = true;
                     }
                 }
                 else
                 {
-                    if (fallback) return Fail(where + "only one entry may omit hours", out error);
-                    fallback = true;
+                    if (!entry.Conditional && fallback) return Fail(where + "only one unconditional entry may omit hours", out error);
+                    if (!entry.Conditional) fallback = true;
                 }
                 if (row.ContainsKey("parameters"))
                 {
@@ -88,12 +107,19 @@ namespace AdvancedNPCs.Core
             return hour < 24 && minute < 60;
         }
 
-        public static AiScheduleEntry Select(IList<AiScheduleEntry> entries, int minute)
+        public static AiScheduleEntry Select(IList<AiScheduleEntry> entries, int minute) { return Select(entries, minute, null); }
+
+        public static AiScheduleEntry Select(IList<AiScheduleEntry> entries, int minute, INpcVariableFacts facts)
         {
             if (entries == null || minute < 0 || minute >= 1440) return null;
+            foreach (AiScheduleEntry entry in entries)
+                if (entry.Conditional && entry.Includes(minute) &&
+                    (entry.When == null || entry.When.Holds(facts)) &&
+                    (entry.Rules == null || (facts is IDialogueFacts && entry.Rules.Holds((IDialogueFacts)facts)))) return entry;
             AiScheduleEntry fallback = null;
             foreach (AiScheduleEntry entry in entries)
             {
+                if (entry.Conditional) continue;
                 if (entry.From < 0) fallback = entry;
                 else if (entry.Includes(minute)) return entry;
             }

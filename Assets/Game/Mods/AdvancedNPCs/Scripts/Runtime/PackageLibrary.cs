@@ -59,6 +59,27 @@ namespace AdvancedNPCs
             return library;
         }
 
+        public List<string> AnimationRequests(NpcDefinition definition)
+        {
+            List<string> names = new List<string>();
+            if (definition.Schedule == null) return names;
+            foreach (AiScheduleEntry entry in definition.Schedule)
+            {
+                string problem;
+                PackagePlan plan = PackagePlan.Build(Find(entry.Package),entry.Parameters,Find,out problem);
+                if (plan == null) continue;
+                foreach (var step in plan.Steps)
+                {
+                    PackageSettings settings = step.Settings;
+                    if (settings.Type != "play_animation" && settings.Type != "work_at") continue;
+                    if (!names.Exists(delegate(string n) { return string.Equals(n, settings.Animation, StringComparison.OrdinalIgnoreCase); }))
+                        names.Add(settings.Animation);
+                }
+            }
+            names.Sort(StringComparer.OrdinalIgnoreCase);
+            return names;
+        }
+
         public void Check(NpcDefinition definition)
         {
             if (definition.Schedule == null) return;
@@ -66,7 +87,7 @@ namespace AdvancedNPCs
             {
                 AiScheduleEntry entry = definition.Schedule[i];
                 string problem;
-                if (PackageParser.Resolve(Find(entry.Package), entry.Parameters, out problem) == null)
+                if (PackagePlan.Build(Find(entry.Package), entry.Parameters, Find, out problem) == null)
                     AdvancedNpcsMod.LogError(definition.SourceFile + ": schedule entry " + (i + 1) + " (" + entry.Package + "): " + problem + "; current AI will be used");
             }
         }

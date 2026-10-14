@@ -16,7 +16,7 @@ namespace AdvancedNPCs
     /// Undoes GameManager.MakeEnemiesHostile() for NPCs that were not actually attacked.
     /// </summary>
     [RequireComponent(typeof(NpcMover))]
-    public class NpcBrain : MonoBehaviour
+    public class NpcBrain : MonoBehaviour, INpcVariableFacts
     {
 
         const float SafeDistance = 30f;
@@ -57,6 +57,57 @@ namespace AdvancedNPCs
         bool packageControlled;
         public bool PackageRunning { get { return mode == NpcMode.Calm && packages != null && packages.Running; } }
         public string PackageDescription { get { return packages != null ? packages.Description : "current AI (no schedule)"; } }
+        bool INpcVariableFacts.TryGetVariable(string name, out NpcVariableValue value)
+        { return NpcVariables.TryGet(def, state, name, out value); }
+        public bool TryGetVariable(string name, out NpcVariableValue value)
+        {
+            if (!NpcVariables.TryGet(def, state, name, out value)) return false;
+            value = value.Clone();
+            return true;
+        }
+        public bool TrySetVariable(string name, NpcVariableValue value, out string error)
+        { return NpcVariables.Set(def, state, name, value, out error); }
+        public bool TryAddVariable(string name, int amount, out string error)
+        { return NpcVariables.Add(def, state, name, amount, out error); }
+        public bool SetVariable(string name, bool value) { return SetVariableValue(name, new NpcVariableValue(value)); }
+        public bool SetVariable(string name, int value) { return SetVariableValue(name, new NpcVariableValue(value)); }
+        bool SetVariableValue(string name, NpcVariableValue value)
+        {
+            string error;
+            if (TrySetVariable(name, value, out error)) return true;
+            AdvancedNpcsMod.LogError(key + ": " + error);
+            return false;
+        }
+        public bool AddVariable(string name, int amount)
+        {
+            string error;
+            if (TryAddVariable(name, amount, out error)) return true;
+            AdvancedNpcsMod.LogError(key + ": " + error);
+            return false;
+        }
+        public string DescribeVariables()
+        {
+            var lines = new List<string>();
+            if (def != null)
+                foreach (string name in def.Variables.Keys)
+                {
+                    NpcVariableValue value;
+                    lines.Add(name + "=" + (TryGetVariable(name, out value) ? value.ToString() : "<incompatible saved type>"));
+                }
+            lines.Sort(System.StringComparer.Ordinal);
+            return lines.Count == 0 ? "none" : string.Join(", ", lines.ToArray());
+        }
+        public Bravery EffectiveBravery { get { return packages != null && packages.Guarding ? Bravery.Brave : def.Bravery; } }
+        public bool PackageWorkAtPost { get { return isActiveAndEnabled && mode == NpcMode.Calm && packages != null && packages.AtWorkPost; } }
+        public bool PackageOnlyCombatInterrupts { get { return isActiveAndEnabled && mode == NpcMode.Calm && packages != null && packages.OnlyCombatInterrupts; } }
+        public PackageSettings GuardAnimation
+        {
+            get { return isActiveAndEnabled && packages != null && mode == NpcMode.Calm && holdStill <= 0 && !GameManager.IsGamePaused ? packages.GuardSettings : null; }
+        }
+        public string PackageAnimation
+        {
+            get { return isActiveAndEnabled && packages != null && mode == NpcMode.Calm && (holdStill <= 0 || PackageOnlyCombatInterrupts) && (!GameManager.IsGamePaused || PackageOnlyCombatInterrupts) ? packages.Animation : null; }
+        }
         static Collider[] nearby = new Collider[64];
         const int MaxNearby = 512;
         System.Random rng;
@@ -78,6 +129,7 @@ namespace AdvancedNPCs
             NpcBrain current;
             if (brain.key != null && live.TryGetValue(brain.key, out current) && current == brain)
                 live.Remove(brain.key);
+            if (brain.packages != null) brain.packages.Dispose();
             Destroy(brain.gameObject);
         }
 
@@ -280,7 +332,7 @@ namespace AdvancedNPCs
             holdStill = Mathf.Max(holdStill, seconds);
         }
 
-        bool IsTurret
+        internal bool IsTurret
         {
             get { return gait != null && gait.IsTurret; }
         }
@@ -319,10 +371,11 @@ namespace AdvancedNPCs
             sb.Append(Id).Append(" (").Append(DisplayName).Append(")\n");
             if (def != null)
                 sb.Append("  key ").Append(key).Append(", ").Append(def.Kind == NpcKind.Unique ? "unique" : "generic")
-                  .Append(", folder ").Append(def.Folder).Append(", bravery ").Append(def.Bravery).Append('\n');
+                  .Append(", folder ").Append(def.Folder).Append(", bravery ").Append(EffectiveBravery).Append('\n');
             sb.Append("  ").Append(Status).Append('\n');
+            sb.Append("  variables: ").Append(DescribeVariables()).Append('\n');
             sb.Append("  package: ").Append(PackageDescription);
-            if (packages != null && (mode != NpcMode.Calm || holdStill > 0 || IsTurret || GameManager.IsGamePaused))
+            if (packages != null && (mode != NpcMode.Calm || holdStill > 0 || (IsTurret && !packages.AllowsStationary) || GameManager.IsGamePaused))
                 sb.Append(" (interrupted)");
             sb.Append('\n');
             sb.Append("  enemy: ").Append(enemy ? "yes" : "no");
@@ -408,7 +461,7 @@ namespace AdvancedNPCs
             controller.enabled = wasEnabled;
             homeLocal = transform.localPosition;
             hasWanderTarget = false;
-            if (packages != null) packages = new NpcPackageDriver(this, mover);
+            if (packages != null) { packages.Dispose(); packages = new NpcPackageDriver(this, mover); }
             NpcGait g = GetComponent<NpcGait>();
             if (g != null)
                 g.Repin();
@@ -430,6 +483,13 @@ namespace AdvancedNPCs
             def = npcInstance.Definition;
             key = npcInstance.Key;
             state = npcState;
+            if (state.variables != null)
+                foreach (var p in state.variables)
+                {
+                    NpcVariableValue initial;
+                    if (def.Variables.TryGetValue(p.Key, out initial) && (p.Value == null || p.Value.isBoolean != initial.isBoolean))
+                        AdvancedNpcsMod.LogError(key + ": saved variable " + p.Key + " has an incompatible type; conditions cannot match until corrected");
+                }
             rng = new System.Random((int)npcInstance.Seed ^ System.Environment.TickCount);
             live[key] = this;
         }
@@ -471,8 +531,11 @@ namespace AdvancedNPCs
             RefreshEnemy();
         }
 
+        void OnDisable() { if (packages != null) packages.Suspend(); }
+
         void OnDestroy()
         {
+            if (packages != null) packages.Dispose();
             if (entityBehaviour != null && entityBehaviour.Entity != null)
             {
                 entityBehaviour.Entity.OnDeath -= OnDeath;
@@ -491,8 +554,10 @@ namespace AdvancedNPCs
 
             if (packages != null)
             {
+                Bravery before = EffectiveBravery;
                 packages.Pause();
                 packages.Select(AdvancedNpcsMod.Instance != null ? AdvancedNpcsMod.Instance.Packages : null, Now());
+                if (before != EffectiveBravery) fleeRoll = new FleeRoll();
             }
             DaggerfallEntityBehaviour player = GameManager.Instance.PlayerEntityBehaviour;
             int health = entityBehaviour.Entity.CurrentHealth;
@@ -544,7 +609,7 @@ namespace AdvancedNPCs
                         break;
                     }
                     motor.GiveUpTimer = 0;
-                    if (def.Bravery == Bravery.Brave && Patrol())
+                    if (EffectiveBravery == Bravery.Brave && Patrol())
                         break;
                     UpdateCalm();
                     break;
@@ -650,7 +715,7 @@ namespace AdvancedNPCs
 
         void EnterCombat()
         {
-            CombatChoice choice = HostilityRules.Decide(def.Bravery, HealthFraction(), def.FleeHealthPercent, def.FleeChance, ref fleeRoll, rng.NextDouble());
+            CombatChoice choice = HostilityRules.Decide(EffectiveBravery, HealthFraction(), def.FleeHealthPercent, def.FleeChance, ref fleeRoll, rng.NextDouble());
             SetMode(choice == CombatChoice.Flee ? NpcMode.Fleeing : NpcMode.Fighting);
         }
 
@@ -683,13 +748,12 @@ namespace AdvancedNPCs
                 mover.Stop();
                 return;
             }
-            if (holdStill > 0f || IsTurret)
+            if (holdStill > 0f)
             {
                 holdStill = Mathf.Max(0f, holdStill - Time.deltaTime);
-                mover.Stop();
-                return;
+                if (!PackageOnlyCombatInterrupts) { mover.Stop(); return; }
             }
-            if (packages != null)
+            if (packages != null && (!IsTurret || packages.AllowsStationary))
             {
                 bool controlled = packages.Tick(homeLocal, Now(), Time.deltaTime);
                 if (controlled != packageControlled)
@@ -697,6 +761,7 @@ namespace AdvancedNPCs
                 packageControlled = controlled;
                 if (controlled) return;
             }
+            if (IsTurret) { mover.Stop(); return; }
             float wanderRadius = Mathf.Min(def.WanderRadius, WanderCap);
             if (Leash > 0f)
             {
@@ -751,7 +816,7 @@ namespace AdvancedNPCs
             }
             if (threat != GameManager.Instance.PlayerEntityBehaviour)
                 senses.Target = threat;
-            if (HostilityRules.Decide(def.Bravery, HealthFraction(), def.FleeHealthPercent, def.FleeChance, ref fleeRoll, rng.NextDouble()) == CombatChoice.Flee)
+            if (HostilityRules.Decide(EffectiveBravery, HealthFraction(), def.FleeHealthPercent, def.FleeChance, ref fleeRoll, rng.NextDouble()) == CombatChoice.Flee)
                 SetMode(NpcMode.Fleeing);
         }
 
@@ -773,6 +838,11 @@ namespace AdvancedNPCs
             {
                 CountHelp();
                 EndCreatureFight();
+                return;
+            }
+            if (EffectiveBravery == Bravery.Brave)
+            {
+                EnterCombat();
                 return;
             }
             float distance = Vector3.Distance(transform.position, threat.transform.position);
@@ -817,6 +887,7 @@ namespace AdvancedNPCs
         void SetMode(NpcMode newMode)
         {
             mode = newMode;
+            if (packages != null && newMode != NpcMode.Calm) packages.Pause();
             bool fighting = newMode == NpcMode.Fighting;
             motor.enabled = fighting;
             attack.enabled = fighting;
@@ -842,6 +913,7 @@ namespace AdvancedNPCs
             bool fightingCreature = threat != null && threat != GameManager.Instance.PlayerEntityBehaviour;
 
             mode = NpcMode.Dead;
+            if (packages != null) packages.Dispose();
             state.dead = true;
             state.hostile = false;
             NpcVoice voice = GetComponent<NpcVoice>();

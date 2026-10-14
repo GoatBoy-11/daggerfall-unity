@@ -25,6 +25,7 @@ namespace AdvancedNPCs
 
         public DefinitionCatalog Catalog { get; private set; }
         public PackageLibrary Packages { get; private set; }
+        public SpotLibrary Spots { get; private set; }
         public NpcStateTable States { get; private set; }
         /// <summary>People placed with anpc_spawn in this game (saved with it).</summary>
         public PlacedNpcList Placed { get; private set; }
@@ -83,6 +84,7 @@ namespace AdvancedNPCs
             Placed = new PlacedNpcList();
             AnpcFiles.MigrateLegacy();
             Catalog = LoadCatalog();
+            Spots = SpotLibrary.Load(AnpcFiles.Root);
             ReloadPackages();
             Portraits = PortraitLibrary.Load(AnpcFiles.PortraitsFolder);
             Portraits.WarnMissing(Catalog.ReferencedPortraits());
@@ -90,7 +92,7 @@ namespace AdvancedNPCs
             Names.WarnMissing(Catalog.Generics);
             List<NpcDefinition> all = new List<NpcDefinition>(Catalog.ById.Values);
             all.AddRange(Catalog.Generics);
-            Sprites = SpriteLibrary.Load(AnpcFiles.Root, all);
+            Sprites = SpriteLibrary.Load(AnpcFiles.Root, all, Packages);
             Sounds = SoundLibrary.Load(AnpcFiles.Root, all);
             Flags = new FlagSet();
             Dialogue = DialogueFiles.Load(AnpcFiles.Root);
@@ -114,6 +116,12 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_opinion",
                 "Shows or sets an ANPC's personal opinion of you (-100..100; added to the region's reaction for greetings and dialogue).",
                 "anpc_opinion <id or key> [value]", OpinionCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_var",
+                "Lists, reads or sets one spawned NPC's own variables (saved for persistent instances).",
+                "anpc_var <id or key> [name] [true|false|integer]", VariableCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_add_var",
+                "Adds a signed integer to one spawned NPC's variable.",
+                "anpc_add_var <id or key> <name> <amount>", AddVariableCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_info",
                 "Shows the ANPC in front of you (or <id>): mode, bravery, health, opinion, sprite set, target and update rate.",
                 "anpc_info [id or key]", InfoCommand);
@@ -128,6 +136,10 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_topics",
                 "Shows the dialogue topics of the ANPC in front of you (or <id>): which are shown, and why the others are hidden.",
                 "anpc_topics [id]", TopicsCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_spot_pos",
+                "Prints a named-spot definition at your current position (town, building or dungeon).", "anpc_spot_pos", SpotPositionCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_reload_spots",
+                "Reloads ANPCs/_Spots and restarts affected activities.", "anpc_reload_spots", ReloadSpotsCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_reload_packages",
                 "Re-reads ANPCs/_Packages/*.json; active schedules restart with the new settings (npc.json changes need a restart).",
                 "anpc_reload_packages", ReloadPackagesCommand);
@@ -166,6 +178,41 @@ namespace AdvancedNPCs
             Packages = PackageLibrary.Load(AnpcFiles.Root);
             foreach (NpcDefinition d in Catalog.ById.Values) Packages.Check(d);
             foreach (NpcDefinition d in Catalog.Generics) Packages.Check(d);
+            if (Sprites != null)
+            {
+                List<NpcDefinition> definitions = new List<NpcDefinition>(Catalog.ById.Values);
+                definitions.AddRange(Catalog.Generics);
+                List<string> changed = Sprites.RefreshPackageAnimations(AnpcFiles.Root, definitions, Packages);
+                if (changed.Count > 0) SwapSprites(changed);
+            }
+        }
+
+        internal static string ReloadSpotsCommand(params string[] args)
+        {
+            Instance.Spots=SpotLibrary.Load(AnpcFiles.Root);
+            return "Reloaded "+Instance.Spots.Count+" named spot(s).";
+        }
+        internal static string SpotPositionCommand(params string[] args)
+        {
+            GameManager gm=GameManager.Instance;
+            Transform root=null;string region=null,place=null,context="outdoors";
+            var pee=gm.PlayerEnterExit;
+            if(pee.IsPlayerInsideDungeon && pee.Dungeon!=null)
+            { root=pee.Dungeon.transform;region=pee.Dungeon.Summary.RegionName;place=pee.Dungeon.Summary.LocationName;context="dungeon"; }
+            else if(pee.IsPlayerInsideBuilding && pee.Interior!=null)
+            {
+                var info=IndoorSpawner.InteriorPlace(pee.Interior);
+                if(info!=null) { root=pee.Interior.transform;region=info.Region;place=info.Place;context=info.Context; }
+            }
+            else
+            {
+                var town=gm.StreamingWorld.CurrentPlayerLocationObject;
+                if(town!=null) { root=town.transform;region=town.Summary.RegionName;place=town.Summary.LocationName; }
+            }
+            if(root==null) return "Stand in a loaded town, building or dungeon first.";
+            Vector3 p=root.InverseTransformPoint(gm.PlayerObject.transform.position);
+            string json=PositionFormat.SpotJson(region,place,context,p.x,p.y,p.z);
+            Log("anpc_spot_pos\n"+json);return json;
         }
 
         static string ReloadPackagesCommand(params string[] args)
@@ -372,7 +419,7 @@ namespace AdvancedNPCs
               .Append(def.OwnDialogue != null ? " + " + def.Folder + "/dialogue.json" : "").Append('\n');
             if (d.Topics.Count == 0)
                 sb.Append("  no topics\n");
-            GameFacts facts = new GameFacts(b.State, Instance.Flags, b.DisplayName, null);
+            GameFacts facts = new GameFacts(b.State, Instance.Flags, b.DisplayName, null, b.Instance.Definition, b);
             foreach (DialogueTopic t in d.Topics)
             {
                 string why = Conversation.WhyHidden(t, facts);
@@ -849,6 +896,38 @@ namespace AdvancedNPCs
             if (!hostile)
                 s.hostile = false;
             return true;
+        }
+
+        internal static string VariableCommand(params string[] args)
+        {
+            if (args == null || args.Length < 1 || args.Length > 3) return "Usage: anpc_var <id or key> [name] [true|false|integer]";
+            NpcBrain b = NpcBrain.Find(args[0]);
+            if (b == null) return "No spawned ANPC with that id or key. Try anpc_list.";
+            if (args.Length == 1) return b.Id + ": " + b.DescribeVariables();
+            if (args.Length == 3)
+            {
+                NpcVariableValue value;
+                bool boolean;
+                int number;
+                if (bool.TryParse(args[2], out boolean)) value = new NpcVariableValue(boolean);
+                else if (int.TryParse(args[2], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out number)) value = new NpcVariableValue(number);
+                else return "Value must be true, false or a signed 32-bit integer.";
+                string error;
+                if (!b.TrySetVariable(args[1], value, out error)) return error;
+            }
+            NpcVariableValue current;
+            return b.TryGetVariable(args[1], out current) ? b.Id + ": " + args[1] + "=" + current : "Unknown or incompatible NPC variable " + args[1];
+        }
+        internal static string AddVariableCommand(params string[] args)
+        {
+            if (args == null || args.Length != 3) return "Usage: anpc_add_var <id or key> <name> <amount>";
+            NpcBrain b = NpcBrain.Find(args[0]);
+            if (b == null) return "No spawned ANPC with that id or key. Try anpc_list.";
+            int amount;
+            if (!int.TryParse(args[2], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out amount)) return "Amount must be a signed 32-bit integer.";
+            string error;
+            if (!b.TryAddVariable(args[1], amount, out error)) return error;
+            return VariableCommand(args[0], args[1]);
         }
 
         static string OpinionCommand(params string[] args)

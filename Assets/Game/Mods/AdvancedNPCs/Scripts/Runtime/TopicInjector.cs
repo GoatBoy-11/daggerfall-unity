@@ -105,7 +105,7 @@ namespace AdvancedNPCs
             window = talkWindow;
             dialogue = composed;
             brain = npc;
-            facts = new GameFacts(npc != null ? npc.State : null, flags, npcName, CurrentTone);
+            facts = new GameFacts(npc != null ? npc.State : null, flags, npcName, CurrentTone, npc != null ? npc.Instance.Definition : null, npc);
             facts.OnEndConversation = delegate { endRequested = true; };
             facts.OnBecomeEnemy = delegate { enemyRequested = true; };
             pendingReplies = null;

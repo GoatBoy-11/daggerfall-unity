@@ -59,6 +59,7 @@ npc = load("npc.schema.json")
 sprites = load("sprites.schema.json")
 dialogue = load("dialogue.schema.json")
 package = load("package.schema.json")
+spot = load("spot.schema.json")
 
 definition = source("DefinitionParser.cs")
 if npc:
@@ -76,9 +77,12 @@ if npc:
 
 if package:
     package_source = source("AiPackage.cs")
-    for branch, key in zip(package["oneOf"], ["StandKeys", "WanderKeys", "TravelKeys", "PatrolKeys"]):
+    for branch, key in zip(package["oneOf"], ["StandKeys", "WanderKeys", "TravelKeys", "PatrolKeys", "AnimationKeys", "GuardKeys", "FollowKeys", "WorkKeys", "SequenceKeys"]):
         same("package", branch["properties"], array(package_source, "Keys"))
         same("package " + key, branch["properties"]["parameters"]["properties"], array(package_source, key))
+if spot:
+    same("spot",spot["properties"],array(source("NamedSpots.cs"),"Keys"))
+    same("spot location",spot["properties"]["location"]["properties"],array(source("NamedSpots.cs"),"LocationKeys"))
 if npc:
     same("npc schedule", npc["properties"]["schedule"]["items"]["properties"], array(source("AiSchedule.cs"), "Keys"))
 
@@ -120,6 +124,8 @@ if jsonschema and npc and sprites and dialogue:
     count += validate(dialogue, "_Dialogue/*.json") + validate(dialogue, "*/dialogue.json")
     if package:
         count += validate(package, "_Packages/*.json")
+    if spot:
+        count += validate(spot,"_Spots/*.json")
     print("validated " + str(count) + " example file(s)")
 
 for p in problems:

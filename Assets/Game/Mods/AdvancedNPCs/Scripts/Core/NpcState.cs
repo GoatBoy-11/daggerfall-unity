@@ -38,6 +38,7 @@ namespace AdvancedNPCs.Core
         public bool magicUnlimited;
         public bool magicRefillsOnEntry;
         /// <summary>Personal opinion of the player, -100..100 (spec opinion-lod §A); drifts toward 0 from opinionAt.</summary>
+        public Dictionary<string, NpcVariableValue> variables;
         public int opinion;
         /// <summary>Game second of the last opinion change.</summary>
         public ulong opinionAt;
@@ -76,6 +77,7 @@ namespace AdvancedNPCs.Core
             c.magicMax = magicMax;
             c.magicUnlimited = magicUnlimited;
             c.magicRefillsOnEntry = magicRefillsOnEntry;
+            c.variables = NpcVariables.Clone(variables);
             c.opinion = opinion;
             c.opinionAt = opinionAt;
             return c;
@@ -106,7 +108,7 @@ namespace AdvancedNPCs.Core
         public bool IsDefault()
         {
             return MagicSettled() && !dead && !hostile && healthFraction >= 0.999f && string.IsNullOrEmpty(portrait) && !enemyOn && !enemyOff &&
-                   (asked == null || asked.Count == 0) && opinion == 0;
+                   (asked == null || asked.Count == 0) && opinion == 0 && (variables == null || variables.Count == 0);
         }
     }
 

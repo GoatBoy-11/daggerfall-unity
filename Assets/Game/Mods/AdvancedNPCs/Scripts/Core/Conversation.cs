@@ -200,6 +200,13 @@ namespace AdvancedNPCs.Core
             }
             if (act == null)
                 return;
+            INpcVariableActions variableActions = act as INpcVariableActions;
+            if (variableActions != null)
+                foreach (DialogueActions a in parts)
+                {
+                    foreach (var p in a.SetVariables) variableActions.SetVariable(p.Key, p.Value);
+                    foreach (var p in a.AddVariables) variableActions.AddVariable(p.Key, p.Value.integerValue);
+                }
             foreach (DialogueActions a in parts)
             {
                 if (a.StartQuest != null)
@@ -225,7 +232,7 @@ namespace AdvancedNPCs.Core
         }
 
         /// <summary>The same facts with the tone not known yet.</summary>
-        class ToneUnknown : IDialogueFacts
+        class ToneUnknown : IDialogueFacts, INpcVariableFacts, INpcPersonalFacts
         {
             readonly IDialogueFacts f;
 
@@ -234,6 +241,15 @@ namespace AdvancedNPCs.Core
                 f = facts;
             }
 
+            public bool HasPersonalState { get { var p = f as INpcPersonalFacts; return p != null && p.HasPersonalState; } }
+            public int Opinion { get { var p = f as INpcPersonalFacts; return p != null ? p.Opinion : 0; } }
+            public double HealthPercent { get { var p = f as INpcPersonalFacts; return p != null ? p.HealthPercent : 100; } }
+            public bool TryGetVariable(string name, out NpcVariableValue value)
+            {
+                value = null;
+                INpcVariableFacts variables = f as INpcVariableFacts;
+                return variables != null && variables.TryGetVariable(name, out value);
+            }
             public int Hour { get { return f.Hour; } }
             public bool IsNight { get { return f.IsNight; } }
             public string Season { get { return f.Season; } }

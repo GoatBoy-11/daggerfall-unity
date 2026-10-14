@@ -88,6 +88,19 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void HealingPrefersNumberedSheetsThenCastThenAttackThenNothing()
+        {
+            Assert.AreEqual(SpriteStates.Heal, SpriteStates.StateOf("Heal_2"));
+            Assert.IsTrue(SpriteStates.Loads("heal_1", false));
+            Assert.IsNull(SpriteStates.StateOf("heal_extra"));
+            CollectionAssert.AreEqual(new[] { "heal_1", "heal_2" }, Names(SpriteStates.Variants(Set("idle", "attack", "cast", "heal_2", "heal_1"), SpriteStates.Heal)));
+            CollectionAssert.AreEqual(new[] { "cast" }, Names(SpriteStates.Variants(Set("idle", "attack", "cast"), SpriteStates.Heal)));
+            CollectionAssert.AreEqual(new[] { "attack_1", "attack_2" }, Names(SpriteStates.Variants(Set("idle", "attack_2", "attack_1"), SpriteStates.Heal)));
+            Assert.IsEmpty(SpriteStates.Variants(Set("idle"), SpriteStates.Heal));
+            Assert.IsFalse(SpriteStates.IsAttackSheet("heal_1"));
+        }
+
+        [Test]
         public void RangedAttack_PrefersDedicatedSheetThenFallsBackToAttackThenIdle()
         {
             SpriteSet both = Set("idle_1", "attack_1", "attack_range_1");

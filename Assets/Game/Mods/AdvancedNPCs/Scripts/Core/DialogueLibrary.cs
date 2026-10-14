@@ -132,6 +132,7 @@ namespace AdvancedNPCs.Core
                 }
 
                 ComposedDialogue c = Compose(d);
+                messages.AddRange(NpcDialogueVariables.Check(c, d));
                 HashSet<string> ids = new HashSet<string>();
                 Dictionary<string, DialogueTopic> captions = new Dictionary<string, DialogueTopic>(StringComparer.OrdinalIgnoreCase);
                 foreach (DialogueTopic t in c.Topics)

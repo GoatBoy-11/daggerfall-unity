@@ -19,7 +19,7 @@ namespace AdvancedNPCs
     /// The live game as dialogue conditions see it (spec C1 §5), for one conversation with one ANPC, and what asking
     /// a topic changes (player-wide flags, the person's asked topics).
     /// </summary>
-    public class GameFacts : IDialogueFacts, IDialogueState, IDialogueActions
+    public class GameFacts : IDialogueFacts, IDialogueState, IDialogueActions, INpcVariableFacts, INpcVariableActions, INpcPersonalFacts
     {
         /// <summary>Set by the talk window code: turn the ANPC into an enemy / close the conversation.</summary>
         public Action OnBecomeEnemy;
@@ -30,14 +30,27 @@ namespace AdvancedNPCs
         static bool warnedReaction;
 
         readonly NpcState state;
+        readonly NpcDefinition definition;
+        readonly NpcBrain subject;
+        readonly bool liveReaction;
         readonly FlagSet flags;
         readonly string npcName;
         readonly Func<int> tone;
 
         /// <param name="tone">The tone buttons' current choice (Tones), or null for unknown.</param>
         public GameFacts(NpcState state, FlagSet flags, string npcName, Func<int> tone)
+            : this(state, flags, npcName, tone, null) { }
+
+        public GameFacts(NpcState state, FlagSet flags, string npcName, Func<int> tone, NpcDefinition definition)
+            : this(state, flags, npcName, tone, definition, null) { }
+        public GameFacts(NpcState state, FlagSet flags, string npcName, Func<int> tone, NpcDefinition definition, NpcBrain subject)
+            : this(state,flags,npcName,tone,definition,subject,false) { }
+        public GameFacts(NpcState state, FlagSet flags, string npcName, Func<int> tone, NpcDefinition definition, NpcBrain subject, bool liveReaction)
         {
+            this.liveReaction = liveReaction;
+            this.subject = subject;
             this.state = state;
+            this.definition = definition;
             this.flags = flags;
             this.npcName = npcName;
             this.tone = tone;
@@ -114,6 +127,7 @@ namespace AdvancedNPCs
         {
             get
             {
+                if (liveReaction && subject != null) return NpcGreeter.PlayerReactionBand(subject.Opinion);
                 if (ReactionField == null || TalkManager.Instance == null)
                 {
                     if (!warnedReaction)
@@ -172,6 +186,21 @@ namespace AdvancedNPCs
             return -1;
         }
 
+        public bool HasPersonalState { get { return state != null; } }
+        public int Opinion { get { return subject != null ? subject.Opinion : CurrentOpinion; } }
+        public double HealthPercent { get { return subject != null ? subject.CurrentHealthFraction * 100.0 : (state != null ? state.healthFraction * 100.0 : 100); } }
+        public bool TryGetVariable(string name, out NpcVariableValue value)
+        { return NpcVariables.TryGet(definition, state, name, out value); }
+        public void SetVariable(string name, NpcVariableValue value)
+        {
+            string error;
+            if (!NpcVariables.Set(definition, state, name, value, out error)) AdvancedNpcsMod.LogError(npcName + ": dialogue: " + error);
+        }
+        public void AddVariable(string name, int amount)
+        {
+            string error;
+            if (!NpcVariables.Add(definition, state, name, amount, out error)) AdvancedNpcsMod.LogError(npcName + ": dialogue: " + error);
+        }
         public bool HasFlag(string flag)
         {
             return flags.Has(flag);

@@ -15,6 +15,11 @@ namespace AdvancedNPCs.Core
             return "\"location\": { \"region\": \"" + Escape(region) + "\", \"place\": \"" + Escape(place) + "\" }";
         }
 
+        public static string SpotJson(string region,string place,string context,float x,float y,float z)
+        {
+            return "{\n  \"relativeTo\": \"area\",\n  \"location\": { \"region\": \""+Escape(region)+"\", \"place\": \""+Escape(place)+"\", \"context\": \""+Escape(context)+"\" },\n  "+PositionJson(x,y,z)+"\n}";
+        }
+
         public static string PositionJson(float x, float y, float z)
         {
             return "\"position\": [" + Num(x) + ", " + Num(y) + ", " + Num(z) + "]";

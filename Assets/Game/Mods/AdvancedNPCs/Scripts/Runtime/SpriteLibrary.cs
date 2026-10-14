@@ -78,13 +78,22 @@ namespace AdvancedNPCs
             }
         }
 
+        readonly Dictionary<string, List<string>> packageAnimations = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+
         public static SpriteLibrary Load(string root, IEnumerable<NpcDefinition> defs)
+        {
+            return Load(root, defs, null);
+        }
+
+        public static SpriteLibrary Load(string root, IEnumerable<NpcDefinition> defs, PackageLibrary packages)
         {
             SpriteLibrary library = new SpriteLibrary();
             System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
             foreach (NpcDefinition def in defs)
             {
-                foreach (LoadedSpriteSet set in IndexFolder(def.Folder, Path.Combine(root, def.Folder), def.Conversation.Enabled))
+                List<string> requested = packages != null ? packages.AnimationRequests(def) : new List<string>();
+                library.packageAnimations[def.Folder] = requested;
+                foreach (LoadedSpriteSet set in IndexFolder(def.Folder, Path.Combine(root, def.Folder), def.Conversation.Enabled, requested))
                     library.Add(def.Folder, set);
             }
             AdvancedNpcsMod.Log("Indexed " + library.Count + " sprite set(s) in " + watch.ElapsedMilliseconds + " ms.");
@@ -92,7 +101,7 @@ namespace AdvancedNPCs
         }
 
         /// <summary>Every sprites / sprites_&lt;n&gt; set in an NPC folder on disk, in name order (invalid ones skipped and logged).</summary>
-        static List<LoadedSpriteSet> IndexFolder(string folder, string dir, bool converses)
+        static List<LoadedSpriteSet> IndexFolder(string folder, string dir, bool converses, ICollection<string> requested)
         {
             List<LoadedSpriteSet> sets = new List<LoadedSpriteSet>();
             if (!Directory.Exists(dir))
@@ -106,7 +115,7 @@ namespace AdvancedNPCs
             setDirs.Sort(StringComparer.Ordinal);
             foreach (string setDir in setDirs)
             {
-                LoadedSpriteSet set = IndexSet(folder + "/" + Path.GetFileName(setDir), setDir, converses);
+                LoadedSpriteSet set = IndexSet(folder + "/" + Path.GetFileName(setDir), setDir, converses, requested);
                 if (set != null)
                     sets.Add(set);
             }
@@ -119,11 +128,39 @@ namespace AdvancedNPCs
         /// </summary>
         public int Reload(string folder, string dir, bool converses)
         {
+            List<string> requested;
+            packageAnimations.TryGetValue(folder, out requested);
+            return Reload(folder, dir, converses, requested);
+        }
+
+        public int Reload(string folder, string dir, bool converses, ICollection<string> requested)
+        {
+            packageAnimations[folder] = requested != null ? new List<string>(requested) : new List<string>();
             Remove(folder);
-            List<LoadedSpriteSet> fresh = IndexFolder(folder, dir, converses);
+            List<LoadedSpriteSet> fresh = IndexFolder(folder, dir, converses, requested);
             foreach (LoadedSpriteSet s in fresh)
                 Add(folder, s);
             return fresh.Count;
+        }
+
+        /// <summary>Re-index only folders whose packages now refer to different animation families.</summary>
+        public List<string> RefreshPackageAnimations(string root, IEnumerable<NpcDefinition> definitions, PackageLibrary packages)
+        {
+            List<string> changed = new List<string>();
+            foreach (NpcDefinition definition in definitions)
+            {
+                List<string> requested = packages.AnimationRequests(definition);
+                List<string> previous;
+                packageAnimations.TryGetValue(definition.Folder, out previous);
+                bool same = previous != null && previous.Count == requested.Count;
+                if (same)
+                    for (int i = 0; i < previous.Count; i++)
+                        same &= string.Equals(previous[i], requested[i], StringComparison.OrdinalIgnoreCase);
+                if (same) continue;
+                Reload(definition.Folder, Path.Combine(root, definition.Folder), definition.Conversation.Enabled, requested);
+                changed.Add(definition.Folder);
+            }
+            return changed;
         }
 
         /// <summary>The sets of an NPC folder; empty means the vanilla class sprite.</summary>
@@ -208,6 +245,11 @@ namespace AdvancedNPCs
         /// <summary>As IndexSet; without converses the talk* sheets are left out (they would never show).</summary>
         public static LoadedSpriteSet IndexSet(string label, string dir, bool converses)
         {
+            return IndexSet(label, dir, converses, null);
+        }
+
+        public static LoadedSpriteSet IndexSet(string label, string dir, bool converses, ICollection<string> requested)
+        {
             string jsonPath = Path.Combine(dir, SetFile);
             if (!File.Exists(jsonPath))
             {
@@ -238,14 +280,14 @@ namespace AdvancedNPCs
             List<string> skipped = new List<string>();
             foreach (SpriteAnimation a in set.Animations.Values)
             {
-                if (SpriteStates.StateOf(a.Name) != null && !SpriteStates.Loads(a.Name, converses))
+                if (SpriteStates.StateOf(a.Name) != null && !SpriteStates.Loads(a.Name, converses) && !PackageAnimations.Referenced(requested, a.Name))
                 {
                     skipped.Add(a.Name);    // talk* of an ANPC that never converses
                     continue;
                 }
-                if (SpriteStates.StateOf(a.Name) == null)
+                if (SpriteStates.StateOf(a.Name) == null && !PackageAnimations.Referenced(requested, a.Name))
                 {
-                    AdvancedNpcsMod.Log(label + "/" + a.Name + ".png: not an idle*, walk*, run*, hit*, attack*, attack_range*, cast*, greet*, death* or projectile* sheet; not loaded");
+                    AdvancedNpcsMod.Log(label + "/" + a.Name + ".png: not a standard or package-referenced animation sheet; not loaded");
                     skipped.Add(a.Name);
                     continue;
                 }
