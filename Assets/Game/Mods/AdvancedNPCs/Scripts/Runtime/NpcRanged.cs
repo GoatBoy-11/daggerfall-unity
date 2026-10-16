@@ -76,6 +76,8 @@ namespace AdvancedNPCs
 
         void Update()
         {
+            if (brain != null && brain.EnforcingLaw) return;
+            if(brain!=null && brain.CompanionCombat!=null && brain.CompanionCombat.Active)return;
             if (!creature || mobile == null || senses == null)
                 return;
             if (throwing && mobile.EnemyState != MobileStates.PrimaryAttack)
@@ -131,6 +133,9 @@ namespace AdvancedNPCs
         /// <summary>Flies one projectile at the current target: a random projectile* image of the set, else DFU's arrow.</summary>
         public void Fire()
         {
+            if (brain != null && brain.EnforcingLaw) return;
+            if(brain!=null && brain.CompanionCombat!=null && brain.CompanionCombat.Active)
+            {brain.CompanionCombat.Bow.Fire();return;}
             if (senses == null || behaviour == null)
                 Find();
             if (senses == null || behaviour == null)

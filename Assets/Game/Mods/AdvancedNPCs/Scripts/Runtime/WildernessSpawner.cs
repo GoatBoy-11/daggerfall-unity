@@ -209,6 +209,7 @@ namespace AdvancedNPCs
 
         void Despawn(NpcBrain b)
         {
+            if (b != null && b.State.companion != null) { alive.Remove(b); return; }
             alive.Remove(b);
             if (b != null)
                 NpcBrain.Discard(b);

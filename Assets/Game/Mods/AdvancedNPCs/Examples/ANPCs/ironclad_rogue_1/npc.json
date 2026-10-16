@@ -1,0 +1,36 @@
+{
+  "spriteScale": 0.94,
+  "kind": "generic",
+  "race": "Breton",
+  "gender": "Female",
+  "baseClass": "Rogue",
+  "nameList": "breton_oblivion_skyrim",
+  "bravery": "Normal",
+  "wanderRadius": 8,
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Tavern"
+      ],
+      "chance": 10,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "recruitCost": 100,
+  "sounds": {
+    "barkMinSeconds": 45,
+    "barkMaxSeconds": 90
+  }
+}

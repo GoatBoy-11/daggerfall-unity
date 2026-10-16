@@ -18,13 +18,14 @@ namespace AdvancedNPCs.Core
         /// <summary>Projectile images (projectile.png, projectile_1.png, ...): flown by a ranged attack, not an animation state.</summary>
         public const string Projectile = "projectile";
         public const string Cast = "cast";
+        public const string Heal = "heal";
         public const string Death = "death";
         /// <summary>Greeting someone it likes (NpcGreeter); never a fallback for anything.</summary>
         public const string Greet = "greet";
         /// <summary>Speaking in a conversation with another ANPC (NpcChat); NpcSprite shows idle without one.</summary>
         public const string Talk = "talk";
 
-        static readonly string[] All = { Idle, Walk, Run, Hit, Attack, RangedAttack, Cast, Death, Greet, Talk };
+        static readonly string[] All = { Idle, Walk, Run, Hit, Attack, RangedAttack, Cast, Heal, Death, Greet, Talk };
 
         /// <summary>
         /// A sheet is loaded when it names a state; talk* sheets only for an ANPC that converses (no texture memory spent
@@ -53,7 +54,7 @@ namespace AdvancedNPCs.Core
         }
 
         /// <summary>
-        /// Sheets for a state, sorted by name; cast falls back to attack sheets only (none: the spell plays no animation);
+        /// Sheets for a state, sorted by name; heal falls back to cast, then attack, then nothing; cast falls back to attack sheets only (none: the spell plays no animation);
         /// attack_range falls back to attack, then idle; run falls back to walk and walk to run, then idle; hit and
         /// attack fall back to idle; death, greet and talk have no fallback.
         /// </summary>
@@ -62,6 +63,8 @@ namespace AdvancedNPCs.Core
             List<SpriteAnimation> found = Own(set, state);
             if (found.Count > 0)
                 return found;
+            if (state == Heal)
+                return Variants(set, Cast);
             if (state == Cast)
                 return Own(set, Attack);
             if (state == RangedAttack)

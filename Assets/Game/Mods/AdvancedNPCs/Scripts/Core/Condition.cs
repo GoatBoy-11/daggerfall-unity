@@ -13,6 +13,7 @@ namespace AdvancedNPCs.Core
     {
         int Hour { get; }
         bool IsNight { get; }
+        bool Indoors { get; }
         string Season { get; }
         bool Raining { get; }
         bool Storming { get; }
@@ -35,6 +36,13 @@ namespace AdvancedNPCs.Core
         bool QuestGlobal(string nameOrNumber);
     }
 
+    public interface INpcPersonalFacts
+    {
+        bool HasPersonalState { get; }
+        int Opinion { get; }
+        double HealthPercent { get; }
+    }
+
     /// <summary>Guild names authors may write, and the keys IDialogueFacts.GuildRank takes.</summary>
     public static class Guilds
     {
@@ -55,6 +63,7 @@ namespace AdvancedNPCs.Core
         readonly List<Predicate<IDialogueFacts>> tests = new List<Predicate<IDialogueFacts>>();
 
         /// <summary>Topic ids named in asked / notAsked (here and inside "any").</summary>
+        public readonly List<NpcVariableCondition> VariableConditions = new List<NpcVariableCondition>();
         public readonly List<string> AskedIds = new List<string>();
         /// <summary>Quest-global names (not numbers) named here and inside "any".</summary>
         public readonly List<string> QuestGlobals = new List<string>();
@@ -102,7 +111,7 @@ namespace AdvancedNPCs.Core
         {
             "hours", "time", "season", "weather", "region", "town", "minLevel", "maxLevel", "playerRace", "playerGender",
             "minGold", "hasItem", "guild", "minGuildRank", "reaction", "asked", "notAsked", "flags", "notFlags",
-            "questGlobal", "notQuestGlobal", "tone", "any",
+            "questGlobal", "notQuestGlobal", "tone", "any", "variables", "minOpinion", "maxOpinion", "minHealth", "maxHealth", "indoors", "outdoors",
         };
         static readonly string[] Seasons = { "spring", "summer", "autumn", "fall", "winter" };
         static readonly string[] Weathers = { "clear", "overcast", "rain", "storm", "snow" };
@@ -143,6 +152,25 @@ namespace AdvancedNPCs.Core
                 string problem = null;
                 switch (key)
                 {
+                    case "minOpinion": problem = Personal(c, key, raw, -100, 100, true, true, allowConversation); break;
+                    case "maxOpinion": problem = Personal(c, key, raw, -100, 100, false, true, allowConversation); break;
+                    case "minHealth": problem = Personal(c, key, raw, 0, 100, true, false, allowConversation); break;
+                    case "maxHealth": problem = Personal(c, key, raw, 0, 100, false, false, allowConversation); break;
+                    case "variables":
+                        if (!allowConversation) { problem = OnlyDialogue; break; }
+                        NpcVariableCondition variables = NpcVariableCondition.Read(raw, out problem);
+                        if (variables != null)
+                        {
+                            c.VariableConditions.Add(variables);
+                            c.Add("variables", delegate(IDialogueFacts f) { return variables.Holds(f as INpcVariableFacts); });
+                        }
+                        break;
+                    case "indoors":
+                    case "outdoors":
+                        if (!(raw is bool)) { problem = "must be true or false"; break; }
+                        bool indoors = key == "indoors" ? (bool)raw : !(bool)raw;
+                        c.Add(key, delegate(IDialogueFacts f) { return f.Indoors == indoors; });
+                        break;
                     case "hours": problem = Hours(c, raw); break;
                     case "time": problem = Time(c, raw); break;
                     case "season": problem = Season(c, raw); break;
@@ -179,6 +207,22 @@ namespace AdvancedNPCs.Core
                 }
             }
             return c;
+        }
+
+        static string Personal(Condition c, string key, object raw, double min, double max, bool lower, bool opinion, bool allowPersonal)
+        {
+            if (!allowPersonal) return "requires an individual NPC (dialogue or schedule)";
+            if (!(raw is double) || double.IsNaN((double)raw) || (double)raw < min || (double)raw > max ||
+                (opinion && (double)raw != Math.Floor((double)raw))) return "must be " + min + " to " + max;
+            double limit = (double)raw;
+            c.Add(key, delegate(IDialogueFacts facts)
+            {
+                INpcPersonalFacts f = facts as INpcPersonalFacts;
+                if (f == null || !f.HasPersonalState) return false;
+                double value = opinion ? f.Opinion : f.HealthPercent;
+                return lower ? value >= limit : value <= limit;
+            });
+            return null;
         }
 
         public const string NeverHolds = "; this condition never holds until fixed";
@@ -460,6 +504,7 @@ namespace AdvancedNPCs.Core
                 options.Add(option);
                 c.AskedIds.AddRange(option.AskedIds);
                 c.QuestGlobals.AddRange(option.QuestGlobals);
+                c.VariableConditions.AddRange(option.VariableConditions);
                 c.UsesTone |= option.UsesTone;
             }
             c.Add("any", delegate (IDialogueFacts f)

@@ -1,0 +1,29 @@
+{
+  "$schema": "../_Schemas/package.schema.json",
+  "type": "patrol",
+  "parameters": {
+    "points": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        4,
+        0,
+        0
+      ],
+      [
+        4,
+        0,
+        4
+      ],
+      [
+        0,
+        0,
+        4
+      ]
+    ],
+    "pauseAtStops": 10
+  }
+}

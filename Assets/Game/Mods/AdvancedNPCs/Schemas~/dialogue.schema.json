@@ -5,134 +5,583 @@
   "description": "ANPCs/_Dialogue/<name>.json or ANPCs/<id>/dialogue.json. Placeholders: {player}, {npc}, {town}, {region} ({topic} in answers).",
   "type": "object",
   "additionalProperties": false,
-  "anyOf": [{ "required": ["topics"] }, { "required": ["greetings"] }],
+  "anyOf": [
+    {
+      "required": [
+        "topics"
+      ]
+    },
+    {
+      "required": [
+        "greetings"
+      ]
+    }
+  ],
   "properties": {
-    "$schema": { "type": "string" },
+    "$schema": {
+      "type": "string"
+    },
     "greetings": {
       "type": "array",
       "items": {
         "anyOf": [
-          { "type": "string" },
-          { "type": "object", "additionalProperties": false, "required": ["text"], "properties": { "text": { "type": "string" }, "when": { "$ref": "#/definitions/when" } } }
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "text"
+            ],
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "when": {
+                "$ref": "#/definitions/when"
+              }
+            }
+          }
         ]
       }
     },
-    "topics": { "type": "array", "items": { "$ref": "#/definitions/topic" } }
+    "topics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/topic"
+      }
+    }
   },
   "definitions": {
-    "flags": { "anyOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
-    "names": { "anyOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
+    "variableValues": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,63}$"
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          }
+        ]
+      }
+    },
+    "variableIncrements": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,63}$"
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": -2147483648,
+        "maximum": 2147483647
+      }
+    },
+    "variableConditions": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 64,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,63}$"
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": false,
+            "properties": {
+              "eq": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                ]
+              },
+              "ne": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                ]
+              },
+              "gt": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              },
+              "gte": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              },
+              "lt": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              },
+              "lte": {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              }
+            }
+          }
+        ]
+      }
+    },
+    "flags": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "names": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "when": {
       "type": "object",
       "description": "Every condition must hold; \"any\" holds when one of its condition objects does.",
       "additionalProperties": false,
       "properties": {
-        "hours": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 23 }, "minItems": 2, "maxItems": 2 },
-        "time": { "$ref": "#/definitions/names", "examples": ["day", "night"] },
-        "season": { "$ref": "#/definitions/names" },
-        "weather": { "$ref": "#/definitions/names" },
-        "region": { "$ref": "#/definitions/names" },
-        "town": { "$ref": "#/definitions/names" },
-        "minLevel": { "type": "integer" },
-        "maxLevel": { "type": "integer" },
-        "playerRace": { "$ref": "#/definitions/names" },
-        "playerGender": { "enum": ["male", "female"] },
-        "minGold": { "type": "integer", "minimum": 0 },
-        "hasItem": { "type": "string" },
-        "guild": { "type": "string", "examples": ["fightersguild", "magesguild", "thievesguild", "darkbrotherhood", "temple", "knightlyorder"] },
-        "minGuildRank": { "type": "integer", "minimum": 0 },
-        "reaction": { "$ref": "#/definitions/names", "examples": ["dislikes", "neutral", "likes", "loves"] },
-        "asked": { "$ref": "#/definitions/flags" },
-        "notAsked": { "$ref": "#/definitions/flags" },
-        "flags": { "$ref": "#/definitions/flags" },
-        "notFlags": { "$ref": "#/definitions/flags" },
-        "questGlobal": { "type": "string" },
-        "notQuestGlobal": { "type": "string" },
-        "tone": { "enum": ["polite", "normal", "blunt"] },
-        "any": { "type": "array", "items": { "$ref": "#/definitions/when" } }
+        "hours": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 23
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "time": {
+          "$ref": "#/definitions/names",
+          "examples": [
+            "day",
+            "night"
+          ]
+        },
+        "season": {
+          "$ref": "#/definitions/names"
+        },
+        "weather": {
+          "$ref": "#/definitions/names"
+        },
+        "region": {
+          "$ref": "#/definitions/names"
+        },
+        "town": {
+          "$ref": "#/definitions/names"
+        },
+        "minLevel": {
+          "type": "integer"
+        },
+        "maxLevel": {
+          "type": "integer"
+        },
+        "playerRace": {
+          "$ref": "#/definitions/names"
+        },
+        "playerGender": {
+          "enum": [
+            "male",
+            "female"
+          ]
+        },
+        "minGold": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hasItem": {
+          "type": "string"
+        },
+        "guild": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "Guild name or list; any matching membership."
+        },
+        "minGuildRank": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reaction": {
+          "$ref": "#/definitions/names",
+          "examples": [
+            "dislikes",
+            "neutral",
+            "likes",
+            "loves"
+          ]
+        },
+        "asked": {
+          "$ref": "#/definitions/flags"
+        },
+        "notAsked": {
+          "$ref": "#/definitions/flags"
+        },
+        "flags": {
+          "$ref": "#/definitions/flags"
+        },
+        "notFlags": {
+          "$ref": "#/definitions/flags"
+        },
+        "questGlobal": {
+          "type": "string"
+        },
+        "notQuestGlobal": {
+          "type": "string"
+        },
+        "variables": {
+          "$ref": "#/definitions/variableConditions"
+        },
+        "tone": {
+          "enum": [
+            "polite",
+            "normal",
+            "blunt"
+          ]
+        },
+        "any": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/when"
+          }
+        },
+        "minOpinion": {
+          "type": "integer",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "maxOpinion": {
+          "type": "integer",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "minHealth": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "This NPC health percentage."
+        },
+        "maxHealth": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "This NPC health percentage."
+        },
+        "indoors": {
+          "type": "boolean",
+          "description": "NPC is in a building interior (tavern, house, shop, etc.) or dungeon. False requires outdoors."
+        },
+        "outdoors": {
+          "type": "boolean",
+          "description": "NPC is outdoors in a town/city or wilderness. False requires indoors."
+        }
       }
     },
-    "giveGold": { "type": "integer", "minimum": 1 },
-    "takeGold": { "type": "integer", "minimum": 1 },
-    "reputation": { "type": "integer" },
-    "opinion": { "type": "integer", "minimum": -50, "maximum": 50, "not": { "const": 0 }, "description": "Changes this ANPC's personal opinion of the player." },
+    "giveGold": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "takeGold": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "reputation": {
+      "type": "integer"
+    },
+    "opinion": {
+      "type": "integer",
+      "minimum": -50,
+      "maximum": 50,
+      "not": {
+        "const": 0
+      },
+      "description": "Changes this ANPC's personal opinion of the player."
+    },
     "answer": {
       "anyOf": [
-        { "type": "string" },
+        {
+          "type": "string"
+        },
         {
           "type": "object",
-          "required": ["text"],
+          "required": [
+            "text"
+          ],
           "additionalProperties": false,
           "properties": {
-            "text": { "type": "string" },
-            "when": { "$ref": "#/definitions/when" },
-            "sets": { "$ref": "#/definitions/flags" },
-            "clears": { "$ref": "#/definitions/flags" },
-            "replies": { "type": "array", "items": { "$ref": "#/definitions/reply" } },
-            "giveGold": { "$ref": "#/definitions/giveGold" },
-            "takeGold": { "$ref": "#/definitions/takeGold" },
-            "giveItem": { "type": "string" },
-            "takeItem": { "type": "string" },
-            "reputation": { "$ref": "#/definitions/reputation" },
-            "opinion": { "$ref": "#/definitions/opinion" },
-            "startQuest": { "type": "string" },
-            "becomeEnemy": { "type": "boolean" },
-            "endConversation": { "type": "boolean" }
+            "text": {
+              "type": "string"
+            },
+            "when": {
+              "$ref": "#/definitions/when"
+            },
+            "sets": {
+              "$ref": "#/definitions/flags"
+            },
+            "clears": {
+              "$ref": "#/definitions/flags"
+            },
+            "replies": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/reply"
+              }
+            },
+            "giveGold": {
+              "$ref": "#/definitions/giveGold"
+            },
+            "takeGold": {
+              "$ref": "#/definitions/takeGold"
+            },
+            "giveItem": {
+              "type": "string"
+            },
+            "takeItem": {
+              "type": "string"
+            },
+            "reputation": {
+              "$ref": "#/definitions/reputation"
+            },
+            "opinion": {
+              "$ref": "#/definitions/opinion"
+            },
+            "startQuest": {
+              "type": "string"
+            },
+            "becomeEnemy": {
+              "type": "boolean"
+            },
+            "endConversation": {
+              "type": "boolean"
+            },
+            "setVariables": {
+              "$ref": "#/definitions/variableValues"
+            },
+            "addVariables": {
+              "$ref": "#/definitions/variableIncrements"
+            }
           }
         }
       ]
     },
     "reply": {
       "type": "object",
-      "required": ["text"],
+      "required": [
+        "text"
+      ],
       "additionalProperties": false,
       "properties": {
-        "text": { "type": "string", "description": "What the player says." },
-        "id": { "type": "string" },
-        "when": { "$ref": "#/definitions/when" },
-        "answers": { "type": "array", "items": { "$ref": "#/definitions/answer" } },
-        "replies": { "type": "array", "items": { "$ref": "#/definitions/reply" } },
-        "sets": { "$ref": "#/definitions/flags" },
-        "clears": { "$ref": "#/definitions/flags" },
-        "giveGold": { "$ref": "#/definitions/giveGold" },
-        "takeGold": { "$ref": "#/definitions/takeGold" },
-        "giveItem": { "type": "string" },
-        "takeItem": { "type": "string" },
-        "reputation": { "$ref": "#/definitions/reputation" },
-        "opinion": { "$ref": "#/definitions/opinion" },
-        "startQuest": { "type": "string" },
-        "becomeEnemy": { "type": "boolean" },
-        "endConversation": { "type": "boolean" }
+        "text": {
+          "type": "string",
+          "description": "What the player says."
+        },
+        "id": {
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/definitions/when"
+        },
+        "answers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/answer"
+          }
+        },
+        "replies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/reply"
+          }
+        },
+        "sets": {
+          "$ref": "#/definitions/flags"
+        },
+        "clears": {
+          "$ref": "#/definitions/flags"
+        },
+        "giveGold": {
+          "$ref": "#/definitions/giveGold"
+        },
+        "takeGold": {
+          "$ref": "#/definitions/takeGold"
+        },
+        "giveItem": {
+          "type": "string"
+        },
+        "takeItem": {
+          "type": "string"
+        },
+        "reputation": {
+          "$ref": "#/definitions/reputation"
+        },
+        "opinion": {
+          "$ref": "#/definitions/opinion"
+        },
+        "startQuest": {
+          "type": "string"
+        },
+        "becomeEnemy": {
+          "type": "boolean"
+        },
+        "endConversation": {
+          "type": "boolean"
+        },
+        "setVariables": {
+          "$ref": "#/definitions/variableValues"
+        },
+        "addVariables": {
+          "$ref": "#/definitions/variableIncrements"
+        }
       }
     },
     "topic": {
       "type": "object",
-      "required": ["caption"],
+      "required": [
+        "caption"
+      ],
       "additionalProperties": false,
       "properties": {
-        "caption": { "type": "string", "description": "The topic's name in the talk window." },
-        "id": { "type": "string" },
+        "caption": {
+          "type": "string",
+          "description": "The topic's name in the talk window."
+        },
+        "id": {
+          "type": "string"
+        },
         "question": {
           "anyOf": [
-            { "type": "string" },
-            { "type": "object", "additionalProperties": false, "properties": { "polite": { "type": "string" }, "normal": { "type": "string" }, "blunt": { "type": "string" } } }
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "polite": {
+                  "type": "string"
+                },
+                "normal": {
+                  "type": "string"
+                },
+                "blunt": {
+                  "type": "string"
+                }
+              }
+            }
           ]
         },
-        "answers": { "type": "array", "items": { "$ref": "#/definitions/answer" } },
-        "when": { "$ref": "#/definitions/when" },
-        "sets": { "$ref": "#/definitions/flags" },
-        "clears": { "$ref": "#/definitions/flags" },
-        "once": { "type": "boolean" },
-        "replies": { "type": "array", "items": { "$ref": "#/definitions/reply" } },
-        "giveGold": { "$ref": "#/definitions/giveGold" },
-        "takeGold": { "$ref": "#/definitions/takeGold" },
-        "giveItem": { "type": "string" },
-        "takeItem": { "type": "string" },
-        "reputation": { "$ref": "#/definitions/reputation" },
-        "opinion": { "$ref": "#/definitions/opinion" },
-        "startQuest": { "type": "string" },
-        "becomeEnemy": { "type": "boolean" },
-        "endConversation": { "type": "boolean" }
+        "answers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/answer"
+          }
+        },
+        "when": {
+          "$ref": "#/definitions/when"
+        },
+        "sets": {
+          "$ref": "#/definitions/flags"
+        },
+        "clears": {
+          "$ref": "#/definitions/flags"
+        },
+        "once": {
+          "type": "boolean"
+        },
+        "replies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/reply"
+          }
+        },
+        "giveGold": {
+          "$ref": "#/definitions/giveGold"
+        },
+        "takeGold": {
+          "$ref": "#/definitions/takeGold"
+        },
+        "giveItem": {
+          "type": "string"
+        },
+        "takeItem": {
+          "type": "string"
+        },
+        "reputation": {
+          "$ref": "#/definitions/reputation"
+        },
+        "opinion": {
+          "$ref": "#/definitions/opinion"
+        },
+        "startQuest": {
+          "type": "string"
+        },
+        "becomeEnemy": {
+          "type": "boolean"
+        },
+        "endConversation": {
+          "type": "boolean"
+        },
+        "setVariables": {
+          "$ref": "#/definitions/variableValues"
+        },
+        "addVariables": {
+          "$ref": "#/definitions/variableIncrements"
+        }
       }
     }
   }

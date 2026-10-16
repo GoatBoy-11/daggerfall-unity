@@ -7,6 +7,7 @@ using System.Text;
 using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
@@ -24,6 +25,8 @@ namespace AdvancedNPCs
         public static AdvancedNpcsMod Instance { get; private set; }
 
         public DefinitionCatalog Catalog { get; private set; }
+        public PackageLibrary Packages { get; private set; }
+        public SpotLibrary Spots { get; private set; }
         public NpcStateTable States { get; private set; }
         /// <summary>People placed with anpc_spawn in this game (saved with it).</summary>
         public PlacedNpcList Placed { get; private set; }
@@ -53,6 +56,7 @@ namespace AdvancedNPCs
 
         static Mod mod;
         NpcSpawner spawner;
+        public CompanionRoster Companions { get; private set; }
 
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
@@ -68,6 +72,8 @@ namespace AdvancedNPCs
 
         void Update()
         {
+            GuardArrest.Refresh();
+            if (Companions != null) Companions.Tick();
             if (Sprites != null)
                 Sprites.Tick(Time.unscaledTime);
             if (Sounds != null)
@@ -82,13 +88,15 @@ namespace AdvancedNPCs
             Placed = new PlacedNpcList();
             AnpcFiles.MigrateLegacy();
             Catalog = LoadCatalog();
+            Spots = SpotLibrary.Load(AnpcFiles.Root);
+            ReloadPackages();
             Portraits = PortraitLibrary.Load(AnpcFiles.PortraitsFolder);
             Portraits.WarnMissing(Catalog.ReferencedPortraits());
             Names = NameLists.Load(Path.Combine(AnpcFiles.Root, NameLists.FolderName));
             Names.WarnMissing(Catalog.Generics);
             List<NpcDefinition> all = new List<NpcDefinition>(Catalog.ById.Values);
             all.AddRange(Catalog.Generics);
-            Sprites = SpriteLibrary.Load(AnpcFiles.Root, all);
+            Sprites = SpriteLibrary.Load(AnpcFiles.Root, all, Packages);
             Sounds = SoundLibrary.Load(AnpcFiles.Root, all);
             Flags = new FlagSet();
             Dialogue = DialogueFiles.Load(AnpcFiles.Root);
@@ -109,9 +117,18 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_hostile",
                 "Turns an ANPC into an enemy (no crime to fight) or calms it; saved with your game.",
                 "anpc_hostile <id or key> [on|off]", HostileCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_crime",
+                "Registers or clears a spawned ANPC's offence in the current region; saved with your game.",
+                "anpc_crime <id or key> <Assault|Murder|Theft|...|None>", CrimeCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_opinion",
                 "Shows or sets an ANPC's personal opinion of you (-100..100; added to the region's reaction for greetings and dialogue).",
                 "anpc_opinion <id or key> [value]", OpinionCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_var",
+                "Lists, reads or sets one spawned NPC's own variables (saved for persistent instances).",
+                "anpc_var <id or key> [name] [true|false|integer]", VariableCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_add_var",
+                "Adds a signed integer to one spawned NPC's variable.",
+                "anpc_add_var <id or key> <name> <amount>", AddVariableCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_info",
                 "Shows the ANPC in front of you (or <id>): mode, bravery, health, opinion, sprite set, target and update rate.",
                 "anpc_info [id or key]", InfoCommand);
@@ -126,6 +143,13 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_topics",
                 "Shows the dialogue topics of the ANPC in front of you (or <id>): which are shown, and why the others are hidden.",
                 "anpc_topics [id]", TopicsCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_spot_pos",
+                "Prints a named-spot definition at your current position (town, building or dungeon).", "anpc_spot_pos", SpotPositionCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_reload_spots",
+                "Reloads ANPCs/_Spots and restarts affected activities.", "anpc_reload_spots", ReloadSpotsCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_reload_packages",
+                "Re-reads ANPCs/_Packages/*.json; active schedules restart with the new settings (npc.json changes need a restart).",
+                "anpc_reload_packages", ReloadPackagesCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_reload_dialogue",
                 "Re-reads ANPCs/_Dialogue/*.json and every dialogue.json (changes to npc.json need a restart).",
                 "anpc_reload_dialogue", ReloadDialogueCommand);
@@ -140,6 +164,7 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_summon",
                 "Moves a spawned Advanced NPC in front of you (testing only, not saved).", "anpc_summon <id>", SummonCommand);
             spawner = new NpcSpawner(this);
+            Companions = new CompanionRoster(this, spawner);
             Flats = gameObject.AddComponent<FlatReplacer>();
             Flats.Init(this, spawner);
             spawner.Enable();
@@ -156,9 +181,60 @@ namespace AdvancedNPCs
                 StartCoroutine(AutoRun(autorun));
         }
 
+        void ReloadPackages()
+        {
+            Packages = PackageLibrary.Load(AnpcFiles.Root);
+            foreach (NpcDefinition d in Catalog.ById.Values) Packages.Check(d);
+            foreach (NpcDefinition d in Catalog.Generics) Packages.Check(d);
+            if (Sprites != null)
+            {
+                List<NpcDefinition> definitions = new List<NpcDefinition>(Catalog.ById.Values);
+                definitions.AddRange(Catalog.Generics);
+                List<string> changed = Sprites.RefreshPackageAnimations(AnpcFiles.Root, definitions, Packages);
+                if (changed.Count > 0) SwapSprites(changed);
+            }
+        }
+
+        internal static string ReloadSpotsCommand(params string[] args)
+        {
+            Instance.Spots=SpotLibrary.Load(AnpcFiles.Root);
+            return "Reloaded "+Instance.Spots.Count+" named spot(s).";
+        }
+        internal static string SpotPositionCommand(params string[] args)
+        {
+            GameManager gm=GameManager.Instance;
+            Transform root=null;string region=null,place=null,context="outdoors";
+            var pee=gm.PlayerEnterExit;
+            if(pee.IsPlayerInsideDungeon && pee.Dungeon!=null)
+            { root=pee.Dungeon.transform;region=pee.Dungeon.Summary.RegionName;place=pee.Dungeon.Summary.LocationName;context="dungeon"; }
+            else if(pee.IsPlayerInsideBuilding && pee.Interior!=null)
+            {
+                var info=IndoorSpawner.InteriorPlace(pee.Interior);
+                if(info!=null) { root=pee.Interior.transform;region=info.Region;place=info.Place;context=info.Context; }
+            }
+            else
+            {
+                var town=gm.StreamingWorld.CurrentPlayerLocationObject;
+                if(town!=null) { root=town.transform;region=town.Summary.RegionName;place=town.Summary.LocationName; }
+            }
+            if(root==null) return "Stand in a loaded town, building or dungeon first.";
+            Vector3 p=root.InverseTransformPoint(gm.PlayerObject.transform.position);
+            string json=PositionFormat.SpotJson(region,place,context,p.x,p.y,p.z);
+            Log("anpc_spot_pos\n"+json);return json;
+        }
+
+        static string ReloadPackagesCommand(params string[] args)
+        {
+            Instance.ReloadPackages();
+            string text = "Reloaded " + Instance.Packages.Count + " AI package(s). See Player.log for invalid definitions. Schedules in npc.json need a restart.";
+            Log(text);
+            return text;
+        }
+
         void OnDestroy()
         {
             StartGameBehaviour.OnNewGame -= OnNewGame;
+            if (Companions != null) Companions.Dispose();
             if (spawner != null)
                 spawner.Disable();
             if (Indoors != null)
@@ -184,6 +260,7 @@ namespace AdvancedNPCs
             if (!composed.TryGetValue(def, out c))
             {
                 c = Dialogue.Compose(def);
+                CompanionDialogue.Append(c, def.RecruitCost);
                 composed[def] = c;
             }
             return c;
@@ -295,7 +372,7 @@ namespace AdvancedNPCs
             return updated;
         }
 
-        /// <summary>anpc_info (spec tools-quality §A1); internal for the self-test.</summary>
+        /// <summary>anpc_info (spec tools-quality Â§A1); internal for the self-test.</summary>
         internal static string InfoCommand(params string[] args)
         {
             bool named = args != null && args.Length > 0;
@@ -307,7 +384,7 @@ namespace AdvancedNPCs
             return text;
         }
 
-        /// <summary>anpc_chat (spec conversations §3); internal for the self-test.</summary>
+        /// <summary>anpc_chat (spec conversations Â§3); internal for the self-test.</summary>
         internal static string ChatCommand(params string[] args)
         {
             NpcBrain a = Nearest(5f);
@@ -352,7 +429,7 @@ namespace AdvancedNPCs
               .Append(def.OwnDialogue != null ? " + " + def.Folder + "/dialogue.json" : "").Append('\n');
             if (d.Topics.Count == 0)
                 sb.Append("  no topics\n");
-            GameFacts facts = new GameFacts(b.State, Instance.Flags, b.DisplayName, null);
+            GameFacts facts = new GameFacts(b.State, Instance.Flags, b.DisplayName, null, b.Instance.Definition, b);
             foreach (DialogueTopic t in d.Topics)
             {
                 string why = Conversation.WhyHidden(t, facts);
@@ -427,6 +504,7 @@ namespace AdvancedNPCs
         /// <summary>Also the self-test, to act out a load.</summary>
         internal void RaiseStateRestored()
         {
+            GuardArrest.Reset();
             if (OnStateRestored != null)
                 OnStateRestored();
         }
@@ -546,7 +624,7 @@ namespace AdvancedNPCs
             if (SelfTest.Running)
                 return "The self-test is already running.";
             SelfTest test = new SelfTest(Instance, Instance.spawner);
-            if (args.Length > 0 && (args[0] == SelfTest.RangedSuite || args[0] == SelfTest.ReplaceSuite))
+            if (args.Length > 0 && (args[0] == SelfTest.GuardSuite || args[0] == SelfTest.CompanionEventsSuite || args[0] == SelfTest.CompanionBarksSuite || args[0] == SelfTest.AuditSuite || args[0] == SelfTest.CompanionSpellsSuite || args[0] == SelfTest.CompanionLimitsSuite || args[0] == SelfTest.CompanionPerformanceSuite || args[0] == SelfTest.CompanionBowsSuite || args[0] == SelfTest.CompanionEquipmentSuite || args[0] == SelfTest.CompanionTradingSuite || args[0] == SelfTest.CompanionPlaytestSuite || args[0] == SelfTest.CompanionOrdersSuite || args[0] == SelfTest.CompanionCombatSuite || args[0] == SelfTest.NavigationSuite || args[0] == SelfTest.CompanionSuite || args[0] == SelfTest.RangedSuite || args[0] == SelfTest.ReplaceSuite || args[0] == SelfTest.HealingSuite || args[0] == SelfTest.PackageSuite))
                 test.Suite = args[0];
             Instance.StartCoroutine(test.Run(null));
             return "Self-test started; results appear on screen and in Player.log (SELFTEST lines).";
@@ -571,7 +649,7 @@ namespace AdvancedNPCs
             string save = lines[1].Trim();
             bool play = lines.Length > 2 && lines[2].Trim() == "play";
             string third = lines.Length > 2 ? lines[2].Trim() : "";
-            string suite = third == SelfTest.RangedSuite || third == SelfTest.ReplaceSuite ? third : null;
+            string suite = third == SelfTest.GuardSuite || third == SelfTest.CompanionEventsSuite || third == SelfTest.CompanionBarksSuite || third == SelfTest.AuditSuite || third == SelfTest.CompanionSpellsSuite || third == SelfTest.CompanionLimitsSuite || third == SelfTest.CompanionPerformanceSuite || third == SelfTest.CompanionBowsSuite || third == SelfTest.CompanionEquipmentSuite || third == SelfTest.CompanionTradingSuite || third == SelfTest.CompanionPlaytestSuite || third == SelfTest.CompanionOrdersSuite || third == SelfTest.CompanionCombatSuite || third == SelfTest.NavigationSuite || third == SelfTest.CompanionSuite || third == SelfTest.RangedSuite || third == SelfTest.ReplaceSuite || third == SelfTest.HealingSuite || third == SelfTest.PackageSuite ? third : null;
             if (play)
                 File.Delete(path);
             Log(SelfTest.Prefix + "autorun: loading save '" + save + "' of '" + character + "'" + (play ? " to play" : ""));
@@ -808,7 +886,7 @@ namespace AdvancedNPCs
         }
 
         /// <summary>
-        /// Turns an ANPC (by id or key) into an enemy of the player, or calms it (enemies spec §4). The switch is
+        /// Turns an ANPC (by id or key) into an enemy of the player, or calms it (enemies spec Â§4). The switch is
         /// saved. False if no ANPC has that id or key (spawned now, defined, placed, or remembered in the save).
         /// </summary>
         public bool SetHostile(string key, bool hostile)
@@ -831,6 +909,38 @@ namespace AdvancedNPCs
             return true;
         }
 
+        internal static string VariableCommand(params string[] args)
+        {
+            if (args == null || args.Length < 1 || args.Length > 3) return "Usage: anpc_var <id or key> [name] [true|false|integer]";
+            NpcBrain b = NpcBrain.Find(args[0]);
+            if (b == null) return "No spawned ANPC with that id or key. Try anpc_list.";
+            if (args.Length == 1) return b.Id + ": " + b.DescribeVariables();
+            if (args.Length == 3)
+            {
+                NpcVariableValue value;
+                bool boolean;
+                int number;
+                if (bool.TryParse(args[2], out boolean)) value = new NpcVariableValue(boolean);
+                else if (int.TryParse(args[2], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out number)) value = new NpcVariableValue(number);
+                else return "Value must be true, false or a signed 32-bit integer.";
+                string error;
+                if (!b.TrySetVariable(args[1], value, out error)) return error;
+            }
+            NpcVariableValue current;
+            return b.TryGetVariable(args[1], out current) ? b.Id + ": " + args[1] + "=" + current : "Unknown or incompatible NPC variable " + args[1];
+        }
+        internal static string AddVariableCommand(params string[] args)
+        {
+            if (args == null || args.Length != 3) return "Usage: anpc_add_var <id or key> <name> <amount>";
+            NpcBrain b = NpcBrain.Find(args[0]);
+            if (b == null) return "No spawned ANPC with that id or key. Try anpc_list.";
+            int amount;
+            if (!int.TryParse(args[2], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out amount)) return "Amount must be a signed 32-bit integer.";
+            string error;
+            if (!b.TryAddVariable(args[1], amount, out error)) return error;
+            return VariableCommand(args[0], args[1]);
+        }
+
         static string OpinionCommand(params string[] args)
         {
             if (args == null || args.Length < 1 || args.Length > 2)
@@ -846,6 +956,14 @@ namespace AdvancedNPCs
                 b.ChangeOpinion(value - b.Opinion);
             }
             return b.Id + " (" + b.DisplayName + "): opinion of you " + b.Opinion + ". Saved with your game.";
+        }
+
+        static string CrimeCommand(params string[] args)
+        {
+            PlayerEntity.Crimes crime;
+            if (args == null || args.Length != 2 || !NpcCrime.TryCrime(args[1], out crime))
+                return "Usage: anpc_crime <id or key> <Assault|Murder|Theft|...|None>";
+            return NpcCrime.ReportNpc(args[0], crime) ? args[0] + ": offence " + crime + ". Saved with your game." : "No eligible spawned ANPC with that key.";
         }
 
         static string HostileCommand(params string[] args)
@@ -886,6 +1004,16 @@ namespace AdvancedNPCs
             if (message == "SetFlag" || message == "HasFlag")
             {
                 OnFlagMessage(message, data, callBack);
+                return;
+            }
+            if (message == "ReportCrime")
+            {
+                string record = data as string;
+                int split = record != null ? record.LastIndexOf('|') : -1;
+                PlayerEntity.Crimes reported;
+                bool ok = split > 0 && NpcCrime.TryCrime(record.Substring(split + 1), out reported) &&
+                    NpcCrime.ReportNpc(record.Substring(0, split).Trim(), reported);
+                if (callBack != null) callBack("ReportCrime", ok);
                 return;
             }
             if (message != "SetHostile")

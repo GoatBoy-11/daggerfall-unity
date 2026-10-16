@@ -1,0 +1,14 @@
+{
+  "$schema": "../_Schemas/spot.schema.json",
+  "relativeTo": "home",
+  "position": [
+    0,
+    0,
+    0
+  ],
+  "tags": [
+    "service_post"
+  ],
+  "capacity": 1,
+  "facing": 180
+}

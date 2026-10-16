@@ -34,9 +34,21 @@ namespace AdvancedNPCs
         const float MaxDistance = 2048 * MeshReader.GlobalScale + 10f;
         const int ArrowModel = 99800;
         static int layerMask = -1;
+        static readonly RaycastHit[] flightHits=new RaycastHit[64];
         static readonly FieldInfo DamageField = typeof(EnemyAttack).GetField("damage", BindingFlags.Instance | BindingFlags.NonPublic);
         static readonly MethodInfo SendDamageToPlayer = typeof(EnemyAttack).GetMethod("SendDamageToPlayer", BindingFlags.Instance | BindingFlags.NonPublic);
 
+        static readonly MethodInfo CompanionDamage=typeof(EnemyAttack).GetMethod("ApplyDamageToNonPlayer",BindingFlags.Instance|BindingFlags.NonPublic);
+        public static bool CompanionDamageAvailable {get{return CompanionDamage!=null;}}
+        NpcCompanionCombat companion;
+        DaggerfallEntityBehaviour shotTarget;
+        DaggerfallUnityItem shotBow,spentArrow;
+        public void BindCompanion(NpcCompanionCombat owner,DaggerfallEntityBehaviour target,DaggerfallUnityItem bow,DaggerfallUnityItem arrow)
+        {
+            companion=owner;shotTarget=target;shotBow=bow;spentArrow=arrow;
+            // Follow the loaded area's floating-origin shifts, but never the shooter's later movement.
+            transform.SetParent(caster.transform.parent,true);
+        }
         DaggerfallEntityBehaviour caster;
         EnemySenses senses;
         int damageMin, damageMax;
@@ -79,7 +91,8 @@ namespace AdvancedNPCs
             if (controller != null)
                 start.y += controller.height / 3f;
             go.transform.position = start;
-            p.Dress();
+            try {p.Dress();}
+            catch {Destroy(go);throw;}
             Flying.Add(p);
             return p;
         }
@@ -119,7 +132,8 @@ namespace AdvancedNPCs
 
         void Update()
         {
-            if (caster == null)
+            if(companion!=null && GameManager.IsGamePaused)return;
+            if (caster == null || (spentArrow!=null && (companion==null || !companion.AllowsShotHit(shotTarget))))
             {
                 Destroy(gameObject);
                 return;
@@ -148,10 +162,14 @@ namespace AdvancedNPCs
         bool FirstHit(Vector3 from, float step, out RaycastHit best)
         {
             best = new RaycastHit();
-            RaycastHit[] hits = Physics.RaycastAll(from, direction, step, layerMask, QueryTriggerInteraction.Ignore);
+            int count=Physics.RaycastNonAlloc(from,direction,flightHits,step,layerMask,QueryTriggerInteraction.Ignore);
+            // NonAlloc truncation is unordered. A dense collision frame must still find the nearest solid thing.
+            RaycastHit[] hits=count==flightHits.Length?Physics.RaycastAll(from,direction,step,layerMask,QueryTriggerInteraction.Ignore):flightHits;
+            if(hits!=flightHits)count=hits.Length;
             bool found = false;
-            foreach (RaycastHit h in hits)
+            for(int i=0;i<count;i++)
             {
+                RaycastHit h=hits[i];
                 if (h.collider.transform.IsChildOf(caster.transform) || (found && h.distance >= best.distance))
                     continue;
                 best = h;
@@ -184,7 +202,12 @@ namespace AdvancedNPCs
         void Impact(RaycastHit hit)
         {
             DaggerfallEntityBehaviour target = hit.collider.GetComponentInParent<DaggerfallEntityBehaviour>();
-            if (target != null && senses != null && target == senses.Target)
+            if(spentArrow!=null)
+            {
+                try {if(companion!=null && target==shotTarget && companion.AllowsShotHit(target))CompanionHit(target);}
+                catch(System.Exception exception) {AdvancedNpcsMod.LogError("Companion arrow impact ended: "+exception.Message);}
+            }
+            else if (target != null && senses != null && target == senses.Target)
                 Damage(target);
             else if (DaggerfallUnity.Instance != null && DaggerfallUnity.Instance.SoundReader != null)
             {
@@ -246,6 +269,22 @@ namespace AdvancedNPCs
                 motor.MakeEnemyHostileToAttacker(caster);
         }
 
+        void CompanionHit(DaggerfallEntityBehaviour target)
+        {
+            if(CompanionDamage==null || !(target.Entity is EnemyEntity) || shotBow==null || senses==null)return;
+            var current=senses.Target;
+            try
+            {
+                // The native method supplies hit rolls, enchantment strikes, sounds, blood and retaliation.
+                // Pass the launch weapon explicitly; its RightHand slot may now hold the melee fallback.
+                senses.Target=target;
+                if(target.Entity.MinMetalToHit<=(WeaponMaterialTypes)shotBow.NativeMaterialValue)
+                    CompanionDamage.Invoke(caster.GetComponent<EnemyAttack>(),new object[]{shotBow,direction,true});
+                target.Entity.Items.AddItem(spentArrow,noStack:true);
+                spentArrow=null;
+            }
+            finally {senses.Target=current;}
+        }
         static int Arrows(DaggerfallEntity e)
         {
             int n = 0;

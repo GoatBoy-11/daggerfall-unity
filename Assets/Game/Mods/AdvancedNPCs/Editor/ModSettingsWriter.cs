@@ -53,6 +53,19 @@ namespace AdvancedNPCs.EditorTools
 
             data.Sections.Add(section);
 
+            Section companions=new Section();companions.Name="Companions";
+            companions.Description="Recruitment limits for hired ANPC companions.";
+            MultipleChoiceKey followers=new MultipleChoiceKey();followers.Name="MaxFollowers";
+            followers.Description="Maximum hired companions, including those waiting elsewhere.\r" +
+                "Escort NPCs with no_companion_slot do not count.\r" +
+                "Lowering this limit keeps your existing party.\rUnlimited parties may reduce performance.";
+            for(int count=3;count<=10;count++)followers.Options.Add(count.ToString());
+            followers.Options.Add("Unlimited (Not Recommended)");followers.Value=0;
+            companions.Keys.Add(followers);
+            companions.Keys.Add(Toggle("DisableFollowerBarks",
+                "Disable follower barks.\rSilences cm_ companion speech and hides the individual bark option.\rCombat voices and footsteps keep their own settings.",false));
+            data.Sections.Add(companions);
+
             // Corpse and sound settings (spec corpse-sound settings); ModConfig reads them by these names. The version
             // stays 1.1: a player's saved values of the older keys still apply, the new keys start at these defaults.
             Section corpses = new Section();

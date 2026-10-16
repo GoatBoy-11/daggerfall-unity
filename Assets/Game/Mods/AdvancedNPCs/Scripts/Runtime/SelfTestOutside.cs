@@ -150,6 +150,7 @@ namespace AdvancedNPCs
                 List<NpcBrain> bandits = WithPrefix("selftest_bandit@");
                 DaggerfallDungeon dungeon = pee.Dungeon;
                 mod.MagicWorld.Refresh();
+                Check("companion bark context detects actual dungeon interior",NpcVoice.BarkContext()==CompanionBarkRules.Dungeon,"context="+NpcVoice.BarkContext());
                 Check("magic visit uses the actual dungeon identity", dungeon != null && mod.MagicWorld.Area == dungeon.Summary.ID + ":dungeon", mod.MagicWorld.Area);
                 GameObject marker = dungeon != null ? (dungeon.StartMarker != null ? dungeon.StartMarker : dungeon.EnterMarker) : null;
                 Vector3 entrance = marker != null ? marker.transform.position : gm.PlayerObject.transform.position;

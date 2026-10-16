@@ -1,0 +1,28 @@
+{
+  "kind": "generic",
+  "name": "Wood Elf Ranger",
+  "race": "Breton",
+  "gender": "Female",
+  "baseClass": "Ranger",
+  "bravery": "Brave",
+  "aggroRange": 18,
+  "wanderRadius": 5,
+  "spriteHeight": 2.10,
+  "portrait": "wood_elf_ranger_f_1",
+  "combat": {
+    "rangedAtDistance": true,
+    "rangedAnimation": "attack_range_1",
+    "projectileDamage": [4, 9],
+    "attackSpeed": 1.05,
+    "runSpeed": 1.5,
+    "canRun": true
+  },
+  "conversation": {"enabled": true},
+  "magic": {"spells": [], "maxMagicka": 0, "usesMagicka": true},
+  "spawn": {
+    "locationTypes": ["TownCity"],
+    "count": [0, 1],
+    "interiors": {"buildings": ["Tavern"], "chance": 12, "count": [1, 1]},
+    "wilderness": {"chance": 5, "max": 1, "when": {"time": "day"}}
+  }
+}

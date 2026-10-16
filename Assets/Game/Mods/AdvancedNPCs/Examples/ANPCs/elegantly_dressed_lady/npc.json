@@ -1,0 +1,29 @@
+{
+  "kind": "generic",
+  "name": "Elegantly Dressed Lady",
+  "race": "Breton",
+  "gender": "Female",
+  "baseClass": "Bard",
+  "bravery": "Prudent",
+  "spriteHeight": 1.925,
+  "wanderRadius": 2,
+  "stayNear": 2,
+  "portrait": "elegantly_dressed_lady",
+  "replaces": [
+    "182.27"
+  ],
+  "replacePortrait": false,
+  "replaceName": false,
+  "combat": {
+    "canRun": true,
+    "rangedAtDistance": false
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

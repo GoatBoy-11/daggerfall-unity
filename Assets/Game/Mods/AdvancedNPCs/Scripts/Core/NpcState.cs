@@ -7,9 +7,13 @@ namespace AdvancedNPCs.Core
     [Serializable]
     public class NpcState
     {
+        public CompanionRecord companion;
         public bool dead;
         public bool hostile;
         public ulong hostileUntil;
+        public int wantedCrime;
+        public int wantedRegion;
+        public ulong arrestedUntil;
 
         /// <summary>Current health as a fraction of max (DFU re-rolls max health on every spawn).</summary>
         public float healthFraction = 1f;
@@ -38,6 +42,7 @@ namespace AdvancedNPCs.Core
         public bool magicUnlimited;
         public bool magicRefillsOnEntry;
         /// <summary>Personal opinion of the player, -100..100 (spec opinion-lod §A); drifts toward 0 from opinionAt.</summary>
+        public Dictionary<string, NpcVariableValue> variables;
         public int opinion;
         /// <summary>Game second of the last opinion change.</summary>
         public ulong opinionAt;
@@ -58,9 +63,13 @@ namespace AdvancedNPCs.Core
         public NpcState Clone()
         {
             NpcState c = new NpcState();
+            c.companion = companion != null ? companion.Clone() : null;
             c.dead = dead;
             c.hostile = hostile;
             c.hostileUntil = hostileUntil;
+            c.wantedCrime = wantedCrime;
+            c.wantedRegion = wantedRegion;
+            c.arrestedUntil = arrestedUntil;
             c.healthFraction = healthFraction;
             c.portrait = portrait;
             c.enemyOn = enemyOn;
@@ -76,6 +85,7 @@ namespace AdvancedNPCs.Core
             c.magicMax = magicMax;
             c.magicUnlimited = magicUnlimited;
             c.magicRefillsOnEntry = magicRefillsOnEntry;
+            c.variables = NpcVariables.Clone(variables);
             c.opinion = opinion;
             c.opinionAt = opinionAt;
             return c;
@@ -105,8 +115,8 @@ namespace AdvancedNPCs.Core
         /// <summary>Alive, calm, full health, no locked portrait, nothing asked: nothing worth saving (spec §8, v2.1 §6).</summary>
         public bool IsDefault()
         {
-            return MagicSettled() && !dead && !hostile && healthFraction >= 0.999f && string.IsNullOrEmpty(portrait) && !enemyOn && !enemyOff &&
-                   (asked == null || asked.Count == 0) && opinion == 0;
+            return wantedCrime == 0 && arrestedUntil == 0 && companion == null && MagicSettled() && !dead && !hostile && healthFraction >= 0.999f && string.IsNullOrEmpty(portrait) && !enemyOn && !enemyOff &&
+                   (asked == null || asked.Count == 0) && opinion == 0 && (variables == null || variables.Count == 0);
         }
     }
 
@@ -114,6 +124,22 @@ namespace AdvancedNPCs.Core
     public class NpcStateTable
     {
         readonly Dictionary<string, NpcState> states = new Dictionary<string, NpcState>(StringComparer.Ordinal);
+
+        public void Keep(string key, NpcState state) { states[key] = state; }
+        public bool IsCompanion(string key) { NpcState s; return states.TryGetValue(key, out s) && s.companion != null; }
+        public List<KeyValuePair<string, NpcState>> Companions()
+        {
+            List<KeyValuePair<string, NpcState>> result = new List<KeyValuePair<string, NpcState>>();
+            CopyCompanionsTo(result);
+            return result;
+        }
+
+        /// <summary>Caller-owned snapshot, safe to iterate while spawning changes the state table.</summary>
+        public void CopyCompanionsTo(List<KeyValuePair<string,NpcState>> result)
+        {
+            result.Clear();
+            foreach(var pair in states)if(pair.Value.companion!=null)result.Add(pair);
+        }
 
         public NpcState GetOrCreate(string id)
         {
@@ -144,7 +170,7 @@ namespace AdvancedNPCs.Core
         {
             foreach (NpcState s in states.Values)
             {
-                if (s.magicInitialized && s.magicRefillsOnEntry && s.magicVisit != visit)
+                if (s.companion == null && s.magicInitialized && s.magicRefillsOnEntry && s.magicVisit != visit)
                     s.ForgetMagic();
             }
         }

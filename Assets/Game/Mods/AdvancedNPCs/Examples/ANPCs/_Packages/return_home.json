@@ -1,0 +1,11 @@
+{
+  "$schema": "../_Schemas/package.schema.json",
+  "type": "travel_to",
+  "parameters": {
+    "target": [
+      0,
+      0,
+      0
+    ]
+  }
+}

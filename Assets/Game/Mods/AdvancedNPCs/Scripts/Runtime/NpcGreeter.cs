@@ -55,7 +55,7 @@ namespace AdvancedNPCs
         void Update()
         {
             // Calm, or an enemy with no one to fight yet (it greets only other such enemies).
-            if (brain == null || (sprite == null && voice == null) || brain.ChatSide == GreetRules.Busy)
+            if (brain == null || (sprite == null && voice == null) || brain.ChatSide == GreetRules.Busy || brain.PackageOnlyCombatInterrupts)
             {
                 facingTarget = null;
                 return;

@@ -6,7 +6,7 @@ using AdvancedNPCs.Core;
 namespace AdvancedNPCs.Tests
 {
     /// <summary>Records actions in order (C2).</summary>
-    public class FakeActions : IDialogueActions
+    public class FakeActions : IDialogueActions, INpcVariableActions
     {
         public readonly List<string> Done = new List<string>();
         readonly FakeFacts facts;
@@ -16,6 +16,8 @@ namespace AdvancedNPCs.Tests
             this.facts = facts;
         }
 
+        public void SetVariable(string name, NpcVariableValue value) { facts.Variables[name] = value.Clone(); }
+        public void AddVariable(string name, int amount) { facts.Variables[name].integerValue += amount; }
         public void GiveGold(int amount) { facts.GoldValue += amount; Done.Add("giveGold " + amount); }
         public void TakeGold(int amount) { facts.GoldValue -= amount; Done.Add("takeGold " + amount); }
         public void GiveItem(string name) { facts.Items.Add(name); Done.Add("giveItem " + name); }

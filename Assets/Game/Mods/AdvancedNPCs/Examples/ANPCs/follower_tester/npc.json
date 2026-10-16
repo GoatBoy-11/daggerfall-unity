@@ -1,0 +1,33 @@
+{
+  "$schema": "../_Schemas/npc.schema.json",
+  "kind": "generic",
+  "name": "Follower Tester",
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Warrior",
+  "bravery": "Prudent",
+  "wanderRadius": 2,
+  "spawn": {
+    "count": [
+      0,
+      0
+    ]
+  },
+  "variables": {
+    "following": false,
+    "times_recruited": 0
+  },
+  "schedule": [
+    {
+      "package": "follow",
+      "when": {
+        "variables": {
+          "following": true
+        }
+      }
+    },
+    {
+      "package": "stand"
+    }
+  ]
+}

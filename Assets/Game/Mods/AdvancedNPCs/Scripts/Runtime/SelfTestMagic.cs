@@ -137,8 +137,199 @@ namespace AdvancedNPCs
             IEnumerator mercenary = DunmerMercenarySteps(location, player);
             while (mercenary.MoveNext()) yield return mercenary.Current;
 
+            IEnumerator healing = HealingSteps(location, player);
+            while (healing.MoveNext()) yield return healing.Current;
+
             IEnumerator edge = MagicTownEdgeSteps(location);
             while (edge.MoveNext()) yield return edge.Current;
+        }
+
+        public const string HealingSuite = "healing";
+
+        IEnumerator HealingSteps(DaggerfallLocation location, Transform player)
+        {
+            GameManager gm = GameManager.Instance;
+            bool oldAI = gm.DisableAI;
+            string oldReaction = NpcGreeter.ReactionOverride;
+            int playerHealth = gm.PlayerEntity.CurrentHealth;
+            bool playerGodMode = gm.PlayerEntity.GodMode;
+            GameObject wall = null;
+            NpcBrain caster = null, ally = null;
+            string id = "selftest_healing";
+            string soundsPath = System.IO.Path.Combine(Application.temporaryCachePath, "anpc_selftest_healing", "Sounds");
+            System.IO.Directory.CreateDirectory(soundsPath);
+            foreach (string name in new[] { "heal_1", "heal_2", "cast_1" })
+                System.IO.File.WriteAllBytes(System.IO.Path.Combine(soundsPath, name + ".wav"), ToneWav(0.1f));
+            LoadedSoundSet soundSet = SoundLibrary.IndexSet(id + "/Sounds", soundsPath);
+            mod.Sounds.Add(id, soundSet);
+            mod.Sprites.Add(id, TestSpriteSet(false, "idle", "attack", "cast", "heal_1", "heal_2"));
+            DiscardTestPeople();
+            Vector3 open = OpenDirection(player, 14f);
+            try
+            {
+                gm.DisableAI = true;
+                NpcGreeter.ReactionOverride = "likes";
+                NpcDefinition d = TestDefinition(id, Bravery.Brave, location, player, OutOfGreeting);
+                d.BaseClass = "Mage";
+                d.Sounds = new SoundSettings { CombatChance = 100, GreetChance = 0 };
+                d.Magic = new NpcMagicDefinition { UsesMagicka = true, Healing = new NpcHealingDefinition() };
+                d.Magic.Spells.Add("Heal");
+                caster = SpawnDefinition(d, location);
+                ally = Make("selftest_healing_ally", Bravery.Brave, location, player, -OutOfGreeting);
+                yield return Settle;
+                NpcMagic magic = caster.GetComponent<NpcMagic>();
+                magic.enabled = false; // final cast APIs stay testable while autonomous decisions are isolated
+                EffectBundleSettings heal = NpcSpellLibrary.Resolve(d)[0];
+                NpcSprite sprite = caster.GetComponent<NpcSprite>();
+                NpcVoice voice = caster.GetComponent<NpcVoice>();
+                float until = Time.time + 5f;
+                while ((!soundSet.IsReady || !sprite.HasSet) && Time.time < until) yield return null;
+                caster.Teleport(player.position + open * 6f);
+                ally.Teleport(player.position + open * 7.5f);
+                Physics.SyncTransforms();
+                ally.EntityBehaviour.Entity.CurrentHealth = Mathf.Max(1, ally.EntityBehaviour.Entity.MaxHealth / 3);
+                int before = ally.EntityBehaviour.Entity.CurrentHealth;
+                int cost = magic.Cost(magic.SupportSpell(heal));
+                caster.EntityBehaviour.Entity.CurrentMagicka = cost - 1;
+                Check("healing refuses insufficient touch-cost magicka", !magic.TryHeal(heal, ally.EntityBehaviour) &&
+                    caster.EntityBehaviour.Entity.CurrentMagicka == cost - 1 && ally.EntityBehaviour.Entity.CurrentHealth == before, "cost=" + cost);
+                caster.EntityBehaviour.Entity.CurrentMagicka = cost;
+                Check("healing applies to calm ally and spends exact touch cost", magic.TryHeal(heal, ally.EntityBehaviour) &&
+                    caster.EntityBehaviour.Entity.CurrentMagicka == 0 && ally.EntityBehaviour.Entity.CurrentHealth > before, caster.Status);
+                Check("healing retains self spell and does not provoke ally", heal.TargetType == TargetTypes.CasterOnly &&
+                    ally.CurrentMode == NpcMode.Calm && ally.Threat == null && !ally.State.hostile, ally.Status);
+                Check("healing chooses dedicated numbered sheet and heal sound", sprite.CurrentState == SpriteStates.Heal &&
+                    (sprite.CurrentAnimation == "heal_1" || sprite.CurrentAnimation == "heal_2") && voice.Played(SoundPools.Heal) == 1 &&
+                    voice.Played(SoundPools.Cast) == 0 && !sprite.BlowPending, sprite.CurrentAnimation);
+                yield return null;
+                Check("healing sheet survives vanilla caster Spell state", sprite.CurrentState == SpriteStates.Heal, sprite.CurrentState);
+                Check("healing shares cooldown", !magic.TryHeal(heal, ally.EntityBehaviour), "cooldown=" + caster.State.magicCooldown);
+                caster.State.magicCooldown = 0;
+                d.Magic.UsesMagicka = false;
+                ally.EntityBehaviour.Entity.CurrentHealth = Mathf.Max(1, ally.EntityBehaviour.Entity.MaxHealth / 3);
+                caster.EntityBehaviour.Entity.IsSilenced = true;
+                Check("healing unlimited still obeys silence", !magic.TryHeal(heal, ally.EntityBehaviour), caster.Status);
+                caster.EntityBehaviour.Entity.IsSilenced = false;
+                caster.EntityBehaviour.Entity.IsParalyzed = true;
+                Check("healing obeys paralysis", !magic.TryHeal(heal, ally.EntityBehaviour), caster.Status);
+                caster.EntityBehaviour.Entity.IsParalyzed = false;
+                d.Magic.Healing.OutsideCombat = false;
+                Check("healing can be restricted to fighting", !magic.TryHeal(heal, ally.EntityBehaviour), caster.Status);
+                d.Magic.Healing.OutsideCombat = true;
+                d.Magic.Healing.Allies = false;
+                Check("healing respects allies opt-out", !magic.TryHeal(heal, ally.EntityBehaviour), ally.Status);
+                d.Magic.Healing.Allies = true;
+                ally.Teleport(player.position + open * 10f);
+                Physics.SyncTransforms();
+                Check("healing rejects recipients beyond touch range", !magic.TryHeal(heal, ally.EntityBehaviour), ally.Status);
+                ally.Teleport(player.position + open * 7.5f);
+                Physics.SyncTransforms();
+                wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                wall.transform.position = (caster.transform.position + ally.transform.position) * 0.5f + Vector3.up * 0.5f;
+                wall.transform.localScale = new Vector3(0.6f, 3f, 0.6f);
+                Physics.SyncTransforms();
+                Check("healing rejects blocked sight", !magic.TryHeal(heal, ally.EntityBehaviour), caster.Status);
+                wall.SetActive(false);
+                Object.Destroy(wall);
+                wall = null;
+                ally.EntityBehaviour.Entity.CurrentHealth = ally.EntityBehaviour.Entity.MaxHealth;
+                Check("healing rejects full health", !magic.TryHeal(heal, ally.EntityBehaviour), ally.Status);
+                ally.EntityBehaviour.Entity.CurrentHealth = 0;
+                Check("healing does not revive dead recipients", !magic.TryHeal(heal, ally.EntityBehaviour), ally.Status);
+                NpcBrain.Discard(ally);
+                ally = Make("selftest_healing_ally2", Bravery.Brave, location, player, -OutOfGreeting);
+                yield return Settle;
+                ally.Teleport(player.position + open * 7.5f);
+                ally.EntityBehaviour.Entity.CurrentHealth = Mathf.Max(1, ally.EntityBehaviour.Entity.MaxHealth / 3);
+                Physics.SyncTransforms();
+                EffectBundleSettings mixed = heal;
+                mixed.Effects = new[] { heal.Effects[0], new EffectEntry("Damage-Health", heal.Effects[0].Settings) };
+                Check("healing rejects mixed harmful effects", !magic.TryHeal(mixed, ally.EntityBehaviour), caster.Status);
+                caster.SwitchHostile(true);
+                caster.State.magicCooldown = 0;
+                caster.GetComponent<EnemySenses>().Target = gm.PlayerEntityBehaviour;
+                Check("healing rejects opposite allegiance", !magic.TryHeal(heal, ally.EntityBehaviour), ally.Status);
+                ally.SwitchHostile(true);
+                ally.GetComponent<EnemySenses>().Target = gm.PlayerEntityBehaviour;
+                Check("healing enemy can heal allied ANPC without losing foe", magic.TryHeal(heal, ally.EntityBehaviour) &&
+                    caster.GetComponent<EnemySenses>().Target == gm.PlayerEntityBehaviour, caster.Status);
+                caster.State.magicCooldown = 0;
+                ally.EntityBehaviour.Entity.CurrentHealth = Mathf.Max(1, ally.EntityBehaviour.Entity.MaxHealth / 3);
+                ally.GetComponent<EnemySenses>().Target = caster.EntityBehaviour;
+                Check("healing rejects an ally attacking the healer", !magic.TryHeal(heal, ally.EntityBehaviour), ally.Status);
+                caster.SwitchHostile(false);
+                ally.SwitchHostile(false);
+                caster.State.magicCooldown = 0;
+                caster.Teleport(player.position + open * 1.5f);
+                ally.Teleport(player.position + open * 8f);
+                Physics.SyncTransforms();
+                // The surrounding self-test enables god mode, whose SetHealth always restores full health.
+                gm.PlayerEntity.GodMode = false;
+                gm.PlayerEntity.CurrentHealth = Mathf.Max(1, gm.PlayerEntity.MaxHealth / 3);
+                NpcGreeter.ReactionOverride = "neutral";
+                Check("healing neutral player is ineligible", !magic.TryHeal(heal, gm.PlayerEntityBehaviour), caster.Status);
+                NpcGreeter.ReactionOverride = "likes";
+                d.Magic.Healing.Player = "none";
+                Check("healing respects player opt-out", !magic.TryHeal(heal, gm.PlayerEntityBehaviour), caster.Status);
+                d.Magic.Healing.Player = "friendly";
+                caster.State.hostile = true;
+                Check("healing angry caster refuses player", !magic.TryHeal(heal, gm.PlayerEntityBehaviour), caster.Status);
+                caster.State.hostile = false;
+                before = gm.PlayerEntity.CurrentHealth;
+                Check("healing friendly player with zero magicka", magic.TryHeal(heal, gm.PlayerEntityBehaviour) &&
+                    gm.PlayerEntity.CurrentHealth > before && caster.EntityBehaviour.Entity.CurrentMagicka == 0, caster.Status);
+                d.Sounds.CombatChance = 0;
+                Check("healing sound obeys zero combatChance", !voice.Play(SoundPools.Heal), "played=" + voice.Played(SoundPools.Heal));
+                d.Sounds.CombatChance = 100;
+                Check("healing sound variants use their own pool", soundSet.Clips[SoundPools.Heal].Count == 2 && voice.Play(SoundPools.Heal), soundSet.Summary());
+                sprite.Swap(TestSpriteSet(false, "idle", "attack", "cast"));
+                sprite.PlayCast(true);
+                Check("healing falls back to cast sheet", sprite.CurrentAnimation == "cast" && !sprite.BlowPending, sprite.CurrentAnimation);
+                sprite.Swap(TestSpriteSet(false, "idle", "attack"));
+                sprite.PlayCast(true);
+                Check("healing falls back to attack without physical blow", sprite.CurrentAnimation == "attack" && !sprite.BlowPending, sprite.CurrentAnimation);
+                sprite.Swap(TestSpriteSet(false, "idle"));
+                sprite.PlayCast(true);
+                Check("healing without any compatible sheet has no animation", sprite.CurrentState == SpriteStates.Idle && !sprite.PlayingOneShot, sprite.CurrentState);
+                sprite.Swap(TestSpriteSet(false, "idle", "attack", "cast", "heal_1", "heal_2"));
+                sprite.PlayCast();
+                Check("healing does not change subsequent offensive cast animation", sprite.CurrentState == SpriteStates.Cast && sprite.CurrentAnimation == "cast", sprite.CurrentState);
+                // Autonomous calm casting and selection of the most wounded eligible recipient.
+                gm.PlayerEntity.CurrentHealth = gm.PlayerEntity.MaxHealth * 4 / 10;
+                ally.Teleport(player.position + open * 2.8f);
+                ally.EntityBehaviour.Entity.CurrentHealth = Mathf.Max(1, ally.EntityBehaviour.Entity.MaxHealth / 5);
+                Physics.SyncTransforms();
+                before = ally.EntityBehaviour.Entity.CurrentHealth;
+                int playerBefore = gm.PlayerEntity.CurrentHealth;
+                caster.State.magicCooldown = 0;
+                gm.DisableAI = false;
+                magic.enabled = true;
+                until = Time.time + 5f;
+                while (ally.EntityBehaviour.Entity.CurrentHealth == before && Time.time < until) yield return null;
+                magic.enabled = false;
+                gm.DisableAI = true;
+                Check("healing AI picks most wounded nearby ally while calm", ally.EntityBehaviour.Entity.CurrentHealth > before &&
+                    gm.PlayerEntity.CurrentHealth == playerBefore, ally.Status);
+                caster.SwitchHostile(true);
+                caster.EntityBehaviour.Entity.CurrentHealth = Mathf.Max(1, caster.EntityBehaviour.Entity.MaxHealth / 3);
+                before = caster.EntityBehaviour.Entity.CurrentHealth;
+                caster.State.magicCooldown = 0;
+                Check("healing self spell still works with dedicated heal presentation", magic.TryCast(heal) &&
+                    caster.EntityBehaviour.Entity.CurrentHealth > before && sprite.CurrentState == SpriteStates.Heal, caster.Status);
+            }
+            finally
+            {
+                gm.DisableAI = oldAI;
+                gm.PlayerEntity.CurrentHealth = playerHealth;
+                gm.PlayerEntity.GodMode = playerGodMode;
+                NpcGreeter.ReactionOverride = oldReaction;
+                if (wall != null) Object.Destroy(wall);
+                if (caster != null) NpcBrain.Discard(caster);
+                if (ally != null) NpcBrain.Discard(ally);
+                mod.Sprites.Remove(id);
+                mod.Sounds.Remove(id);
+            }
+            yield return Settle;
         }
 
         /// <summary>The outdoors around a town is one magic area: past the town's edge, town casters keep casting and do not refill.</summary>
@@ -281,13 +472,13 @@ namespace AdvancedNPCs
                 Check("Dunmer configured spell casts", caster != null && caster.TryCast(heal), b.Status);
                 yield return null;
                 yield return null;
-                Check("Dunmer casting uses dedicated sheet without melee blow", sprite.CurrentState == SpriteStates.Cast &&
+                Check("Dunmer healing uses dedicated sheet without melee blow", sprite.CurrentState == SpriteStates.Heal &&
                     sprite.CurrentAnimation == "cast_1" && !sprite.BlowPending,
                     "state=" + sprite.CurrentState + " animation=" + sprite.CurrentAnimation);
                 int hits = sprite.HitStarts;
                 b.EntityBehaviour.Entity.DecreaseHealth(1);
                 yield return null;
-                Check("Dunmer hit waits while cast sheet finishes", sprite.CurrentState == SpriteStates.Cast && sprite.HitStarts == hits,
+                Check("Dunmer hit waits while healing sheet finishes", sprite.CurrentState == SpriteStates.Heal && sprite.HitStarts == hits,
                     "state=" + sprite.CurrentState);
                 yield return new WaitForSeconds(0.8f);
                 Check("Dunmer deferred hit plays after casting", sprite.HitStarts == hits + 1, "hits=" + sprite.HitStarts);

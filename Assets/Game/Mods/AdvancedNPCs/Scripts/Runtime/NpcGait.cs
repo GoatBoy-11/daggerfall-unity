@@ -141,7 +141,11 @@ namespace AdvancedNPCs
             float dt = lodDt;
             lodDt = 0f;
             bool moving = dt > 0 && moved.magnitude / dt > MovingSpeed;
-            if (brain.CurrentMode == NpcMode.Fighting)
+            if (brain.EnforcingLaw)
+            {
+                gait = moving ? (def.CanRun ? Gait.Run : Gait.Walk) : Gait.Still;
+            }
+            else if (brain.CurrentMode == NpcMode.Fighting)
             {
                 gait = GaitRules.Fighting(senses != null && senses.TargetInSight, senses != null ? senses.DistanceToTarget : 0f,
                     gait == Gait.Run, def.CanRun);
@@ -161,7 +165,7 @@ namespace AdvancedNPCs
             }
             else
             {
-                gait = GaitRules.Calm(moving);
+                gait = moving && brain.PackageRunning ? Gait.Run : GaitRules.Calm(moving);
             }
             lastLocal = transform.localPosition;
         }

@@ -4,6 +4,7 @@
   "race": "Breton",
   "gender": "Male",
   "baseClass": "Knight",
+  "guard": true,
   "bravery": "Brave",
   "wanderRadius": 4,
   "portrait": "castle_guard_1",
@@ -23,8 +24,52 @@
     "usesMagicka": true,
     "maxMagicka": 0
   },
-  "sounds": { "combatChance": 40, "greetChance": 60, "soundPitchVariation": 0.04, "stepPitchVariation": 0.08 },
+  "sounds": {
+    "combatChance": 40,
+    "greetChance": 60,
+    "soundPitchVariation": 0.04,
+    "stepPitchVariation": 0.08
+  },
   "conversation": {
     "enabled": true
-  }
+  },
+  "schedule": [
+    {
+      "hours": [
+        "06:00",
+        "20:00"
+      ],
+      "package": "guard_spot",
+      "parameters": {
+        "spot": "home_guard_post"
+      },
+      "when": {
+        "any": [
+          {
+            "weather": "rain"
+          },
+          {
+            "weather": "snow"
+          }
+        ]
+      }
+    },
+    {
+      "hours": [
+        "06:00",
+        "20:00"
+      ],
+      "package": "guard_watch_cycle"
+    },
+    {
+      "hours": [
+        "20:00",
+        "06:00"
+      ],
+      "package": "guard_spot",
+      "parameters": {
+        "spot": "home_guard_post"
+      }
+    }
+  ]
 }

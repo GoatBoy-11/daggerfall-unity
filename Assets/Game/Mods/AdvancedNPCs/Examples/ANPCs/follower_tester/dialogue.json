@@ -1,0 +1,42 @@
+{
+  "$schema": "../_Schemas/dialogue.schema.json",
+  "topics": [
+    {
+      "caption": "Follow me",
+      "when": {
+        "variables": {
+          "following": false
+        }
+      },
+      "answers": [
+        {
+          "text": "Of course. Lead the way.",
+          "setVariables": {
+            "following": true
+          },
+          "addVariables": {
+            "times_recruited": 1
+          },
+          "endConversation": true
+        }
+      ]
+    },
+    {
+      "caption": "Wait here",
+      "when": {
+        "variables": {
+          "following": true
+        }
+      },
+      "answers": [
+        {
+          "text": "I will wait here until you need me.",
+          "setVariables": {
+            "following": false
+          },
+          "endConversation": true
+        }
+      ]
+    }
+  ]
+}

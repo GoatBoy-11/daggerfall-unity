@@ -41,6 +41,18 @@ namespace AdvancedNPCs
         int updatesRun;
         Material material;
 
+        public const string PackageState = "package_animation";
+        public const string GuardState = "guard_idle";
+        GuardAnimationLoop guardLoop;
+        LoadedSpriteSet packageSet;
+        string packageRequest;
+        List<SpriteAnimation> packageVariants;
+        PackageAnimationLoop packageLoop;
+        bool civilianLoop;
+        public bool CivilianPauseFinished { get { return packageLoop == null || packageLoop.Finished; } }
+        int packageCycles;
+        public int PackageCycles { get { return packageCycles; } }
+
         string state;
         SpriteAnimation anim;
         float time;
@@ -56,6 +68,7 @@ namespace AdvancedNPCs
         int hitStarts;
         int greetStarts;
         MobileStates lastMobileState;
+        string spellState = SpriteStates.Cast;
         int pendingBlow;        // MeleeBlow or ArrowBlow still to land on the attack sheet's action frame
         int sentBlow;           // the blow signalled last frame, for counting what DFU took
         int vanillaToHold;      // DFU blow signals still to hold back: one per swing whose blow is ours
@@ -257,6 +270,7 @@ namespace AdvancedNPCs
             material = null;
             set = null;
             waitingSet = null;
+            ResetPackageAnimation();
             anim = null;
             state = null;
             oneShotLeft = 0f;
@@ -457,7 +471,7 @@ namespace AdvancedNPCs
             int health = entityBehaviour != null && entityBehaviour.Entity != null ? entityBehaviour.Entity.CurrentHealth : -1;
             if (lastHealth >= 0 && health >= 0 && health < lastHealth && health > 0)
             {
-                if ((state == SpriteStates.Attack || state == SpriteStates.Cast) && oneShotLeft > 0)
+                if ((state == SpriteStates.Attack || state == SpriteStates.Cast || state == SpriteStates.Heal) && oneShotLeft > 0)
                     hitWaiting = true;
                 else
                     StartOneShot(SpriteStates.Hit);
@@ -478,6 +492,10 @@ namespace AdvancedNPCs
                 talkLeft -= dt;
             if (state == SpriteStates.Greet && oneShotLeft > 0 && brain != null && brain.ChatSide != greetSide)
                 oneShotLeft = 0;        // turned hostile, or an enemy spotted someone, mid-greeting: no wave in a fight
+            bool packagePlayed = false;
+            bool protectedPackage = brain != null && brain.PackageOnlyCombatInterrupts;
+            if (protectedPackage && (state == SpriteStates.Greet || state == SpriteStates.Talk || state == SpriteStates.Cast || state == SpriteStates.Heal))
+            { oneShotLeft = 0; talkLeft = 0; }
             if (oneShotLeft <= 0)
             {
                 if (hitWaiting)
@@ -487,10 +505,27 @@ namespace AdvancedNPCs
                 }
                 else
                 {
-                    SetState(WantedState());
+                    string wanted = WantedState();
+                    string requested = brain != null ? brain.PackageAnimation : null;
+                    if ((wanted == SpriteStates.Idle || protectedPackage || (brain != null && brain.PackageWorkAtPost)) && requested != null && CanPlayPackageAnimation(requested))
+                    {
+                        UpdatePackageAnimation(GameManager.IsGamePaused ? 0 : dt);
+                        packagePlayed = true;
+                    }
+                    else if (wanted == SpriteStates.Idle && brain != null && brain.CivilianAnimation && civilianLoop)
+                    {
+                        UpdatePackageAnimation(dt);
+                        packagePlayed = true;
+                    }
+                    else if (wanted == SpriteStates.Idle && brain != null && brain.GuardAnimation != null && CanPlayPackageAnimation("idle"))
+                    {
+                        UpdateGuardAnimation(dt, brain.GuardAnimation);
+                        packagePlayed = true;
+                    }
+                    else SetState(wanted);
                 }
             }
-            time += dt;
+            if (!packagePlayed) time += dt;
         }
 
         void LateUpdate()
@@ -512,11 +547,25 @@ namespace AdvancedNPCs
         }
 
         /// <summary>Plays a cast sheet for a class without DFU spell frames, whose mobile state never shows Spell.</summary>
-        public void PlayCast()
+        public void PlayCast(bool healing = false)
         {
+            spellState = healing ? SpriteStates.Heal : SpriteStates.Cast;
             if (set != null)
+            {
                 StartAttack(MobileStates.Spell);
+                lastMobileState = mobile != null ? mobile.EnemyState : MobileStates.Idle;
+            }
         }
+
+        /// <summary>A companion order cancels both the native animation and this sheet's delayed action frame.</summary>
+        public void CancelAttack()
+        {
+            pendingBlow=sentBlow=vanillaToHold=NoBlow;
+            if(state==SpriteStates.Attack || state==SpriteStates.RangedAttack) oneShotLeft=0;
+            if(mobile!=null) {mobile.DoMeleeDamage=false;mobile.ShootArrow=false;}
+        }
+        public bool PlayingOneShot { get { return oneShotLeft > 0 || pendingBlow != NoBlow; } }
+        public float CastSeconds { get { return oneShotLeft; } }
 
         /// <summary>The gait that chooses run, walk or idle (the spawner sets it before Init).</summary>
         public void UseGait(NpcGait source)
@@ -527,7 +576,7 @@ namespace AdvancedNPCs
         /// <summary>Plays a greet sheet once; false when the set has none or an attack, cast or hit sheet is playing.</summary>
         public bool PlayGreet()
         {
-            if (set == null || SpriteStates.Variants(set.Set, SpriteStates.Greet).Count == 0 ||
+            if ((brain != null && brain.PackageOnlyCombatInterrupts) || set == null || SpriteStates.Variants(set.Set, SpriteStates.Greet).Count == 0 ||
                 (oneShotLeft > 0 && state != SpriteStates.Greet))
                 return false;
             StartOneShot(SpriteStates.Greet);
@@ -560,7 +609,7 @@ namespace AdvancedNPCs
         /// </summary>
         public void Talk(float seconds)
         {
-            if (set == null)
+            if (set == null || (brain != null && brain.PackageOnlyCombatInterrupts))
                 return;
             talkLeft = seconds;
             if (oneShotLeft > 0)
@@ -584,7 +633,7 @@ namespace AdvancedNPCs
         /// <summary>A cast* or attack* sheet exists; without one a spell plays no animation.</summary>
         bool HasCastSheet
         {
-            get { return SpriteStates.Variants(set.Set, SpriteStates.Cast).Count > 0; }
+            get { return SpriteStates.Variants(set.Set, spellState).Count > 0; }
         }
 
         void StartAttack(MobileStates s)
@@ -593,8 +642,8 @@ namespace AdvancedNPCs
                 return;
             bool thrown = IsThrow(s);
             if (s == MobileStates.Spell)
-                StartOneShot(SpriteStates.Cast);
-            else if (IsRanged(s) || thrown)
+                StartOneShot(spellState);
+            else if (IsRanged(s) || thrown || (s==MobileStates.PrimaryAttack && RangedWeaponEquipped))
                 StartOneShot(SpriteStates.RangedAttack, RangedSheet);
             else
                 StartOneShot(SpriteStates.Attack);
@@ -664,16 +713,84 @@ namespace AdvancedNPCs
                 Destroy(material);
         }
 
+        public bool BeginCivilianPause()
+        {
+            if (set == null || !set.IsReady || set.Failed) return false;
+            var available = new List<SpriteAnimation>(set.Set.Animations.Values);
+            available.RemoveAll(delegate(SpriteAnimation a) { return !set.Sheets.ContainsKey(a.Name); });
+            var variants = PackageAnimations.CivilianVariants(available, Random.value);
+            if (variants.Count == 0) return false;
+            ResetPackageAnimation();
+            packageVariants = variants;
+            packageLoop = new PackageAnimationLoop(variants, set.Set.Fps, delegate { return Random.value; }, Random.Range(1, 5));
+            civilianLoop = true;
+            return true;
+        }
+
+        public void ResetPackageAnimation()
+        {
+            packageSet = null;
+            packageRequest = null;
+            civilianLoop = false;
+            packageVariants = null;
+            packageLoop = null;
+            guardLoop = null;
+        }
+
+        public bool CanPlayPackageAnimation(string requested)
+        {
+            if (set == null || !set.IsReady || set.Failed) return false;
+            if (packageSet != set || packageRequest != requested)
+            {
+                packageSet = set;
+                packageRequest = requested;
+                packageVariants = PackageAnimations.Variants(set.Set, requested);
+                packageVariants.RemoveAll(delegate(SpriteAnimation a) { return !set.Sheets.ContainsKey(a.Name); });
+                packageLoop = null;
+                guardLoop = null;
+            }
+            return packageVariants != null && packageVariants.Count > 0;
+        }
+
+        void UpdatePackageAnimation(float dt)
+        {
+            if (packageLoop == null || (state != PackageState && !civilianLoop))
+                packageLoop = new PackageAnimationLoop(packageVariants, set.Set.Fps, delegate { return Random.value; });
+            int cycles = packageLoop.Cycles;
+            packageLoop.Advance(dt);
+            packageCycles += packageLoop.Cycles - cycles;
+            if (state != PackageState || anim != packageLoop.Current)
+            {
+                state = null;
+                SetState(PackageState, packageLoop.Current.Name);
+            }
+            time = (float)packageLoop.Elapsed;
+        }
+
+        void UpdateGuardAnimation(float dt, PackageSettings settings)
+        {
+            if (guardLoop == null || state != GuardState)
+                guardLoop = new GuardAnimationLoop(packageVariants, set.Set.Fps, settings.IdleIntervalMin,
+                    settings.IdleIntervalMax, delegate { return Random.value; });
+            guardLoop.Advance(dt);
+            if (state != GuardState || anim != guardLoop.Current)
+            {
+                state = null;
+                SetState(GuardState, guardLoop.Current.Name);
+            }
+            time = (float)guardLoop.Elapsed;
+        }
+
         string WantedState()
         {
             MobileStates s = mobile != null ? mobile.EnemyState : MobileStates.Idle;
             if (s == MobileStates.Hurt)
                 return SpriteStates.Hit;
             if (s == MobileStates.Spell && HasCastSheet)
-                return SpriteStates.Cast;
-            if (s == MobileStates.PrimaryAttack && !IsThrow(s))
+                return spellState;
+            if (s == MobileStates.PrimaryAttack && !IsThrow(s) && !RangedWeaponEquipped)
                 return SpriteStates.Attack;
-            if (IsRanged(s) || IsThrow(s))
+            if (IsRanged(s) || IsThrow(s) || (s==MobileStates.PrimaryAttack && RangedWeaponEquipped))
                 return SpriteStates.RangedAttack;
             if (talkLeft > 0 && speed <= WalkSpeed)
                 return SpriteStates.Talk;
@@ -682,10 +799,21 @@ namespace AdvancedNPCs
             return gait != null && gait.Current == Gait.Run ? SpriteStates.Run : SpriteStates.Walk;
         }
 
-        /// <summary>A creature's attack state that NpcRanged started as a throw.</summary>
+        bool RangedWeaponEquipped
+        {
+            get
+            {
+                if(entityBehaviour==null || entityBehaviour.Entity==null)return false;
+                var table=entityBehaviour.Entity.ItemEquipTable;
+                var weapon=table.GetItem(DaggerfallWorkshop.Game.Items.EquipSlots.RightHand) ?? table.GetItem(DaggerfallWorkshop.Game.Items.EquipSlots.LeftHand);
+                return CompanionBow.IsBow(weapon);
+            }
+        }
+        /// <summary>A creature throw or hired companion bow shot using the base mobile's primary attack state.</summary>
         bool IsThrow(MobileStates s)
         {
-            return s == MobileStates.PrimaryAttack && ranged != null && ranged.Throwing;
+            return s == MobileStates.PrimaryAttack && ((ranged != null && ranged.Throwing) ||
+                (brain!=null && brain.CompanionCombat!=null && brain.CompanionCombat.Active && brain.CompanionCombat.Bow.Drawing));
         }
 
         static bool IsRanged(MobileStates s)

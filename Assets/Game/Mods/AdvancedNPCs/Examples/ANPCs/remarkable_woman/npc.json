@@ -1,0 +1,29 @@
+{
+  "kind": "generic",
+  "name": "Remarkable Woman",
+  "race": "Breton",
+  "gender": "Female",
+  "baseClass": "Mage",
+  "bravery": "Prudent",
+  "spriteHeight": 2.18,
+  "wanderRadius": 2,
+  "portrait": "remarkable_woman",
+  "replaces": ["182.41"],
+  "replacePortrait": false,
+  "replaceName": false,
+  "stayNear": 2,
+  "combat": {
+    "rangedAtDistance": true,
+    "rangedAnimation": "attack_range_1",
+    "projectileDamage": [4, 10]
+  },
+  "magic": {
+    "spells": ["Shock", "Paralysis", "Shield"],
+    "usesMagicka": true,
+    "maxMagicka": 120,
+    "recovery": "onAreaEntry",
+    "castCooldown": [5, 9],
+    "skill": 75
+  },
+  "conversation": { "enabled": true }
+}

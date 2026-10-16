@@ -36,6 +36,11 @@ namespace AdvancedNPCs
         public bool Wilderness = true;
         public int MaxWildernessAround = 4;
 
+        public const string CompanionsSection="Companions";
+        /// <summary>Actual limited contract count; 0 means unlimited.</summary>
+        public int MaxFollowers=CompanionLimits.Default;
+        public bool DisableFollowerBarks;
+
         public const string CorpsesSection = "Corpses";
         /// <summary>A dying ANPC with a sprite set plays its death sheet; off: the body lies still at once.</summary>
         public bool DeathAnimation = true;
@@ -89,6 +94,8 @@ namespace AdvancedNPCs
             Interiors = Read("Interiors", delegate { return settings.GetBool(Section, "Interiors"); }, true);
             Wilderness = Read("Wilderness", delegate { return settings.GetBool(Section, "Wilderness"); }, true);
             MaxWildernessAround = Mathf.Clamp(Read("MaxWildernessAround", delegate { return settings.GetInt(Section, "MaxWildernessAround"); }, 4), 0, 10);
+            MaxFollowers=CompanionLimits.FromSetting(Read("MaxFollowers",delegate {return settings.GetInt(CompanionsSection,"MaxFollowers");},0));
+            DisableFollowerBarks=Read("DisableFollowerBarks",delegate {return settings.GetBool(CompanionsSection,"DisableFollowerBarks");},false);
             DeathAnimation = Read("DeathAnimation", delegate { return settings.GetBool(CorpsesSection, "DeathAnimation"); }, true);
             DirectionalCorpses = Read("DirectionalCorpses", delegate { return settings.GetBool(CorpsesSection, "DirectionalCorpses"); }, false);
             VoiceMode = VoiceModes.FromSetting(Read("ANPCSounds", delegate { return settings.GetInt(SoundsSection, "ANPCSounds"); }, VoiceModes.Anpc));
@@ -100,7 +107,7 @@ namespace AdvancedNPCs
             AdvancedNpcsMod.Log("Settings: generic people " + Mode + ", at most " + MaxGenericPerTown + " per town; dungeons " + Dungeons +
                 ", interiors " + Interiors + ", wilderness " + Wilderness + " (at most " + MaxWildernessAround + " around you); death animation " +
                 DeathAnimation + ", directional corpses " + DirectionalCorpses + ", ANPC sounds " + VoiceModeName(VoiceMode) + ", footsteps " + Footsteps +
-                " (volume " + StepsVolume + "%).");
+                " (volume " + StepsVolume + "%), follower limit " + (MaxFollowers==0?"Unlimited (Not Recommended)":MaxFollowers.ToString()) + ".");
         }
 
         public static string VoiceModeName(int mode)

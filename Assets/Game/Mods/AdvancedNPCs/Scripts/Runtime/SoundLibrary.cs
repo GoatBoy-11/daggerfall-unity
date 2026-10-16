@@ -194,7 +194,7 @@ namespace AdvancedNPCs
                 string pool = SoundPools.PoolOf(Path.GetFileNameWithoutExtension(path));
                 if (pool == null)
                 {
-                    AdvancedNpcsMod.Log(label + "/" + file + ": not a greet, attack, attack_range, cast, hit, death or step sound; ignored");
+                    AdvancedNpcsMod.Log(label + "/" + file + ": not a greet, attack, attack_range, cast, heal, hit, death, step talk or supported cm_ companion sound; ignored");
                     continue;
                 }
                 List<string> list;
@@ -382,7 +382,7 @@ namespace AdvancedNPCs
             }
             try
             {
-                using (UnityWebRequest request = UnityWebRequestMultimedia.GetAudioClip("file://" + path, type))
+                using (UnityWebRequest request = UnityWebRequestMultimedia.GetAudioClip(new Uri(Path.GetFullPath(path)).AbsoluteUri, type))
                 {
                     DownloadHandlerAudioClip handler = request.downloadHandler as DownloadHandlerAudioClip;
                     if (handler == null)

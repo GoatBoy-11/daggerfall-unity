@@ -94,6 +94,10 @@ namespace AdvancedNPCs.Core
     /// <summary>What saying a line does besides flags (C2 spec §4). Zero / null / false = nothing.</summary>
     public class DialogueActions
     {
+        public Dictionary<string, NpcVariableValue> SetVariables = new Dictionary<string, NpcVariableValue>();
+        public Dictionary<string, NpcVariableValue> AddVariables = new Dictionary<string, NpcVariableValue>();
+        // Built-in companion topics only; runtime handles payment atomically.
+        public string Companion;
         public int GiveGold;
         public int TakeGold;
         public string GiveItem;
@@ -110,8 +114,8 @@ namespace AdvancedNPCs.Core
         {
             get
             {
-                return GiveGold == 0 && TakeGold == 0 && GiveItem == null && TakeItem == null && Reputation == 0 && Opinion == 0 && StartQuest == null &&
-                       !BecomeEnemy && !EndConversation;
+                return Companion == null && GiveGold == 0 && TakeGold == 0 && GiveItem == null && TakeItem == null && Reputation == 0 && Opinion == 0 && StartQuest == null &&
+                       !BecomeEnemy && !EndConversation && SetVariables.Count == 0 && AddVariables.Count == 0;
             }
         }
     }

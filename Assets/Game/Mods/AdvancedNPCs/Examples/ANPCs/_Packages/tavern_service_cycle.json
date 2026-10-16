@@ -1,0 +1,21 @@
+{
+  "$schema": "../_Schemas/package.schema.json",
+  "type": "sequence",
+  "parameters": {
+    "loop": true,
+    "steps": [
+      {
+        "package": "work_at",
+        "parameters": {
+          "spot": "home_service_post",
+          "animation": "idle"
+        },
+        "duration": 20
+      },
+      {
+        "package": "tavern_roam",
+        "duration": 15
+      }
+    ]
+  }
+}

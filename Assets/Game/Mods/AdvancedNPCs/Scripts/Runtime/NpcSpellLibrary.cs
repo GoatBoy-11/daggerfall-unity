@@ -64,6 +64,31 @@ namespace AdvancedNPCs
             return result;
         }
 
+        /// <summary>Only pure health heals may be copied into a support spell; no mixed harmful effects.</summary>
+        public static bool IsHealthHeal(EffectBundleSettings spell)
+        {
+            if (spell.TargetType != TargetTypes.CasterOnly || spell.Effects == null || spell.Effects.Length == 0) return false;
+            foreach (EffectEntry effect in spell.Effects)
+                if (effect.Key != "Heal-Health") return false;
+            return true;
+        }
+
+        public static bool IsSelfHealing(EffectBundleSettings spell)
+        {
+            if (spell.TargetType != TargetTypes.CasterOnly || spell.Effects == null || spell.Effects.Length == 0) return false;
+            foreach (EffectEntry effect in spell.Effects)
+                if (effect.Key != "Heal-Health" && effect.Key != "Regenerate") return false;
+            return Supported(spell);
+        }
+
+        public static bool IsProtection(EffectBundleSettings spell)
+        {
+            if (spell.TargetType != TargetTypes.CasterOnly || spell.Effects == null || spell.Effects.Length == 0) return false;
+            foreach (EffectEntry effect in spell.Effects)
+                if (!Defensive.Contains(effect.Key) || effect.Key == "Heal-Health" || effect.Key == "Regenerate") return false;
+            return Supported(spell);
+        }
+
         public static bool Supported(EffectBundleSettings spell)
         {
             bool self = spell.TargetType == TargetTypes.CasterOnly;

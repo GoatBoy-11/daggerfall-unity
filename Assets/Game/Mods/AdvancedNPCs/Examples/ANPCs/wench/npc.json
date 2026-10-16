@@ -13,9 +13,14 @@
       2
     ],
     "interiors": {
-      "buildings": ["Tavern"],
+      "buildings": [
+        "Tavern"
+      ],
       "chance": 60,
-      "count": [1, 1]
+      "count": [
+        1,
+        1
+      ]
     }
   },
   "baseClass": "Bard",
@@ -23,8 +28,39 @@
   "wanderRadius": 10,
   "portrait": "wench_unique",
   "dialogue": "tavern_wench",
-  "sounds": { "greetChance": 70, "stepPitchVariation": 0.06 },
+  "sounds": {
+    "greetChance": 70,
+    "stepPitchVariation": 0.06
+  },
   "conversation": {
     "enabled": true
-  }
+  },
+  "schedule": [
+    {
+      "package": "return_home",
+      "when": {
+        "maxHealth": 30
+      }
+    },
+    {
+      "hours": [
+        "07:00",
+        "23:00"
+      ],
+      "package": "tavern_service_cycle",
+      "when": {
+        "minHealth": 60
+      }
+    },
+    {
+      "hours": [
+        "07:00",
+        "23:00"
+      ],
+      "package": "tavern_roam"
+    },
+    {
+      "package": "return_home"
+    }
+  ]
 }

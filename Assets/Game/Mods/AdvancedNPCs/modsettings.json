@@ -60,6 +60,39 @@
             "$version": "v1"
         },
         {
+            "Name": "Companions",
+            "Description": "Recruitment limits for hired ANPC companions.",
+            "IsAdvanced": false,
+            "Keys": [
+                {
+                    "Options": [
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "8",
+                        "9",
+                        "10",
+                        "Unlimited (Not Recommended)"
+                    ],
+                    "Value": 0,
+                    "Name": "MaxFollowers",
+                    "Description": "Maximum hired companions, including those waiting elsewhere.\rEscort NPCs with no_companion_slot do not count.\rLowering this limit keeps your existing party.\rUnlimited parties may reduce performance.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.MultipleChoiceKey"
+                },
+                {
+                    "Value": false,
+                    "Name": "DisableFollowerBarks",
+                    "Description": "Disable follower barks.\rSilences cm_ companion speech and hides the individual bark option.\rCombat voices and footsteps keep their own settings.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                }
+            ],
+            "$version": "v1"
+        },
+        {
             "Name": "Corpses",
             "Description": "Bodies of ANPCs with their own sprite sets.",
             "IsAdvanced": false,

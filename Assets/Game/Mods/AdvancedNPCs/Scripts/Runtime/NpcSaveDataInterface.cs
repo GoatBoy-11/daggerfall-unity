@@ -52,8 +52,11 @@ namespace AdvancedNPCs
             data.Version = SaveFormat.Current;
             foreach (NpcBrain brain in NpcBrain.All())
             {
-                NpcMagic magic = brain.GetComponent<NpcMagic>();
-                if (magic != null) magic.Capture();
+                brain.CaptureState();
+                string area; UnityEngine.Transform parent;
+                if (brain.State.companion != null && CompanionRoster.CurrentArea(out area, out parent) &&
+                    brain.State.companion.area == area && brain.gameObject.activeInHierarchy)
+                    AdvancedNpcsMod.Instance.Companions.CaptureLocation(brain, area);
             }
             data.MagicArea = AdvancedNpcsMod.Instance.MagicWorld.Area;
             data.MagicVisit = AdvancedNpcsMod.Instance.MagicWorld.Visit;

@@ -1,0 +1,549 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ANPC AI package",
+  "description": "Optional reusable local AI behaviour. Route pauses use game seconds; guard idle intervals and follow retries use active gameplay seconds.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "stand"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "wander"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "center": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": -100,
+                "maximum": 100
+              },
+              "minItems": 3,
+              "maxItems": 3,
+              "description": "Metre offsets from the NPC's home, in its area's local axes."
+            },
+            "radius": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 50,
+              "default": 8
+            },
+            "pause": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3600,
+              "default": 3
+            },
+            "run": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "travel_to"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "target": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": -100,
+                "maximum": 100
+              },
+              "minItems": 3,
+              "maxItems": 3,
+              "description": "Metre offsets from the NPC's home, in its area's local axes."
+            },
+            "run": {
+              "type": "boolean",
+              "default": false
+            },
+            "spot": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9_]+$"
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "not": {
+                "required": [
+                  "spot",
+                  "target"
+                ]
+              }
+            }
+          ],
+          "anyOf": [
+            {
+              "required": [
+                "target"
+              ]
+            },
+            {
+              "required": [
+                "spot"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "parameters"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "patrol"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "points": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": -100,
+                  "maximum": 100
+                },
+                "minItems": 3,
+                "maxItems": 3,
+                "description": "Metre offsets from the NPC's home, in its area's local axes."
+              },
+              "minItems": 2,
+              "maxItems": 32
+            },
+            "pauseAtStops": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3600,
+              "default": 10
+            },
+            "run": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "points"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "parameters"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "play_animation"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "animation": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+              "maxLength": 64,
+              "default": "idle",
+              "description": "Sheet or family name without .png. A base name selects numbered variants; a numbered name selects exactly that sheet."
+            },
+            "only_interrupt_at_combat": {
+              "type": "boolean",
+              "default": false,
+              "description": "Suppress social and calm healing interruptions; combat, death and physical effects take priority."
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "guard_spot"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "position": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": -1000000,
+                "maximum": 1000000
+              },
+              "minItems": 3,
+              "maxItems": 3,
+              "description": "Absolute coordinates in the current area, from anpc_pos. Omit to capture the NPC current position."
+            },
+            "idleInterval": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0.1,
+                "maximum": 3600
+              },
+              "minItems": 2,
+              "maxItems": 2,
+              "default": [
+                6,
+                15
+              ],
+              "description": "Minimum and maximum seconds of active gameplay between idle animations. Minimum must not exceed maximum."
+            },
+            "spot": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9_]+$"
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "not": {
+                "required": [
+                  "spot",
+                  "position"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "follow"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "default": "player",
+              "description": "player or exact spawned ANPC id/key; must be in the same loaded area."
+            },
+            "distance": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 20,
+              "default": 2
+            },
+            "runDistance": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 6,
+              "description": "Must be at least distance + 0.5 metres. Running respects combat.canRun and runSpeed."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "work_at"
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "position": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "number",
+                "minimum": -1000000,
+                "maximum": 1000000
+              }
+            },
+            "spot": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9_]+$"
+                  }
+                }
+              ]
+            },
+            "animation": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+              "maxLength": 64,
+              "default": "idle"
+            },
+            "facing": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 360
+            },
+            "run": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "not": {
+            "required": [
+              "position",
+              "spot"
+            ]
+          }
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "sequence"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "package": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9_]+$"
+                  },
+                  "parameters": {
+                    "type": "object"
+                  },
+                  "duration": {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "maximum": 86400,
+                    "description": "Active gameplay seconds, excluding interruptions and travel to work/guard posts."
+                  }
+                },
+                "required": [
+                  "package"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "loop": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "steps"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "parameters"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "wander_civilian"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "center": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": -100,
+                "maximum": 100
+              },
+              "minItems": 3,
+              "maxItems": 3,
+              "description": "Metre offsets from the NPC's home, in its area's local axes."
+            },
+            "radius": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 50,
+              "default": 40
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "description": "Road-favouring town wander with 1-4 full animation cycles at occasional stops; equal idle/activity chance, with idle fallback."
+    }
+  ]
+}

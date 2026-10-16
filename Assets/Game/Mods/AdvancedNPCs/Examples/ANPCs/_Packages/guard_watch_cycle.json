@@ -1,0 +1,20 @@
+{
+  "$schema": "../_Schemas/package.schema.json",
+  "type": "sequence",
+  "parameters": {
+    "loop": true,
+    "steps": [
+      {
+        "package": "guard_patrol",
+        "duration": 45
+      },
+      {
+        "package": "guard_spot",
+        "parameters": {
+          "spot": "home_guard_post"
+        },
+        "duration": 25
+      }
+    ]
+  }
+}

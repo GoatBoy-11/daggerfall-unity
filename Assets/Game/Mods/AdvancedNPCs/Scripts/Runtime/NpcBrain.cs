@@ -16,7 +16,7 @@ namespace AdvancedNPCs
     /// Undoes GameManager.MakeEnemiesHostile() for NPCs that were not actually attacked.
     /// </summary>
     [RequireComponent(typeof(NpcMover))]
-    public class NpcBrain : MonoBehaviour
+    public class NpcBrain : MonoBehaviour, INpcVariableFacts
     {
 
         const float SafeDistance = 30f;
@@ -53,6 +53,70 @@ namespace AdvancedNPCs
         float holdStill;        // seconds the calm NPC stands still (greeting)
         NpcGait gait;
         float patrolTimer;
+        NpcPackageDriver packages;
+        NpcCompanionCombat companionCombat;
+        NpcGuard guard;
+        public NpcGuard Guard { get { return guard; } }
+        public bool EnforcingLaw { get { return guard != null && guard.OwnsTarget; } }
+        public NpcCompanionCombat CompanionCombat { get { return companionCombat; } }
+        bool packageControlled;
+        public bool PackageRunning { get { return mode == NpcMode.Calm && packages != null && packages.Running; } }
+        public string PackageDescription { get { return packages != null ? packages.Description : "current AI (no schedule)"; } }
+        bool INpcVariableFacts.TryGetVariable(string name, out NpcVariableValue value)
+        { return NpcVariables.TryGet(def, state, name, out value); }
+        public bool TryGetVariable(string name, out NpcVariableValue value)
+        {
+            if (!NpcVariables.TryGet(def, state, name, out value)) return false;
+            value = value.Clone();
+            return true;
+        }
+        public bool TrySetVariable(string name, NpcVariableValue value, out string error)
+        { return NpcVariables.Set(def, state, name, value, out error); }
+        public bool TryAddVariable(string name, int amount, out string error)
+        { return NpcVariables.Add(def, state, name, amount, out error); }
+        public bool SetVariable(string name, bool value) { return SetVariableValue(name, new NpcVariableValue(value)); }
+        public bool SetVariable(string name, int value) { return SetVariableValue(name, new NpcVariableValue(value)); }
+        bool SetVariableValue(string name, NpcVariableValue value)
+        {
+            string error;
+            if (TrySetVariable(name, value, out error)) return true;
+            AdvancedNpcsMod.LogError(key + ": " + error);
+            return false;
+        }
+        public bool AddVariable(string name, int amount)
+        {
+            string error;
+            if (TryAddVariable(name, amount, out error)) return true;
+            AdvancedNpcsMod.LogError(key + ": " + error);
+            return false;
+        }
+        public string DescribeVariables()
+        {
+            var lines = new List<string>();
+            if (def != null)
+                foreach (string name in def.Variables.Keys)
+                {
+                    NpcVariableValue value;
+                    lines.Add(name + "=" + (TryGetVariable(name, out value) ? value.ToString() : "<incompatible saved type>"));
+                }
+            lines.Sort(System.StringComparer.Ordinal);
+            return lines.Count == 0 ? "none" : string.Join(", ", lines.ToArray());
+        }
+        public Bravery EffectiveBravery { get { return def.Guard || (packages != null && packages.Guarding) ? Bravery.Brave : def.Bravery; } }
+        public bool PackageWorkAtPost { get { return isActiveAndEnabled && mode == NpcMode.Calm && packages != null && packages.AtWorkPost; } }
+        public bool PackageOnlyCombatInterrupts { get { return isActiveAndEnabled && mode == NpcMode.Calm && packages != null && packages.OnlyCombatInterrupts; } }
+        public bool CivilianAnimation
+        {
+            get { return isActiveAndEnabled && packages != null && mode == NpcMode.Calm && holdStill <= 0 && !GameManager.IsGamePaused && packages.CivilianPaused; }
+        }
+        public PackageSettings GuardAnimation
+        {
+            get { return isActiveAndEnabled && packages != null && mode == NpcMode.Calm && holdStill <= 0 && !GameManager.IsGamePaused ? packages.GuardSettings : null; }
+        }
+        public string PackageAnimation
+        {
+            get { return isActiveAndEnabled && packages != null && mode == NpcMode.Calm && (holdStill <= 0 || PackageOnlyCombatInterrupts) && (!GameManager.IsGamePaused || PackageOnlyCombatInterrupts) ? packages.Animation : null; }
+        }
         static Collider[] nearby = new Collider[64];
         const int MaxNearby = 512;
         System.Random rng;
@@ -71,9 +135,12 @@ namespace AdvancedNPCs
         {
             if (brain == null)
                 return;
+            brain.CaptureState();
+            brain.gameObject.SetActive(false);
             NpcBrain current;
             if (brain.key != null && live.TryGetValue(brain.key, out current) && current == brain)
                 live.Remove(brain.key);
+            if (brain.packages != null) brain.packages.Dispose();
             Destroy(brain.gameObject);
         }
 
@@ -89,7 +156,7 @@ namespace AdvancedNPCs
             return result;
         }
 
-        /// <summary>Most metres this person wanders from its spot (indoors 3 m, spec outside-towns §7).</summary>
+        /// <summary>Most metres this person wanders from its spot (indoors 3 m, spec outside-towns Â§7).</summary>
         public float WanderCap = float.MaxValue;
 
         /// <summary>A stand-in's "stayNear": metres it keeps to around its spot while calm (walks back after a fight); 0 = none.</summary>
@@ -221,7 +288,7 @@ namespace AdvancedNPCs
             get { return def; }
         }
 
-        /// <summary>Personal opinion of the player now (spec opinion-lod §A), -100..100.</summary>
+        /// <summary>Personal opinion of the player now (spec opinion-lod Â§A), -100..100.</summary>
         public int Opinion
         {
             get { return state != null ? OpinionRules.Current(state.opinion, state.opinionAt, Now()) : 0; }
@@ -276,7 +343,7 @@ namespace AdvancedNPCs
             holdStill = Mathf.Max(holdStill, seconds);
         }
 
-        bool IsTurret
+        internal bool IsTurret
         {
             get { return gait != null && gait.IsTurret; }
         }
@@ -304,19 +371,26 @@ namespace AdvancedNPCs
                     text += ", opinion " + opinion;
                 if (def != null && def.Magic != null && entityBehaviour != null)
                     text += def.Magic.UsesMagicka ? ", magicka " + state.magicka + "/" + def.Magic.MaxMagicka : ", unlimited magicka";
+                if (guard != null) text += ", guard " + guard.Description;
+                if (state != null && state.wantedCrime != 0) text += ", wanted for " + (PlayerEntity.Crimes)state.wantedCrime;
                 return text;
             }
         }
 
-        /// <summary>What an author wants to know about this ANPC (anpc_info, spec tools-quality §A1), one fact per line.</summary>
+        /// <summary>What an author wants to know about this ANPC (anpc_info, spec tools-quality Â§A1), one fact per line.</summary>
         public string Describe()
         {
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             sb.Append(Id).Append(" (").Append(DisplayName).Append(")\n");
             if (def != null)
                 sb.Append("  key ").Append(key).Append(", ").Append(def.Kind == NpcKind.Unique ? "unique" : "generic")
-                  .Append(", folder ").Append(def.Folder).Append(", bravery ").Append(def.Bravery).Append('\n');
+                  .Append(", folder ").Append(def.Folder).Append(", bravery ").Append(EffectiveBravery).Append('\n');
             sb.Append("  ").Append(Status).Append('\n');
+            sb.Append("  variables: ").Append(DescribeVariables()).Append('\n');
+            sb.Append("  package: ").Append(PackageDescription);
+            if (packages != null && (mode != NpcMode.Calm || holdStill > 0 || (IsTurret && !packages.AllowsStationary) || GameManager.IsGamePaused))
+                sb.Append(" (interrupted)");
+            sb.Append('\n');
             sb.Append("  enemy: ").Append(enemy ? "yes" : "no");
             if (state != null && state.hostile)
             {
@@ -386,6 +460,8 @@ namespace AdvancedNPCs
             if (target != null)
                 sb.Append(senses.TargetInSight ? " (in sight)" : " (not in sight)");
             sb.Append(", ").Append(distance.ToString("0.0")).Append(" m from you\n");
+            if(companionCombat!=null && companionCombat.Active) sb.Append("  combat: ").Append(companionCombat.Description).Append('\n');
+            if (state.companion != null) sb.Append("  companion: ").Append(state.companion.status).Append(", area ").Append(state.companion.area).Append('\n');
             sb.Append("  LOD: updates every ").Append(NpcLod.Interval(distance, false)).Append(" frame(s) when calm");
             return sb.ToString();
         }
@@ -399,7 +475,13 @@ namespace AdvancedNPCs
             transform.position = worldPos;
             controller.enabled = wasEnabled;
             homeLocal = transform.localPosition;
+            if(companionCombat!=null) companionCombat.Reanchor();
             hasWanderTarget = false;
+            if (packages != null || state.companion != null || (def.Schedule != null && def.Schedule.Count > 0))
+            {
+                if (packages != null) packages.Dispose();
+                packages = new NpcPackageDriver(this, mover);
+            }
             NpcGait g = GetComponent<NpcGait>();
             if (g != null)
                 g.Repin();
@@ -410,7 +492,7 @@ namespace AdvancedNPCs
             foreach (NpcBrain b in new List<NpcBrain>(live.Values))
             {
                 if (b != null)
-                    Destroy(b.gameObject);
+                    Discard(b);
             }
             live.Clear();
         }
@@ -421,6 +503,13 @@ namespace AdvancedNPCs
             def = npcInstance.Definition;
             key = npcInstance.Key;
             state = npcState;
+            if (state.variables != null)
+                foreach (var p in state.variables)
+                {
+                    NpcVariableValue initial;
+                    if (def.Variables.TryGetValue(p.Key, out initial) && (p.Value == null || p.Value.isBoolean != initial.isBoolean))
+                        AdvancedNpcsMod.LogError(key + ": saved variable " + p.Key + " has an incompatible type; conditions cannot match until corrected");
+                }
             rng = new System.Random((int)npcInstance.Seed ^ System.Environment.TickCount);
             live[key] = this;
         }
@@ -435,13 +524,18 @@ namespace AdvancedNPCs
             gait = GetComponent<NpcGait>();
             patrolTimer = Random.Range(0f, AggroRules.CheckInterval);
             homeLocal = transform.localPosition;
+            if (state.companion != null || (def.Schedule != null && def.Schedule.Count > 0))
+                packages = new NpcPackageDriver(this, mover);
 
             // No language pacification roll: it would turn a player's attack back off before Update sees it.
             senses.HasEncounteredPlayer = true;
 
+            if (state.companion != null && state.companion.maxHealth > 0)
+                entityBehaviour.Entity.MaxHealth = state.companion.maxHealth;
             int restored = HealthRules.Restore(entityBehaviour.Entity.MaxHealth, state.healthFraction);
             if (restored != entityBehaviour.Entity.CurrentHealth)
                 entityBehaviour.Entity.CurrentHealth = restored;
+            if (state.companion != null) NpcCompanionInventory.For(this);
             lastHealth = entityBehaviour.Entity.CurrentHealth;
             entityBehaviour.Entity.OnDeath += OnDeath;
 
@@ -458,10 +552,35 @@ namespace AdvancedNPCs
                 SetMode(NpcMode.Calm);
             }
             RefreshEnemy();
+            if(def.RecruitCost>=0 || state.companion!=null)
+            { companionCombat=gameObject.AddComponent<NpcCompanionCombat>(); companionCombat.Init(this); }
+            NpcMagic.EnsureCompanion(this);
+            if (def.Guard) guard = new NpcGuard(this);
         }
+
+        // Companion policy owns permission and pursuit; the existing state machine owns component modes.
+        public void CompanionMode(DaggerfallEntityBehaviour target, NpcMode wanted)
+        { threat=target; if(mode!=wanted) SetMode(wanted); }
+        public void CompanionBetrayed() { OnAttackedByPlayer(); }
+        public bool CompanionWouldFlee()
+        { return HostilityRules.Decide(EffectiveBravery, HealthFraction(), def.FleeHealthPercent, def.FleeChance, ref fleeRoll, rng.NextDouble())==CombatChoice.Flee; }
+
+        public void CaptureState()
+        {
+            if (entityBehaviour == null || entityBehaviour.Entity == null) return;
+            if (mode != NpcMode.Dead)
+                state.healthFraction = HealthRules.Fraction(entityBehaviour.Entity.CurrentHealth, entityBehaviour.Entity.MaxHealth);
+            if (state.companion != null) { state.companion.maxHealth = entityBehaviour.Entity.MaxHealth; if (!state.dead) NpcCompanionInventory.For(this).Capture(); }
+            NpcMagic magic = GetComponent<NpcMagic>();
+            if (magic != null) magic.Capture();
+        }
+
+        void OnDisable() { CaptureState(); if (guard != null) guard.Release(); if (packages != null) packages.Suspend(); }
 
         void OnDestroy()
         {
+            if (guard != null) guard.Release();
+            if (packages != null) packages.Dispose();
             if (entityBehaviour != null && entityBehaviour.Entity != null)
             {
                 entityBehaviour.Entity.OnDeath -= OnDeath;
@@ -478,11 +597,26 @@ namespace AdvancedNPCs
             if (mode == NpcMode.Dead || entityBehaviour == null)
                 return;
 
+            if (packages != null)
+            {
+                Bravery before = EffectiveBravery;
+                packages.Pause();
+                packages.Select(AdvancedNpcsMod.Instance != null ? AdvancedNpcsMod.Instance.Packages : null, Now());
+                if (before != EffectiveBravery) fleeRoll = new FleeRoll();
+            }
             DaggerfallEntityBehaviour player = GameManager.Instance.PlayerEntityBehaviour;
             int health = entityBehaviour.Entity.CurrentHealth;
             bool healthDropped = health < lastHealth;
             lastHealth = health;
             state.healthFraction = HealthRules.Fraction(health, entityBehaviour.Entity.MaxHealth);
+
+            if(companionCombat!=null && companionCombat.Active)
+            {
+                bool controlled=companionCombat.Tick();
+                if(companionCombat.Active) { if(!controlled) UpdateCalm(); return; }
+            }
+
+            if (guard != null && guard.OwnsTarget && guard.Tick()) return;
 
             // Hostility guard: decide why IsHostile changed before anything else reads it.
             // GiveUpTimer is zeroed every calm frame; only MakeEnemyHostileToAttacker raises it while the motor is off.
@@ -512,6 +646,8 @@ namespace AdvancedNPCs
                 OnAttackedByCreature(senses.Target);
             }
 
+            if (guard != null && guard.Tick()) return;
+
             // Keep vanilla in line with our state (EnemyMotor.Start resets IsHostile from MobileReactions).
             motor.IsHostile = state.hostile;
 
@@ -528,7 +664,7 @@ namespace AdvancedNPCs
                         break;
                     }
                     motor.GiveUpTimer = 0;
-                    if (def.Bravery == Bravery.Brave && Patrol())
+                    if (EffectiveBravery == Bravery.Brave && Patrol())
                         break;
                     UpdateCalm();
                     break;
@@ -561,7 +697,7 @@ namespace AdvancedNPCs
             EnterCombat();
         }
 
-        /// <summary>A calm Brave ANPC attacks the nearest foe it sees within aggroRange (spec lazy-sprites §D).</summary>
+        /// <summary>A calm Brave ANPC attacks the nearest foe it sees within aggroRange (spec lazy-sprites Â§D).</summary>
         bool Patrol()
         {
             patrolTimer -= Time.deltaTime;
@@ -634,7 +770,7 @@ namespace AdvancedNPCs
 
         void EnterCombat()
         {
-            CombatChoice choice = HostilityRules.Decide(def.Bravery, HealthFraction(), def.FleeHealthPercent, def.FleeChance, ref fleeRoll, rng.NextDouble());
+            CombatChoice choice = HostilityRules.Decide(EffectiveBravery, HealthFraction(), def.FleeHealthPercent, def.FleeChance, ref fleeRoll, rng.NextDouble());
             SetMode(choice == CombatChoice.Flee ? NpcMode.Fleeing : NpcMode.Fighting);
         }
 
@@ -652,7 +788,8 @@ namespace AdvancedNPCs
                 motor.IsHostile = false;
                 // Hours have passed; the NPC has recovered.
                 entityBehaviour.Entity.CurrentHealth = entityBehaviour.Entity.MaxHealth;
-                lastHealth = entityBehaviour.Entity.CurrentHealth;
+                if (state.companion != null) NpcCompanionInventory.For(this);
+            lastHealth = entityBehaviour.Entity.CurrentHealth;
                 state.healthFraction = 1f;
                 AdvancedNpcsMod.Log(key + ": calmed down.");
                 if (threat == GameManager.Instance.PlayerEntityBehaviour)
@@ -662,12 +799,26 @@ namespace AdvancedNPCs
 
         void UpdateCalm()
         {
-            if (holdStill > 0f || IsTurret)
+            if (packages != null && GameManager.IsGamePaused)
             {
-                holdStill = Mathf.Max(0f, holdStill - Time.deltaTime);
+                packages.InterruptFollow();
                 mover.Stop();
                 return;
             }
+            if (holdStill > 0f)
+            {
+                holdStill = Mathf.Max(0f, holdStill - Time.deltaTime);
+                if (!PackageOnlyCombatInterrupts) { if (packages != null) packages.InterruptFollow(); mover.Stop(); return; }
+            }
+            if (packages != null && (!IsTurret || packages.AllowsStationary))
+            {
+                bool controlled = packages.Tick(homeLocal, Now(), Time.deltaTime);
+                if (controlled != packageControlled)
+                    hasWanderTarget = false;
+                packageControlled = controlled;
+                if (controlled) return;
+            }
+            if (IsTurret) { mover.Stop(); return; }
             float wanderRadius = Mathf.Min(def.WanderRadius, WanderCap);
             if (Leash > 0f)
             {
@@ -722,7 +873,7 @@ namespace AdvancedNPCs
             }
             if (threat != GameManager.Instance.PlayerEntityBehaviour)
                 senses.Target = threat;
-            if (HostilityRules.Decide(def.Bravery, HealthFraction(), def.FleeHealthPercent, def.FleeChance, ref fleeRoll, rng.NextDouble()) == CombatChoice.Flee)
+            if (HostilityRules.Decide(EffectiveBravery, HealthFraction(), def.FleeHealthPercent, def.FleeChance, ref fleeRoll, rng.NextDouble()) == CombatChoice.Flee)
                 SetMode(NpcMode.Fleeing);
         }
 
@@ -744,6 +895,11 @@ namespace AdvancedNPCs
             {
                 CountHelp();
                 EndCreatureFight();
+                return;
+            }
+            if (EffectiveBravery == Bravery.Brave)
+            {
+                EnterCombat();
                 return;
             }
             float distance = Vector3.Distance(transform.position, threat.transform.position);
@@ -788,6 +944,7 @@ namespace AdvancedNPCs
         void SetMode(NpcMode newMode)
         {
             mode = newMode;
+            if (packages != null && newMode != NpcMode.Calm) packages.Pause();
             bool fighting = newMode == NpcMode.Fighting;
             motor.enabled = fighting;
             attack.enabled = fighting;
@@ -813,13 +970,22 @@ namespace AdvancedNPCs
             bool fightingCreature = threat != null && threat != GameManager.Instance.PlayerEntityBehaviour;
 
             mode = NpcMode.Dead;
+            // Clear lawful hostility before DFU supplies the killing blow's actual attacker.
+            if (guard != null) guard.Release();
+            if (packages != null) packages.Dispose();
             state.dead = true;
+            // Native EnemyDeath transfers the live items to its corpse. The contract no longer owns them.
+            if (state.companion != null && GetComponent<NpcCompanionInventory>() != null && GetComponent<NpcCompanionInventory>().Ready)
+            {
+                // Native corpses clear Head..Feet only; companion rings/amulets/gems can also be worn.
+                CompanionEquipment.StopAll(entity);state.companion.belongings=null;
+            }
             state.hostile = false;
             NpcVoice voice = GetComponent<NpcVoice>();
             if (voice != null)
                 voice.OnDied();
 
-            // Custom sprites: the death sheet plays and the body stays as the corpse (spec 1b §6.4).
+            // Custom sprites: the death sheet plays and the body stays as the corpse (spec 1b Â§6.4).
             NpcSprite sprite = GetComponent<NpcSprite>();
             if (sprite != null && sprite.Set != null && NpcCorpseSprite.Spawn(sprite, entityBehaviour) != null)
                 sprite.Hide();

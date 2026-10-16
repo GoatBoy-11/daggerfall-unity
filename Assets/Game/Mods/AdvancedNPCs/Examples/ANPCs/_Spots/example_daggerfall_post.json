@@ -1,0 +1,18 @@
+{
+  "relativeTo": "area",
+  "location": {
+    "region": "Daggerfall",
+    "place": "Daggerfall",
+    "context": "outdoors"
+  },
+  "position": [
+    73.3,
+    0.96,
+    649.53
+  ],
+  "tags": [
+    "example_workstation"
+  ],
+  "capacity": 1,
+  "facing": 180
+}

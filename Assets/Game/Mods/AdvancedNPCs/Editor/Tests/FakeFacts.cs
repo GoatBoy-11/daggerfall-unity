@@ -5,10 +5,20 @@ using AdvancedNPCs.Core;
 namespace AdvancedNPCs.Tests
 {
     /// <summary>Settable IDialogueFacts and IDialogueState for Core dialogue tests.</summary>
-    public class FakeFacts : IDialogueFacts, IDialogueState
+    public class FakeFacts : IDialogueFacts, IDialogueState, INpcVariableFacts, INpcPersonalFacts
     {
+        public readonly Dictionary<string, NpcVariableValue> Variables = new Dictionary<string, NpcVariableValue>();
+        public bool TryGetVariable(string name, out NpcVariableValue value) { return Variables.TryGetValue(name, out value); }
+        public bool PersonalState = true;
+        public bool HasPersonalState { get { return PersonalState; } }
+        public int OpinionValue;
+        public double HealthValue = 100;
+        public int Opinion { get { return OpinionValue; } }
+        public double HealthPercent { get { return HealthValue; } }
         public int HourValue = 12;
         public bool Night;
+        public bool Inside;
+        public bool Indoors { get { return Inside; } }
         public string SeasonValue = "summer";
         public bool Rain, Storm, Snow, Clouds;
         public string RegionValue = "Daggerfall";

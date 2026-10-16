@@ -65,6 +65,74 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void HealingIsOptInAndSupportsFriendlyPlayerAndAllies()
+        {
+            Assert.IsNull(Parse("\"spells\":[\"Heal\"]").Definition.Magic.Healing);
+            ParseResult defaults = Parse("\"spells\":[\"Heal\"],\"healing\":{}");
+            Assert.IsTrue(defaults.Ok, defaults.Error);
+            Assert.IsTrue(defaults.Definition.Magic.Healing.Allies);
+            Assert.AreEqual("friendly", defaults.Definition.Magic.Healing.Player);
+            Assert.IsTrue(defaults.Definition.Magic.Healing.OutsideCombat);
+            Assert.AreEqual(0.6, defaults.Definition.Magic.Healing.HealthThreshold);
+            ParseResult custom = Parse("\"spells\":[\"Heal\"],\"healing\":{\"allies\":false,\"player\":\"None\",\"outsideCombat\":false,\"healthThreshold\":1}");
+            Assert.IsTrue(custom.Ok, custom.Error);
+            Assert.IsFalse(custom.Definition.Magic.Healing.Allies);
+            Assert.AreEqual("none", custom.Definition.Magic.Healing.Player);
+            Assert.IsFalse(custom.Definition.Magic.Healing.OutsideCombat);
+            Assert.AreEqual(1f, custom.Definition.Magic.Healing.HealthThreshold);
+        }
+
+        [TestCase("true")]
+        [TestCase("{\"allies\":\"yes\"}")]
+        [TestCase("{\"player\":\"anyone\"}")]
+        [TestCase("{\"outsideCombat\":1}")]
+        [TestCase("{\"healthThreshold\":0}")]
+        [TestCase("{\"healthThreshold\":1.1}")]
+        [TestCase("{\"healthThreshold\":\"low\"}")]
+        public void InvalidHealingSettingsExplainTheirField(string healing)
+        {
+            ParseResult p = Parse("\"spells\":[],\"healing\":" + healing);
+            Assert.IsFalse(p.Ok);
+            StringAssert.Contains("magic: healing", p.Error);
+        }
+
+        [Test]
+        public void HealingUnknownFieldsWarnAtTheirFullPath()
+        {
+            ParseResult p = Parse("\"spells\":[],\"healing\":{\"allie\":true}");
+            Assert.IsTrue(p.Ok, p.Error);
+            Assert.IsTrue(p.Warnings.Exists(delegate(string s) { return s.Contains("magic.healing.allie"); }));
+        }
+
+        [TestCase(0, 100, false)]
+        [TestCase(-1, 100, false)]
+        [TestCase(1, 0, false)]
+        [TestCase(59, 100, true)]
+        [TestCase(60, 100, false)]
+        [TestCase(100, 100, false)]
+        public void HealingRequiresLivingWoundedRecipient(int health, int max, bool expected)
+        {
+            Assert.AreEqual(expected, NpcHealingRules.NeedsHealing(health, max, 0.6));
+        }
+
+        [Test]
+        public void HealingRelationsRejectAngerEnemiesAndOpponents()
+        {
+            Assert.IsTrue(NpcHealingRules.FriendlyPlayer(false, false, "likes"));
+            Assert.IsTrue(NpcHealingRules.FriendlyPlayer(false, false, "loves"));
+            Assert.IsFalse(NpcHealingRules.FriendlyPlayer(false, false, "neutral"));
+            Assert.IsFalse(NpcHealingRules.FriendlyPlayer(false, false, "dislikes"));
+            Assert.IsFalse(NpcHealingRules.FriendlyPlayer(true, false, "loves"));
+            Assert.IsFalse(NpcHealingRules.FriendlyPlayer(false, true, "loves"));
+            Assert.IsTrue(NpcHealingRules.Allies(false, false, false, false, false));
+            Assert.IsTrue(NpcHealingRules.Allies(true, true, true, true, false));
+            Assert.IsFalse(NpcHealingRules.Allies(false, false, true, true, false));
+            Assert.IsFalse(NpcHealingRules.Allies(false, true, false, false, false));
+            Assert.IsFalse(NpcHealingRules.Allies(false, false, false, true, false));
+            Assert.IsFalse(NpcHealingRules.Allies(true, true, true, true, true));
+        }
+
+        [Test]
         public void UnknownNestedFieldsWarn()
         {
             ParseResult r = Parse("\"spells\":[],\"castCooldon\":[4,7]");

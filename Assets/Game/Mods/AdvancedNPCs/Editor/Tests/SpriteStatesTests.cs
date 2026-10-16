@@ -88,6 +88,19 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void HealingPrefersNumberedSheetsThenCastThenAttackThenNothing()
+        {
+            Assert.AreEqual(SpriteStates.Heal, SpriteStates.StateOf("Heal_2"));
+            Assert.IsTrue(SpriteStates.Loads("heal_1", false));
+            Assert.IsNull(SpriteStates.StateOf("heal_extra"));
+            CollectionAssert.AreEqual(new[] { "heal_1", "heal_2" }, Names(SpriteStates.Variants(Set("idle", "attack", "cast", "heal_2", "heal_1"), SpriteStates.Heal)));
+            CollectionAssert.AreEqual(new[] { "cast" }, Names(SpriteStates.Variants(Set("idle", "attack", "cast"), SpriteStates.Heal)));
+            CollectionAssert.AreEqual(new[] { "attack_1", "attack_2" }, Names(SpriteStates.Variants(Set("idle", "attack_2", "attack_1"), SpriteStates.Heal)));
+            Assert.IsEmpty(SpriteStates.Variants(Set("idle"), SpriteStates.Heal));
+            Assert.IsFalse(SpriteStates.IsAttackSheet("heal_1"));
+        }
+
+        [Test]
         public void RangedAttack_PrefersDedicatedSheetThenFallsBackToAttackThenIdle()
         {
             SpriteSet both = Set("idle_1", "attack_1", "attack_range_1");
@@ -96,6 +109,13 @@ namespace AdvancedNPCs.Tests
             CollectionAssert.AreEqual(new[] { "attack_1" }, Names(SpriteStates.Variants(both, SpriteStates.Attack)));
             CollectionAssert.AreEqual(new[] { "attack_1" }, Names(SpriteStates.Variants(Set("idle_1", "attack_1"), SpriteStates.RangedAttack)));
             CollectionAssert.AreEqual(new[] { "idle_1" }, Names(SpriteStates.Variants(Set("idle_1"), SpriteStates.RangedAttack)));
+        }
+
+        [Test]
+        public void BothRangedSpellingsAndNumberedVariantsShareSelection()
+        {
+            CollectionAssert.AreEqual(new[]{"attack_range","attack_range_2","attack_ranged","attack_ranged_3"},
+                Names(SpriteStates.Variants(Set("idle","attack","attack_ranged_3","attack_range_2","attack_range","attack_ranged"),SpriteStates.RangedAttack)));
         }
 
         [TestCase("projectile", true)]
