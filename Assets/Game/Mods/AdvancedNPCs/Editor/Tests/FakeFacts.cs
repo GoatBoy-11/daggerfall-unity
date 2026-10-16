@@ -17,6 +17,8 @@ namespace AdvancedNPCs.Tests
         public double HealthPercent { get { return HealthValue; } }
         public int HourValue = 12;
         public bool Night;
+        public bool Inside;
+        public bool Indoors { get { return Inside; } }
         public string SeasonValue = "summer";
         public bool Rain, Storm, Snow, Clouds;
         public string RegionValue = "Daggerfall";

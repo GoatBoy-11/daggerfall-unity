@@ -39,6 +39,10 @@ namespace AdvancedNPCs.Core
         public string NameList = "";
         /// <summary>World height of a custom sprite's standing pose; 0 = the vanilla class sprite's height.</summary>
         public float SpriteHeight;
+        /// <summary>Optional recruitment price; -1 disables companion commands.</summary>
+        public int RecruitCost = -1;
+        /// <summary>"no_companion_slot": may join without consuming a limited party slot.</summary>
+        public bool NoCompanionSlot;
         /// <summary>Vertical-only custom sprite scale, anchored at the feet; 1 keeps the original proportions.</summary>
         public float SpriteHeightScale = 1f;
         /// <summary>"spriteScale": shrinks or grows the whole custom sprite evenly (0.2-2); 1 keeps the default size.</summary>
@@ -54,6 +58,7 @@ namespace AdvancedNPCs.Core
         public float CalmDownMinHours;
         public float CalmDownMaxHours;
         public bool CrimeOnAttack;
+        public bool Guard;
         /// <summary>"attitude": "hostile": an enemy (attacks the player on sight, no crime to fight).</summary>
         public bool Hostile;
         /// <summary>"hostileHours" [from, to): hostile only in those hours; -1 = always.</summary>

@@ -321,6 +321,14 @@
           "minimum": 0,
           "maximum": 100,
           "description": "This NPC health percentage."
+        },
+        "indoors": {
+          "type": "boolean",
+          "description": "NPC is in a building interior (tavern, house, shop, etc.) or dungeon. False requires outdoors."
+        },
+        "outdoors": {
+          "type": "boolean",
+          "description": "NPC is outdoors in a town/city or wilderness. False requires indoors."
         }
       }
     },

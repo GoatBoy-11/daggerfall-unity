@@ -112,7 +112,8 @@ namespace AdvancedNPCs.Core
         public static string Ask(DialogueTopic t, IDialogueFacts facts, Random rng, IDialogueState state, IDialogueActions actions, out DialogueAnswer chosen)
         {
             chosen = PickAnswer(t.Answers, facts, rng, false) ?? t.Answers[0];
-            Run(state, actions, new[] { t.Sets, chosen.Sets }, new[] { t.Clears, chosen.Clears }, new[] { t.Actions, chosen.Actions });
+            if (!Run(state, actions, new[] { t.Sets, chosen.Sets }, new[] { t.Clears, chosen.Clears }, new[] { t.Actions, chosen.Actions }))
+            { chosen = null; return "That offer is no longer available."; }
             state.MarkAsked(t.Id);
             return chosen.Text;
         }
@@ -149,7 +150,8 @@ namespace AdvancedNPCs.Core
             IDialogueActions actions, out DialogueAnswer next)
         {
             next = PickAnswer(r.Answers, facts, rng, false) ?? r.Answers[0];
-            Run(state, actions, new[] { r.Sets, next.Sets }, new[] { r.Clears, next.Clears }, new[] { r.Actions, next.Actions });
+            if (!Run(state, actions, new[] { r.Sets, next.Sets }, new[] { r.Clears, next.Clears }, new[] { r.Actions, next.Actions }))
+            { next = null; return "That offer is no longer available."; }
             state.MarkAsked(DialogueIds.Normalize(topicId + "/" + r.Id));
             return next.Text;
         }
@@ -157,6 +159,11 @@ namespace AdvancedNPCs.Core
         /// <summary>Null when the player can pay what the line takes, else "needs 50 gold" / "needs Ruby".</summary>
         public static string Needs(DialogueActions a, IDialogueFacts facts)
         {
+            if (a.Companion != null)
+            {
+                ICompanionFacts companion = facts as ICompanionFacts;
+                if (companion == null || !companion.CanCommandCompanion(a.Companion)) return "companion command unavailable";
+            }
             if (a.TakeGold > 0 && facts.Gold < a.TakeGold)
                 return "needs " + a.TakeGold + " gold";
             if (a.TakeItem != null && !facts.HasItem(a.TakeItem))
@@ -168,8 +175,14 @@ namespace AdvancedNPCs.Core
         /// Effects of one line in a fixed order (C2 §4): takes, gives, reputation, flags, then quest, enemy and the end
         /// of the conversation. Each phase runs for every part of the line (topic or reply first, then the answer).
         /// </summary>
-        static void Run(IDialogueState state, IDialogueActions act, List<string>[] sets, List<string>[] clears, DialogueActions[] parts)
+        static bool Run(IDialogueState state, IDialogueActions act, List<string>[] sets, List<string>[] clears, DialogueActions[] parts)
         {
+            foreach (DialogueActions a in parts)
+                if (a.Companion != null)
+                {
+                    ICompanionActions companion = act as ICompanionActions;
+                    if (companion == null || !companion.CommandCompanion(a.Companion)) return false;
+                }
             if (act != null)
             {
                 foreach (DialogueActions a in parts)
@@ -199,7 +212,7 @@ namespace AdvancedNPCs.Core
                     state.ClearFlag(flag);
             }
             if (act == null)
-                return;
+                return true;
             INpcVariableActions variableActions = act as INpcVariableActions;
             if (variableActions != null)
                 foreach (DialogueActions a in parts)
@@ -222,6 +235,7 @@ namespace AdvancedNPCs.Core
                 act.BecomeEnemy();
             if (end)
                 act.EndConversation();
+            return true;
         }
 
         /// <summary>The greeting to show instead of DFU's, or null to keep DFU's.</summary>
@@ -252,6 +266,7 @@ namespace AdvancedNPCs.Core
             }
             public int Hour { get { return f.Hour; } }
             public bool IsNight { get { return f.IsNight; } }
+            public bool Indoors { get { return f.Indoors; } }
             public string Season { get { return f.Season; } }
             public bool Raining { get { return f.Raining; } }
             public bool Storming { get { return f.Storming; } }

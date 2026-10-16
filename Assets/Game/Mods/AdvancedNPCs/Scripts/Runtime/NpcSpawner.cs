@@ -289,8 +289,12 @@ namespace AdvancedNPCs
         }
 
         /// <summary>Spawns under parent (a town, interior or dungeon object) unless dead or already there.</summary>
-        public NpcBrain SpawnChecked(NpcInstance instance, NpcState state, Transform parent)
+        public NpcBrain SpawnChecked(NpcInstance instance, NpcState state, Transform parent, bool companion = false)
         {
+            // shortcut: custody releases on area entry; add timed respawning if release must happen in view.
+            if (GuardRules.InCustody(state, DaggerfallUnity.Instance.WorldTime.Now.ToSeconds())) return null;
+            // The roster owns recruited identities, including waiting/dismissed people away from home.
+            if (!companion && owner.States.IsCompanion(instance.Key)) return null;
             NpcBrain existing = NpcBrain.Find(instance.Key);
             bool existingHere = existing != null && existing.transform.parent == parent;
             SpawnAction action = SpawnRules.Decide(state.dead, existing != null, existingHere);

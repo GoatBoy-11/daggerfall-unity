@@ -49,6 +49,11 @@
         "Argonian"
       ]
     },
+    "guard": {
+      "type": "boolean",
+      "default": false,
+      "description": "Peaceful human ANPC with arrest authority, independent of its routine package."
+    },
     "baseClass": {
       "type": "string",
       "description": "A DFU class (Warrior, Rogue, Spellsword...) or, with attitude hostile, a creature.",
@@ -348,6 +353,35 @@
           "type": "number",
           "minimum": 0,
           "maximum": 100
+        },
+        "healing": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Opt in to nearby support healing using configured pure health-healing spells; range 2.5 metres.",
+          "properties": {
+            "allies": {
+              "type": "boolean",
+              "default": true
+            },
+            "player": {
+              "enum": [
+                "friendly",
+                "none"
+              ],
+              "default": "friendly",
+              "description": "Friendly means likes or loves and not hostile to the player."
+            },
+            "outsideCombat": {
+              "type": "boolean",
+              "default": true
+            },
+            "healthThreshold": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1,
+              "default": 0.6
+            }
+          }
         }
       }
     },
@@ -465,6 +499,20 @@
           "type": "boolean",
           "default": true,
           "description": "Without step files of its own, play the shared ANPCs/_Sounds steps."
+        },
+        "barkMinSeconds": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 86400,
+          "default": 45,
+          "description": "Minimum active real seconds between companion barks."
+        },
+        "barkMaxSeconds": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 86400,
+          "default": 90,
+          "description": "Maximum active real seconds between companion barks; at least barkMinSeconds."
         }
       }
     },
@@ -586,6 +634,17 @@
           }
         ]
       }
+    },
+    "recruitCost": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000,
+      "description": "Opt into persistent mercenary recruitment. Gold charged per new contract; wait/resume is free."
+    },
+    "no_companion_slot": {
+      "type": "boolean",
+      "default": false,
+      "description": "Recruitable without consuming a companion party slot. Does not enable recruitment on its own."
     }
   },
   "definitions": {
@@ -721,6 +780,14 @@
           "minimum": 0,
           "maximum": 100,
           "description": "This NPC health percentage."
+        },
+        "indoors": {
+          "type": "boolean",
+          "description": "NPC is in a building interior (tavern, house, shop, etc.) or dungeon. False requires outdoors."
+        },
+        "outdoors": {
+          "type": "boolean",
+          "description": "NPC is outdoors in a town/city or wilderness. False requires indoors."
         }
       },
       "additionalProperties": false

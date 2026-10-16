@@ -6,6 +6,21 @@ namespace AdvancedNPCs.Core
     /// <summary>Named visual routines, independent of combat animation states.</summary>
     public static class PackageAnimations
     {
+        public static readonly string[] CivilianFamilies = { "idle", "pray", "play", "emote", "dance" };
+
+        public static List<SpriteAnimation> CivilianVariants(IEnumerable<SpriteAnimation> available, double roll)
+        {
+            var idle = new List<SpriteAnimation>();
+            var activities = new List<SpriteAnimation>();
+            foreach (var animation in available)
+            {
+                if (Matches("idle", animation.Name)) idle.Add(animation);
+                else for (int i = 1; i < CivilianFamilies.Length; i++)
+                    if (Matches(CivilianFamilies[i], animation.Name)) { activities.Add(animation); break; }
+            }
+            return roll < 0.5 || activities.Count == 0 ? idle : activities;
+        }
+
         public static bool ValidName(string name)
         {
             if (string.IsNullOrEmpty(name) || name.Length > 64 || !Letter(name[0])) return false;
@@ -143,26 +158,31 @@ namespace AdvancedNPCs.Core
         public double Elapsed { get; private set; }
         public int Cycles { get; private set; }
         public SpriteAnimation Current { get { return variants[Index]; } }
-        public PackageAnimationLoop(IList<SpriteAnimation> variants, double fps, Func<double> random)
+        readonly int cycleLimit;
+        public bool Finished { get { return Cycles >= cycleLimit; } }
+        public PackageAnimationLoop(IList<SpriteAnimation> variants, double fps, Func<double> random, int cycleLimit = int.MaxValue)
         {
-            if (variants == null || variants.Count == 0 || !(fps > 0) || double.IsInfinity(fps))
+            if (variants == null || variants.Count == 0 || !(fps > 0) || double.IsInfinity(fps) || cycleLimit < 1)
                 throw new ArgumentException("Animation loop needs usable sheets and a finite positive fps");
             foreach (SpriteAnimation a in variants)
                 if (a.Frames < 1) throw new ArgumentException("Animation sheets need at least one frame");
             this.variants = variants;
             this.fps = fps;
             this.random = random;
+            this.cycleLimit = cycleLimit;
             Index = PackageAnimations.Pick(variants.Count, -1, random());
         }
         public void Advance(double seconds)
         {
             if (seconds < 0 || double.IsNaN(seconds) || double.IsInfinity(seconds)) return;
+            if (Finished) return;
             Elapsed += seconds;
             while (Elapsed >= Current.Frames / fps)
             {
                 Elapsed -= Current.Frames / fps;
-                Index = PackageAnimations.Pick(variants.Count, Index, random());
                 Cycles++;
+                if (Finished) { Elapsed = 0; return; }
+                Index = PackageAnimations.Pick(variants.Count, Index, random());
             }
         }
     }

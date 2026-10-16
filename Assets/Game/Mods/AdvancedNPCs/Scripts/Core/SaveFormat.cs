@@ -6,7 +6,7 @@ namespace AdvancedNPCs.Core
     /// </summary>
     public static class SaveFormat
     {
-        public const int Current = 2;
+        public const int Current = 6;
 
         /// <summary>Null for a format this version reads, else a warning for the log.</summary>
         public static string Check(int version)

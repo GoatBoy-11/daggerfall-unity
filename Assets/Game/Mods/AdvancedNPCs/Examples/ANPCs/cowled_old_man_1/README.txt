@@ -18,6 +18,11 @@ Shield (120 magicka). Voice: skpy "raspy", pitched down.
 Source: Models/cowled_old_man (README there). Models: the user's Meshy "The
 Amethyst Archmage" and "Golden Dragon Wing Staff"; the fireball is procedural.
 
+Support healing: helps nearby allies and a friendly player during and outside
+combat. Recipients must be in sight within 2.5 m and below 60% health; player
+reaction must be likes or loves. Optional heal sheets take priority over cast;
+optional Sounds/heal clips use sounds.combatChance.
+
 AI schedule: 07:00-08:00, at least 50% health: play_animation loops the
 existing idle sheet with only_interrupt_at_combat true. Social poses and
 calm healing cannot interrupt this morning routine; combat can.

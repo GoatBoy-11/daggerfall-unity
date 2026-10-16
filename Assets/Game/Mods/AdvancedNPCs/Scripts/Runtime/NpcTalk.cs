@@ -32,6 +32,9 @@ namespace AdvancedNPCs
         string displayName;
         string portraitFile;
         bool lockPortrait;
+        bool ordersRequested;
+        public bool RequestOrders() { ordersRequested=CompanionOrdersWindow.Available(brain); return ordersRequested; }
+        public bool OpenRequestedOrders() { bool requested=ordersRequested;ordersRequested=false;return requested && CompanionOrdersWindow.Open(brain); }
 
         /// <summary>The last mid-screen text this ANPC showed (read by the self-test).</summary>
         public string LastMessage { get; private set; }
@@ -89,6 +92,15 @@ namespace AdvancedNPCs
             if (mode == PlayerActivateModes.Steal)
                 return; // vanilla enemy pickpocketing handles this
             RemoveVanillaYouSee();
+            if (mode != PlayerActivateModes.Info && TryGuardTalk()) return;
+            if(CompanionOrdersWindow.Available(brain))
+            {
+                if(mode==PlayerActivateModes.Info)
+                {
+                    Say(displayName+": "+CompanionOrders.Stance(brain.State.companion.stance)+", "+CompanionOrders.Condition((float)brain.EntityBehaviour.Entity.CurrentHealth/brain.EntityBehaviour.Entity.MaxHealth)+".");return;
+                }
+                if(distance<=PlayerActivate.MobileNPCActivationDistance) { CompanionOrdersWindow.Open(brain);return; }
+            }
             if (StandIn != null)
             {
                 HandleStandIn(mode, distance);
@@ -129,11 +141,20 @@ namespace AdvancedNPCs
                 TryTalk();
         }
 
+        bool TryGuardTalk()
+        {
+            if (brain == null || brain.Guard == null || !brain.Guard.CanDemandPlayer) return false;
+            GuardArrest.Demand(brain);
+            return true;
+        }
+
         /// <summary>Opens the talk window if the ANPC is calm. Returns false if it refused.</summary>
         public bool TryTalk()
         {
+            if (TryGuardTalk()) return true;
             if (brain != null && brain.CurrentMode != NpcMode.Calm)
             {
+                if(CompanionOrdersWindow.Open(brain)) return true;
                 Say(displayName + " will not talk to you now.");
                 return false;
             }

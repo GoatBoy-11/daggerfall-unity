@@ -256,6 +256,77 @@ namespace AdvancedNPCs.Tests
             StringAssert.Contains("season: \"monsoon\" is not one of spring, summer, autumn, fall, winter; this condition never holds", messages[0]);
         }
 
+        [TestCase("indoors", true, true, true)]
+        [TestCase("indoors", true, false, false)]
+        [TestCase("indoors", false, true, false)]
+        [TestCase("indoors", false, false, true)]
+        [TestCase("outdoors", true, true, false)]
+        [TestCase("outdoors", true, false, true)]
+        [TestCase("outdoors", false, true, true)]
+        [TestCase("outdoors", false, false, false)]
+        public void IndoorOutdoorBooleansMatchTheArea(string key, bool required, bool inside, bool holds)
+        {
+            var condition = When("{\"" + key + "\":" + (required ? "true" : "false") + "}");
+            Assert.IsEmpty(messages);
+            Assert.AreEqual(holds, condition.Holds(new FakeFacts {Inside=inside}));
+        }
+
+        [TestCase("indoors", "null")]
+        [TestCase("indoors", "\"true\"")]
+        [TestCase("indoors", "1")]
+        [TestCase("indoors", "[]")]
+        [TestCase("outdoors", "null")]
+        [TestCase("outdoors", "\"true\"")]
+        [TestCase("outdoors", "1")]
+        [TestCase("outdoors", "{}")]
+        public void InvalidAreaConditionsFailClosedAndDisableBadSchedules(string key, string raw)
+        {
+            string json = "{\""+key+"\":"+raw+"}";
+            Assert.IsFalse(When(json).Holds(new FakeFacts()));
+            Assert.AreEqual(1,messages.Count);
+            string error;
+            Assert.IsEmpty(AiSchedule.Read(Json.Parse("[{\"package\":\"wander_civilian\",\"when\":"+json+"}]"),out error));
+            Assert.IsNotEmpty(error);
+        }
+
+        [Test]
+        public void AreaScheduleChoosesOutdoorCivilianOrIndoorFallbackAndHonoursHours()
+        {
+            string error;
+            var entries = AiSchedule.Read(Json.Parse("[{\"package\":\"wander_civilian\",\"when\":{\"outdoors\":true},\"hours\":[\"08:00\",\"18:00\"]},{\"package\":\"local_wander\",\"when\":{\"indoors\":true}},{\"package\":\"stand\"}]"),out error);
+            Assert.IsNull(error);
+            var facts = new FakeFacts();
+            Assert.AreEqual("wander_civilian",AiSchedule.Select(entries,600,facts).Package);
+            Assert.AreEqual("stand",AiSchedule.Select(entries,1200,facts).Package);
+            facts.Inside = true;
+            Assert.AreEqual("local_wander",AiSchedule.Select(entries,600,facts).Package);
+            entries.RemoveAt(1); entries.RemoveAt(1);
+            Assert.IsNull(AiSchedule.Select(entries,600,facts));
+        }
+
+        [Test]
+        public void AreaConditionsComposeWithAnyAndOtherClauses()
+        {
+            var c = When("{\"any\":[{\"indoors\":true},{\"weather\":\"rain\"}],\"minLevel\":2}");
+            Assert.IsTrue(c.Holds(new FakeFacts {Inside=true,Level=2}));
+            Assert.IsTrue(c.Holds(new FakeFacts {Rain=true,Level=2}));
+            Assert.IsFalse(c.Holds(new FakeFacts {Level=2}));
+            Assert.IsFalse(c.Holds(new FakeFacts {Inside=true,Level=1}));
+            c = When("{\"indoors\":true,\"outdoors\":true}");
+            Assert.IsFalse(c.Holds(new FakeFacts {Inside=true}));
+            Assert.IsFalse(c.Holds(new FakeFacts {Inside=false}));
+        }
+
+        [Test]
+        public void DialogueToneWrapperPreservesAreaFacts()
+        {
+            var parsed=DialogueParser.Parse("test","{\"topics\":[{\"caption\":\"Hi\",\"answers\":[{\"text\":\"Inside\",\"when\":{\"indoors\":true}}]}]}");
+            var facts=new FakeFacts {Inside=true};
+            Assert.IsNotNull(Conversation.PickAnswer(parsed.File.Topics[0].Answers,facts,null,true));
+            facts.Inside=false;
+            Assert.IsNull(Conversation.PickAnswer(parsed.File.Topics[0].Answers,facts,null,true));
+        }
+
         [Test]
         public void FirstFailing_NamesTheKey()
         {

@@ -41,10 +41,15 @@ namespace AdvancedNPCs
             foreach (string path in AnpcFiles.FilesWithExtension(folder, ".png"))
             {
                 string file = AnpcFiles.PortraitsName + "/" + Path.GetFileName(path);
+                Texture2D texture = null;
                 try
                 {
-                    Texture2D texture = new Texture2D(2, 2, TextureFormat.ARGB32, false);
-                    if (!texture.LoadImage(File.ReadAllBytes(path)))
+                    byte[] bytes = File.ReadAllBytes(path);
+                    int width, height;
+                    if (!PngHeader.TryReadSize(bytes, out width, out height))
+                        throw new InvalidDataException("not a readable PNG");
+                    texture = new Texture2D(2, 2, TextureFormat.ARGB32, false);
+                    if (!texture.LoadImage(bytes) || texture.width != width || texture.height != height)
                     {
                         AdvancedNpcsMod.LogError(file + ": file: not a readable PNG");
                         continue;
@@ -52,11 +57,19 @@ namespace AdvancedNPCs
                     string name = PortraitNames.Normalize(Path.GetFileName(path));
                     texture.filterMode = FilterMode.Point;
                     texture.name = name;
+                    Texture2D previous;
+                    if (library.byName.TryGetValue(name, out previous))
+                        UnityEngine.Object.Destroy(previous);
                     library.byName[name] = texture;
+                    texture = null; // The library now owns it.
                 }
                 catch (Exception e)
                 {
                     AdvancedNpcsMod.LogError(file + ": file: could not read (" + e.Message + ")");
+                }
+                finally
+                {
+                    if (texture != null) UnityEngine.Object.Destroy(texture);
                 }
             }
             AdvancedNpcsMod.Log("Loaded " + library.Count + " portrait(s).");

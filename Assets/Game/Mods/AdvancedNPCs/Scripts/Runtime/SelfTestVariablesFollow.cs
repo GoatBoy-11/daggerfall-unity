@@ -79,7 +79,7 @@ namespace AdvancedNPCs
                 bool encodedOk=serializer.TrySerialize(saved,out encoded).Succeeded;
                 NpcSaveData decoded=null;
                 bool decodedOk=serializer.TryDeserialize(encoded,ref decoded).Succeeded;
-                Check("false and zero survive DFU save serialization",encodedOk && decodedOk && decoded!=null && decoded.Version==2 &&
+                Check("false and zero survive DFU save serialization",encodedOk && decodedOk && decoded!=null && decoded.Version==SaveFormat.Current &&
                     decoded.States[d.Id].variables["following"].isBoolean && !decoded.States[d.Id].variables["following"].booleanValue &&
                     !decoded.States[d.Id].variables["times_recruited"].isBoolean && decoded.States[d.Id].variables["times_recruited"].integerValue==0,"serialization result");
                 NpcBrain.Discard(actor);actor=null;

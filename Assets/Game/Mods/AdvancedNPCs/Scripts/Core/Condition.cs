@@ -13,6 +13,7 @@ namespace AdvancedNPCs.Core
     {
         int Hour { get; }
         bool IsNight { get; }
+        bool Indoors { get; }
         string Season { get; }
         bool Raining { get; }
         bool Storming { get; }
@@ -110,7 +111,7 @@ namespace AdvancedNPCs.Core
         {
             "hours", "time", "season", "weather", "region", "town", "minLevel", "maxLevel", "playerRace", "playerGender",
             "minGold", "hasItem", "guild", "minGuildRank", "reaction", "asked", "notAsked", "flags", "notFlags",
-            "questGlobal", "notQuestGlobal", "tone", "any", "variables", "minOpinion", "maxOpinion", "minHealth", "maxHealth",
+            "questGlobal", "notQuestGlobal", "tone", "any", "variables", "minOpinion", "maxOpinion", "minHealth", "maxHealth", "indoors", "outdoors",
         };
         static readonly string[] Seasons = { "spring", "summer", "autumn", "fall", "winter" };
         static readonly string[] Weathers = { "clear", "overcast", "rain", "storm", "snow" };
@@ -163,6 +164,12 @@ namespace AdvancedNPCs.Core
                             c.VariableConditions.Add(variables);
                             c.Add("variables", delegate(IDialogueFacts f) { return variables.Holds(f as INpcVariableFacts); });
                         }
+                        break;
+                    case "indoors":
+                    case "outdoors":
+                        if (!(raw is bool)) { problem = "must be true or false"; break; }
+                        bool indoors = key == "indoors" ? (bool)raw : !(bool)raw;
+                        c.Add(key, delegate(IDialogueFacts f) { return f.Indoors == indoors; });
                         break;
                     case "hours": problem = Hours(c, raw); break;
                     case "time": problem = Time(c, raw); break;

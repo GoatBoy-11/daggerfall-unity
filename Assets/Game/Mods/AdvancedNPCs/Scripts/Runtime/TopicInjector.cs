@@ -37,6 +37,9 @@ namespace AdvancedNPCs
 
         DaggerfallTalkWindow window;
         DaggerfallTalkWindow hookedWindow;
+        ListBox hookedList;
+        Button hookedOkay;
+        IUserInterfaceManager subscribedManager;
         ComposedDialogue dialogue;
         GameFacts facts;
         NpcBrain brain;
@@ -117,12 +120,16 @@ namespace AdvancedNPCs
             refreshNext = false;
             warnedCap = false;
             GreetingShown = null;
-            DaggerfallUI.UIManager.OnWindowChange += OnWindowChange;
+            subscribedManager = DaggerfallUI.UIManager;
+            subscribedManager.OnWindowChange += OnWindowChange;
         }
 
         /// <summary>Takes our topics out of TalkManager and forgets the conversation.</summary>
+        void OnDisable() { End(); }
+
         public void End()
         {
+            Unhook();
             if (TalkManager.Instance != null && TalkManager.Instance.ListTopicTellMeAbout != null)
                 RemoveOurs(TalkManager.Instance.ListTopicTellMeAbout);
             if (injectedInto != null)
@@ -135,7 +142,8 @@ namespace AdvancedNPCs
             window = null;
             facts = null;
             brain = null;
-            DaggerfallUI.UIManager.OnWindowChange -= OnWindowChange;
+            if (subscribedManager != null) subscribedManager.OnWindowChange -= OnWindowChange;
+            subscribedManager = null;
         }
 
         /// <summary>The reply picker is open (self-test).</summary>
@@ -168,10 +176,11 @@ namespace AdvancedNPCs
         {
             if (picker == null)
                 return;
-            picker.OnItemPicked -= OnReplyPicked;
-            if (DaggerfallUI.UIManager.ContainsWindow(picker))
-                picker.CloseWindow();
+            DaggerfallListPickerWindow closing = picker;
             picker = null;
+            closing.OnItemPicked -= OnReplyPicked;
+            if (subscribedManager != null && subscribedManager.ContainsWindow(closing))
+                closing.CloseWindow();
         }
 
         void OnReplyPicked(int index, string text)
@@ -238,6 +247,8 @@ namespace AdvancedNPCs
                 npc.SwitchHostile(true);
             // The parting (or threatening) line was on screen for one frame only: show it once more.
             FinalMessage = null;
+            NpcTalk talk=npc!=null?npc.GetComponent<NpcTalk>():null;
+            if(talk!=null && talk.OpenRequestedOrders()) return;
             if (!string.IsNullOrEmpty(lastLine))
             {
                 DaggerfallUI.MessageBox(lastLine);
@@ -351,7 +362,7 @@ namespace AdvancedNPCs
 
         void OnWindowChange(object sender, EventArgs e)
         {
-            if (window != null && !DaggerfallUI.UIManager.ContainsWindow(window))
+            if (window != null && (subscribedManager == null || !subscribedManager.ContainsWindow(window)))
                 End();
         }
 
@@ -359,12 +370,22 @@ namespace AdvancedNPCs
         {
             if (hookedWindow == window)
                 return;
+            Unhook();
             // The window subscribed in its Setup, so it handles the use first and these run after it.
-            TopicList.OnUseSelectedItem += OnListUse;
-            Button ok = OkButtonField.GetValue(window) as Button;
-            if (ok != null)
-                ok.OnMouseClick += OnOkay;
+            hookedList = TopicList;
+            hookedOkay = OkButtonField.GetValue(window) as Button;
+            if (hookedList != null) hookedList.OnUseSelectedItem += OnListUse;
+            if (hookedOkay != null) hookedOkay.OnMouseClick += OnOkay;
             hookedWindow = window;
+        }
+
+        void Unhook()
+        {
+            if (hookedList != null) hookedList.OnUseSelectedItem -= OnListUse;
+            if (hookedOkay != null) hookedOkay.OnMouseClick -= OnOkay;
+            hookedList = null;
+            hookedOkay = null;
+            hookedWindow = null;
         }
 
         void OnOkay(BaseScreenComponent sender, Vector2 position)

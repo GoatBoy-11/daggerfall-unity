@@ -49,6 +49,7 @@ namespace AdvancedNPCs.Core
         public static readonly string[] GuardKeys = { "position", "idleInterval", "spot" };
         public static readonly string[] AnimationKeys = { "animation", "only_interrupt_at_combat" };
         public static readonly string[] WanderKeys = { "center", "radius", "pause", "run" };
+        public static readonly string[] CivilianKeys = { "center", "radius" };
         public static readonly string[] TravelKeys = { "target", "run", "spot" };
         public static readonly string[] PatrolKeys = { "points", "pauseAtStops", "run" };
 
@@ -100,6 +101,7 @@ namespace AdvancedNPCs.Core
                 case "guard_spot": allowed = GuardKeys; break;
                 case "play_animation": allowed = AnimationKeys; break;
                 case "wander": allowed = WanderKeys; break;
+                case "wander_civilian": allowed = CivilianKeys; break;
                 case "travel_to": allowed = TravelKeys; break;
                 case "patrol": allowed = PatrolKeys; break;
                 default: error = "unknown type " + s.Type; return null;
@@ -196,11 +198,12 @@ namespace AdvancedNPCs.Core
                     { error = "idleInterval must be ordered [min,max], each 0.1-3600 seconds"; return null; }
                 }
             }
-            if (s.Type == "wander")
+            if (s.Type == "wander" || s.Type == "wander_civilian")
             {
                 if (p.ContainsKey("center") && (s.Center = Point(p["center"])) == null)
                 { error = "center must be [x,y,z] metre offsets, each -100 to 100"; return null; }
-                if (!Number(p, "radius", 8, 0, 50, out s.Radius) || !Number(p, "pause", 3, 0, 3600, out s.Pause))
+                bool civilian = s.Type == "wander_civilian";
+                if (!Number(p, "radius", civilian ? 40 : 8, 0, 50, out s.Radius) || !Number(p, "pause", civilian ? 0 : 3, 0, 3600, out s.Pause))
                 { error = "radius must be 0-50 metres and pause 0-3600 game seconds"; return null; }
             }
             if (s.Type == "travel_to")

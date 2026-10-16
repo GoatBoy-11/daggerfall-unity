@@ -1,0 +1,30 @@
+{
+  "kind": "generic",
+  "name": "Scruffy Looking Sailor",
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Warrior",
+  "bravery": "Normal",
+  "spriteHeight": 1.95,
+  "wanderRadius": 2,
+  "stayNear": 2,
+  "portrait": "scruffy_looking_sailor",
+  "replaces": [
+    "182.25"
+  ],
+  "replacePortrait": false,
+  "replaceName": false,
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.4,
+    "canRun": true
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

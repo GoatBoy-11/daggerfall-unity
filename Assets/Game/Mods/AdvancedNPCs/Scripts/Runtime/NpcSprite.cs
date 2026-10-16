@@ -48,6 +48,8 @@ namespace AdvancedNPCs
         string packageRequest;
         List<SpriteAnimation> packageVariants;
         PackageAnimationLoop packageLoop;
+        bool civilianLoop;
+        public bool CivilianPauseFinished { get { return packageLoop == null || packageLoop.Finished; } }
         int packageCycles;
         public int PackageCycles { get { return packageCycles; } }
 
@@ -510,6 +512,11 @@ namespace AdvancedNPCs
                         UpdatePackageAnimation(GameManager.IsGamePaused ? 0 : dt);
                         packagePlayed = true;
                     }
+                    else if (wanted == SpriteStates.Idle && brain != null && brain.CivilianAnimation && civilianLoop)
+                    {
+                        UpdatePackageAnimation(dt);
+                        packagePlayed = true;
+                    }
                     else if (wanted == SpriteStates.Idle && brain != null && brain.GuardAnimation != null && CanPlayPackageAnimation("idle"))
                     {
                         UpdateGuardAnimation(dt, brain.GuardAnimation);
@@ -550,6 +557,13 @@ namespace AdvancedNPCs
             }
         }
 
+        /// <summary>A companion order cancels both the native animation and this sheet's delayed action frame.</summary>
+        public void CancelAttack()
+        {
+            pendingBlow=sentBlow=vanillaToHold=NoBlow;
+            if(state==SpriteStates.Attack || state==SpriteStates.RangedAttack) oneShotLeft=0;
+            if(mobile!=null) {mobile.DoMeleeDamage=false;mobile.ShootArrow=false;}
+        }
         public bool PlayingOneShot { get { return oneShotLeft > 0 || pendingBlow != NoBlow; } }
         public float CastSeconds { get { return oneShotLeft; } }
 
@@ -629,7 +643,7 @@ namespace AdvancedNPCs
             bool thrown = IsThrow(s);
             if (s == MobileStates.Spell)
                 StartOneShot(spellState);
-            else if (IsRanged(s) || thrown)
+            else if (IsRanged(s) || thrown || (s==MobileStates.PrimaryAttack && RangedWeaponEquipped))
                 StartOneShot(SpriteStates.RangedAttack, RangedSheet);
             else
                 StartOneShot(SpriteStates.Attack);
@@ -699,10 +713,25 @@ namespace AdvancedNPCs
                 Destroy(material);
         }
 
+        public bool BeginCivilianPause()
+        {
+            if (set == null || !set.IsReady || set.Failed) return false;
+            var available = new List<SpriteAnimation>(set.Set.Animations.Values);
+            available.RemoveAll(delegate(SpriteAnimation a) { return !set.Sheets.ContainsKey(a.Name); });
+            var variants = PackageAnimations.CivilianVariants(available, Random.value);
+            if (variants.Count == 0) return false;
+            ResetPackageAnimation();
+            packageVariants = variants;
+            packageLoop = new PackageAnimationLoop(variants, set.Set.Fps, delegate { return Random.value; }, Random.Range(1, 5));
+            civilianLoop = true;
+            return true;
+        }
+
         public void ResetPackageAnimation()
         {
             packageSet = null;
             packageRequest = null;
+            civilianLoop = false;
             packageVariants = null;
             packageLoop = null;
             guardLoop = null;
@@ -725,7 +754,7 @@ namespace AdvancedNPCs
 
         void UpdatePackageAnimation(float dt)
         {
-            if (packageLoop == null || state != PackageState)
+            if (packageLoop == null || (state != PackageState && !civilianLoop))
                 packageLoop = new PackageAnimationLoop(packageVariants, set.Set.Fps, delegate { return Random.value; });
             int cycles = packageLoop.Cycles;
             packageLoop.Advance(dt);
@@ -759,9 +788,9 @@ namespace AdvancedNPCs
                 return SpriteStates.Hit;
             if (s == MobileStates.Spell && HasCastSheet)
                 return spellState;
-            if (s == MobileStates.PrimaryAttack && !IsThrow(s))
+            if (s == MobileStates.PrimaryAttack && !IsThrow(s) && !RangedWeaponEquipped)
                 return SpriteStates.Attack;
-            if (IsRanged(s) || IsThrow(s))
+            if (IsRanged(s) || IsThrow(s) || (s==MobileStates.PrimaryAttack && RangedWeaponEquipped))
                 return SpriteStates.RangedAttack;
             if (talkLeft > 0 && speed <= WalkSpeed)
                 return SpriteStates.Talk;
@@ -770,10 +799,21 @@ namespace AdvancedNPCs
             return gait != null && gait.Current == Gait.Run ? SpriteStates.Run : SpriteStates.Walk;
         }
 
-        /// <summary>A creature's attack state that NpcRanged started as a throw.</summary>
+        bool RangedWeaponEquipped
+        {
+            get
+            {
+                if(entityBehaviour==null || entityBehaviour.Entity==null)return false;
+                var table=entityBehaviour.Entity.ItemEquipTable;
+                var weapon=table.GetItem(DaggerfallWorkshop.Game.Items.EquipSlots.RightHand) ?? table.GetItem(DaggerfallWorkshop.Game.Items.EquipSlots.LeftHand);
+                return CompanionBow.IsBow(weapon);
+            }
+        }
+        /// <summary>A creature throw or hired companion bow shot using the base mobile's primary attack state.</summary>
         bool IsThrow(MobileStates s)
         {
-            return s == MobileStates.PrimaryAttack && ranged != null && ranged.Throwing;
+            return s == MobileStates.PrimaryAttack && ((ranged != null && ranged.Throwing) ||
+                (brain!=null && brain.CompanionCombat!=null && brain.CompanionCombat.Active && brain.CompanionCombat.Bow.Drawing));
         }
 
         static bool IsRanged(MobileStates s)

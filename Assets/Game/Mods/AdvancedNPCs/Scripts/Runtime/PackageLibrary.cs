@@ -71,6 +71,12 @@ namespace AdvancedNPCs
                 foreach (var step in plan.Steps)
                 {
                     PackageSettings settings = step.Settings;
+                    if (settings.Type == "wander_civilian")
+                    {
+                        foreach (string family in PackageAnimations.CivilianFamilies)
+                            if (!names.Exists(delegate(string n) { return string.Equals(n, family, StringComparison.OrdinalIgnoreCase); })) names.Add(family);
+                        continue;
+                    }
                     if (settings.Type != "play_animation" && settings.Type != "work_at") continue;
                     if (!names.Exists(delegate(string n) { return string.Equals(n, settings.Animation, StringComparison.OrdinalIgnoreCase); }))
                         names.Add(settings.Animation);

@@ -14,6 +14,12 @@
     ]
   },
   "magic": {
+    "healing": {
+      "allies": true,
+      "player": "friendly",
+      "outsideCombat": true,
+      "healthThreshold": 0.6
+    },
     "spells": [
       "Heal",
       "Shield"

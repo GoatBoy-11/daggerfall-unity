@@ -2,6 +2,10 @@
   "baseClass": "Bard",
   "bravery": "Coward",
   "wanderRadius": 2,
+  "schedule": [
+    { "package": "wander_civilian", "when": { "outdoors": true } },
+    { "package": "local_wander", "when": { "indoors": true }, "parameters": { "radius": 2 } }
+  ],
   "spawn": {
     "interiors": {
       "buildings": ["Tavern"],

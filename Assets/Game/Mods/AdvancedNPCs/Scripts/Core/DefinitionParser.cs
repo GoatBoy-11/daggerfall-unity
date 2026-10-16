@@ -27,8 +27,8 @@ namespace AdvancedNPCs.Core
         static readonly string[] SharedKeys =
         {
             "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "fleeChance", "aggroRange", "calmDownHours",
-            "crimeOnAttack", "wanderRadius", "nameList", "spriteHeight", "spriteHeightScale", "spriteScale", "attitude", "hostileHours", "dialogue", "magic",
-            "combat", "sounds", "conversation", "replaces", "replacePortrait", "replaceName", "stayNear", "schedule", "variables",
+            "crimeOnAttack", "guard", "wanderRadius", "nameList", "spriteHeight", "spriteHeightScale", "spriteScale", "attitude", "hostileHours", "dialogue", "magic",
+            "combat", "sounds", "conversation", "replaces", "replacePortrait", "replaceName", "stayNear", "schedule", "variables", "recruitCost", "no_companion_slot",
         };
         static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
         static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
@@ -476,6 +476,10 @@ namespace AdvancedNPCs.Core
             bool crime;
             if ((problem = FieldReader.Bool(o, "crimeOnAttack", true, out crime)) != null)
                 return Problem(r, file, "crimeOnAttack", problem);
+            if ((problem = FieldReader.Bool(o, "guard", false, out d.Guard)) != null)
+                return Problem(r, file, "guard", problem);
+            if (d.Guard && (hostile || creature != null))
+                return Problem(r, file, "guard", "requires a peaceful human class");
 
             string rawRace;
             if ((problem = FieldReader.Text(o, "race", "", out rawRace)) != null)
@@ -520,6 +524,16 @@ namespace AdvancedNPCs.Core
                 return Problem(r, file, "spriteHeightScale", "must be a finite number above 0");
 
             d.SpriteHeight = (float)spriteHeight;
+            double recruitCost;
+            if ((problem = FieldReader.Number(o, "recruitCost", -1, out recruitCost)) != null ||
+                (o.ContainsKey("recruitCost") && (o["recruitCost"] == null || double.IsNaN(recruitCost) ||
+                recruitCost < 0 || recruitCost > 1000000 || recruitCost != Math.Floor(recruitCost))))
+                return Problem(r, file, "recruitCost", "must be a whole number from 0 to 1000000");
+            d.RecruitCost = (int)recruitCost;
+            bool noCompanionSlot;
+            if((problem=FieldReader.Bool(o,"no_companion_slot",false,out noCompanionSlot))!=null || (o.ContainsKey("no_companion_slot") && o["no_companion_slot"]==null))
+                return Problem(r,file,"no_companion_slot","must be true or false");
+            d.NoCompanionSlot=noCompanionSlot;
             d.SpriteHeightScale = (float)spriteHeightScale;
             double spriteScale;
             if ((problem = FieldReader.Number(o, "spriteScale", 1, out spriteScale)) != null || (o.ContainsKey("spriteScale") && o["spriteScale"] == null) ||

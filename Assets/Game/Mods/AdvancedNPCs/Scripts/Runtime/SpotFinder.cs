@@ -10,7 +10,7 @@ using AdvancedNPCs.Core;
 namespace AdvancedNPCs
 {
     /// <summary>
-    /// Candidate points from DFU's markers and floor/clearance checks (outside-towns spec §5, spike findings).
+    /// Candidate points from DFU's markers and floor/clearance checks (outside-towns spec Â§5, spike findings).
     /// Candidates are returned in the parent's local space, sorted, so a place gives the same list every visit.
     /// </summary>
     public static class SpotFinder
@@ -117,6 +117,30 @@ namespace AdvancedNPCs
                     return false;
             }
             return true;
+        }
+
+        /// <summary>Transition arrival with ground, walls, full-height clearance and other people checked.</summary>
+        public static bool CompanionNear(Vector3 anchor, Vector3 wanted, out Vector3 feet)
+        { return CompanionNear(anchor, wanted, out feet, null); }
+
+        public static bool CompanionNear(Vector3 anchor, Vector3 wanted, out Vector3 feet, System.Predicate<Vector3> accept)
+        {
+            // Do not fall back onto the player's own position when the doorway is crowded.
+            for (int i = 0; i < 40; i++)
+            {
+                float angle = i * 137.5f * Mathf.Deg2Rad;
+                Vector3 ring = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle));
+                // A player entering a door may face either way. Search around the player as well as behind them.
+                Vector3 candidate = i == 0 ? wanted : i < 16 ? wanted + ring * (i < 9 ? 0.8f : 1.5f) :
+                    anchor + ring * (i < 28 ? 1.5f : 2.5f);
+                if (!Reachable(anchor, candidate, out feet)) continue;
+                bool occupied = false;
+                foreach (Collider c in Physics.OverlapCapsule(feet + Vector3.up * 0.4f, feet + Vector3.up * 1.7f, 0.35f,
+                    Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                    if (c.GetComponentInParent<DaggerfallEntityBehaviour>() != null) { occupied = true; break; }
+                if (!occupied && (accept == null || accept(feet))) return true;
+            }
+            feet = wanted; return false;
         }
 
         static bool IsFixed(Collider c)

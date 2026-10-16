@@ -5,6 +5,10 @@ Manual spawn: anpc_spawn dunmer_spellblade
 To fight him: anpc_hostile <spawned key> on
 
 Fireball, Heal and Shield; 150 magicka; casting delay 4-7 seconds; refill on area entry.
+Supports nearby allies and a friendly player while fighting (no calm healing).
+Recipients must be in sight within 2.5 m and below 60% health. Player reaction
+must be likes or loves. heal sheets are optional: cast sheets are the fallback.
+Optional Sounds/heal clips use sounds.combatChance.
 All settings are editable in npc.json. No ambient spawns are enabled by default.
 
 12 sheets, 8 directions per sheet, 256-pixel cell height, 8 fps, consistent scale and ground row.

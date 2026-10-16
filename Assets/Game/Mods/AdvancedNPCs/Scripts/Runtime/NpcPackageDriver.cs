@@ -2,6 +2,8 @@ using System;
 using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Utility;
+using DaggerfallConnect.Utility;
 using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
@@ -15,7 +17,13 @@ namespace AdvancedNPCs
         PackageLibrary library;
         AiScheduleEntry active;
         PackageMotion motion;
+        CityNavigation cityNavigation;
+        int civilianDirection = -1;
+        bool civilianPaused;
+        float civilianIdleLeft;
+        public bool CivilianPaused { get { return settings != null && settings.Type == "wander_civilian" && civilianPaused && !failed; } }
         FollowMotion follow;
+        FollowNavigation navigation;
         Transform followLeader;
         Vector3 followPrevious;
         readonly NpcGait gait;
@@ -65,9 +73,14 @@ namespace AdvancedNPCs
         }
 
         /// <summary>Refresh even while interrupted, so diagnostics and slot changes follow the clock.</summary>
+        static readonly AiScheduleEntry companionFollow = new AiScheduleEntry { Package = "follow" };
+        static readonly AiScheduleEntry companionStand = new AiScheduleEntry { Package = "stand" };
+
         public void Select(PackageLibrary currentLibrary, ulong seconds)
         {
-            AiScheduleEntry wanted = AiSchedule.Select(brain.Instance.Definition.Schedule, (int)(seconds % 86400 / 60), scheduleFacts);
+            CompanionRecord companion = brain.State.companion;
+            AiScheduleEntry wanted = companion != null ? (companion.status == "following" ? companionFollow : companionStand) :
+                AiSchedule.Select(brain.Instance.Definition.Schedule, (int)(seconds % 86400 / 60), scheduleFacts);
             long period = wanted == null ? long.MinValue : AiSchedule.Occurrence(wanted, seconds);
             bool jump = hasTime && (seconds < lastGameSeconds || seconds - lastGameSeconds > 60);
             lastGameSeconds = seconds;
@@ -86,6 +99,7 @@ namespace AdvancedNPCs
             failed = false;
             motion = null;
             follow = null;
+            navigation = null;
             followLeader = null;
             activity = "";
             settings = null;
@@ -98,10 +112,12 @@ namespace AdvancedNPCs
             AtGuardPost = false;
             if (active == null) { detail = "current AI (no scheduled package)"; return; }
             string problem;
-            plan = PackagePlan.Build(library != null ? library.Find(active.Package) : null, active.Parameters,
+            AiPackage selected = companion != null ? new AiPackage { Id = active.Package, Type = active.Package, Parameters = new System.Collections.Generic.Dictionary<string, object>() } :
+                library != null ? library.Find(active.Package) : null;
+            plan = PackagePlan.Build(selected, active.Parameters,
                 delegate(string id) { return library != null ? library.Find(id) : null; }, out problem);
             int slot = brain.Instance.Definition.Schedule.IndexOf(active) + 1;
-            detail = "slot " + slot + ": " + active.Package;
+            detail = companion != null ? "companion " + companion.status : "slot " + slot + ": " + active.Package;
             if (plan == null) { Fail(problem); return; }
             detail += " (" + (plan.Sequence ? "sequence" : plan.Steps[0].Settings.Type) + ")";
             BeginStep(0);
@@ -114,6 +130,8 @@ namespace AdvancedNPCs
             settings = plan.Steps[index].Settings;
             activity = ""; spotRetry = 0; blockedRetry = 15; blockedSpots.Clear();
             AtWorkPost = false; AtGuardPost = false;
+            civilianPaused = false; civilianIdleLeft = 0; civilianDirection = -1;
+            cityNavigation = settings.Type == "wander_civilian" && areaTown != null && areaInterior == null && areaDungeon == null ? areaTown.GetComponent<CityNavigation>() : null;
             activityFacing = settings.Facing;
             guardDuty = settings.Type == "guard_spot" && settings.Spots.Count == 0;
             if (settings.Type == "guard_spot" || settings.Type == "work_at")
@@ -121,9 +139,10 @@ namespace AdvancedNPCs
                 Vector3 current = brain.transform.localPosition;
                 settings.Target = settings.Position ?? new PackagePoint(current.x,current.y,current.z);
             }
-            motion = new PackageMotion(settings,random.NextDouble);
+            motion = new PackageMotion(settings,random.NextDouble, cityNavigation != null ? (Func<PackagePoint, PackagePoint>)CivilianTarget : null);
             follow = Following ? new FollowMotion(settings.FollowDistance,settings.RunDistance) : null;
             followLeader = null; followPrevious = brain.transform.localPosition;
+            navigation = Following ? new FollowNavigation(brain, mover) : null;
             NpcSprite sprite = brain.GetComponent<NpcSprite>();
             if (sprite != null) sprite.ResetPackageAnimation();
         }
@@ -134,13 +153,14 @@ namespace AdvancedNPCs
             if (reservation != null) activity = "; spot released; awaiting reservation";
             heldLibrary = null; reservation = null; spotRetry = 0;
         }
-        public void Dispose() { ReleaseSpot(); settings = null; plan = null; }
-        public void Suspend() { ReleaseSpot(); Running=false; AtWorkPost=false; AtGuardPost=false; }
+        public void Dispose() { ReleaseSpot(); navigation = null; settings = null; plan = null; }
+        public void InterruptFollow() { if (navigation != null) navigation.Suspend(); }
+        public void Suspend() { ReleaseSpot(); InterruptFollow(); Running=false; AtWorkPost=false; AtGuardPost=false; }
 
         public void Pause()
         {
             Running = false; AtGuardPost = false; AtWorkPost = false;
-            if (brain.CurrentMode != NpcMode.Calm) ReleaseSpot();
+            if (brain.CurrentMode != NpcMode.Calm) { ReleaseSpot(); InterruptFollow(); }
         }
 
         /// <summary>True owns routine movement, false releases to the original AI.</summary>
@@ -172,6 +192,16 @@ namespace AdvancedNPCs
             try
             {
                 if (Following) return TickFollow(dt);
+                NpcSprite civilianSprite = settings.Type == "wander_civilian" ? brain.GetComponent<NpcSprite>() : null;
+                if (civilianSprite != null && civilianSprite.Pending) { mover.Stop(); return true; }
+                if (civilianPaused)
+                {
+                    stepReady = true;
+                    civilianIdleLeft = Mathf.Max(0, civilianIdleLeft - dt);
+                    if (civilianIdleLeft > 0 || (civilianSprite != null && !civilianSprite.CivilianPauseFinished)) { mover.Stop(); return true; }
+                    civilianPaused = false;
+                    if (civilianSprite != null) civilianSprite.ResetPackageAnimation();
+                }
                 if (settings.Spots.Count > 0 && !ClaimSpot(homeLocal,dt)) return false;
                 if (PlaysAnimation)
                 {
@@ -203,6 +233,12 @@ namespace AdvancedNPCs
                 stepReady = target == null || (settings.Type != "work_at" && settings.Type != "guard_spot" && settings.Type != "travel_to");
                 if (target == null)
                 {
+                    if (settings.Type == "wander_civilian" && (cityNavigation == null || settings.Radius == 0 || random.NextDouble() < 0.25))
+                    {
+                        civilianPaused = true;
+                        // Vanilla sprites have no named activity sheets; keep their normal standing animation.
+                        if (civilianSprite == null || !civilianSprite.BeginCivilianPause()) civilianIdleLeft = 2 + (float)random.NextDouble() * 4;
+                    }
                     mover.Stop();
                     if (AtWorkPost && activityFacing.HasValue)
                     {
@@ -232,6 +268,35 @@ namespace AdvancedNPCs
                 Fail(e.Message);
                 return false;
             }
+        }
+
+        PackagePoint CivilianTarget(PackagePoint current)
+        {
+            Vector3 home = brain.transform.localPosition - new Vector3((float)current.X, (float)current.Y, (float)current.Z);
+            Vector3 center = home + new Vector3((float)settings.Center.X, (float)settings.Center.Y, (float)settings.Center.Z);
+            Vector3 currentGap = brain.transform.localPosition - center; currentGap.y = 0;
+            DFPosition grid = cityNavigation.WorldToNavGridPosition(cityNavigation.SceneToWorldPosition(brain.transform.position));
+            int[] dx = { 0, 0, 1, -1 }, dz = { -1, 1, 0, 0 }, weights = new int[4];
+            Vector3[] targets = new Vector3[4];
+            for (int i = 0; i < 4; i++)
+            {
+                int x = grid.X + dx[i], z = grid.Y + dz[i];
+                int weight = cityNavigation.GetNavGridWeightLocal(x, z);
+                if (weight == 0 || cityNavigation.HasFlags(x, z, CityNavigation.TileFlags.Occupied)) continue;
+                Vector3 world = cityNavigation.WorldToScenePosition(cityNavigation.NavGridToWorldPosition(new DFPosition(x, z)));
+                Vector3 local = brain.transform.parent != null ? brain.transform.parent.InverseTransformPoint(world) : world;
+                Vector3 gap = local - center; gap.y = 0;
+                if (gap.sqrMagnitude > settings.Radius * settings.Radius && gap.sqrMagnitude >= currentGap.sqrMagnitude) continue;
+                Vector3 delta = world - brain.transform.position; delta.y = 0;
+                if (Physics.Raycast(brain.transform.position, delta.normalized, delta.magnitude, SpotFinder.Mask, QueryTriggerInteraction.Ignore)) continue;
+                local.y = brain.transform.localPosition.y;
+                targets[i] = local - home;
+                weights[i] = weight;
+            }
+            civilianDirection = PackageMotion.CivilianDirection(weights, civilianDirection, random.NextDouble(), random.NextDouble(), random.NextDouble());
+            if (civilianDirection < 0) return null;
+            Vector3 target = targets[civilianDirection];
+            return new PackagePoint(target.x, target.y, target.z);
         }
 
         bool ClaimSpot(Vector3 homeLocal,float dt)
@@ -296,6 +361,7 @@ namespace AdvancedNPCs
                 followLeader = leader;
                 follow = new FollowMotion(settings.FollowDistance, settings.RunDistance);
                 followPrevious = brain.transform.localPosition;
+                navigation = new FollowNavigation(brain, mover);
             }
             if (leader == null)
             {
@@ -310,14 +376,17 @@ namespace AdvancedNPCs
             Vector3 gap = leader.position - brain.transform.position;
             float vertical = Mathf.Abs(gap.y);
             gap.y = 0;
-            if (vertical > 4 || gap.magnitude > 1000)
+            if ((vertical > 4 && brain.State.companion == null) || gap.magnitude > 1000)
             {
                 activity = "; waiting for target on reachable ground";
                 mover.Stop();
                 return true;
             }
             stepReady = true;
-            bool move = follow.Tick(gap.magnitude, moved.magnitude, dt);
+            float separation = brain.State.companion != null ? Vector3.Distance(leader.position, brain.transform.position) : gap.magnitude;
+            if (separation <= settings.FollowDistance + 0.5 && !navigation.ArrivedThroughClearSpace(leader))
+                separation = (float)settings.FollowDistance + 0.6f;
+            bool move = follow.Tick(separation, brain.State.companion != null ? 0.02f : moved.magnitude, dt);
             activity = follow.Blocked ? "; blocked, retrying" : "; following " + settings.FollowTarget;
             if (!move) mover.Stop();
             else
@@ -325,7 +394,16 @@ namespace AdvancedNPCs
                 Running = follow.Running && brain.Instance.Definition.CanRun;
                 float speed = gait != null ? (Running ? gait.RunSpeed : gait.WalkSpeed) :
                     (Running ? NpcMover.RunSpeed : NpcMover.WalkSpeed);
-                mover.MoveToward(leader.position - gap.normalized * (float)settings.FollowDistance, speed);
+                Vector3 step, catchup;
+                bool walking = navigation.Tick(leader, dt, settings.FollowTarget == "player", out step, out catchup);
+                activity = "; following " + settings.FollowTarget + "; " + navigation.Status;
+                if (navigation.CatchupReady)
+                {
+                    AdvancedNpcsMod.Log(brain.Id + ": companion caught up out of sight.");
+                    brain.Teleport(catchup); // disposes this package driver; return without touching it again
+                    return true;
+                }
+                if (walking) mover.MoveToward(step, speed); else mover.Stop();
             }
             return true;
         }

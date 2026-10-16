@@ -5,6 +5,13 @@ Male Breton, Monk base class, Normal bravery, wander radius 5.
 Uses the existing breton_oblivion_skyrim namelist. Automatic spawning is
 initially disabled with spawn.count [0, 0].
 
+Heal supports nearby allies and a friendly player, during and outside combat.
+Shield remains a self-directed combat spell. Healing uses cast sheets unless heal
+sheets are added; optional Sounds/heal clips use sounds.combatChance.
+120 magicka, recovery on area entry, skill 80, cast cooldown 5-8 seconds.
+Recipients must be in sight within 2.5 m and below 60% health; player reaction
+must be likes or loves. This is automatic support healing, not a paid service.
+
 15 actions at 8 fps; 79 poses and 632 directional cells. Punches land on
 frame 3. Yellow casting charge on frame 2 and release on frame 3. Blood
 flecks cover both hit variants; pools grow across death frames 4 and 5.

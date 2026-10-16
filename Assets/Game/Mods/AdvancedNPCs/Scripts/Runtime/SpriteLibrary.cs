@@ -559,15 +559,21 @@ namespace AdvancedNPCs
                     AdvancedNpcsMod.LogError(label + ": file: missing (sheet skipped)");
                 return null;
             }
+            Texture2D texture = null;
             try
             {
-                Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-                if (texture.LoadImage(File.ReadAllBytes(path)))
+                byte[] bytes = File.ReadAllBytes(path);
+                int width, height;
+                if (!PngHeader.TryReadSize(bytes, out width, out height))
+                    throw new InvalidDataException("not a readable PNG");
+                texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (texture.LoadImage(bytes) && texture.width == width && texture.height == height)
                 {
                     texture.name = label;
-                    return texture;
+                    Texture2D loaded = texture;
+                    texture = null; // The caller now owns it.
+                    return loaded;
                 }
-                UnityEngine.Object.Destroy(texture);
                 if (required)
                     AdvancedNpcsMod.LogError(label + ": file: not a readable PNG (sheet skipped)");
                 else
@@ -576,6 +582,10 @@ namespace AdvancedNPCs
             catch (Exception e)
             {
                 AdvancedNpcsMod.LogError(label + ": file: could not read (" + e.Message + ")");
+            }
+            finally
+            {
+                if (texture != null) UnityEngine.Object.Destroy(texture);
             }
             return null;
         }

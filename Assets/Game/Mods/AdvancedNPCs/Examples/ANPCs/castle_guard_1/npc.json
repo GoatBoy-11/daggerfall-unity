@@ -4,6 +4,7 @@
   "race": "Breton",
   "gender": "Male",
   "baseClass": "Knight",
+  "guard": true,
   "bravery": "Brave",
   "wanderRadius": 4,
   "portrait": "castle_guard_1",

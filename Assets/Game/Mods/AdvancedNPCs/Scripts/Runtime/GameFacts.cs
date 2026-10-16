@@ -19,7 +19,7 @@ namespace AdvancedNPCs
     /// The live game as dialogue conditions see it (spec C1 §5), for one conversation with one ANPC, and what asking
     /// a topic changes (player-wide flags, the person's asked topics).
     /// </summary>
-    public class GameFacts : IDialogueFacts, IDialogueState, IDialogueActions, INpcVariableFacts, INpcVariableActions, INpcPersonalFacts
+    public class GameFacts : IDialogueFacts, IDialogueState, IDialogueActions, INpcVariableFacts, INpcVariableActions, INpcPersonalFacts, ICompanionFacts, ICompanionActions
     {
         /// <summary>Set by the talk window code: turn the ANPC into an enemy / close the conversation.</summary>
         public Action OnBecomeEnemy;
@@ -56,6 +56,11 @@ namespace AdvancedNPCs
             this.tone = tone;
         }
 
+        public bool CanCommandCompanion(string command)
+        { return AdvancedNpcsMod.Instance.Companions.CanCommand(subject, command); }
+        public bool CommandCompanion(string command)
+        { return AdvancedNpcsMod.Instance.Companions.Command(subject, command); }
+
         static PlayerEntity Player
         {
             get { return GameManager.Instance.PlayerEntity; }
@@ -69,6 +74,16 @@ namespace AdvancedNPCs
         public bool IsNight
         {
             get { return DaggerfallUnity.Instance.WorldTime.Now.IsNight; }
+        }
+
+        public bool Indoors
+        {
+            get
+            {
+                if (subject != null)
+                    return subject.GetComponentInParent<DaggerfallInterior>() != null || subject.GetComponentInParent<DaggerfallDungeon>() != null;
+                return GameManager.Instance.PlayerEnterExit.IsPlayerInside;
+            }
         }
 
         public string Season

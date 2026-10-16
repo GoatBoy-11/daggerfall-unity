@@ -13,7 +13,7 @@ namespace AdvancedNPCs
     /// An ANPC's own sounds (spec sounds): plays its Sounds folder's pools on greet, attack, cast, hit and death,
     /// footsteps while walking or running, and DFU's voice grunts itself for events the folder has no sound for.
     /// </summary>
-    public class NpcVoice : MonoBehaviour
+    public partial class NpcVoice : MonoBehaviour
     {
         LoadedSoundSet set;
         SoundSettings settings;
@@ -44,6 +44,64 @@ namespace AdvancedNPCs
         int lastTalk = -1;
         AudioSource talkSource;
         AudioSource greetSource;
+        readonly CompanionBarkClock barkClock=new CompanionBarkClock();
+        string lastSpeechPool;
+        bool speechPaused;
+        bool CompanionSpeaker { get { return brain!=null && brain.State!=null && brain.State.companion!=null && CompanionCombatRules.Contract(brain.State.companion.status); } }
+        public bool BarksEnabled { get { return CompanionSpeaker && SpeechControls; } }
+        public string LastSpeechPool { get { return lastSpeechPool; } }
+        public int SpeechSourcesPlaying { get { int count=0;if(voices!=null)foreach(var source in voices)if(source!=null && source.isPlaying)count++;return count; } }
+        public void BarksChanged()
+        {
+            if(CompanionBarkRules.IsBark(lastSpeechPool))StopSpeech();
+            barkClock.Reset(behaviour!=null && behaviour.Entity!=null?behaviour.Entity.CurrentMagicka:0);
+        }
+        void StopSpeech()
+        {
+            if(voices!=null)foreach(var source in voices)if(source!=null)source.Stop();
+            talkSource=greetSource=null;lastSpeechPool=null;speechPaused=false;dismissalSource=null;dismissalContract=null;
+        }
+        AudioSource Speech(AudioClip clip,string pool,float pitch)
+        {
+            if(CompanionSpeech)StopSpeech();
+            AudioSource source=voices[nextVoice];nextVoice=SoundRules.NextVoice(nextVoice,voices.Length);
+            source.pitch=pitch;source.PlayOneShot(clip,DaggerfallUnity.Settings.SoundVolume);
+            lastVoice=source;lastSpeechPool=pool;return source;
+        }
+        void OnDisable() { if(CompanionSpeaker || CompanionBarkRules.IsBark(lastSpeechPool))StopSpeech();barkClock.Reset(-1);ResetCompanionSpeech(); }
+
+        public static string BarkContext()
+        {
+            var pee=GameManager.Instance.PlayerEnterExit;
+            if(pee.IsPlayerInsideDungeon)return CompanionBarkRules.Dungeon;
+            if(pee.IsPlayerInsideBuilding && pee.BuildingType.ToString()=="Tavern")return CompanionBarkRules.Inn;
+            return null;
+        }
+        void CompanionBarks()
+        {
+            int mana=behaviour.Entity.CurrentMagicka;
+            bool depleted=barkClock.ObserveMagicka(mana);
+            bool enabled=BarksEnabled && !brain.IsEnemy && !brain.State.hostile && !gone && !GameManager.Instance.DisableAI;
+            if(!enabled)
+            {
+                if(CompanionBarkRules.IsBark(lastSpeechPool) && !FinishingDismissal)StopSpeech();
+                barkClock.Reset(mana);return;
+            }
+            if((transform.position-GameManager.Instance.PlayerObject.transform.position).sqrMagnitude>SoundRules.MaxAudibleDistance*SoundRules.MaxAudibleDistance)
+            {barkClock.Reset(mana);return;}
+            // Only sample randomness and construct an area key when an utterance is due.
+            if(!depleted && barkClock.NeedsSchedule)
+            {barkClock.Schedule(settings.BarkMinSeconds,settings.BarkMaxSeconds,Random.value);return;}
+            if(!depleted && !barkClock.Advance(Time.deltaTime))return;
+            barkClock.Schedule(settings.BarkMinSeconds,settings.BarkMaxSeconds,Random.value);
+            string area;Transform parent;
+            if(!CompanionRoster.CurrentArea(out area,out parent) || brain.State.companion.area!=area)return;
+            if(depleted) {Play(CompanionBarkRules.NoMagicka);return;}
+            bool hurt=behaviour.Entity.MaxHealth>0 && (float)behaviour.Entity.CurrentHealth/behaviour.Entity.MaxHealth<.25f;
+            // Ordinary chatter waits for calm; injured companions may call for help during a fight.
+            if(!hurt && brain.CurrentMode!=NpcMode.Calm)return;
+            Play(CompanionBarkRules.Pool(hurt,BarkContext(),Random.value));
+        }
 
         /// <summary>The ANPC's sound set (anpc_info).</summary>
         public LoadedSoundSet Set
@@ -316,10 +374,13 @@ namespace AdvancedNPCs
         /// <summary>Plays a random sound of the event's pool, rolling its chance; false when nothing played.</summary>
         public bool Play(string pool)
         {
+            bool bark=CompanionBarkRules.IsBark(pool);
+            if(bark && (!BarksEnabled || brain.IsEnemy || brain.State.hostile))return false;
+            if(CompanionSpeaker && GameManager.IsGamePaused)return false;
             string playable = Playable(pool);
             if (playable == null || voices == null || !VoiceModes.CustomVoice(Mode))
                 return false;
-            if (pool != SoundPools.Death)
+            if (pool != SoundPools.Death && !bark)
             {
                 int chance = SoundPools.IsCombat(pool) ? settings.CombatChance : settings.GreetChance;
                 if (!SoundRules.Rolls(chance, Random.value))
@@ -328,11 +389,7 @@ namespace AdvancedNPCs
             AudioClip clip = set.Pick(playable);
             if (clip == null)
                 return false;
-            AudioSource voice = voices[nextVoice];
-            nextVoice = SoundRules.NextVoice(nextVoice, voices.Length);
-            voice.pitch = SoundRules.Pitch(settings.SoundPitch, settings.SoundPitchVariation, Random.value);
-            voice.PlayOneShot(clip, DaggerfallUnity.Settings.SoundVolume);
-            lastVoice = voice;
+            AudioSource voice = Speech(clip,pool,SoundRules.Pitch(settings.SoundPitch,settings.SoundPitchVariation,Random.value));
             if (pool == SoundPools.Greet)
                 greetSource = voice;
             Count(pool);
@@ -381,11 +438,7 @@ namespace AdvancedNPCs
             AudioClip clip = clips[lastTalk];
             if (clip == null)
                 return 0f;
-            AudioSource voice = voices[nextVoice];
-            nextVoice = SoundRules.NextVoice(nextVoice, voices.Length);
-            voice.pitch = SoundRules.Pitch(settings.SoundPitch, settings.SoundPitchVariation, Random.value);
-            voice.PlayOneShot(clip, DaggerfallUnity.Settings.SoundVolume);
-            lastVoice = voice;
+            AudioSource voice = Speech(clip,SoundPools.Talk,SoundRules.Pitch(settings.SoundPitch,settings.SoundPitchVariation,Random.value));
             talkSource = voice;
             Count(SoundPools.Talk);
             return clip.length / Mathf.Max(SoundRules.MinPitch, voice.pitch);
@@ -417,6 +470,8 @@ namespace AdvancedNPCs
         /// </summary>
         public void OnDied()
         {
+            if(CompanionSpeaker || CompanionBarkRules.IsBark(lastSpeechPool))StopSpeech();
+            ResetCompanionSpeech();
             PlayDeath();
             gone = true;
             ReleaseAll();
@@ -483,6 +538,15 @@ namespace AdvancedNPCs
         {
             if (brain == null || behaviour == null || behaviour.Entity == null || brain.CurrentMode == NpcMode.Dead)
                 return;
+            ValidatePendingCommand();
+            if(CompanionSpeech && GameManager.IsGamePaused)
+            {
+                if(!SpeechControls && CompanionBarkRules.IsBark(lastSpeechPool))StopSpeech();
+                if(!speechPaused && voices!=null) {foreach(var source in voices)source.Pause();speechPaused=true;}
+                return;
+            }
+            if(speechPaused && voices!=null) {foreach(var source in voices)source.UnPause();speechPaused=false;}
+            DeliverCompanionCommand();
             SyncVoiceRace();
             SyncCreatureAttack();
 
@@ -505,6 +569,8 @@ namespace AdvancedNPCs
             if (lastHealth >= 0 && health < lastHealth && health > 0)
                 OnEvent(SoundPools.Hit, false, lastHealth - health >= behaviour.Entity.MaxHealth / 4, 40, Time.frameCount - magicFrame <= 1);
             lastHealth = health;
+            ObserveCompanionBattle();
+            CompanionBarks();
 
             // Footsteps of an ANPC without a walk/run sheet: a timer while it moves.
             bool sheetSteps = sprite != null && sprite.Set != null;
@@ -532,7 +598,7 @@ namespace AdvancedNPCs
         {
             if (enemySounds == null)
                 return;
-            bool dfu = VoiceModes.DfuVoice(Mode, set != null);
+            bool dfu = !CompanionSpeech && VoiceModes.DfuVoice(Mode, set != null);
             if (dfu && enemySounds.RaceForSounds == Races.None && voiceRace != Races.None)
             {
                 enemySounds.RaceForSounds = voiceRace;
@@ -553,6 +619,8 @@ namespace AdvancedNPCs
         /// <summary>The folder's sound for the event, or else DFU's own grunt where DFU voices one (spec sounds §E).</summary>
         void OnEvent(string pool, bool attack, bool heavy, int vanillaChance, bool magicDamage)
         {
+            if(CompanionSpeech && Mode!=VoiceModes.Off && (set==null || Mode==VoiceModes.Vanilla))
+            { if(SoundRules.VanillaVoice(pool,false,magicDamage))VanillaGrunt(attack,heavy,vanillaChance);return; }
             if (set == null || !VoiceModes.CustomVoice(Mode))
                 return;     // DFU voices it itself, or voices are off
             bool custom = Playable(pool) != null;
@@ -573,6 +641,15 @@ namespace AdvancedNPCs
                 return;
             Genders gender = mobile != null && (mobile.Enemy.Gender == MobileGender.Male || entity.MobileEnemy.ID == (int)MobileTypes.Knight_CityWatch)
                 ? Genders.Male : Genders.Female;
+            if(CompanionSpeech)
+            {
+                // Native combat speech uses a separate ANPC voice source; native swing/footstep effects are never stopped.
+                if(gender==Genders.Male && voiceRace==Races.HighElf)voiceRace=Races.WoodElf;
+                var sound=attack?DaggerfallEntity.GetRaceGenderAttackSound(voiceRace,gender):DaggerfallEntity.GetRaceGenderPainSound(voiceRace,gender,heavy);
+                AudioClip clip=DaggerfallUnity.Instance.SoundReader.GetAudioClip((int)sound);
+                if(clip!=null) {Speech(clip,attack?"vanilla_attack":"vanilla_hit",1f+Random.Range(0,.3f));Count(attack?"vanilla_attack":"vanilla_hit");}
+                return;
+            }
             enemySounds.RaceForSounds = voiceRace;
             enemySounds.PlayCombatVoice(gender, attack, heavy);
             voiceRace = enemySounds.RaceForSounds;      // DFU may swap a male high elf's voice for a wood elf's

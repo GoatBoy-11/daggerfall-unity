@@ -111,6 +111,13 @@ namespace AdvancedNPCs.Tests
             CollectionAssert.AreEqual(new[] { "idle_1" }, Names(SpriteStates.Variants(Set("idle_1"), SpriteStates.RangedAttack)));
         }
 
+        [Test]
+        public void BothRangedSpellingsAndNumberedVariantsShareSelection()
+        {
+            CollectionAssert.AreEqual(new[]{"attack_range","attack_range_2","attack_ranged","attack_ranged_3"},
+                Names(SpriteStates.Variants(Set("idle","attack","attack_ranged_3","attack_range_2","attack_range","attack_ranged"),SpriteStates.RangedAttack)));
+        }
+
         [TestCase("projectile", true)]
         [TestCase("Projectile_2", true)]
         [TestCase("projectile_x", false)]

@@ -7,6 +7,7 @@ using System.Text;
 using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
@@ -55,6 +56,7 @@ namespace AdvancedNPCs
 
         static Mod mod;
         NpcSpawner spawner;
+        public CompanionRoster Companions { get; private set; }
 
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
@@ -70,6 +72,8 @@ namespace AdvancedNPCs
 
         void Update()
         {
+            GuardArrest.Refresh();
+            if (Companions != null) Companions.Tick();
             if (Sprites != null)
                 Sprites.Tick(Time.unscaledTime);
             if (Sounds != null)
@@ -113,6 +117,9 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_hostile",
                 "Turns an ANPC into an enemy (no crime to fight) or calms it; saved with your game.",
                 "anpc_hostile <id or key> [on|off]", HostileCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_crime",
+                "Registers or clears a spawned ANPC's offence in the current region; saved with your game.",
+                "anpc_crime <id or key> <Assault|Murder|Theft|...|None>", CrimeCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_opinion",
                 "Shows or sets an ANPC's personal opinion of you (-100..100; added to the region's reaction for greetings and dialogue).",
                 "anpc_opinion <id or key> [value]", OpinionCommand);
@@ -157,6 +164,7 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_summon",
                 "Moves a spawned Advanced NPC in front of you (testing only, not saved).", "anpc_summon <id>", SummonCommand);
             spawner = new NpcSpawner(this);
+            Companions = new CompanionRoster(this, spawner);
             Flats = gameObject.AddComponent<FlatReplacer>();
             Flats.Init(this, spawner);
             spawner.Enable();
@@ -226,6 +234,7 @@ namespace AdvancedNPCs
         void OnDestroy()
         {
             StartGameBehaviour.OnNewGame -= OnNewGame;
+            if (Companions != null) Companions.Dispose();
             if (spawner != null)
                 spawner.Disable();
             if (Indoors != null)
@@ -251,6 +260,7 @@ namespace AdvancedNPCs
             if (!composed.TryGetValue(def, out c))
             {
                 c = Dialogue.Compose(def);
+                CompanionDialogue.Append(c, def.RecruitCost);
                 composed[def] = c;
             }
             return c;
@@ -362,7 +372,7 @@ namespace AdvancedNPCs
             return updated;
         }
 
-        /// <summary>anpc_info (spec tools-quality §A1); internal for the self-test.</summary>
+        /// <summary>anpc_info (spec tools-quality Â§A1); internal for the self-test.</summary>
         internal static string InfoCommand(params string[] args)
         {
             bool named = args != null && args.Length > 0;
@@ -374,7 +384,7 @@ namespace AdvancedNPCs
             return text;
         }
 
-        /// <summary>anpc_chat (spec conversations §3); internal for the self-test.</summary>
+        /// <summary>anpc_chat (spec conversations Â§3); internal for the self-test.</summary>
         internal static string ChatCommand(params string[] args)
         {
             NpcBrain a = Nearest(5f);
@@ -494,6 +504,7 @@ namespace AdvancedNPCs
         /// <summary>Also the self-test, to act out a load.</summary>
         internal void RaiseStateRestored()
         {
+            GuardArrest.Reset();
             if (OnStateRestored != null)
                 OnStateRestored();
         }
@@ -613,7 +624,7 @@ namespace AdvancedNPCs
             if (SelfTest.Running)
                 return "The self-test is already running.";
             SelfTest test = new SelfTest(Instance, Instance.spawner);
-            if (args.Length > 0 && (args[0] == SelfTest.RangedSuite || args[0] == SelfTest.ReplaceSuite || args[0] == SelfTest.PackageSuite))
+            if (args.Length > 0 && (args[0] == SelfTest.GuardSuite || args[0] == SelfTest.CompanionEventsSuite || args[0] == SelfTest.CompanionBarksSuite || args[0] == SelfTest.AuditSuite || args[0] == SelfTest.CompanionSpellsSuite || args[0] == SelfTest.CompanionLimitsSuite || args[0] == SelfTest.CompanionPerformanceSuite || args[0] == SelfTest.CompanionBowsSuite || args[0] == SelfTest.CompanionEquipmentSuite || args[0] == SelfTest.CompanionTradingSuite || args[0] == SelfTest.CompanionPlaytestSuite || args[0] == SelfTest.CompanionOrdersSuite || args[0] == SelfTest.CompanionCombatSuite || args[0] == SelfTest.NavigationSuite || args[0] == SelfTest.CompanionSuite || args[0] == SelfTest.RangedSuite || args[0] == SelfTest.ReplaceSuite || args[0] == SelfTest.HealingSuite || args[0] == SelfTest.PackageSuite))
                 test.Suite = args[0];
             Instance.StartCoroutine(test.Run(null));
             return "Self-test started; results appear on screen and in Player.log (SELFTEST lines).";
@@ -638,7 +649,7 @@ namespace AdvancedNPCs
             string save = lines[1].Trim();
             bool play = lines.Length > 2 && lines[2].Trim() == "play";
             string third = lines.Length > 2 ? lines[2].Trim() : "";
-            string suite = third == SelfTest.RangedSuite || third == SelfTest.ReplaceSuite || third == SelfTest.PackageSuite ? third : null;
+            string suite = third == SelfTest.GuardSuite || third == SelfTest.CompanionEventsSuite || third == SelfTest.CompanionBarksSuite || third == SelfTest.AuditSuite || third == SelfTest.CompanionSpellsSuite || third == SelfTest.CompanionLimitsSuite || third == SelfTest.CompanionPerformanceSuite || third == SelfTest.CompanionBowsSuite || third == SelfTest.CompanionEquipmentSuite || third == SelfTest.CompanionTradingSuite || third == SelfTest.CompanionPlaytestSuite || third == SelfTest.CompanionOrdersSuite || third == SelfTest.CompanionCombatSuite || third == SelfTest.NavigationSuite || third == SelfTest.CompanionSuite || third == SelfTest.RangedSuite || third == SelfTest.ReplaceSuite || third == SelfTest.HealingSuite || third == SelfTest.PackageSuite ? third : null;
             if (play)
                 File.Delete(path);
             Log(SelfTest.Prefix + "autorun: loading save '" + save + "' of '" + character + "'" + (play ? " to play" : ""));
@@ -875,7 +886,7 @@ namespace AdvancedNPCs
         }
 
         /// <summary>
-        /// Turns an ANPC (by id or key) into an enemy of the player, or calms it (enemies spec §4). The switch is
+        /// Turns an ANPC (by id or key) into an enemy of the player, or calms it (enemies spec Â§4). The switch is
         /// saved. False if no ANPC has that id or key (spawned now, defined, placed, or remembered in the save).
         /// </summary>
         public bool SetHostile(string key, bool hostile)
@@ -947,6 +958,14 @@ namespace AdvancedNPCs
             return b.Id + " (" + b.DisplayName + "): opinion of you " + b.Opinion + ". Saved with your game.";
         }
 
+        static string CrimeCommand(params string[] args)
+        {
+            PlayerEntity.Crimes crime;
+            if (args == null || args.Length != 2 || !NpcCrime.TryCrime(args[1], out crime))
+                return "Usage: anpc_crime <id or key> <Assault|Murder|Theft|...|None>";
+            return NpcCrime.ReportNpc(args[0], crime) ? args[0] + ": offence " + crime + ". Saved with your game." : "No eligible spawned ANPC with that key.";
+        }
+
         static string HostileCommand(params string[] args)
         {
             if (args == null || args.Length == 0 || args.Length > 2)
@@ -985,6 +1004,16 @@ namespace AdvancedNPCs
             if (message == "SetFlag" || message == "HasFlag")
             {
                 OnFlagMessage(message, data, callBack);
+                return;
+            }
+            if (message == "ReportCrime")
+            {
+                string record = data as string;
+                int split = record != null ? record.LastIndexOf('|') : -1;
+                PlayerEntity.Crimes reported;
+                bool ok = split > 0 && NpcCrime.TryCrime(record.Substring(split + 1), out reported) &&
+                    NpcCrime.ReportNpc(record.Substring(0, split).Trim(), reported);
+                if (callBack != null) callBack("ReportCrime", ok);
                 return;
             }
             if (message != "SetHostile")

@@ -1,0 +1,51 @@
+{
+  "kind": "generic",
+  "name": "Dancer Wearing Blue",
+  "race": "Redguard",
+  "gender": "Female",
+  "baseClass": "Bard",
+  "bravery": "Normal",
+  "spriteHeight": 1.7,
+  "wanderRadius": 2,
+  "stayNear": 2,
+  "replaces": [
+    "181.5"
+  ],
+  "replaceName": false,
+  "replacePortrait": false,
+  "combat": {
+    "canRun": true,
+    "rangedAtDistance": false
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "magic": {
+    "spells": [
+      "Heal"
+    ],
+    "usesMagicka": true,
+    "maxMagicka": 100,
+    "recovery": "rest",
+    "restHours": 8,
+    "castCooldown": [
+      6,
+      10
+    ]
+  },
+  "schedule": [
+    {
+      "hours": [
+        "06:00",
+        "23:00"
+      ],
+      "package": "play_animation",
+      "parameters": {
+        "animation": "dance"
+      }
+    },
+    {
+      "package": "stand"
+    }
+  ]
+}

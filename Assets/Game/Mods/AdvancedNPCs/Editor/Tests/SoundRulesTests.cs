@@ -45,6 +45,17 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void HealSoundsUseCombatChanceAndNeverFallBackToCastOrAttack()
+        {
+            Assert.AreEqual(SoundPools.Heal, SoundPools.PoolOf("heal"));
+            Assert.AreEqual(SoundPools.Heal, SoundPools.PoolOf("Heal_2"));
+            Assert.IsNull(SoundPools.PoolOf("heal_extra"));
+            Assert.IsTrue(SoundPools.IsCombat(SoundPools.Heal));
+            Assert.AreEqual(SoundPools.Heal, SoundPools.Resolve(SoundPools.Heal, new[] { SoundPools.Cast, SoundPools.Heal }));
+            Assert.IsNull(SoundPools.Resolve(SoundPools.Heal, new[] { SoundPools.Cast, SoundPools.Attack }));
+        }
+
+        [Test]
         public void IsCombat_GroupsThePools()
         {
             Assert.IsTrue(SoundPools.IsCombat(SoundPools.Attack));

@@ -10,8 +10,145 @@ namespace AdvancedNPCs
     {
         public const string PackageSuite = "packages";
 
+        void CheckScheduleAreaFacts(NpcBrain actor)
+        {
+            var facts = new GameFacts(actor.State,mod.Flags,actor.DisplayName,null,actor.Instance.Definition,actor);
+            string error;
+            var entries = AiSchedule.Read(Json.Parse("[{\"package\":\"wander_civilian\",\"when\":{\"outdoors\":true}},{\"package\":\"stand\",\"when\":{\"indoors\":true}}]"),out error);
+            Transform parent = actor.transform.parent;
+            GameObject building = new GameObject("selftest_condition_building"), dungeon = new GameObject("selftest_condition_dungeon");
+            building.AddComponent<DaggerfallInterior>().enabled = false;
+            dungeon.AddComponent<DaggerfallDungeon>().enabled = false;
+            try
+            {
+                Check("outdoor schedule condition selects civilian wandering in town", !facts.Indoors && AiSchedule.Select(entries,0,facts).Package=="wander_civilian",error ?? actor.Describe());
+                actor.transform.SetParent(building.transform,true);
+                Check("building condition follows NPC area while player stays outside", facts.Indoors && !GameManager.Instance.PlayerEnterExit.IsPlayerInside && AiSchedule.Select(entries,0,facts).Package=="stand",actor.Id);
+                actor.transform.SetParent(dungeon.transform,true);
+                Check("dungeon condition counts as indoors", facts.Indoors && AiSchedule.Select(entries,0,facts).Package=="stand",actor.Id);
+                actor.transform.SetParent(null,true);
+                Check("wilderness condition counts as outdoors without a town parent", !facts.Indoors && AiSchedule.Select(entries,0,facts).Package=="wander_civilian",actor.Id);
+            }
+            finally
+            {
+                actor.transform.SetParent(parent,true);
+                UnityEngine.Object.Destroy(building); UnityEngine.Object.Destroy(dungeon);
+            }
+        }
+
+        IEnumerator CivilianPackageSteps(DaggerfallLocation location, Transform player)
+        {
+            DiscardTestPeople();
+            string error;
+            AiPackage package = PackageParser.Parse("selftest_civilian", "{\"type\":\"wander_civilian\"}", out error);
+            mod.Packages.AddForTest(package);
+            mod.Sprites.Add("selftest_civilian", TestSpriteSet(false, "idle_1", "idle_2", "pray_1", "play_2", "emote_3", "dance_4", "walk", "hit", "attack", "greet", "talk", "cast"));
+            try
+            {
+                NpcDefinition d = TestDefinition("selftest_civilian", Bravery.Brave, location, player, OutOfGreeting);
+                d.BaseClass = "Warrior";
+                d.Schedule.Add(new AiScheduleEntry {Package=package.Id, Parameters=new System.Collections.Generic.Dictionary<string,object> {{"radius",0.0}}});
+                var requests = mod.Packages.AnimationRequests(d);
+                bool allFamilies = true;
+                foreach (string family in PackageAnimations.CivilianFamilies) allFamilies &= requests.Contains(family);
+                Check("civilian schedules request every activity family for sprite loading", allFamilies, string.Join(",",requests.ToArray()));
+                NpcBrain actor = SpawnDefinition(d, location);
+                yield return Settle;
+                CheckScheduleAreaFacts(actor);
+                NpcSprite sprite = actor.GetComponent<NpcSprite>();
+                Vector3 home = actor.transform.localPosition;
+                bool idle = false, activity = false;
+                int cycles = sprite.PackageCycles;
+                float until = Time.time + 4;
+                while (Time.time < until)
+                {
+                    if (sprite.CurrentState == NpcSprite.PackageState)
+                    {
+                        idle |= PackageAnimations.Matches("idle",sprite.CurrentAnimation);
+                        activity |= !PackageAnimations.Matches("idle",sprite.CurrentAnimation);
+                    }
+                    yield return null;
+                }
+                Check("civilian stops animate complete idle or activity cycles", (idle || activity) && sprite.PackageCycles > cycles,
+                    "idle="+idle+", activity="+activity+", cycles="+(sprite.PackageCycles-cycles));
+                Check("zero-radius civilian stays at home", Vector3.Distance(home,actor.transform.localPosition)<0.25f,actor.Describe());
+                cycles = sprite.PackageCycles;
+                actor.HoldStill(0.6f);
+                yield return new WaitForSeconds(0.2f);
+                Check("civilian animation yields to ordinary holds without advancing cycles", !actor.CivilianAnimation && sprite.CurrentState!=NpcSprite.PackageState && sprite.PackageCycles==cycles,sprite.CurrentState);
+                yield return new WaitForSeconds(0.6f);
+                Check("civilian animation resumes after hold", actor.CivilianAnimation && sprite.CurrentState==NpcSprite.PackageState,actor.Describe());
+                actor.HoldStill(0.5f);
+                bool greeted = sprite.PlayGreet();
+                yield return new WaitForSeconds(0.1f);
+                Check("civilian animation yields to greet", greeted && sprite.CurrentState==SpriteStates.Greet,sprite.CurrentState);
+                yield return new WaitForSeconds(0.6f);
+                actor.HoldStill(0.5f); sprite.Talk(0.5f);
+                yield return new WaitForSeconds(0.1f);
+                Check("civilian animation yields to talk", sprite.CurrentState==SpriteStates.Talk,sprite.CurrentState);
+                yield return new WaitForSeconds(0.6f);
+                actor.HoldStill(0.5f); sprite.PlayCast(true);
+                yield return new WaitForSeconds(0.1f);
+                Check("civilian animation yields to healing", sprite.CurrentState==SpriteStates.Heal || sprite.CurrentState==SpriteStates.Cast,sprite.CurrentState);
+                yield return new WaitForSeconds(0.6f);
+                PlayerHit(actor,GameManager.Instance.PlayerEntityBehaviour,1);
+                yield return null; yield return null;
+                Check("hurt and combat interrupt civilian routines", !actor.CivilianAnimation && actor.CurrentMode!=NpcMode.Calm && sprite.CurrentState!=NpcSprite.PackageState,actor.Describe());
+                actor.SwitchHostile(false);
+                yield return new WaitForSeconds(0.8f);
+                Check("civilian resumes when combat ends", actor.CurrentMode==NpcMode.Calm && actor.CivilianAnimation,actor.Describe());
+                d.Schedule.Clear();
+                yield return Settle;
+                Check("ending civilian schedule releases its animation", !actor.CivilianAnimation && sprite.CurrentState!=NpcSprite.PackageState,actor.Describe());
+                NpcBrain.Discard(actor);
+
+                mod.Sprites.Remove("selftest_civilian");
+                mod.Sprites.Add("selftest_civilian", TestSpriteSet(false,"idle_1","idle_2","walk"));
+                d.Schedule.Add(new AiScheduleEntry {Package=package.Id, Parameters=new System.Collections.Generic.Dictionary<string,object> {{"radius",0.0}}});
+                actor=SpawnDefinition(d,location); yield return Settle;
+                sprite=actor.GetComponent<NpcSprite>();
+                yield return new WaitForSeconds(1f);
+                Check("civilian with no activity sheets falls back to idle", sprite.CurrentState==NpcSprite.PackageState && PackageAnimations.Matches("idle",sprite.CurrentAnimation),actor.Describe());
+
+                var grid=location.GetComponent<DaggerfallWorkshop.Game.Utility.CityNavigation>();
+                var origin=grid.WorldToNavGridPosition(grid.SceneToWorldPosition(player.position));
+                DaggerfallConnect.Utility.DFPosition tile;
+                bool found=grid.GetRandomSpawnPosition(origin,out tile,12,100);
+                Check("civilian navigation test finds a walkable town tile",found,"walkable tile="+found);
+                if(found)
+                {
+                    actor.Teleport(grid.WorldToScenePosition(grid.NavGridToWorldPosition(tile))+Vector3.up);
+                    d.Schedule[0]=new AiScheduleEntry {Package=package.Id};
+                    yield return Settle;
+                    home=actor.transform.localPosition;
+                    float farthest=0; until=Time.time+15;
+                    while(Time.time<until)
+                    {
+                        Vector3 gap=actor.transform.localPosition-home;gap.y=0;
+                        farthest=Mathf.Max(farthest,gap.magnitude);
+                        yield return null;
+                    }
+                    Check("civilian walks the town grid within its larger radius",farthest>3 && farthest<=40.5f && !actor.PackageDescription.Contains("current AI:"),"farthest="+farthest+"; "+actor.Describe());
+                }
+                NpcBrain.Discard(actor);
+                d.Folder = "selftest_civilian_vanilla";
+                d.Schedule[0] = new AiScheduleEntry {Package=package.Id, Parameters=new System.Collections.Generic.Dictionary<string,object> {{"radius",0.0}}};
+                actor = SpawnDefinition(d,location);
+                yield return Settle;
+                Check("civilian without custom sheets uses an ordinary idle hold", actor.GetComponent<NpcSprite>()==null && actor.CivilianAnimation,actor.Describe());
+                NpcBrain.Discard(actor);
+            }
+            finally
+            {
+                mod.Packages.RemoveForTest(package.Id);
+                mod.Sprites.Remove("selftest_civilian");
+            }
+        }
+
         IEnumerator PackageSteps(DaggerfallLocation location, Transform player)
         {
+            IEnumerator civilians = CivilianPackageSteps(location, player);
+            while (civilians.MoveNext()) yield return civilians.Current;
             DiscardTestPeople();
             string error;
             AiPackage stand = PackageParser.Parse("selftest_pkg_stand", "{\"type\":\"stand\"}", out error);

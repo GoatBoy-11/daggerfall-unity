@@ -13,6 +13,7 @@ namespace AdvancedNPCs.Core
         public const string Attack = "attack";
         public const string AttackRange = "attack_range";
         public const string Cast = "cast";
+        public const string Heal = "heal";
         public const string Hit = "hit";
         public const string Death = "death";
         public const string Step = "step";
@@ -20,7 +21,7 @@ namespace AdvancedNPCs.Core
         public const string Talk = "talk";
         /// <summary>Talk lines for one gender only (an ANPC whose gender is picked at random); before plain talk.</summary>
         public const string TalkMale = "talk_male", TalkFemale = "talk_female";
-        public static readonly string[] All = { Greet, Attack, AttackRange, Cast, Hit, Death, Step, Talk, TalkMale, TalkFemale };
+        public static readonly string[] All = { Greet, Attack, AttackRange, Cast, Heal, Hit, Death, Step, Talk, TalkMale, TalkFemale, CompanionBarkRules.Bark, CompanionBarkRules.Dungeon, CompanionBarkRules.Inn, CompanionBarkRules.Hurt, CompanionBarkRules.NoMagicka, CompanionBarkRules.Recruit, CompanionBarkRules.Wait, CompanionBarkRules.Follow, CompanionBarkRules.Dismiss, CompanionBarkRules.Regroup, CompanionBarkRules.Push, CompanionBarkRules.Combat, CompanionBarkRules.Victory };
 
         /// <summary>The pool a file name (without extension) belongs to; null for any other name.</summary>
         public static string PoolOf(string name)
@@ -37,6 +38,7 @@ namespace AdvancedNPCs.Core
                     return null;        // "step2": digits without the underscore are part of the name
                 lower = lower.Substring(0, end - 1);
             }
+            if (lower == "push") lower = CompanionBarkRules.Push;
             return Array.IndexOf(All, lower) >= 0 ? lower : null;
         }
 
@@ -53,10 +55,10 @@ namespace AdvancedNPCs.Core
             return available.Contains(Talk) ? Talk : null;
         }
 
-        /// <summary>attack, attack_range, cast and hit roll combatChance.</summary>
+        /// <summary>attack, attack_range, cast, heal and hit roll combatChance (heal even outside combat).</summary>
         public static bool IsCombat(string pool)
         {
-            return pool == Attack || pool == AttackRange || pool == Cast || pool == Hit;
+            return pool == Attack || pool == AttackRange || pool == Cast || pool == Heal || pool == Hit;
         }
 
         /// <summary>The pool that plays for an event: its own, or attack for attack_range; null when there is none.</summary>
@@ -113,6 +115,7 @@ namespace AdvancedNPCs.Core
     {
         public int CombatChance = 50;
         public int GreetChance = 50;
+        public float BarkMinSeconds = 45f, BarkMaxSeconds = 90f;
         public float StepDistance = 15f;
         public float SoundPitch = 1f;
         public float SoundPitchVariation = 0f;
@@ -132,7 +135,7 @@ namespace AdvancedNPCs.Core
         /// <summary>Metres beyond which nothing of an ANPC is heard.</summary>
         public const float MaxAudibleDistance = 30f;
         static readonly string[] Keys =
-            { "combatChance", "greetChance", "stepDistance", "soundPitch", "soundPitchVariation", "stepPitch", "stepPitchVariation", "defaultSteps" };
+            { "combatChance", "greetChance", "stepDistance", "soundPitch", "soundPitchVariation", "stepPitch", "stepPitchVariation", "defaultSteps", "barkMinSeconds", "barkMaxSeconds" };
 
         /// <summary>Reads "sounds" from an npc.json root: null, or a problem with its key ("sounds.greetChance"). Unknown keys only warn.</summary>
         public static string Read(Dictionary<string, object> root, out string key, out SoundSettings settings, List<string> warnings)
@@ -169,6 +172,11 @@ namespace AdvancedNPCs.Core
             settings.StepPitch = (float)v;
             if ((problem = Ranged(o, "stepPitchVariation", 0, 0, 1, false, out v, ref key)) != null) return problem;
             settings.StepPitchVariation = (float)v;
+            if ((problem = Ranged(o, "barkMinSeconds", 45, 1, 86400, false, out v, ref key)) != null) return problem;
+            settings.BarkMinSeconds = (float)v;
+            if ((problem = Ranged(o, "barkMaxSeconds", 90, settings.BarkMinSeconds, 86400, false, out v, ref key)) != null) return problem;
+            settings.BarkMaxSeconds = (float)v;
+            if (settings.BarkMaxSeconds < settings.BarkMinSeconds) { key="sounds.barkMaxSeconds";return "must be at least barkMinSeconds"; }
             bool defaultSteps;
             if (FieldReader.Bool(o, "defaultSteps", true, out defaultSteps) != null)
             {

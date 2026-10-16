@@ -1,0 +1,29 @@
+{
+  "kind": "generic",
+  "name": "Comely Maiden",
+  "race": "Breton",
+  "gender": "Female",
+  "baseClass": "Bard",
+  "bravery": "Prudent",
+  "spriteHeight": 1.875,
+  "wanderRadius": 2,
+  "stayNear": 2,
+  "portrait": "comely_maiden",
+  "replaces": [
+    "182.11"
+  ],
+  "replacePortrait": false,
+  "replaceName": false,
+  "combat": {
+    "canRun": false,
+    "rangedAtDistance": false
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

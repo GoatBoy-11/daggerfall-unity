@@ -61,6 +61,7 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 | `calmDownHours` | no | `[6, 48]` | `[min, max]` in-game hours before a hostile ANPC forgives the player |
 | `crimeOnAttack` | no | `true` | `true`: attacking is assault, killing is murder |
 | `wanderRadius` | no | `8` | metres around the spawn point; `0` stands still |
+| `no_companion_slot` | no | `false` | Recruitable without consuming a limited party slot; recruitment still requires `recruitCost` |
 | `combat` | no | vanilla, no bow, runs | `{ "health": 0.7, "attackSpeed": 1.3, "rangedAtDistance": true, "runSpeed": 1.2, "canRun": true }`, see [Combat tuning](#combat-tuning) |
 | `dialogue` | no | none | dialogue type(s) from `_Dialogue/`, e.g. `"tavern_wench"` or `["gossip", "tavern_wench"]`, see [Dialogue topics](#dialogue-topics) |
 
@@ -109,6 +110,15 @@ In DFU's mod list, select Advanced NPCs → Settings → **Population**:
 
 These apply the next time a town loads.
 
+**Companions** (apply to new recruitment immediately):
+
+- **Max followers** — 3 (default), 4, 5, 6, 7, 8, 9, 10, or **Unlimited (Not Recommended)**.
+  Living hired companions count whether following or waiting, including those in unloaded areas.
+  Dismissed or dead companions do not count. A full party gets **Too many followers!** on a hire attempt,
+  with no gold charged and no contract change. Lowering the limit keeps existing companions and
+  their orders; ordinary recruits can join again once there is room. Unlimited removes this cap.
+  NPCs with `no_companion_slot: true` do not consume a slot and can join a full party.
+
 **Corpses** (ANPCs with their own sprite sets; apply at once):
 
 - **Death animation** — on (default): the death sheet plays, then the body lies still. Off: the body appears at once, as in vanilla Daggerfall.
@@ -138,6 +148,7 @@ folder name is the old id.
 - `anpc_hostile <id or key> [on|off]` — turns an ANPC into an enemy or calms it (without on/off it toggles); saved with your game. See [Enemies](#enemies).
 - `anpc_opinion <id or key> [value]` — shows or sets an ANPC's personal opinion of you (−100 to 100); saved with your game.
 
+- `anpc_selftest healing` — runs the focused support-healing checks (eligibility, cost, AI, animation and audio); details in `Player.log`.
 - `anpc_info [id or key]` — the ANPC in front of you (within 5 m) or that ANPC: id, key, kind, folder, bravery, mode, health, opinion, sprite set (loaded, loading, vanilla, or shown by a dead ANPC's corpse) and height, sound pools and where its footsteps come from (`steps: own`, `default` or `none`), its conversation setting (and partner and line while talking, or why it cannot talk now), its current target, distance and update rate.
 - `anpc_chat` — starts a conversation at once between the ANPC in front of you (within 5 m) and the nearest other ANPC within 4 m of it, ignoring the chance and the 2-hour wait; says why not when one of them cannot talk. See [Conversations](#conversations).
 - `anpc_topics [id or key]` — the dialogue topics of the ANPC in front of you (within 5 m) or of that ANPC: which are shown, and for the others the condition that hides them. See [Dialogue topics](#dialogue-topics).
@@ -169,6 +180,50 @@ Performance: ANPCs far from you update their animation and calm decisions less o
 ```
 
 Use `../../_Schemas/sprites.schema.json` in a `sprites` folder and `../_Schemas/dialogue.schema.json` in `_Dialogue/` or an ANPC folder. The mod ignores the `"$schema"` member. `Tools~/check-schemas.py` keeps the schemas in step with the mod's own field lists.
+
+## Guard authority and arrests
+
+Set `"guard": true` in a peaceful human ANPC's `npc.json` to give it arrest authority.
+The supplied `castle_guard_1` example enables it. Its normal class, sprites, combat tuning,
+and schedule stay in use; `guard_spot` alone still only holds a post. Restart DFU after
+changing the definition.
+
+Guards detect wanted targets within `aggroRange` with a clear line of sight in the same
+loaded area. Pursuit interrupts their routine, uses the existing navigation without
+teleporting, and gives up when the target escapes or becomes unreachable. They resume
+normal behaviour afterwards. Guards use melee while enforcing the law; configured
+ranged attacks and spells resume outside enforcement. Stationary sprite sets remain
+stationary.
+
+Player guilt comes from DFU's active `CrimeCommitted`, including crimes reported by other
+mods. On reaching the player, guards offer the native surrender dialogue. Accepting uses
+DFU's court and punishment (including its health reduction); refusing permits combat.
+A potentially fatal melee hit uses DFU's forced-surrender rules, which can reject surrender.
+ANPC guards share one offer and reputation charge, and respect an existing native guard
+offer. Vanilla guard spawning remains enabled. The guard keeps its ordinary class because
+DFU automatically deletes native `Knight_CityWatch` entities when the crime clears.
+
+NPC guilt is registered explicitly, independently of hostility or team membership:
+
+```text
+anpc_crime <spawned id or key> Assault
+anpc_crime <spawned id or key> None
+```
+
+Other ANPC runtime code can call `NpcCrime.ReportNpc(key, PlayerEntity.Crimes.Assault)`;
+other mods can send `ReportCrime` with data `"key|Assault"` (or `"key|None"`), receiving a
+boolean callback. Offences are scoped to the current region and saved for persistent
+NPC identities. Unknown actors, guards, companions and random-per-visit identities are
+rejected. Register offences from an event that knows the actual offender; ordinary
+hostility is not automatically treated as evidence of crime.
+
+Non-brave NPC suspects surrender when caught. Brave suspects resist until at or below
+25% health and can be killed while resisting. Arrest clears the offence and hostility,
+records one game day of custody, and removes the actor without a death or corpse. It
+can spawn again on the next area entry after custody expires. Pending offences and
+custody survive saving/loading; saves predating this feature default to no offence.
+Pursuit targets and paths are recalculated after loading. `anpc_info` shows guard and
+wanted status. `anpc_selftest guards` runs the focused runtime checks outdoors in a town.
 
 ## AI packages and schedules
 
@@ -207,7 +262,7 @@ Reference that filename (without `.json`) in any unique or generic NPC:
   parameters disable that slot's package. Nothing edits the shared package or NPC definition.
 - While running, a package replaces `wanderRadius` and `stayNear`, including the normal indoor
   wandering cap. Keep routes inside the current area. Stationary sprite sets still cannot move.
-- `wander`, `travel_to` and `patrol` use positions relative to the NPC's original home (spawn/replacement position),
+- `wander`, `wander_civilian`, `travel_to` and `patrol` use positions relative to the NPC's original home (spawn/replacement position),
   as `[x,y,z]` metre offsets in that area's axes, each component between -100 and 100.
   They remain portable across generic instances. Summoning/repositioning an NPC resets its home.
 - Routes use direct collision-aware movement along authored waypoints. Place points around obstacles.
@@ -227,8 +282,30 @@ Reference that filename (without `.json`) in any unique or generic NPC:
 | `guard_spot` | Optional `position: [x,y,z]` in current-area coordinates from `anpc_pos`, or named `spot`; omitted means current position at slot start. `idleInterval: [min,max]` defaults to `[6,15]` active gameplay seconds. Temporary Brave behaviour. |
 | `play_animation` | `animation` (default `idle`), `only_interrupt_at_combat` (default false). Hold position and repeat full cycles; numbered names are exact, base names randomly select numbered variants without immediate repeats. |
 | `wander` | `center` (default `[0,0,0]`), `radius` (0–50, default 8), `pause` (0–3600 game seconds, default 3), `run` (default false). |
+| `wander_civilian` | `center` (default `[0,0,0]`), `radius` (0–50 m, default 40). Walk around town using vanilla road/surface preferences; occasionally stop for 1–4 full animation cycles. |
 | `travel_to` | Required `target: [x,y,z]`; `run` (default false). Hold at the target, returning after displacement. |
 | `patrol` | Required `points: [[x,y,z], ...]` (2–32); `pauseAtStops` (0–3600 game seconds, default 10), `run` (default false). Loop through the points. |
+
+`wander_civilian` chooses its animation pool at each stop: 50% `idle*`, 50% available
+`pray*`, `play*`, `emote*` or `dance*`. Names use the normal bare name or `_N` suffix
+(e.g. `idle`, `idle_2`, `dance_10`); unrelated names such as `playful` do not match.
+A new variant is chosen at each complete cycle, avoiding immediate repeats when possible.
+Missing activity sheets fall back to idle. Stops last 1–4 complete cycles, independent of the
+game clock; hurt, combat, greetings, talking and other ordinary interruptions take priority.
+Town movement favours roads and keeps its heading like vanilla citizens; each reached tile
+has a 25% chance to start a stop. Outside a town grid it uses ordinary radius wandering and
+stops after each leg. Blocked civilian targets are retried rather than disabling
+the package. ANPCs using vanilla sprites stand idle for 2–6 seconds instead. It stays within
+the loaded area and does not open doors or change interiors.
+
+To use the supplied `_Packages/wander_civilian.json`, add an all-day schedule to an NPC:
+
+```json
+"schedule": [{ "package": "wander_civilian" }]
+```
+
+An entry can override `parameters`, for example `"parameters": { "radius": 25 }`.
+No existing NPC schedules are changed automatically.
 
 Running respects `combat.canRun` and uses `combat.runSpeed` as its multiplier.
 Use `Schemas~/package.schema.json` for package autocomplete and the updated NPC schema for schedules.
@@ -341,8 +418,9 @@ or override `target`, `distance` and `runDistance` on a schedule entry. `runDist
 `distance + 0.5`. A named target is its exact spawned id/key from `anpc_list`, including generic keys,
 and must be a living, active, different ANPC under the same area parent.
 
-Following uses direct collision-aware movement in the currently loaded area. It does not open doors,
-move between areas, teleport to catch up, or provide automatic pathfinding. Missing/out-of-area targets
+The `follow` package stays in the currently loaded area and now uses local obstacle steering, recent
+route samples and ordinary unlocked door opening (see below). It does not transfer between areas or
+teleport by itself; hired mercenaries add those capabilities through the companion system. Missing/out-of-area targets
 cause the follower to stand and retry; a returned target is reacquired. After 10 active seconds without
 movement, it rests for 2 active seconds before retrying. Pausing, talk, greetings, healing and combat
 interrupt routine movement. When calm it resumes whichever package is eligible. Following does not
@@ -352,6 +430,256 @@ For an opt-in example, restart DFU and run `anpc_spawn follower_tester`. Talk to
 and choose **Follow me** or **Wait here**. Recruitment sets that individual's `following` boolean and
 increments their `times_recruited` integer; dismissal selects `stand` at the current position. It has no
 automatic spawns and uses vanilla Warrior sprites. Each additional spawned tester has its own values.
+
+### Persistent mercenary companions
+
+Add `"recruitCost": 100` to an NPC definition to offer built-in hiring dialogue. Omitting the field
+keeps normal ANPC behaviour. The price is a whole number from 0 to 1,000,000 gold.
+
+Hiring charges the addressed person's fee once, promotes even a temporary/random-each-visit person
+to persistent state, and selects player following. **Wait here** leaves the paid companion at their
+saved position; **Follow me** resumes for free. **You're dismissed** ends the contract and leaves them
+there. Hiring a dismissed person starts a new paid contract. Without enough gold, **Your hiring fee**
+explains the price. Commands are unavailable while dead, hostile, fighting or fleeing.
+
+A hired person retains their instance key, generated name, race/gender, portrait selection, sprite seed,
+maximum health, health fraction, opinion, dialogue history, personal variables and configured magic state.
+They transfer through building/dungeon entry and exit and world rebuilds such as fast travel. A save/load
+restores one copy, including indoors; their original population/placed spawn is reserved so revisiting
+home cannot duplicate them. Death remains permanent. Format 3 reads older saves with no recruited people.
+Missing NPC definitions leave companion records in the save and log a diagnostic.
+
+Following companions appear on checked floor near the player when entering a different area. Ground,
+wall and person-clearance checks retry if arrival is crowded. Waiting/dismissed people return near their
+saved spot when that area is loaded; outdoor positions use terrain-local coordinates to survive floating
+origin shifts. Recruitment overrides routine packages with follow/stand, while combat and interaction
+interruptions retain their existing priority. Area changes do not refill a companion's magic pool.
+The navigation extension below adds local obstacle/door handling and restricted catch-up. Full
+pathfinding remains separate work. Defensive combat, belongings and manual equipment are described below.
+
+`ironclad_rogue_1` is the mercenary example (100 gold). Her custom sprite uses `spriteScale: 0.94`,
+6% smaller in both dimensions than the vanilla Rogue base-class height. Existing spawn rules are retained.
+Restart DFU, find her in a town/tavern or run `anpc_spawn ironclad_rogue_1`, then talk to hire her.
+`anpc_info` includes companion status and area. `anpc_selftest companions` runs the focused live suite
+with the installed rogue pack (from outdoors in a town); it uses the current game's gold temporarily and
+creates the separate `ANPC follower verification 20261015` test save for the real save/load check.
+
+### Following around obstacles and through doors
+
+Following now probes for walkable floor, steps and clearance, steers around nearby obstacles and people,
+and can use up to 128 recent target positions to follow a route around a corner. Route decisions are
+bounded, with short cached steps between route probes. This is local steering with a recent route, not a
+full dungeon or city pathfinder. A missing/out-of-area target still waits safely.
+
+A follower whose class can open doors opens an ordinary unlocked hinged door within walking range.
+It never toggles an open door shut, picks locks or bashes. Locked/magically held doors, special doors
+and doors carrying linked actions are left for the player. A short door posture lowers the collision
+capsule to fit common low lintels, keeps the feet anchored, and restores height when there is clearance.
+
+Only a hired companion actively following the player can use teleport catch-up. After six active seconds
+at least 30 m behind, or ten seconds without useful progress beyond 5 m, it may recover onto checked
+floor near the player. Both the follower and destination must be out of sight. The same living entity is
+moved, preserving health and contract; no respawn or healing occurs. Known locked/special/action-linked
+doors block recovery. Waiting, dismissed, fighting/fleeing, paused or deliberately held companions do
+not catch up. Ordinary follow packages can steer/open ordinary doors but do not teleport.
+
+Catch-up uses the existing floor, wall and person-clearance checks and retries when there is no safe
+hidden spot. Trail/recovery clocks are temporary, reset on target/area changes and interruptions, and
+add no save-format fields. `anpc_info` reports clear route, recent route, detouring, opening a door or
+waiting at a protected door. `anpc_selftest navigation` exercises the rogue on temporary collision fixtures.
+
+### Companion combat and orders
+
+A friendly recruited companion (`following` or `waiting`) defaults to Defensive stance. Following
+companions assist against visible hostile enemies currently threatening the player or another hired
+companion. Their own immediate attacker has first priority, then the player's attacker, then another
+companion's attacker. A current enemy is retained over equally important alternatives. Neutral ANPCs
+angry only because the player assaulted them are excluded, as are the player, friendly allies, city
+watch and protected quest actors. A hostile quest foe actively attacking the party can be defended
+against even when DFU's default `IsAttackableByAI` flag is false (for example, Daggerfall's night ghosts).
+Unrelated, hidden or restrained quest foes remain protected, and the mod never changes the shared
+quest AI flag. Defensive stance does not initiate fights with unrelated hostiles.
+
+Following combat stays within 30 m of the player. A waiting companion only defends herself within
+8 m of her waiting point, and walks back there afterward. Her saved waiting position stays anchored
+during combat. A dead, inactive, pacified or out-of-area enemy is released; six active seconds without
+sight or ten seconds without approach progress also release the enemy, with an eight-second retry
+delay. Normal following resumes after combat. Combat/retreat never invokes teleport catch-up.
+
+Below 25% health a companion retreats towards the player or waiting point, and stays cautious until
+40%; configured bravery can also cause retreat earlier. Health, damage, equipment and actual melee
+attacks still use DFU's normal rules. Recruitment and area transfers do not heal the person.
+
+An isolated damaging player hit gives a warning and -5 opinion, preserving the contract and the
+damage taken. Three damaging player hits with no gap longer than ten active seconds end the contract
+without a refund and invoke ordinary ANPC assault/hostility behaviour. Hit counters, combat targets,
+pursuit clocks and retry delays are temporary; save loads reconstruct safe targeting. All behaviour is implemented inside the mod.
+
+`anpc_info` includes defensive combat, retreat and return status. `anpc_selftest companioncombat`
+tests these decisions with the real Ironclad Rogue and temporary opponents. The mod controls the
+hired actor's perception while reusing DFU's attack and movement components; its compatibility adapter
+caches four read-only EnemySenses fields. Melee approach uses the motor's public action callback and
+the same floor/obstacle checks as following, including the player as an obstacle when approaching an
+enemy. The original motor callback and automatic senses are restored when the contract ends.
+The rogue retains her 100-gold recruitment fee and reduced sprite scale.
+
+Interact with a hired companion within normal activation distance to open the native **Orders** picker,
+including during combat. Keyboard selection, mouse and Escape use DFU's normal picker controls.
+The header shows stance and health condition; the movement row shows Following or Waiting.
+Choose **Talk** for normal conversation while calm, or use the **Companion orders** dialogue topic
+to return to this menu. Info activation shows her stance/condition; Steal keeps its normal behaviour.
+
+- **Defensive** protects the party using the rules above.
+- **Aggressive** also engages visible eligible hostiles within the same pursuit limits. Civilians,
+  guards, allies and uninvolved protected quest actors remain excluded. Waiting still permits self-defence only.
+- **Passive** suppresses physical and offensive spell attacks and retreats towards the player or
+  waiting point when a party threat is seen. It does not initiate fights.
+- **Disengage and regroup** cancels pursuit and pending attacks, walks back to the player, and
+  suppresses reacquisition for at least eight active seconds and until nearby. A blocked return
+  expires after twenty active seconds. No combat catch-up teleport is used. The saved stance stays
+  unchanged. A waiting companion temporarily comes to the player, then returns to her original point.
+- Walking into a calm companion continuously for about **0.75 seconds** also triggers Push. Simply
+  standing nearby does not. Automatic pushes have a six-second cooldown; combat and paused UI stop
+  contact detection. Both following and waiting companions can make room.
+- **Push** (when calm) makes the companion walk a few steps away from you, then pause briefly to let
+  you pass. They avoid walls and unsafe drops. Followers then resume following; waiting companions
+  stay at their new spot. Combat and new movement orders interrupt the push.
+- **Follow / Wait** work during combat and deliberately replace the movement order. Dismiss and Talk
+  are offered when calm. Changing stance preserves the waiting point, health, gold and hit warnings.
+
+Each person's stance is saved independently (save format 4). Older/missing/invalid stances default to
+Defensive. Targets, animation signals and regroup timers are transient and reset on load/area transfer.
+Orders recheck the exact living friendly contract at selection time, so stale menus cannot change a
+replacement actor after loading. No engine source or engine binaries are changed.
+`anpc_selftest orders` checks stances, regroup, native UI, old-save defaults and restoration in game.
+Fresh recruitment immediately creates the follow routine even for NPCs without a schedule; no area
+change is required. Choosing Talk waits for the picker selection input to finish before opening the
+vanilla topic controls, preventing that press from selecting a topic. `anpc_selftest companionbugs`
+covers fresh hiring inside an inn, repeated Return-driven Talk transitions and quest ghost defence.
+Bow tactics and manual companion equipment are described below. Companion spell tactics remain later work.
+
+### Party slot exemptions and performance
+
+An optional top-level boolean in `npc.json` exempts an NPC from the party limit:
+
+```json
+{
+  "kind": "generic",
+  "recruitCost": 0,
+  "no_companion_slot": true
+}
+```
+
+`no_companion_slot` defaults to `false` when omitted. It only changes slot accounting; recruitment
+still requires `recruitCost`, and any authored fee is still charged. This is useful for escort NPCs.
+The installed definition controls the flag after restarting; its last known value is retained in the
+saved contract if the definition is temporarily missing. Old records default to ordinary slots.
+Exempt companions still perform normal movement, combat and saving work.
+
+Inventory snapshots are reused by in-memory callers until a known change invalidates them. Firing
+an arrow marks the inventory dirty rather than serializing the entire pack. Actual saves and actor
+teardown force fresh native item records, so external item changes and native durability/enchantment
+updates are included even without a notification. Save format 5 is unchanged. Each snapshot replaces
+the previous one; repeated fights or area transfers do not append inventory history.
+
+The roster reuses its quarter-second membership buffer. Perception shares a line-of-sight result only
+within the same rendered frame for the same actor positions; actual arrow launch checks always query
+physics again. Ammo selection and ordinary projectile collision checks avoid temporary result lists;
+saturated projectile queries fall back to a complete hit list to preserve collision safety.
+`anpc_selftest limits` checks recruitment, settings, dialogue and save compatibility.
+`anpc_selftest performance` records controlled party frame timings and native inventory/save sizes,
+and checks snapshot reuse, external item updates and fresh launch safety. Measurements are specific
+to the test machine and scene; they are not an FPS guarantee for crowded or heavily modded games.
+
+### Companion bow combat
+
+Give a short or long bow and arrows through Belongings, then select the bow and Equip. If she is
+already holding a melee weapon and shield, these exact items become her close-combat fallback.
+Equip the intended melee kit before selecting the bow; manually selecting a different melee weapon
+or unequipping the bow ends bow preference. Her class and material restrictions still apply.
+
+With a clear shot she holds position at 6–25 metres, starting with her bow at 8 metres or farther.
+Below 6 metres, with no usable arrows, or with a broken bow she uses the remembered melee kit,
+or fists if that kit is gone. The separate switching distances prevent repeated swapping at the
+same boundary. She closes distance when out of shooting range or when a shot is blocked; normal
+navigation, pursuit limits, stances, retreat and regroup still apply. Shots are at least two active
+seconds apart. She does not kite backwards or pick a different weapon from her pack.
+
+Each released arrow consumes one actual item from her pack. A hit puts that arrow on the original
+enemy, preserving its native/custom item metadata; misses and blocked impacts spend it. Bow damage,
+hit rolls, material immunity, enchantment strikes and retaliation use DFU's native rules and formula
+overrides. Each arrow retains its launch weapon and target, so changing to melee while it flies
+cannot turn it into a sword hit. A bystander or ally blocks a shot and never receives its damage.
+Shots are cancelled when their contract, stance, target or loaded area is no longer valid.
+
+The selected bow and fallback item UIDs persist with belongings through saves and area transfers;
+older format-5 inventories need no conversion. Player bow-hand settings are left intact. The authored
+sprite uses `attack_range` or `attack_ranged` (including numbered variants) when attacking with an
+equipped bow, then its ordinary attack sheet fallback if none exists. This selection also applies to
+ordinary ANPCs with a bow during their primary attack animation, while native damage signals are retained.
+Spells keep their casting sheets; idle/walk animations are unaffected. This does
+not generate new bow artwork. No engine edits, global AI hooks or inventory replacements are used.
+`anpc_selftest bows` exercises live shots, finite ammunition, hand settings, range switching,
+save restoration, blocked shots, passive/regroup orders and missing/broken gear.
+
+### Companion belongings and trading
+
+Choose **Give / Take belongings** in the calm companion Orders menu. Select an item in either pane,
+then use Give or Take (double-click / Return also works). Stacks and wallet gold ask for a quantity;
+Escape cancels without moving anything. Each pane shows current load / maximum in kilograms.
+Select an item to see its full name, condition and the quantity that currently fits.
+
+Capacity uses the companion's native live Strength and DFU's MaxEncumbrance getter: normally
+floor(Strength * 1.5) kg, with native increased allowance effects and formula overrides respected.
+All carried items, including worn gear, count using native effective weights. The player's wallet gold
+also counts when receiving items. Each confirmation checks the exact living contract, distance, calm
+state, item ownership, quantity and recipient capacity again. Losing Strength never deletes belongings;
+an overloaded owner can give items back and receive weightless items, but cannot add positive weight.
+
+Worn equipment must be unequipped before transferring it. Unequip the player's gear in
+the usual inventory before giving it. Giving a new weapon or armor stores it in the pack; select it on
+the companion's side and use Equip to wear it. Quest-bound items, summoned items and transportation cannot be traded. Coin transfers
+move real gold between the player's wallet and the companion's native inventory without charging a fee.
+
+Use **Equip / Unequip** below the companion's list to change selected gear while calm and nearby.
+The button also uses DFU's configured Inventory Equip shortcut.
+Weapons replace the primary hand; a two-handed weapon returns both held items to the pack, and a
+shield replaces an incompatible two-handed weapon. Displaced gear retains its identity and condition.
+Native equipment slots support armor, shields, compatible clothing, jewelry and gems. Broken items,
+quest-bound/summoned items, class-forbidden equipment and incompatible clothing are rejected with
+an explanation. Clothing fit uses the saved ANPC identity rather than the generic enemy gender field.
+Bows can be selected manually; arrows are ammunition in the pack and cannot be equipped as a melee
+weapon. Giving gear still does not select it automatically.
+
+The native damage formula uses the selected weapon and its material (for example, silver versus
+a ghost). The first manual equipment change switches this companion's armor to protection calculated
+from the gear actually worn, including boots and shield coverage, without DFU's hidden class-enemy
+armor bonus. Creature companions retain their native natural-armor baseline. Existing companions
+keep their previous armor calculation until manually changing gear. Native held/enchantment callbacks
+run on the companion's effect manager and are resumed once on save/area restoration. On death, all
+slots (including jewelry) are unequipped before the native corpse receives the items. Equipment
+changes never move an item through the player's inventory, including when splitting a custom stack.
+
+The authored ANPC sprite keeps its drawn outfit; this feature changes actual equipment and combat
+values, without generating new armor sprites. The optional managedEquipment flag fits save format 5;
+existing inventory snapshots load without conversion or rehire. `anpc_selftest equipment` checks hand
+conflicts, native armor, restrictions, native/custom stacks, failed-change rollback, held effects, save/load,
+UI input, weapon material damage, contract validation and corpse ownership.
+
+Save format 5 stores native item records, equipment UIDs, armor values and permanent base stats in
+each companion contract. Old contracts initialize their existing native kit once. Belongings survive
+save/load, area teardown, waiting, dismissal and rehire; a death transfers the live items to DFU's native
+corpse inventory. Native item identity, condition, enchantments and registered custom item classes are
+retained. Split stacks use full native records and remain distinct to avoid merging different metadata.
+Missing custom item classes or damaged inventory snapshots preserve the saved data and disable
+trading for that person, with a diagnostic in the log.
+
+This UI is specific to ANPC companions and does not replace DFU's inventory window or override global
+formulas. Compatibility with mods using native item registration/serialization is supported through those
+APIs; mods with their own follower/UI/save systems may still require integration. `anpc_selftest trading`
+checks native/custom item transfers, weight limits, quantity confirmation/cancellation, gold, restrictions,
+save restoration, stale actors and corpse ownership. `anpc_selftest companions` additionally checks an
+actual disk save/load, building and dungeon transitions and world rebuilds with persistent belongings.
 
 ### Guarding a spot
 
@@ -484,6 +812,30 @@ restart the current sequence. No missed steps are replayed.
 At most 32 steps. This version supports references to leaf packages; nested sequences/cycles are
 rejected with a diagnostic. Missing/invalid referenced packages release to current AI. Sequence
 animations are included in sprite metadata indexing and refresh when packages reload.
+
+### Indoor and outdoor schedules
+
+Schedules already accept conditional `when` clauses. `indoors` and `outdoors` take JSON booleans:
+
+```json
+"schedule": [
+  { "package": "wander_civilian", "when": { "outdoors": true } },
+  { "package": "local_wander", "when": { "indoors": true }, "parameters": { "radius": 2 } }
+]
+```
+
+Put these entries in the NPC's `npc.json`; the package files in `_Packages` stay reusable.
+Buildings (taverns, houses, shops, guilds, temples, etc.) and dungeon interiors count as indoors.
+Town/city exteriors and wilderness count as outdoors. The check uses the NPC's current area,
+so an outdoor NPC does not become indoor just because the player enters a building.
+`"outdoors": false` means indoors, and `"indoors": false` means outdoors. All clauses must match;
+using both keys with `true` never matches. These conditions also work in dialogue `when` objects.
+Without an NPC context (e.g. spawn filters), the current player area is used.
+
+Omit the indoor entry to use the NPC's ordinary AI indoors, or replace it with another package
+such as `stand`. Conditions may be combined with hours or weather; first matching conditional
+entry wins. With no matching entry, the NPC uses its ordinary AI. Schedule edits in `npc.json`
+require a game restart.
 
 ### Broader schedule conditions
 
@@ -634,11 +986,11 @@ Random-each-visit and wilderness people are temporary, so their replacements sta
 Saves only keep a caster's magic while it matters: one at full magicka with no cooldown adds nothing, and an
 `onAreaEntry` caster's magic is dropped once you are in another area (it will start full there anyway).
 
-Configured ANPCs cast only while fighting, with a short random initial delay. They choose affordable, useful spells, heal
+Configured ANPCs cast normal spells only while fighting, with a short random initial delay. They choose affordable, useful spells, heal
 below 60% health (prioritizing healing below 40%), and avoid reapplying active buffs or effects already on their target.
 Offensive spells require sight of a target; ranged spells additionally require a clear projectile path within 25 metres.
 Touch spells require melee distance. With no affordable/useful spells they continue their normal physical combat.
-Bravery still takes precedence: a fleeing ANPC does not cast.
+Bravery still takes precedence for ordinary ANPCs; hired companions may use support magic while retreating (see below).
 
 Effects, projectiles, resistance, reflection and spell costs come from DFU's spell system. Supported effects include damage
 to health/fatigue/magicka, continuous damage, attribute drains, paralysis and silence; self spells include healing,
@@ -650,6 +1002,95 @@ sheet when available, falling back to an `attack*` sheet; with neither, the spel
 Melee action frames do not apply to spells. Only the Mage, Spellsword, Battlemage, Healer and Nightblade classes have a
 vanilla spell animation; other classes without a custom sprite still cast (with the cast sound and sparkles) but show no
 casting pose.
+
+### Companion spellcasting
+
+Hired, living, friendly companions use the existing `NpcMagic` controller for healing, protection and offence.
+Configured `magic.spells` remains their private book; `[]` still disables casting. Without a `magic` block, a hired
+class caster uses the supported combat spells in its inherited native book, with its native magic skills and maximum
+magicka. Dismissal returns that complete native book to normal class behaviour. Recruiting a martial ANPC does not
+grant spells: `ironclad_rogue_1` remains the martial reference.
+
+All hired casters recover magicka gradually as with `"recovery": "rest"`, even if their JSON says
+`"recovery": "onAreaEntry"`. The definition is never edited. `restHours` controls the rate (8 game hours by default);
+combat blocks recovery until one game minute after the last threat. Following and waiting both qualify, including
+elapsed rest/travel time. Hiring preserves the current pool, and entry/load preserves depletion, fractional recovery,
+recovery timestamps and remaining cast cooldown. A new hire cannot claim time from before its contract.
+`usesMagicka: false` retains its authored unlimited-casting behaviour. The timed companion override ends on dismissal.
+
+Priority is emergency self healing below 40%, then the most wounded eligible nearby party member, self care,
+useful protection, and finally offence. A known pure `Heal-Health` spell can help self, player or another living hired
+ANPC within 2.5 metres and clear sight; default health threshold is 60%. Self regeneration stays self-only. Party
+membership supplies consent even if the player's town reaction is neutral. Existing `magic.healing` options still
+apply: `player: "none"`, `allies: false`, `outsideCombat` and `healthThreshold` remain meaningful. When that block is
+absent, hired casters use its normal defaults. Outside a contract the existing opt-in friendly-healing rules are unchanged.
+There is one cooldown and one mana pool, so friendly healing cannot double-cast alongside companion healing.
+
+During an encounter, supported caster-only protection spells can protect the caster and nearby player/party members.
+The controller checks native active effects to avoid recasting an existing protection. Passive and retreating companions
+can heal and protect, while regroup suppresses casting. Calm travel does not continually spend mana on protective buffs.
+Support uses native effect magnitude and the actual caster; helping another person costs the touch variant of the spell.
+
+Offence follows the current stance, legal target, area and pursuit leash. Casters hold a clear distance of 3–25 metres
+when they have useful affordable ranged spells, and use ordinary weapon combat when empty, silenced or touch-only.
+A usable equipped bow takes priority for ranged offence; healing and protection remain available. Empty ammunition
+or a broken bow lets an otherwise capable caster use its spells.
+DFU supplies actual missile visuals, collision, saving throws, resistance, reflection and effects. An ANPC-only missile
+guard rechecks permission at impact: single spells affect only the selected foe; area spells may also affect other threats
+allowed by the current stance. Player, hired party, civilians, guards and protected quest actors never receive that payload.
+Bystanders can block shots, and becoming passive, regrouping, dismissal or loss of the legal target cancels in-flight harm.
+No DFU engine files or player spellbooks are changed.
+
+Run `anpc_selftest companionspells` on a disposable outdoor test save for live casting checks, and `anpc_selftest healing`
+for the original friendly-healing regression checks. These fixtures create their own caster; no changes to Ironclad's
+authored class, artwork, price or spell list are required.
+
+### Healing allies and a friendly player
+
+For ordinary ANPCs, add `healing` inside `magic` to opt in (omitting it keeps self healing only; hired party members use the defaults above):
+
+```json
+"magic": {
+  "spells": ["Heal", "Shield"],
+  "healing": {
+    "allies": true,
+    "player": "friendly",
+    "outsideCombat": true,
+    "healthThreshold": 0.6
+  }
+},
+"sounds": { "combatChance": 40 }
+```
+
+The `temple_monk_1` and `cowled_old_man_1` examples enable support healing during and outside combat.
+`dunmer_spellblade` and `spellcaster` enable it while fighting only. All four already know Heal.
+
+Writing `"healing": {}` uses the defaults above. `player` accepts `friendly` or `none`.
+The player qualifies when the ANPC is not an enemy or angry at them, and its reaction (regional reaction plus
+personal opinion) is `likes` or `loves`. ANPC allies share the same player allegiance and must not be fighting
+each other; angry civilians do not count as friendly allies. Peaceful healers can also help non-hostile vanilla
+City Watch and Player Ally entities. Unrelated creatures and strangers do not qualify.
+
+The healer selects the eligible living recipient with the lowest health fraction below `healthThreshold`
+(above 0, at most 1), breaking ties by distance. They must be within 2.5 metres and in sight, in the same
+building/dungeon/outdoors. The healer does not walk to reach them. With `outsideCombat: false`, it helps
+others only while fighting. Fleeing healers never cast. Emergency self healing below 40% still takes priority
+while fighting. Support healing shares the existing cooldown, magicka pool, silence and paralysis restrictions.
+
+Only configured pure `Heal-Health` spells can heal others. The self spell is preserved; a separate touch
+variant uses DFU's touch casting cost and its effect system, including the actual healer's caster level.
+Willing recipients do not resist or reflect this beneficial healing. The healer keeps its combat target
+throughout; healing does not provoke an attack.
+
+Health healing (self or others, and self regeneration) uses a random `heal`, `heal_1`, `heal_2`, etc. sheet,
+declared in `sprites.json` like other animations. Without a heal sheet it uses `cast*`, then `attack*`, then
+no animation. Falling back to an attack sheet does not apply a physical hit or use its action frame.
+Vanilla sprites use the class's casting pose when available.
+
+Optional `Sounds/heal.wav`, `heal_1.ogg`, `heal_2.wav`, etc. form a random heal voice pool.
+They use **`sounds.combatChance`**, even outside combat: 40 means a 40% chance per healing cast.
+Without loaded heal clips, no custom voice plays; it never falls back to cast or attack clips.
+The usual voice setting, volume and pitch controls still apply. Ordinary spell effect sounds remain DFU's.
 
 `anpc_spells` lists all supported standard spell names (also written to `Player.log`); `anpc_spells fire` filters them.
 `anpc_list` shows each configured caster's magicka or unlimited mode. `Examples/ANPCs/spellcaster/npc.json` is a calm,
@@ -801,6 +1242,8 @@ Every condition in a `when` must hold. For "or", use `"any": [ { … }, { … } 
 |---|---|---|
 | `hours` | `[20, 6]` | the hour is from 20:00 up to (not including) 6:00 |
 | `time` | `"night"` | it is `day` or `night` |
+| `indoors` | `true` | the NPC is inside a building or dungeon (`false`: outside) |
+| `outdoors` | `true` | the NPC is outside, in town or wilderness (`false`: inside) |
 | `season` | `["autumn", "winter"]` | it is one of these seasons (`spring`, `summer`, `autumn`/`fall`, `winter`) |
 | `weather` | `"rain"` | the weather is one of `clear`, `overcast`, `rain` (storms count), `storm`, `snow` |
 | `region` / `town` | `"Daggerfall"` | the player is in one of these regions / towns |
@@ -955,7 +1398,7 @@ ANPCs/wench/
     step_1.ogg    step_2.ogg   step_3.ogg
 ```
 
-- A file's name says when it plays: `greet`, `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `hit` (hurt but alive), `death`, `step` and `talk` (a line in a [conversation](#conversations); always plays there, no chance roll, and nowhere else; `talk_male` / `talk_female` for one gender only). A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
+- A file's name says when it plays: `greet`, `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `heal` (self or support healing; no voice fallback), `hit` (hurt but alive), `death`, `step` and `talk` (a line in a [conversation](#conversations); always plays there, no chance roll, and nowhere else; `talk_male` / `talk_female` for one gender only). A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
 - Sounds follow what happens, not the sprite, so an ANPC with the vanilla sprite can have them too.
 - Default footsteps: `step_*` files in the shared `ANPCs/_Sounds` folder play for every ANPC whose own `Sounds` folder has no `step` files (the examples ship four dirt-ground steps there). They play 15% quieter than an ANPC's own steps. An ANPC with step files of its own uses only those; `"defaultSteps": false` turns the defaults off for one ANPC. Other names in `_Sounds` are ignored (logged).
 - `death` always plays. `step` plays on every footfall while walking or running, but only when you are within `stepDistance`. The others play by chance.
@@ -979,7 +1422,7 @@ Settings in `npc.json`, all optional:
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `combatChance` | 50 | percent chance of an attack, attack_range, cast or hit sound |
+| `combatChance` | 50 | percent chance of an attack, attack_range, cast, heal or hit sound (heal also outside combat) |
 | `greetChance` | 50 | percent chance of a greet sound |
 | `stepDistance` | 15 | metres; no footsteps when you are farther |
 | `soundPitch` | 1 | pitch of every sound except steps (0.25–3) |
@@ -1084,3 +1527,91 @@ Sources live in `Scripts/Core` (pure logic, unit-tested) and `Scripts/Runtime` (
 - `play.sh [character] [save]` — starts DFU straight into a save (default `Testo` / `AtDaggerfall`) for manual testing: no options screen, no title menu, no self-test.
 
 When adding a `.cs` file under `Scripts/`, also add it to `Files` in `AdvancedNPCs.dfmod.json`.
+
+
+## Companion speech and barks
+
+Only living, friendly hired companions use `cm_` sound pools. Put optional `.wav`, `.ogg` or `.mp3`
+files in that ANPC's `Sounds` folder, using the usual numbered suffix: `cm_bark_1.wav`,
+`cm_inn_2.ogg`, etc. Companion speech uses the existing pitch, sound volume and spatial attenuation.
+
+| Pool | Trigger |
+|---|---|
+| `cm_bark` | Random ordinary chatter while calm. |
+| `cm_dungeon` | Inside a dungeon, two thirds of scheduled bark choices use this pool; one third use `cm_bark`. |
+| `cm_inn` | Inside a tavern/inn, the same two-thirds contextual choice. |
+| `cm_hurt` | Below 25% health, replaces scheduled ordinary/contextual barks, including during combat. |
+| `cm_no_magicka` | Once when magicka goes from a positive amount to zero. Regaining some magicka re-arms it; staying at zero never repeats it. |
+
+Missing/undecodable pools are silent: there is no vanilla grunt or alternate pool substituted for a
+missing `cm_` clip. Thus a missing contextual clip leaves that two-thirds choice silent; the standard
+one-third choice still works. These pools ignore `combatChance` and `greetChance`.
+
+Configure active real-time seconds in `npc.json` (not game hours):
+
+```json
+"sounds": {
+  "barkMinSeconds": 45,
+  "barkMaxSeconds": 90
+}
+```
+
+These are also the defaults. Values must be from 1 to 86400, with maximum at least minimum. Equal
+bounds give a fixed interval. Timers stop while paused or AI is disabled. Loading/area transfer,
+re-enabling, or returning within the 30 m audible distance starts a fresh interval; no backlog of
+missed barks is replayed. A fresh/reloaded companion already at zero magicka does not announce a new
+depletion. Resource events that happen while muted are not queued for later.
+
+All speech of one hired companion interrupts their previous speech, including ordinary greeting,
+talk, combat and healing clips and fallback combat grunts. Different companions can speak together.
+Footsteps and native weapon/spell effects keep separate sources and are not interrupted by speech.
+Periodic healthy chatter is suppressed during combat. The existing ANPC/Vanilla/Off voice setting
+still applies; custom barks require ANPC voices.
+
+The companion menu has **Turn barks off/on**, saved per contract through waiting, transfers and
+save/load. The mod's Companions settings have **Disable follower barks**, which disables every `cm_`
+pool and hides that individual menu option. It preserves the individual preference, ordinary combat
+voices and footsteps. Older saves default to barks enabled; no save conversion or rehire is needed.
+
+Ironclad's example includes ten supplied CVR SALTY voice samples; `Sounds/VOICE-SOURCES.md` records
+the original paths. No spells or no-magicka voice line are granted to this martial Rogue.
+`anpc_selftest barks` checks live speech, timing, pause/mute, depletion edges and native menu/save
+behavior. The companion/full suites also exercise real inn/load restoration and dungeon context.
+
+
+### Optional companion event speech
+
+These additional numbered pools use the same Sounds folder, volume/pitch, speech interruption and
+both bark-disable controls. They are event acknowledgements, separate from the random bark timer:
+
+| Pool | Trigger |
+|---|---|
+| `cm_recruit` | A successful recruitment, after the hiring conversation closes. |
+| `cm_wait` | A successful Wait here order. |
+| `cm_follow` | Resuming following after waiting. |
+| `cm_dismiss` | One goodbye after an explicit successful dismissal; the contract ends immediately. |
+| `cm_regroup` | A successful disengage/regroup order. |
+| `cm_combat` | Entering a combat episode; changing targets does not repeat it. |
+| `cm_victory` | Returning to calm after the last observed combat target is confirmed dead. |
+
+Example names: `cm_wait_1.wav`, `cm_combat_2.ogg`. All are optional; missing pools remain silent,
+without substitution. Command acknowledgements wait until gameplay resumes and the menu has closed.
+Only the latest queued command is spoken, and it must still match this exact actor/contract/status.
+Failed commands, muted events, loading, area reconstruction and betrayal do not queue these replies.
+The single authorized dismissal goodbye may finish while the NPC is dismissed; that NPC cannot issue
+further companion barks. It uses the same interruptible voice sources and stops on mute or teardown.
+
+Victory means a confirmed dead combat target, not a kill-credit claim. Losing a living enemy, escaping,
+regrouping, or loading a save cannot produce victory speech. These additions add no saved fields or
+new per-frame world scans. `anpc_selftest barkevents` exercises commands, native menus, combat
+transitions, dismissal, speech interruption and mute/pause handling.
+
+Ironclad's supplied SALTY set includes 11 additional matching event clips (21 total); her provenance
+document lists the original paths. The regroup line is a generic acknowledgement rather than a
+specific retreat instruction.
+
+Push voices use the optional companion sound pool **cm_push**, also named **push**: place files such as
+`Sounds/cm_push.wav`, `Sounds/cm_push_1.ogg` or `Sounds/cm_push_12.wav` in the ANPC's folder.
+Names such as `push.wav` and `push_7.ogg` work as well; both names join the same random pool.
+A random variant plays on 50% of menu pushes and 15% of automatic contact pushes. Missing clips are
+silent. These reactions respect the global follower bark setting, per-companion mute, and voice mode.

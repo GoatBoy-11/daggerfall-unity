@@ -501,6 +501,49 @@
         "parameters"
       ],
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "wander_civilian"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "center": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": -100,
+                "maximum": 100
+              },
+              "minItems": 3,
+              "maxItems": 3,
+              "description": "Metre offsets from the NPC's home, in its area's local axes."
+            },
+            "radius": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 50,
+              "default": 40
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "description": "Road-favouring town wander with 1-4 full animation cycles at occasional stops; equal idle/activity chance, with idle fallback."
     }
   ]
 }
