@@ -53,6 +53,14 @@ static class RulesTests
               !FootstepRules.IsStepFile("step_a.ogg") && !FootstepRules.IsStepFile("greet.ogg") && !FootstepRules.IsStepFile(null), "not step files");
         Check(FootstepRules.IsStepFile("assets/game/mods/vanillafootsteps/sounds/step_1.ogg".Substring(41)), "bundle asset file name");
 
+        // Wings.
+        Check(FootstepRules.IsWingFile("wing_1.ogg") && FootstepRules.IsWingFile("WING.wav") && !FootstepRules.IsWingFile("step_1.ogg"), "wing files");
+        Check(!FootstepRules.IsStepFile("wing_1.ogg") && !FootstepRules.IsWingFile("wings_1.ogg") && !FootstepRules.IsWingFile("wing_.ogg"), "pools kept apart");
+        Check(FootstepRules.IsWingBeat(0) && !FootstepRules.IsWingBeat(2), "a beat per loop, on frame 0");
+        Check(FootstepRules.ForFlyer(3).Volume < FootstepRules.ForFlyer(34).Volume && FootstepRules.ForFlyer(3).Pitch > FootstepRules.ForFlyer(34).Pitch, "bat softer and higher than dragonling");
+        Check(FootstepRules.ForFlyer(300) == FootstepRules.Flyer && FootstepRules.ForFlyer(40).Pitch == FootstepRules.ForFlyer(34).Pitch, "unknown flyer default; both dragonlings alike");
+        Check(FootstepRules.ForEnemy(300) == FootstepRules.Creature, "a mod's enemy id gets the default profile");
+
         Console.WriteLine(failures == 0 ? "rules tests: OK" : "rules tests: " + failures + " failed");
         return failures == 0 ? 0 : 1;
     }

@@ -13,15 +13,36 @@ using DfuModSettings = DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.Mo
 
 namespace VanillaFootsteps
 {
+    /// <summary>One kind of sound (steps, wing flaps): its clips, where they came from, and how often one played.</summary>
+    public class SoundPool
+    {
+        public readonly string Name;
+        public readonly List<AudioClip> Clips = new List<AudioClip>();
+        public string Source = "none";
+        /// <summary>Sounds played since the game started (vfootsteps).</summary>
+        public int Played;
+
+        public SoundPool(string name)
+        {
+            Name = name;
+        }
+
+        /// <summary>A random clip; null without any.</summary>
+        public AudioClip Pick()
+        {
+            return Clips.Count == 0 ? null : Clips[UnityEngine.Random.Range(0, Clips.Count)];
+        }
+    }
+
     /// <summary>
-    /// Mod entry point: loads the step sounds, reads the settings and gives every vanilla enemy and wandering
+    /// Mod entry point: loads the step and wing sounds, reads the settings and gives every vanilla enemy and wandering
     /// townsperson a footstep component as DFU creates them.
     /// </summary>
     public class VanillaFootstepsMod : MonoBehaviour
     {
         public const string LogPrefix = "[VanillaFootsteps] ";
         public const string Section = "Footsteps";
-        /// <summary>StreamingAssets/VanillaFootsteps: loose step_* files there replace the bundled sounds.</summary>
+        /// <summary>StreamingAssets/VanillaFootsteps: loose step_* (or wing_*) files there replace the bundled steps (or wings).</summary>
         public const string LooseFolder = "VanillaFootsteps";
 
         public static VanillaFootstepsMod Instance { get; private set; }
@@ -29,13 +50,13 @@ namespace VanillaFootsteps
         public bool Townspeople = true;
         public bool ClassEnemies = true;
         public bool Monsters = true;
+        public bool WingBeats = true;
+        /// <summary>Volume of steps and wing beats, in percent of DFU's sound volume.</summary>
         public int VolumePercent = 100;
         public float StepDistance = 15f;
 
-        readonly List<AudioClip> clips = new List<AudioClip>();
-        string clipSource = "none";
-        /// <summary>Steps played since the game started (vfootsteps).</summary>
-        public int StepsPlayed;
+        public readonly SoundPool Steps = new SoundPool(FootstepRules.StepPool);
+        public readonly SoundPool Wings = new SoundPool(FootstepRules.WingPool);
 
         static Mod mod;
 
@@ -46,7 +67,8 @@ namespace VanillaFootsteps
             GameObject go = new GameObject("VanillaFootsteps");
             DontDestroyOnLoad(go);
             Instance = go.AddComponent<VanillaFootstepsMod>();
-            Instance.LoadClips();
+            Instance.LoadPool(Instance.Steps, FootstepRules.IsStepFile);
+            Instance.LoadPool(Instance.Wings, FootstepRules.IsWingFile);
             if (mod.HasSettings)
             {
                 mod.LoadSettingsCallback = Instance.ApplySettings;
@@ -55,7 +77,7 @@ namespace VanillaFootsteps
             GameManager.OnEnemySpawn += OnEnemySpawn;
             PopulationManager.OnMobileNPCCreate += OnMobileNPCCreate;
             ConsoleCommandsDatabase.RegisterCommand("vfootsteps",
-                "Vanilla Footsteps: sounds loaded, settings, and how many walkers near you have footsteps.", "vfootsteps", InfoCommand);
+                "Vanilla Footsteps: sounds loaded, settings, and how many walkers and flyers near you are heard.", "vfootsteps", InfoCommand);
             mod.IsReady = true;
         }
 
@@ -70,12 +92,6 @@ namespace VanillaFootsteps
         {
             if (poolItem.npc != null && poolItem.npc.GetComponent<TownspersonFootsteps>() == null)
                 poolItem.npc.gameObject.AddComponent<TownspersonFootsteps>();
-        }
-
-        /// <summary>A random step sound; null without any.</summary>
-        public AudioClip PickClip()
-        {
-            return clips.Count == 0 ? null : clips[UnityEngine.Random.Range(0, clips.Count)];
         }
 
         /// <summary>Whether the player is close enough to hear a step at this position.</summary>
@@ -94,10 +110,11 @@ namespace VanillaFootsteps
             Townspeople = Read(delegate { return settings.GetBool(Section, "Townspeople"); }, true);
             ClassEnemies = Read(delegate { return settings.GetBool(Section, "ClassEnemies"); }, true);
             Monsters = Read(delegate { return settings.GetBool(Section, "Monsters"); }, true);
+            WingBeats = Read(delegate { return settings.GetBool(Section, "Wings"); }, true);
             VolumePercent = Mathf.Clamp(Read(delegate { return settings.GetInt(Section, "Volume"); }, 100), 0, 100);
             StepDistance = Mathf.Clamp(Read(delegate { return settings.GetInt(Section, "Distance"); }, 15), 5, 30);
             Log("Settings: townspeople " + Townspeople + ", class enemies " + ClassEnemies + ", monsters " + Monsters +
-                ", volume " + VolumePercent + "%, heard within " + StepDistance + " m.");
+                ", wings " + WingBeats + ", volume " + VolumePercent + "%, heard within " + StepDistance + " m.");
         }
 
         static T Read<T>(Func<T> get, T fallback)
@@ -112,8 +129,8 @@ namespace VanillaFootsteps
             }
         }
 
-        /// <summary>Loose step_* files in StreamingAssets/VanillaFootsteps if there are any, else the bundled ones.</summary>
-        void LoadClips()
+        /// <summary>The pool's loose files in StreamingAssets/VanillaFootsteps if there are any, else the bundled ones.</summary>
+        void LoadPool(SoundPool pool, Func<string, bool> isPoolFile)
         {
             string loose = Path.Combine(Application.streamingAssetsPath, LooseFolder);
             if (Directory.Exists(loose))
@@ -122,19 +139,19 @@ namespace VanillaFootsteps
                 Array.Sort(files, StringComparer.Ordinal);
                 foreach (string path in files)
                 {
-                    if (!FootstepRules.IsStepFile(Path.GetFileName(path)))
+                    if (!isPoolFile(Path.GetFileName(path)))
                         continue;
                     string problem;
                     AudioClip clip = LoadClip(path, out problem);
                     if (clip != null)
-                        clips.Add(clip);
+                        pool.Clips.Add(clip);
                     else
                         LogError(Path.GetFileName(path) + ": " + problem + " (skipped)");
                 }
-                if (clips.Count > 0)
+                if (pool.Clips.Count > 0)
                 {
-                    clipSource = clips.Count + " loose file(s) from StreamingAssets/" + LooseFolder;
-                    Log("Step sounds: " + clipSource + ".");
+                    pool.Source = pool.Clips.Count + " loose file(s) from StreamingAssets/" + LooseFolder;
+                    Log(pool.Name + " sounds: " + pool.Source + ".");
                     return;
                 }
             }
@@ -144,18 +161,18 @@ namespace VanillaFootsteps
                 foreach (string name in mod.AssetNames)
                 {
                     string file = Path.GetFileName(name);
-                    if (!FootstepRules.IsStepFile(file))
+                    if (!isPoolFile(file))
                         continue;
                     AudioClip clip = mod.GetAsset<AudioClip>(file);
                     if (clip != null)
-                        clips.Add(clip);
+                        pool.Clips.Add(clip);
                 }
             }
-            clipSource = clips.Count > 0 ? clips.Count + " bundled sound(s)" : "none";
-            if (clips.Count > 0)
-                Log("Step sounds: " + clipSource + ".");
+            pool.Source = pool.Clips.Count > 0 ? pool.Clips.Count + " bundled sound(s)" : "none";
+            if (pool.Clips.Count > 0)
+                Log(pool.Name + " sounds: " + pool.Source + ".");
             else
-                LogError("No step sounds in the mod or in StreamingAssets/" + LooseFolder + "; nothing will play.");
+                LogError("No " + pool.Name + " sounds in the mod or in StreamingAssets/" + LooseFolder + "; none will play.");
         }
 
         /// <summary>A clip from a .wav, .ogg or .mp3 file (blocking, as DFU's own loose-file sounds); null and a reason on failure.</summary>
@@ -209,23 +226,27 @@ namespace VanillaFootsteps
             VanillaFootstepsMod m = Instance;
             if (m == null)
                 return "Vanilla Footsteps is not running.";
-            int enemies = 0, enemiesStepping = 0, people = 0, peopleStepping = 0;
+            int enemies = 0, enemiesHeard = 0, flyersHeard = 0, people = 0, peopleHeard = 0;
             foreach (EnemyFootsteps e in FindObjectsOfType<EnemyFootsteps>())
             {
                 enemies++;
-                if (e.Audible)
-                    enemiesStepping++;
+                if (e.Audible && e.Flying)
+                    flyersHeard++;
+                else if (e.Audible)
+                    enemiesHeard++;
             }
             foreach (TownspersonFootsteps t in FindObjectsOfType<TownspersonFootsteps>())
             {
                 people++;
                 if (t.Audible)
-                    peopleStepping++;
+                    peopleHeard++;
             }
-            return "Sounds: " + m.clipSource + ". Townspeople " + m.Townspeople + ", class enemies " + m.ClassEnemies +
-                   ", monsters " + m.Monsters + ", volume " + m.VolumePercent + "%, heard within " + m.StepDistance + " m.\n" +
-                   "Enemies with footsteps: " + enemies + " (" + enemiesStepping + " walking in earshot); townspeople: " + people +
-                   " (" + peopleStepping + " walking in earshot). Steps played: " + m.StepsPlayed + ".";
+            return "Steps: " + m.Steps.Source + "; wings: " + m.Wings.Source + ". Townspeople " + m.Townspeople +
+                   ", class enemies " + m.ClassEnemies + ", monsters " + m.Monsters + ", wings " + m.WingBeats +
+                   ", volume " + m.VolumePercent + "%, heard within " + m.StepDistance + " m.\n" +
+                   "Enemies: " + enemies + " (" + enemiesHeard + " walking and " + flyersHeard + " flying in earshot); townspeople: " +
+                   people + " (" + peopleHeard + " walking in earshot). Played: " + m.Steps.Played + " steps, " +
+                   m.Wings.Played + " wing beats.";
         }
 
         public static void Log(string message)

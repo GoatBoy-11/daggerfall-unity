@@ -4,8 +4,8 @@ using DaggerfallWorkshop;
 namespace VanillaFootsteps
 {
     /// <summary>
-    /// The audio sources one walker's steps play from, made on its first step. Two take turns, so a step's pitch does
-    /// not change the one still sounding.
+    /// The audio sources one walker's steps (or a flyer's wing beats) play from, made on its first sound. Two take
+    /// turns, so a sound's pitch does not change the one still playing.
     /// </summary>
     public class StepVoice
     {
@@ -23,9 +23,21 @@ namespace VanillaFootsteps
         public bool Step(StepProfile profile)
         {
             VanillaFootstepsMod mod = VanillaFootstepsMod.Instance;
-            if (mod == null || mod.VolumePercent <= 0 || !mod.InEarshot(owner.position))
+            return mod != null && Play(mod.Steps, profile, mod);
+        }
+
+        /// <summary>Plays a random wing-flap sound with this profile, if the player is in earshot; true when one played.</summary>
+        public bool Wing(StepProfile profile)
+        {
+            VanillaFootstepsMod mod = VanillaFootstepsMod.Instance;
+            return mod != null && Play(mod.Wings, profile, mod);
+        }
+
+        bool Play(SoundPool pool, StepProfile profile, VanillaFootstepsMod mod)
+        {
+            if (mod.VolumePercent <= 0 || !mod.InEarshot(owner.position))
                 return false;
-            AudioClip clip = mod.PickClip();
+            AudioClip clip = pool.Pick();
             if (clip == null)
                 return false;
             if (sources == null)
@@ -34,7 +46,7 @@ namespace VanillaFootsteps
             next = (next + 1) % sources.Length;
             source.pitch = FootstepRules.Pitch(profile, Random.value);
             source.PlayOneShot(clip, DaggerfallUnity.Settings.SoundVolume * FootstepRules.Volume(profile, mod.VolumePercent));
-            mod.StepsPlayed++;
+            pool.Played++;
             return true;
         }
 

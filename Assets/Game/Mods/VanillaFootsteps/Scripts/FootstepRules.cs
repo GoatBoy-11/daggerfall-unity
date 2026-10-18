@@ -23,6 +23,8 @@ namespace VanillaFootsteps
     {
         /// <summary>Seconds between steps of a walker whose sprite frames cannot be read (a mod's 3D model, say).</summary>
         public const float WalkStepSeconds = 0.5f;
+        /// <summary>Seconds between wing beats of a flyer whose sprite frames cannot be read.</summary>
+        public const float WingBeatSeconds = 0.45f;
         /// <summary>A walker counts as moving while it moved within this many seconds (DFU moves enemies in bursts).</summary>
         public const float MovingGraceSeconds = 0.2f;
         /// <summary>Metres per second below which a change of position is a nudge, not walking.</summary>
@@ -76,6 +78,33 @@ namespace VanillaFootsteps
             }
         }
 
+        /// <summary>A wing beat of a flyer that has no profile of its own (a mod's creature, say).</summary>
+        public static readonly StepProfile Flyer = new StepProfile(0.7f, 1f);
+
+        /// <summary>
+        /// Volume and pitch of a flying enemy's wing beats: kept soft, a little louder and deeper for bigger wings.
+        /// Ghosts and wraiths (spectral, no wings) never get here.
+        /// </summary>
+        public static StepProfile ForFlyer(int mobileId)
+        {
+            switch (mobileId)
+            {
+                case 3: return new StepProfile(0.45f, 1.6f);     // giant bat
+                case 1: return new StepProfile(0.55f, 1.35f);    // imp
+                case 13: return new StepProfile(0.75f, 1.05f);   // harpy
+                case 29: return new StepProfile(0.8f, 0.9f);     // daedra seducer, winged
+                case 34:                                         // dragonling
+                case 40: return new StepProfile(0.9f, 0.75f);    // dragonling (alternate)
+                default: return Flyer;
+            }
+        }
+
+        /// <summary>A wing beat shows on the first frame of each loop of the flying animation.</summary>
+        public static bool IsWingBeat(int frame)
+        {
+            return frame == 0;
+        }
+
         /// <summary>A footfall shows on the first and the middle frame of a walk cycle of this many frames.</summary>
         public static bool IsFootfall(int frame, int frames)
         {
@@ -105,8 +134,22 @@ namespace VanillaFootsteps
             return seconds > 0f && metres <= MaxFrameMove && metres / seconds >= MinWalkSpeed;
         }
 
+        public const string StepPool = "step", WingPool = "wing";
+
         /// <summary>A file name ("step_2.ogg", "Step.wav") that holds a footstep sound.</summary>
         public static bool IsStepFile(string fileName)
+        {
+            return IsPoolFile(fileName, StepPool);
+        }
+
+        /// <summary>A file name ("wing_1.ogg", "wing.wav") that holds a wing-flap sound.</summary>
+        public static bool IsWingFile(string fileName)
+        {
+            return IsPoolFile(fileName, WingPool);
+        }
+
+        /// <summary>"pool.ext" or "pool_N.ext" (N digits), ext .ogg, .wav or .mp3, in any case.</summary>
+        static bool IsPoolFile(string fileName, string pool)
         {
             if (string.IsNullOrEmpty(fileName))
                 return false;
@@ -114,11 +157,12 @@ namespace VanillaFootsteps
             if (!lower.EndsWith(".ogg") && !lower.EndsWith(".wav") && !lower.EndsWith(".mp3"))
                 return false;
             string stem = lower.Substring(0, lower.Length - 4);
-            if (stem == "step")
+            if (stem == pool)
                 return true;
-            if (!stem.StartsWith("step_") || stem.Length == 5)
+            int digits = pool.Length + 1;
+            if (!stem.StartsWith(pool + "_") || stem.Length == digits)
                 return false;
-            for (int i = 5; i < stem.Length; i++)
+            for (int i = digits; i < stem.Length; i++)
                 if (stem[i] < '0' || stem[i] > '9')
                     return false;
             return true;

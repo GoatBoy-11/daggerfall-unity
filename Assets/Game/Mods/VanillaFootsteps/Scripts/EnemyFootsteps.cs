@@ -6,8 +6,8 @@ namespace VanillaFootsteps
 {
     /// <summary>
     /// Footsteps of a vanilla enemy that walks: on the first and middle frame of its walk animation while it really
-    /// moves on the ground. Flyers, swimmers, ghosts and levitating enemies are silent; so are ANPCs, which have
-    /// footsteps of their own.
+    /// moves on the ground. Flyers beat their wings softly instead, once per loop of their flying animation (hovering
+    /// too). Swimmers, ghosts and levitating enemies are silent; so are ANPCs, which have footsteps of their own.
     /// </summary>
     public class EnemyFootsteps : MonoBehaviour
     {
@@ -17,13 +17,17 @@ namespace VanillaFootsteps
         StepVoice voice;
         StepProfile profile;
         int profileFor = -1;
+        bool profileFlying;
         int lastFrame = -1;
         Vector3 lastPosition;
         float lastMovedAt = -100f;
         float stepTimer;
 
-        /// <summary>Walking in earshot with its kind's footsteps on (vfootsteps).</summary>
+        /// <summary>Walking (or flying) in earshot with its kind's sounds on (vfootsteps).</summary>
         public bool Audible { get; private set; }
+
+        /// <summary>A flyer: its wings beat instead of its feet stepping (vfootsteps).</summary>
+        public bool Flying { get; private set; }
 
         void Start()
         {
@@ -70,9 +74,18 @@ namespace VanillaFootsteps
             bool moving = Time.time - lastMovedAt <= FootstepRules.MovingGraceSeconds;
 
             int id = mobile.Enemy.ID;
-            bool kindOn = FootstepRules.IsClass(id) ? mod.ClassEnemies : mod.Monsters;
             MobileBehaviour behaviour = mobile.Enemy.Behaviour;      // a Daedra Seducer turns into a flyer
-            bool onFeet = behaviour != MobileBehaviour.Flying && behaviour != MobileBehaviour.Spectral &&
+            Flying = behaviour == MobileBehaviour.Flying;
+            if (Flying)
+            {
+                UpdateWings(mod, mobile, id);
+                return;
+            }
+
+            // Human affinity too: classes that other mods (Enemy Expansion, say) add have ids beyond 146.
+            bool human = FootstepRules.IsClass(id) || mobile.Enemy.Affinity == MobileAffinity.Human;
+            bool kindOn = human ? mod.ClassEnemies : mod.Monsters;
+            bool onFeet = behaviour != MobileBehaviour.Spectral &&
                           behaviour != MobileBehaviour.Aquatic && (motor == null || !motor.IsLevitating) &&
                           (controller == null || controller.isGrounded);
             bool walking = kindOn && onFeet && moving && mobile.EnemyState == MobileStates.Move && !mobile.FreezeAnims;
@@ -83,11 +96,7 @@ namespace VanillaFootsteps
                 return;
             }
             Audible = mod.InEarshot(transform.position);
-            if (profileFor != id)
-            {
-                profile = FootstepRules.ForEnemy(id);
-                profileFor = id;
-            }
+            UseProfile(id, false);
 
             // Vanilla billboards: a footfall on the walk animation's first and middle frame.
             DaggerfallMobileUnit billboard = mobile as DaggerfallMobileUnit;
@@ -108,6 +117,47 @@ namespace VanillaFootsteps
                 voice.Step(profile);
                 stepTimer = FootstepRules.WalkStepSeconds;
             }
+        }
+
+        /// <summary>A flyer's wings beat on the first frame of each loop of its flying animation, moving or hovering.</summary>
+        void UpdateWings(VanillaFootstepsMod mod, MobileUnit mobile, int id)
+        {
+            MobileStates state = mobile.EnemyState;
+            bool flapping = mod.WingBeats && (state == MobileStates.Move || state == MobileStates.Idle) && !mobile.FreezeAnims;
+            if (!flapping)
+            {
+                stepTimer = 0f;
+                lastFrame = -1;
+                return;
+            }
+            Audible = mod.InEarshot(transform.position);
+            UseProfile(id, true);
+
+            DaggerfallMobileUnit billboard = mobile as DaggerfallMobileUnit;
+            if (billboard != null)
+            {
+                int frame = billboard.CurrentFrame;
+                if (frame != lastFrame && lastFrame != -1 && FootstepRules.IsWingBeat(frame))
+                    voice.Wing(profile);
+                lastFrame = frame;
+                return;
+            }
+
+            stepTimer -= Time.deltaTime;
+            if (stepTimer <= 0f)
+            {
+                voice.Wing(profile);
+                stepTimer = FootstepRules.WingBeatSeconds;
+            }
+        }
+
+        void UseProfile(int id, bool flying)
+        {
+            if (profileFor == id && profileFlying == flying)
+                return;
+            profile = flying ? FootstepRules.ForFlyer(id) : FootstepRules.ForEnemy(id);
+            profileFor = id;
+            profileFlying = flying;
         }
     }
 }

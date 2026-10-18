@@ -1,10 +1,10 @@
 {
     "ModTitle": "Vanilla Footsteps",
-    "ModVersion": "0.1.0",
+    "ModVersion": "0.2.0",
     "ModAuthor": "GoatBoy-11",
     "ContactInfo": "https://github.com/GoatBoy-11/daggerfall-unity",
     "DFUnity_Version": "1.1.1",
-    "ModDescription": "Footstep sounds for Daggerfall's own enemies and the townspeople who wander outside, using the Advanced NPCs footsteps. Steps fall on the walk animation's frames; flyers, swimmers and ghosts stay silent.",
+    "ModDescription": "Footstep sounds for Daggerfall's own enemies and the townspeople who wander outside, using the Advanced NPCs footsteps. Steps fall on the walk animation's frames; flyers beat their wings softly; swimmers and ghosts stay silent.",
     "GUID": "7a21b128-1e21-4be8-8a10-7519daeda268",
     "Files": [
         "Assets/Game/Mods/VanillaFootsteps/Scripts/FootstepRules.cs",
@@ -16,6 +16,10 @@
         "Assets/Game/Mods/VanillaFootsteps/Sounds/step_2.ogg",
         "Assets/Game/Mods/VanillaFootsteps/Sounds/step_3.ogg",
         "Assets/Game/Mods/VanillaFootsteps/Sounds/step_4.ogg",
+        "Assets/Game/Mods/VanillaFootsteps/Sounds/wing_1.ogg",
+        "Assets/Game/Mods/VanillaFootsteps/Sounds/wing_2.ogg",
+        "Assets/Game/Mods/VanillaFootsteps/Sounds/wing_3.ogg",
+        "Assets/Game/Mods/VanillaFootsteps/Sounds/wing_4.ogg",
         "Assets/Game/Mods/VanillaFootsteps/modsettings.json"
     ],
     "Dependencies": []

@@ -1,9 +1,9 @@
 {
-    "Version": "1.0",
+    "Version": "1.1",
     "Sections": [
         {
             "Name": "Footsteps",
-            "Description": "Footstep sounds of Daggerfall's own enemies and townspeople.",
+            "Description": "Footstep and wing sounds of Daggerfall's own enemies and townspeople.",
             "IsAdvanced": false,
             "Keys": [
                 {
@@ -28,11 +28,18 @@
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
                 },
                 {
+                    "Value": true,
+                    "Name": "Wings",
+                    "Description": "Soft wing beats of flying enemies: bats, imps, harpies, dragonlings.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
+                {
                     "Min": 0,
                     "Max": 100,
                     "Value": 100,
                     "Name": "Volume",
-                    "Description": "Footstep volume, in percent of the sound volume.",
+                    "Description": "Footstep and wing volume, in percent of the sound volume.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderIntKey"
                 },
@@ -41,7 +48,7 @@
                     "Max": 30,
                     "Value": 15,
                     "Name": "Distance",
-                    "Description": "Metres within which you hear footsteps.",
+                    "Description": "Metres within which you hear footsteps and wings.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderIntKey"
                 }
