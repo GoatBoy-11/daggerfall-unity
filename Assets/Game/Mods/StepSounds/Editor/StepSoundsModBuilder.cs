@@ -4,20 +4,20 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-namespace VanillaFootsteps.EditorTools
+namespace StepSounds.EditorTools
 {
     /// <summary>
-    /// Builds vanillafootsteps.dfmod the same way Daggerfall Tools > Mod Builder does (C# sources packed as .cs.txt
+    /// Builds step_sounds.dfmod the same way Daggerfall Tools > Mod Builder does (C# sources packed as .cs.txt
     /// text assets, the sounds and settings, plus the .dfmod.json manifest, LZ4, Windows), from a menu item or batch mode:
-    ///   Unity.exe -quit -projectPath &lt;fork&gt; -executeMethod VanillaFootsteps.EditorTools.VanillaFootstepsModBuilder.Build [-modOut &lt;dir&gt;]
-    /// Output: &lt;modOut&gt;/StandaloneWindows/vanillafootsteps.dfmod (default modOut: &lt;project&gt;/Builds/VanillaFootsteps).
+    ///   Unity.exe -quit -projectPath &lt;fork&gt; -executeMethod StepSounds.EditorTools.StepSoundsModBuilder.Build [-modOut &lt;dir&gt;]
+    /// Output: &lt;modOut&gt;/StandaloneWindows/step_sounds.dfmod (default modOut: &lt;project&gt;/Builds/StepSounds).
     /// </summary>
-    public static class VanillaFootstepsModBuilder
+    public static class StepSoundsModBuilder
     {
-        const string ManifestPath = "Assets/Game/Mods/VanillaFootsteps/VanillaFootsteps.dfmod.json";
-        const string TempDir = "Assets/Untracked/ModBuilder/VanillaFootsteps";
-        const string BundleName = "vanillafootsteps.dfmod";
-        const string LogPrefix = "[VanillaFootsteps build] ";
+        const string ManifestPath = "Assets/Game/Mods/StepSounds/StepSounds.dfmod.json";
+        const string TempDir = "Assets/Untracked/ModBuilder/StepSounds";
+        const string BundleName = "step_sounds.dfmod";
+        const string LogPrefix = "[StepSounds build] ";
 
         [Serializable]
         class ManifestFiles
@@ -25,7 +25,7 @@ namespace VanillaFootsteps.EditorTools
             public List<string> Files = new List<string>();
         }
 
-        [MenuItem("Daggerfall Tools/Build Vanilla Footsteps mod")]
+        [MenuItem("Daggerfall Tools/Build Step Sounds mod")]
         public static void BuildFromMenu()
         {
             string outDir = DefaultOutDir();
@@ -109,7 +109,7 @@ namespace VanillaFootsteps.EditorTools
 
         static string DefaultOutDir()
         {
-            return Path.GetFullPath(Path.Combine(Application.dataPath, "../Builds/VanillaFootsteps"));
+            return Path.GetFullPath(Path.Combine(Application.dataPath, "../Builds/StepSounds"));
         }
 
         static string ArgValue(string name, string fallback)

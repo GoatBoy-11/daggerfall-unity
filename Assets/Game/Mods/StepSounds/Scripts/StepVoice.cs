@@ -1,7 +1,7 @@
 using UnityEngine;
 using DaggerfallWorkshop;
 
-namespace VanillaFootsteps
+namespace StepSounds
 {
     /// <summary>
     /// The audio sources one walker's steps (or a flyer's wing beats) play from, made on its first sound. Two take
@@ -22,18 +22,18 @@ namespace VanillaFootsteps
         /// <summary>Plays a random step sound with this profile, if the player is in earshot; true when one played.</summary>
         public bool Step(StepProfile profile)
         {
-            VanillaFootstepsMod mod = VanillaFootstepsMod.Instance;
+            StepSoundsMod mod = StepSoundsMod.Instance;
             return mod != null && Play(mod.Steps, profile, mod);
         }
 
         /// <summary>Plays a random wing-flap sound with this profile, if the player is in earshot; true when one played.</summary>
         public bool Wing(StepProfile profile)
         {
-            VanillaFootstepsMod mod = VanillaFootstepsMod.Instance;
+            StepSoundsMod mod = StepSoundsMod.Instance;
             return mod != null && Play(mod.Wings, profile, mod);
         }
 
-        bool Play(SoundPool pool, StepProfile profile, VanillaFootstepsMod mod)
+        bool Play(SoundPool pool, StepProfile profile, StepSoundsMod mod)
         {
             if (mod.VolumePercent <= 0 || !mod.InEarshot(owner.position))
                 return false;
@@ -55,7 +55,7 @@ namespace VanillaFootsteps
             sources = new AudioSource[SourceCount];
             for (int i = 0; i < SourceCount; i++)
             {
-                GameObject go = new GameObject("VanillaFootsteps");
+                GameObject go = new GameObject("StepSounds");
                 go.transform.SetParent(owner, false);
                 AudioSource a = go.AddComponent<AudioSource>();
                 a.playOnAwake = false;

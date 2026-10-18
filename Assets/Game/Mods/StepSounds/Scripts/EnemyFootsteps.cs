@@ -2,7 +2,7 @@ using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 
-namespace VanillaFootsteps
+namespace StepSounds
 {
     /// <summary>
     /// Footsteps of a vanilla enemy that walks: on the first and middle frame of its walk animation while it really
@@ -23,10 +23,10 @@ namespace VanillaFootsteps
         float lastMovedAt = -100f;
         float stepTimer;
 
-        /// <summary>Walking (or flying) in earshot with its kind's sounds on (vfootsteps).</summary>
+        /// <summary>Walking (or flying) in earshot with its kind's sounds on (step_sounds).</summary>
         public bool Audible { get; private set; }
 
-        /// <summary>A flyer: its wings beat instead of its feet stepping (vfootsteps).</summary>
+        /// <summary>A flyer: its wings beat instead of its feet stepping (step_sounds).</summary>
         public bool Flying { get; private set; }
 
         void Start()
@@ -60,7 +60,7 @@ namespace VanillaFootsteps
         void Update()
         {
             Audible = false;
-            VanillaFootstepsMod mod = VanillaFootstepsMod.Instance;
+            StepSoundsMod mod = StepSoundsMod.Instance;
             MobileUnit mobile = enemy != null ? enemy.MobileUnit : null;
             if (mod == null || mobile == null || !mobile.IsSetup)
                 return;
@@ -120,7 +120,7 @@ namespace VanillaFootsteps
         }
 
         /// <summary>A flyer's wings beat on the first frame of each loop of its flying animation, moving or hovering.</summary>
-        void UpdateWings(VanillaFootstepsMod mod, MobileUnit mobile, int id)
+        void UpdateWings(StepSoundsMod mod, MobileUnit mobile, int id)
         {
             MobileStates state = mobile.EnemyState;
             bool flapping = mod.WingBeats && (state == MobileStates.Move || state == MobileStates.Idle) && !mobile.FreezeAnims;

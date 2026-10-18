@@ -1,5 +1,5 @@
 using System;
-using VanillaFootsteps;
+using StepSounds;
 
 /// <summary>Checks FootstepRules without Unity: test-rules.sh compiles it with FootstepRules.cs and runs it.</summary>
 static class RulesTests
@@ -51,7 +51,7 @@ static class RulesTests
         Check(FootstepRules.IsStepFile("step_1.ogg") && FootstepRules.IsStepFile("Step_12.WAV") && FootstepRules.IsStepFile("step.mp3"), "step files");
         Check(!FootstepRules.IsStepFile("step_1.ogg.meta") && !FootstepRules.IsStepFile("step_.ogg") && !FootstepRules.IsStepFile("step2.ogg") &&
               !FootstepRules.IsStepFile("step_a.ogg") && !FootstepRules.IsStepFile("greet.ogg") && !FootstepRules.IsStepFile(null), "not step files");
-        Check(FootstepRules.IsStepFile("assets/game/mods/vanillafootsteps/sounds/step_1.ogg".Substring(41)), "bundle asset file name");
+        Check(FootstepRules.IsStepFile("assets/game/mods/stepsounds/sounds/step_1.ogg".Substring(35)), "bundle asset file name");
 
         // Wings.
         Check(FootstepRules.IsWingFile("wing_1.ogg") && FootstepRules.IsWingFile("WING.wav") && !FootstepRules.IsWingFile("step_1.ogg"), "wing files");

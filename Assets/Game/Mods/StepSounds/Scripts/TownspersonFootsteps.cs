@@ -3,7 +3,7 @@ using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 
-namespace VanillaFootsteps
+namespace StepSounds
 {
     /// <summary>
     /// Footsteps of a wandering townsperson (city watch included): on the first and middle frame of its walk animation
@@ -23,7 +23,7 @@ namespace VanillaFootsteps
         float lastMovedAt = -100f;
         float stepTimer;
 
-        /// <summary>Walking in earshot with townspeople's footsteps on (vfootsteps).</summary>
+        /// <summary>Walking in earshot with townspeople's footsteps on (step_sounds).</summary>
         public bool Audible { get; private set; }
 
         void Start()
@@ -38,7 +38,7 @@ namespace VanillaFootsteps
                 frameField = typeof(MobilePersonBillboard).GetField("currentFrame", BindingFlags.NonPublic | BindingFlags.Instance);
                 animsField = typeof(MobilePersonBillboard).GetField("stateAnims", BindingFlags.NonPublic | BindingFlags.Instance);
                 if (frameField == null || animsField == null)
-                    VanillaFootstepsMod.Log("MobilePersonBillboard frame fields not found: townspeople step every " +
+                    StepSoundsMod.Log("MobilePersonBillboard frame fields not found: townspeople step every " +
                                             FootstepRules.WalkStepSeconds + " s instead of on their walk frames.");
             }
         }
@@ -54,7 +54,7 @@ namespace VanillaFootsteps
         void Update()
         {
             Audible = false;
-            VanillaFootstepsMod mod = VanillaFootstepsMod.Instance;
+            StepSoundsMod mod = StepSoundsMod.Instance;
             MobilePersonAsset asset = npc != null && npc.Asset != null ? npc.Asset : (motor != null ? motor.MobileAsset : null);
             if (mod == null || motor == null || asset == null)
                 return;

@@ -1,4 +1,4 @@
-# Vanilla Footsteps
+# Step Sounds
 
 Footstep sounds for Daggerfall's own enemies and the townspeople who wander outside, and soft wing beats for flying
 enemies. The footsteps are those of the [Advanced NPCs](../AdvancedNPCs/README.md) mod: the four shared dirt-ground
@@ -37,15 +37,16 @@ Settings take effect at once.
 
 ## Console
 
-`vfootsteps` prints where the sounds came from, the settings, how many enemies and townspeople have footsteps
+`step_sounds` prints where the sounds came from, the settings, how many enemies and townspeople have footsteps
 (and how many are walking or flying within earshot now), and how many steps and wing beats have played.
 
 ## Other sounds
 
 Put `step.ogg` or `step_1.ogg`, `step_2.wav`, ... (`.ogg`, `.wav` or `.mp3`; an `.ogg` must be audio only) in
-`StreamingAssets/VanillaFootsteps/`. If that folder has any, they replace the bundled footsteps the next time the
+`StreamingAssets/Sound/step_sounds/`. If that folder has any, they replace the bundled footsteps the next time the
 game starts. `wing_1.ogg`, `wing_2.ogg`, ... there replace the bundled wing beats the same way. Each kind is replaced
-on its own, and you don't need to rebuild the mod. A single flap works best; trim a recording of several flaps
+on its own, and you don't need to rebuild the mod. DFU itself only looks in `Sound` for files named after its own
+sounds, so this subfolder never clashes with sound replacements. A single flap works best; trim a recording of several flaps
 into one file per flap.
 
 ## Other mods' enemies
@@ -61,13 +62,13 @@ vanilla ids have entries in the tables.
 You need the Unity editor DFU uses (2019.4) and this fork of the project.
 
 1. Open the project in Unity and wait for it to import.
-2. **Daggerfall Tools > Build Vanilla Footsteps mod**. When it is done, the editor opens the folder that holds
-   `Builds/VanillaFootsteps/StandaloneWindows/vanillafootsteps.dfmod`.
-3. Copy `vanillafootsteps.dfmod` to `DaggerfallUnity_Data/StreamingAssets/Mods/` in the game's folder, start
+2. **Daggerfall Tools > Build Step Sounds mod**. When it is done, the editor opens the folder that holds
+   `Builds/StepSounds/StandaloneWindows/step_sounds.dfmod`.
+3. Copy `step_sounds.dfmod` to `DaggerfallUnity_Data/StreamingAssets/Mods/` in the game's folder, start
    DFU and turn the mod on in the mod list.
 
 From a command line (Unity closed):
-`Unity.exe -quit -projectPath <project> -executeMethod VanillaFootsteps.EditorTools.VanillaFootstepsModBuilder.Build -modOut <dir>`.
+`Unity.exe -quit -projectPath <project> -executeMethod StepSounds.EditorTools.StepSoundsModBuilder.Build -modOut <dir>`.
 
 DFU compiles the mod's scripts when the game starts, as C# 4: no string interpolation, `?.` or `=>` members.
 `Tools~/test-rules.sh` tests `FootstepRules` with plain Mono (`mcs`/`mono`).

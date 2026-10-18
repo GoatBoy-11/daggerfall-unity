@@ -1,6 +1,6 @@
 using System;
 
-namespace VanillaFootsteps
+namespace StepSounds
 {
     /// <summary>How one kind of walker sounds: volume and pitch of its steps.</summary>
     public class StepProfile

@@ -11,7 +11,7 @@ using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
 using Wenzil.Console;
 using DfuModSettings = DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ModSettings;
 
-namespace VanillaFootsteps
+namespace StepSounds
 {
     /// <summary>One kind of sound (steps, wing flaps): its clips, where they came from, and how often one played.</summary>
     public class SoundPool
@@ -19,7 +19,7 @@ namespace VanillaFootsteps
         public readonly string Name;
         public readonly List<AudioClip> Clips = new List<AudioClip>();
         public string Source = "none";
-        /// <summary>Sounds played since the game started (vfootsteps).</summary>
+        /// <summary>Sounds played since the game started (step_sounds).</summary>
         public int Played;
 
         public SoundPool(string name)
@@ -38,14 +38,14 @@ namespace VanillaFootsteps
     /// Mod entry point: loads the step and wing sounds, reads the settings and gives every vanilla enemy and wandering
     /// townsperson a footstep component as DFU creates them.
     /// </summary>
-    public class VanillaFootstepsMod : MonoBehaviour
+    public class StepSoundsMod : MonoBehaviour
     {
-        public const string LogPrefix = "[VanillaFootsteps] ";
+        public const string LogPrefix = "[StepSounds] ";
         public const string Section = "Footsteps";
-        /// <summary>StreamingAssets/VanillaFootsteps: loose step_* (or wing_*) files there replace the bundled steps (or wings).</summary>
-        public const string LooseFolder = "VanillaFootsteps";
+        /// <summary>StreamingAssets/Sound/step_sounds: loose step_* (or wing_*) files there replace the bundled steps (or wings).</summary>
+        public const string LooseFolder = "Sound/step_sounds";
 
-        public static VanillaFootstepsMod Instance { get; private set; }
+        public static StepSoundsMod Instance { get; private set; }
 
         public bool Townspeople = true;
         public bool ClassEnemies = true;
@@ -64,9 +64,9 @@ namespace VanillaFootsteps
         public static void Init(InitParams initParams)
         {
             mod = initParams.Mod;
-            GameObject go = new GameObject("VanillaFootsteps");
+            GameObject go = new GameObject("StepSounds");
             DontDestroyOnLoad(go);
-            Instance = go.AddComponent<VanillaFootstepsMod>();
+            Instance = go.AddComponent<StepSoundsMod>();
             Instance.LoadPool(Instance.Steps, FootstepRules.IsStepFile);
             Instance.LoadPool(Instance.Wings, FootstepRules.IsWingFile);
             if (mod.HasSettings)
@@ -76,8 +76,8 @@ namespace VanillaFootsteps
             }
             GameManager.OnEnemySpawn += OnEnemySpawn;
             PopulationManager.OnMobileNPCCreate += OnMobileNPCCreate;
-            ConsoleCommandsDatabase.RegisterCommand("vfootsteps",
-                "Vanilla Footsteps: sounds loaded, settings, and how many walkers and flyers near you are heard.", "vfootsteps", InfoCommand);
+            ConsoleCommandsDatabase.RegisterCommand("step_sounds",
+                "Step Sounds: sounds loaded, settings, and how many walkers and flyers near you are heard.", "step_sounds", InfoCommand);
             mod.IsReady = true;
         }
 
@@ -129,7 +129,7 @@ namespace VanillaFootsteps
             }
         }
 
-        /// <summary>The pool's loose files in StreamingAssets/VanillaFootsteps if there are any, else the bundled ones.</summary>
+        /// <summary>The pool's loose files in StreamingAssets/Sound/step_sounds if there are any, else the bundled ones.</summary>
         void LoadPool(SoundPool pool, Func<string, bool> isPoolFile)
         {
             string loose = Path.Combine(Application.streamingAssetsPath, LooseFolder);
@@ -223,9 +223,9 @@ namespace VanillaFootsteps
 
         static string InfoCommand(string[] args)
         {
-            VanillaFootstepsMod m = Instance;
+            StepSoundsMod m = Instance;
             if (m == null)
-                return "Vanilla Footsteps is not running.";
+                return "Step Sounds is not running.";
             int enemies = 0, enemiesHeard = 0, flyersHeard = 0, people = 0, peopleHeard = 0;
             foreach (EnemyFootsteps e in FindObjectsOfType<EnemyFootsteps>())
             {
