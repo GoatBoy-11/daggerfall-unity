@@ -37,9 +37,12 @@ static class RulesTests
         Check(Math.Abs(FootstepRules.Volume(FootstepRules.Person, 100) - 0.85f) < 1e-5f, "volume 100%");
         Check(FootstepRules.Volume(FootstepRules.Person, 0) == 0f && FootstepRules.Volume(FootstepRules.Person, -5) == 0f, "volume 0% and below");
         Check(Math.Abs(FootstepRules.Volume(FootstepRules.Person, 250) - 0.85f) < 1e-5f, "volume clamped to 100%");
-        Check(Math.Abs(FootstepRules.Pitch(FootstepRules.Person, 0) - (1f - FootstepRules.PitchVariation)) < 1e-5f, "lowest pitch");
-        Check(Math.Abs(FootstepRules.Pitch(FootstepRules.Person, 1) - (1f + FootstepRules.PitchVariation)) < 1e-5f, "highest pitch");
-        Check(FootstepRules.Pitch(new StepProfile(1f, 0f), 0) == FootstepRules.MinPitch, "pitch floor");
+        float spread = FootstepRules.WalkerPitchVariation + FootstepRules.PitchVariation;
+        Check(Math.Abs(FootstepRules.Pitch(FootstepRules.Person, 0, 0) - (1f - spread)) < 1e-5f, "lowest pitch");
+        Check(Math.Abs(FootstepRules.Pitch(FootstepRules.Person, 1, 1) - (1f + spread)) < 1e-5f, "highest pitch");
+        Check(Math.Abs(FootstepRules.Pitch(FootstepRules.Person, 0.5, 0.5) - 1f) < 1e-5f, "middle rolls keep the profile's pitch");
+        Check(FootstepRules.Pitch(FootstepRules.Person, 0, 1) < FootstepRules.Pitch(FootstepRules.Person, 1, 0), "a low walker's highest step stays below a high walker's lowest");
+        Check(FootstepRules.Pitch(new StepProfile(1f, 0f), 0, 0) == FootstepRules.MinPitch, "pitch floor");
 
         // Walking.
         Check(FootstepRules.IsWalking(1.3f / 60f, 1f / 60f), "townsperson speed walks");

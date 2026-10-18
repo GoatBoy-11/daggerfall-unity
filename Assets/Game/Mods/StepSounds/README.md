@@ -16,6 +16,9 @@ steps from `ANPCs/_Sounds`.
 - **Size**: monsters sound like their size. Rats are quiet and high-pitched, spiders and scorpions a little less so,
   bears, centaurs, giants, Daedroths, Daedra Lords, gargoyles and atronachs are louder and deeper. Knights and the
   city watch sound slightly heavier than other classes. The table is `FootstepRules.ForEnemy`.
+- **Variety**: each step or wing beat picks one of the numbered sounds (`step_1`, `step_2`, ...) at random. Every
+  walker also has a pitch of its own (up to 7% higher or lower), rolled once when it first steps, and each step
+  varies by up to 4% more, so two townspeople walking past you sound like two people.
 - **Loudness**: people play at the same loudness as ANPC's default steps (85%). Sounds come from the walker in 3D,
   are heard within the **Distance** setting (15 m by default) and fade out by 30 m, and follow DFU's sound volume.
 - **Advanced NPCs**: ANPCs keep their own footsteps. This mod leaves them alone, so nothing plays twice.

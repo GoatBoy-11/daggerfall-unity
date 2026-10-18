@@ -31,8 +31,10 @@ namespace StepSounds
         public const float MinWalkSpeed = 0.25f;
         /// <summary>Metres beyond which a step is not heard (the audio fades out linearly up to here).</summary>
         public const float MaxAudibleDistance = 30f;
-        /// <summary>Each step changes the profile's pitch by up to ± this.</summary>
-        public const float PitchVariation = 0.08f;
+        /// <summary>Each walker keeps its own pitch, the profile's ± up to this, so two walkers near you sound apart.</summary>
+        public const float WalkerPitchVariation = 0.07f;
+        /// <summary>Each step changes the walker's pitch by up to ± this.</summary>
+        public const float PitchVariation = 0.04f;
         public const float MinPitch = 0.1f;
 
         /// <summary>The same loudness as ANPC's shared default steps (ANPC plays them at 85%).</summary>
@@ -119,10 +121,14 @@ namespace StepSounds
             return profile.Volume * Math.Max(0, Math.Min(100, volumePercent)) / 100f;
         }
 
-        /// <summary>The pitch of one step: the profile's ± PitchVariation (roll 0 → lowest, 1 → highest).</summary>
-        public static float Pitch(StepProfile profile, double roll01)
+        /// <summary>
+        /// The pitch of one step: the profile's, ± WalkerPitchVariation from the walker's own roll (made once per walker),
+        /// ± PitchVariation from this step's roll (rolls 0 → lowest, 1 → highest).
+        /// </summary>
+        public static float Pitch(StepProfile profile, double walkerRoll01, double stepRoll01)
         {
-            return Math.Max(MinPitch, profile.Pitch + PitchVariation * (float)(roll01 * 2.0 - 1.0));
+            return Math.Max(MinPitch, profile.Pitch + WalkerPitchVariation * (float)(walkerRoll01 * 2.0 - 1.0)
+                                                    + PitchVariation * (float)(stepRoll01 * 2.0 - 1.0));
         }
 
         /// <summary>Metres in one frame beyond which a walker was placed somewhere else (a recycled townsperson), not walking.</summary>

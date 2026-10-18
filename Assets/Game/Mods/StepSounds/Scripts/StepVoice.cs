@@ -11,12 +11,15 @@ namespace StepSounds
     {
         const int SourceCount = 2;
         readonly Transform owner;
+        /// <summary>This walker's own place in the pitch range, rolled once: its voice.</summary>
+        readonly float walkerRoll;
         AudioSource[] sources;
         int next;
 
         public StepVoice(Transform owner)
         {
             this.owner = owner;
+            walkerRoll = Random.value;
         }
 
         /// <summary>Plays a random step sound with this profile, if the player is in earshot; true when one played.</summary>
@@ -44,7 +47,7 @@ namespace StepSounds
                 MakeSources();
             AudioSource source = sources[next];
             next = (next + 1) % sources.Length;
-            source.pitch = FootstepRules.Pitch(profile, Random.value);
+            source.pitch = FootstepRules.Pitch(profile, walkerRoll, Random.value);
             source.PlayOneShot(clip, DaggerfallUnity.Settings.SoundVolume * FootstepRules.Volume(profile, mod.VolumePercent));
             pool.Played++;
             return true;
