@@ -1,0 +1,52 @@
+{
+    "Version": "1.0",
+    "Sections": [
+        {
+            "Name": "Footsteps",
+            "Description": "Footstep sounds of Daggerfall's own enemies and townspeople.",
+            "IsAdvanced": false,
+            "Keys": [
+                {
+                    "Value": true,
+                    "Name": "Townspeople",
+                    "Description": "Footsteps of the people (and city watch) who wander the streets.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
+                {
+                    "Value": true,
+                    "Name": "ClassEnemies",
+                    "Description": "Footsteps of class enemies: mages, thieves, knights, guards and the like.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
+                {
+                    "Value": true,
+                    "Name": "Monsters",
+                    "Description": "Footsteps of monsters that walk (flyers, swimmers and ghosts never have any).",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
+                {
+                    "Min": 0,
+                    "Max": 100,
+                    "Value": 100,
+                    "Name": "Volume",
+                    "Description": "Footstep volume, in percent of the sound volume.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderIntKey"
+                },
+                {
+                    "Min": 5,
+                    "Max": 30,
+                    "Value": 15,
+                    "Name": "Distance",
+                    "Description": "Metres within which you hear footsteps.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderIntKey"
+                }
+            ],
+            "$version": "v1"
+        }
+    ]
+}
