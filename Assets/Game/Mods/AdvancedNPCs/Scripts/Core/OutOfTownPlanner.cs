@@ -85,8 +85,7 @@ namespace AdvancedNPCs.Core
             bool same = mode == GenericMode.SamePeople;
             SeededRandom visit = new SeededRandom(visitSeed);
 
-            List<NpcDefinition> ordered = new List<NpcDefinition>(templates);
-            ordered.Sort(delegate (NpcDefinition a, NpcDefinition b) { return string.CompareOrdinal(a.Id, b.Id); });
+            List<NpcDefinition> ordered = PopulationPlanner.Ordered(templates, same ? StableHash.Of("order@" + place.PlaceKey) : visit.NextUInt());
 
             int group = 0;
             foreach (NpcDefinition t in ordered)

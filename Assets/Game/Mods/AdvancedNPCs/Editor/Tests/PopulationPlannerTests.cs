@@ -267,5 +267,23 @@ namespace AdvancedNPCs.Tests
             StringAssert.StartsWith("pirates/Breton/", names.Calls[0]);
             StringAssert.StartsWith("default_breton/Breton/", names.Calls[1]);
         }
+
+        [Test]
+        public void CapDoesNotFavourEarlyIds()
+        {
+            // 30 always-present templates, room for 12: in plain id order "t29" never got a place in any town.
+            List<NpcDefinition> templates = new List<NpcDefinition>();
+            for (int k = 0; k < 30; k++)
+                templates.Add(Template("t" + k.ToString("00"), 1, 1));
+            HashSet<string> seen = new HashSet<string>();
+            for (int town = 0; town < 40; town++)
+                foreach (NpcInstance i in PopulationPlanner.Plan(templates, Town(5000 + town), GenericMode.SamePeople, 12, 400, 0, new FakeNames()))
+                    seen.Add(i.Definition.Id);
+            Assert.That(seen, Contains.Item("t29"));
+            Assert.That(seen.Count, Is.EqualTo(30), "every template should get a place in some town");
+            // Same people: one town plans the same residents every time.
+            Assert.That(Keys(PopulationPlanner.Plan(templates, Town(77), GenericMode.SamePeople, 12, 400, 1, new FakeNames())),
+                Is.EqualTo(Keys(PopulationPlanner.Plan(templates, Town(77), GenericMode.SamePeople, 12, 400, 2, new FakeNames()))));
+        }
     }
 }
