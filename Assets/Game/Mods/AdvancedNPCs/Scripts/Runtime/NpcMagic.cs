@@ -326,10 +326,27 @@ namespace AdvancedNPCs
                 !CanRelease() || brain.CurrentMode != NpcMode.Fighting ||
                 !NpcMagicRules.CanAfford(config.UsesMagicka, behaviour.Entity.CurrentMagicka, Cost(spell))) return false;
             effects.UsePlayerCharacterSkillsForEnemyMagicCost = false;
-            if (!effects.SetReadySpell(new EntityEffectBundle(spell, behaviour), !config.UsesMagicka)) return false;
+            if (!SetReadyQuietly(new EntityEffectBundle(spell, behaviour), !config.UsesMagicka)) return false;
             effects.CastReadySpell();
             FinishCast(IsHealing(spell));
             return true;
+        }
+
+        static readonly System.Reflection.FieldInfo ReadyListeners = typeof(EntityEffectManager).GetField("OnNewReadySpell",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        /// <summary>
+        /// Readies a spell this ANPC casts at once, with other mods' OnNewReadySpell listeners muted: Killer Instincts
+        /// answers that event on enemies by casting the spell again after a wind-up (a double cast). Vanilla has no
+        /// listener on enemies.
+        /// </summary>
+        internal bool SetReadyQuietly(EntityEffectBundle bundle, bool noSpellPointCost)
+        {
+            object listeners = ReadyListeners != null ? ReadyListeners.GetValue(effects) : null;
+            if (listeners != null)
+                ReadyListeners.SetValue(effects, null);
+            try { return effects.SetReadySpell(bundle, noSpellPointCost); }
+            finally { if (listeners != null) ReadyListeners.SetValue(effects, listeners); }
         }
 
         /// <summary>A copy is costed as a touch spell; the original caster-only spell is never changed.</summary>

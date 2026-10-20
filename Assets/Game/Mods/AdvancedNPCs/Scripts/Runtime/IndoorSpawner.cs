@@ -150,6 +150,7 @@ namespace AdvancedNPCs
                 sizes[i.Group] = sizes.ContainsKey(i.Group) ? sizes[i.Group] + 1 : 1;
             }
             List<int> picks = SpotPicker.Pick(candidates, avoid, avoidRadius, groups, same ? StableHash.Of(place.PlaceKey) : visitSeed ^ 0x9E3779B9u);
+            SpotPicker.GiveFreeSpots(picks, sizes.Keys);
             Dictionary<int, int> member = new Dictionary<int, int>();
             int skipped = 0;
             foreach (NpcInstance instance in plan)

@@ -29,6 +29,14 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void GiveFreeSpots_EmptyGroupsSpotsGoToPeopleWithout()
+        {
+            List<int> picks = new List<int> { 7, 3, 9, -1, -1, -1 };
+            SpotPicker.GiveFreeSpots(picks, new HashSet<int> { 0, 2, 4, 5 });
+            CollectionAssert.AreEqual(new[] { 7, 3, 9, -1, 3, -1 }, picks);   // group 1 empty: its spot goes to 4; 5 still none
+        }
+
+        [Test]
         public void Pick_TooFewSpots_RestMinusOne()
         {
             List<int> picks = SpotPicker.Pick(Line(6), new float[] { 0, 0, 0 }, 20f, 4, 1);

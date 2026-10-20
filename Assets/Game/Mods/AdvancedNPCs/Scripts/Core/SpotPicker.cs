@@ -33,6 +33,22 @@ namespace AdvancedNPCs.Core
         }
 
         /// <summary>
+        /// Every template that may appear gets a group, so a small room can run out of spots before the groups that
+        /// actually have people. Those take the spots held by groups left empty, in order; picks that already had a
+        /// spot keep it.
+        /// </summary>
+        public static void GiveFreeSpots(List<int> picks, ICollection<int> occupied)
+        {
+            Queue<int> free = new Queue<int>();
+            for (int g = 0; g < picks.Count; g++)
+                if (picks[g] >= 0 && !occupied.Contains(g))
+                    free.Enqueue(picks[g]);
+            for (int g = 0; g < picks.Count && free.Count > 0; g++)
+                if (picks[g] < 0 && occupied.Contains(g))
+                    picks[g] = free.Dequeue();
+        }
+
+        /// <summary>
         /// Where each member of a group stands relative to its spot, as {dx, dz}: the first on it, the rest 2-3 m
         /// around it and at least 1 m from each other.
         /// </summary>
