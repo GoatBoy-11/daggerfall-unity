@@ -412,6 +412,28 @@ namespace AdvancedNPCs
             Check("killing an enemy is no murder", enemy.State.dead && Count(PlayerEntity.Crimes.Murder) == enemyMurders,
                 "dead=" + enemy.State.dead + "; " + CrimeList());
 
+            // Language pacification: calm for good (saved), then a hit makes it an enemy again with no crime.
+            NpcDefinition pacDef = TestDefinition("selftest_pacified", Bravery.Brave, location, playerTransform, 3f);
+            pacDef.Hostile = true;
+            NpcBrain pac = SpawnDefinition(pacDef, location);
+            yield return Settle;
+            bool pacWasEnemy = pac.IsEnemy;
+            pac.Pacify(DaggerfallConnect.DFCareer.Skills.Etiquette);
+            yield return Settle;
+            bool pacCalm = !pac.IsEnemy && pac.CurrentMode == NpcMode.Calm && !pac.State.hostile && !pac.Motor.IsHostile;
+            NpcSaveData pacSave = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, mod.Flags, delegate { }).GetSaveData();
+            NpcSaveData pacBack = SaveLoadManager.Deserialize(typeof(NpcSaveData), SaveLoadManager.Serialize(typeof(NpcSaveData), pacSave)) as NpcSaveData;
+            NpcState pacState;
+            bool pacSaved = pacBack != null && pacBack.States.TryGetValue(pac.Id, out pacState) && pacState.pacified && pacState.enemyOff;
+            int pacAssaults = Count(PlayerEntity.Crimes.Assault);
+            PlayerHit(pac, playerBehaviour, 1);
+            yield return Settle;
+            bool pacBetrayed = pac.IsEnemy && pac.CurrentMode == NpcMode.Fighting && !pac.State.pacified;
+            Check("a pacified enemy stays calm (saved); hitting it makes it an enemy again, no crime",
+                pacWasEnemy && pacCalm && pacSaved && pacBetrayed && Count(PlayerEntity.Crimes.Assault) == pacAssaults,
+                "was enemy=" + pacWasEnemy + ", calm=" + pacCalm + ", saved=" + pacSaved + ", betrayed=" + pacBetrayed + "; " + CrimeList() + "; now " + Describe(pac));
+            NpcBrain.Discard(pac);
+
             NpcDefinition orcDef = TestDefinition("selftest_orc", Bravery.Brave, location, playerTransform, -3f);
             orcDef.Hostile = true;
             orcDef.BaseClass = "Orc";

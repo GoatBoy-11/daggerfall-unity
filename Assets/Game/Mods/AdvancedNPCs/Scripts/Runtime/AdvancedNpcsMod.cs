@@ -1025,6 +1025,7 @@ namespace AdvancedNPCs
             NpcState s = States.GetOrCreate(key);
             s.enemyOn = hostile;
             s.enemyOff = !hostile;
+            s.pacified = false;
             if (!hostile)
                 s.hostile = false;
             return true;

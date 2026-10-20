@@ -1029,12 +1029,17 @@ to the NPC's original AI. Restart DFU after changing these NPC schedules.
 ## Enemies
 
 `"attitude": "hostile"` (unique or generic) makes an enemy: it attacks you on sight with DFU's own enemy AI, never
-calms down, and fighting or killing it is no crime. It will not talk, and it blocks resting nearby like vanilla
+calms down on its own, and fighting or killing it is no crime. It will not talk, and it blocks resting nearby like vanilla
 enemies. Bravery still applies (a Coward enemy runs).
 
 - `"hostileHours": [20, 6]` — an enemy only from 8 pm to 6 am (hours may wrap past midnight); calm townsfolk the
   rest of the day. When its hours end it calms down, unless you fought it — then it stays angry like provoked
   townsfolk until its `calmDownHours` pass.
+- Language pacification: the first time it sees you on a visit, DFU's own roll runs (Etiquette, or Streetwise
+  for Burglar/Rogue/Acrobat/Thief/Assassin/Nightblade, a creature's language such as Orcish; a sheathed weapon
+  helps). On success it calms down for good ("Pacified ... using ... skill."), saved with your game, and you can
+  talk to it. Hit it afterwards and it is an enemy again for good, with no crime and no second roll. Only enemies
+  by `"attitude": "hostile"` roll, not ones switched on with `anpc_hostile` or a `becomeEnemy` reply.
 - Creatures: an enemy may use any DFU creature as `baseClass` — Rat, Imp, Spriggan, GiantBat, GrizzlyBear,
   SabertoothTiger, Spider, Orc, Centaur, Werewolf, Nymph, Slaughterfish, OrcSergeant, Harpy, Wereboar,
   SkeletalWarrior, Giant, Zombie, Ghost, Mummy, GiantScorpion, OrcShaman, Gargoyle, Wraith, OrcWarlord,

@@ -163,7 +163,10 @@ you (−100 to 100) that drifts back to 0.
 
 ### Enemies
 
-`"attitude": "hostile"` attacks on sight with DFU's enemy AI, never calms down, killing it is no crime.
+`"attitude": "hostile"` attacks on sight with DFU's enemy AI, never calms down on its own, killing it is no crime.
+
+- Language skill: when it first sees you, DFU's pacification roll (Etiquette, Streetwise for thieves,
+  creature languages such as Orcish) may calm it for good. Hit it later and it is an enemy again, no crime.
 
 - `"hostileHours": [20, 6]` — hostile only from 20:00 to 06:00, calm townsfolk otherwise.
 - A hostile ANPC may use a **creature** `baseClass` (Rat, Imp, Spriggan, GiantBat, GrizzlyBear,
