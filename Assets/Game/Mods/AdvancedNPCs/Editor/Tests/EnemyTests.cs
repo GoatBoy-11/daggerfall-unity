@@ -107,6 +107,10 @@ namespace AdvancedNPCs.Tests
             s.enemyOff = true;
             Assert.IsFalse(s.IsDefault());
             Assert.IsTrue(s.Clone().enemyOff);
+            s.enemyOff = false;
+            s.pacified = true;
+            Assert.IsFalse(s.IsDefault());
+            Assert.IsTrue(s.Clone().pacified);
         }
     }
 }

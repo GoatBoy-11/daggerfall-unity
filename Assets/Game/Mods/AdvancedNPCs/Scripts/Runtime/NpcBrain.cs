@@ -4,6 +4,8 @@ using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
+using DaggerfallWorkshop.Game.Formulas;
+using DaggerfallConnect;
 using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
@@ -48,6 +50,7 @@ namespace AdvancedNPCs
         bool hasWanderTarget;
         bool enemy;             // an enemy of the player now (enemies spec)
         bool provoked;          // the player hit it while it was an enemy
+        bool pacifyRolled;      // the language pacification roll is made once per spawn, like vanilla
         float wanderPause;
         float calmCheckTimer;
         FleeRoll fleeRoll;      // Normal's one flee roll while badly hurt
@@ -222,6 +225,7 @@ namespace AdvancedNPCs
         {
             state.enemyOn = hostile;
             state.enemyOff = !hostile;
+            state.pacified = false;
             RefreshEnemy();
             if (!hostile && state.hostile && mode != NpcMode.Dead)
                 CalmNow();
@@ -749,6 +753,11 @@ namespace AdvancedNPCs
 
             if (guard != null && guard.Tick()) return;
 
+            // Our own language pacification roll (DFU's is off, see Start): hostile-attitude enemies only, first sighting.
+            // Not during the self-test: a random calm-down would break its enemy checks (it tests Pacify directly).
+            if (enemy && !pacifyRolled && !SelfTest.Running && !provoked && def.Hostile && !state.enemyOn && senses.Target == player && senses.DetectedTarget)
+                TryPacify();
+
             // Keep vanilla in line with our state (EnemyMotor.Start resets IsHostile from MobileReactions).
             motor.IsHostile = state.hostile;
 
@@ -779,8 +788,50 @@ namespace AdvancedNPCs
             }
         }
 
+        /// <summary>DFU's language pacification roll for an enemy that has just seen the player.</summary>
+        void TryPacify()
+        {
+            pacifyRolled = true;
+            EnemyEntity entity = entityBehaviour.Entity as EnemyEntity;
+            DFCareer.Skills skill = entity != null ? entity.GetLanguageSkill() : DFCareer.Skills.None;
+            if (skill == DFCareer.Skills.None)
+                return;
+            PlayerEntity player = GameManager.Instance.PlayerEntity;
+            if (FormulaHelper.CalculateEnemyPacification(player, skill))
+            {
+                Pacify(skill);
+                player.TallySkill(skill, 3);    // as vanilla (BCHG)
+            }
+            else if (skill != DFCareer.Skills.Etiquette && skill != DFCareer.Skills.Streetwise)
+            {
+                player.TallySkill(skill, 1);
+            }
+        }
+
+        /// <summary>Calmed for good by the player's words (saved); attacking it later makes it an enemy again.</summary>
+        internal void Pacify(DFCareer.Skills skill)
+        {
+            pacifyRolled = true;
+            SwitchHostile(false);
+            state.pacified = true;
+            if (senses.Target == GameManager.Instance.PlayerEntityBehaviour)
+                senses.Target = null;
+            DaggerfallUI.AddHUDText(TextManager.Instance.GetLocalizedText("languagePacified").Replace("%e", DisplayName)
+                .Replace("%s", DaggerfallUnity.Instance.TextProvider.GetSkillName(skill)), 5);
+            AdvancedNpcsMod.Log(key + ": pacified with " + skill + ".");
+        }
+
         void OnAttackedByPlayer()
         {
+            if (state.pacified && state.companion == null)
+            {
+                // Betrayed after a pacification: an enemy again, as vanilla, so no crime and no second roll.
+                state.pacified = false;
+                SwitchHostile(true);
+                provoked = true;
+                AdvancedNpcsMod.Log(key + ": attacked after being pacified; an enemy again.");
+                return;
+            }
             bool wasCalm = !state.hostile;
             state.hostile = true;
             state.hostileUntil = HostilityRules.NewCalmDeadline(Now(), def.CalmDownMinHours, def.CalmDownMaxHours, rng);

@@ -24,6 +24,8 @@ namespace AdvancedNPCs.Core
         public bool enemyOn;
         /// <summary>Switched calm with anpc_hostile / SetHostile (overrides a hostile definition).</summary>
         public bool enemyOff;
+        /// <summary>Calmed by the player's language skill (enemyOff set with it); hitting it makes it an enemy again, no crime.</summary>
+        public bool pacified;
 
         /// <summary>Dialogue topic ids asked of this person (null in older saves).</summary>
         public List<string> asked;
@@ -72,6 +74,7 @@ namespace AdvancedNPCs.Core
             c.portrait = portrait;
             c.enemyOn = enemyOn;
             c.enemyOff = enemyOff;
+            c.pacified = pacified;
             c.asked = asked != null ? new List<string>(asked) : null;
             c.magicInitialized = magicInitialized;
             c.magicka = magicka;
@@ -113,7 +116,7 @@ namespace AdvancedNPCs.Core
         /// <summary>Alive, calm, full health, no locked portrait, nothing asked: nothing worth saving (spec §8, v2.1 §6).</summary>
         public bool IsDefault()
         {
-            return wantedCrime == 0 && companion == null && MagicSettled() && !dead && !hostile && healthFraction >= 0.999f && string.IsNullOrEmpty(portrait) && !enemyOn && !enemyOff &&
+            return wantedCrime == 0 && companion == null && MagicSettled() && !dead && !hostile && healthFraction >= 0.999f && string.IsNullOrEmpty(portrait) && !enemyOn && !enemyOff && !pacified &&
                    (asked == null || asked.Count == 0) && opinion == 0 && (variables == null || variables.Count == 0);
         }
     }
