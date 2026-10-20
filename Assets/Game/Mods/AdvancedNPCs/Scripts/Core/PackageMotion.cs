@@ -13,7 +13,11 @@ namespace AdvancedNPCs.Core
         double waitUntil;
         double bestDistance = double.MaxValue;
         double stuckSeconds;
+        int retries;
+        double retrySeconds;
         public bool Failed { get; private set; }
+        public bool CanRetry { get { return Failed && retries < 2; } }
+        public int RetryCount { get { return retries; } }
         public int PointIndex { get { return point; } }
         public bool Running { get { return settings.Run; } }
 
@@ -24,11 +28,25 @@ namespace AdvancedNPCs.Core
             this.chooseTarget = chooseTarget;
         }
 
+        /// <summary>Retry the same target after 15 active seconds, at most twice per package step.</summary>
+        public bool Retry(double activeSeconds)
+        {
+            if (!CanRetry) return false;
+            retrySeconds += Math.Max(0, activeSeconds);
+            if (retrySeconds < 15) return false;
+            retries++;
+            retrySeconds = 0;
+            stuckSeconds = 0;
+            bestDistance = double.MaxValue;
+            Failed = false;
+            return true;
+        }
+
         /// <summary>Returns a movement target, or null to stand. gameSeconds drives waits; activeSeconds drives stall detection.</summary>
         public PackagePoint Tick(PackagePoint current, double gameSeconds, double activeSeconds)
         {
-            if (Failed || settings.Type == "stand" || settings.Type == "play_animation" || settings.Type == "follow") return null;
-            if (settings.Type == "travel_to" || settings.Type == "guard_spot" || settings.Type == "work_at")
+            if (Failed || settings.Type == "stand" || settings.Type == "play_animation" || settings.Type == "eat" || settings.Type == "hawk" || settings.Type == "socialize" || settings.Type == "follow") return null;
+            if (settings.Type == "travel_to" || settings.Type == "guard_spot" || settings.Type == "work_at" || settings.Type == "seek_shelter")
                 target = settings.Target;
             else if (target == null)
             {
@@ -54,7 +72,7 @@ namespace AdvancedNPCs.Core
             {
                 stuckSeconds = 0;
                 bestDistance = double.MaxValue;
-                if (settings.Type != "travel_to" && settings.Type != "guard_spot" && settings.Type != "work_at")
+                if (settings.Type != "travel_to" && settings.Type != "guard_spot" && settings.Type != "work_at" && settings.Type != "seek_shelter")
                 {
                     target = null;
                     waitUntil = gameSeconds + settings.Pause;
@@ -70,7 +88,8 @@ namespace AdvancedNPCs.Core
             else stuckSeconds += Math.Max(0, activeSeconds);
             if (stuckSeconds >= 10)
             {
-                if (settings.Type == "wander_civilian") target = null;
+                // Random wander points can land inside walls: pick another instead of ending the routine.
+                if (settings.Type == "wander_civilian" || settings.Type == "wander" || settings.Type == "chore") target = null;
                 else Failed = true;
                 return null;
             }

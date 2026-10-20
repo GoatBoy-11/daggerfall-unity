@@ -61,7 +61,7 @@
         },
         {
             "Name": "Companions",
-            "Description": "Recruitment limits for hired ANPC companions.",
+            "Description": "Recruitment limits and catch-up for hired ANPC companions.",
             "IsAdvanced": false,
             "Keys": [
                 {
@@ -81,6 +81,15 @@
                     "Description": "Maximum hired companions, including those waiting elsewhere.\rEscort NPCs with no_companion_slot do not count.\rLowering this limit keeps your existing party.\rUnlimited parties may reduce performance.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.MultipleChoiceKey"
+                },
+                {
+                    "Min": 8,
+                    "Max": 50,
+                    "Value": 15,
+                    "Name": "CatchUpDistance",
+                    "Description": "Metres a following companion may fall behind before it catches up.\rIt reappears close to you, behind you if possible, on a spot you cannot see.\rIt also catches up after 5 seconds farther than 6 m without closing in.\rWaiting, fighting or fleeing companions never catch up.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderIntKey"
                 },
                 {
                     "Value": false,

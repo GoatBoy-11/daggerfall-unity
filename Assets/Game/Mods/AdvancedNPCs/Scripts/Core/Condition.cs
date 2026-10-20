@@ -111,7 +111,7 @@ namespace AdvancedNPCs.Core
         {
             "hours", "time", "season", "weather", "region", "town", "minLevel", "maxLevel", "playerRace", "playerGender",
             "minGold", "hasItem", "guild", "minGuildRank", "reaction", "asked", "notAsked", "flags", "notFlags",
-            "questGlobal", "notQuestGlobal", "tone", "any", "variables", "minOpinion", "maxOpinion", "minHealth", "maxHealth", "indoors", "outdoors",
+            "questGlobal", "notQuestGlobal", "tone", "any", "variables", "minOpinion", "maxOpinion", "minHealth", "maxHealth", "indoors", "outdoors", "bad_weather",
         };
         static readonly string[] Seasons = { "spring", "summer", "autumn", "fall", "winter" };
         static readonly string[] Weathers = { "clear", "overcast", "rain", "storm", "snow" };
@@ -175,6 +175,11 @@ namespace AdvancedNPCs.Core
                     case "time": problem = Time(c, raw); break;
                     case "season": problem = Season(c, raw); break;
                     case "weather": problem = Weather(c, raw); break;
+                    case "bad_weather":
+                        if (!(raw is bool)) { problem = "must be true or false"; break; }
+                        bool badWeather = (bool)raw;
+                        c.Add(key, delegate(IDialogueFacts f) { return (f.Raining || f.Storming || f.Snowing) == badWeather; });
+                        break;
                     case "region": problem = Place(c, key, raw, delegate (IDialogueFacts f) { return f.Region; }); break;
                     case "town": problem = Place(c, key, raw, delegate (IDialogueFacts f) { return f.Town; }); break;
                     case "minLevel": problem = Minimum(c, key, raw, delegate (IDialogueFacts f) { return f.PlayerLevel; }); break;

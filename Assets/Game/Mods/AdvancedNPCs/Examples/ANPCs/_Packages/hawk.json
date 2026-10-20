@@ -1,0 +1,10 @@
+// Market seller: stays put; when the player passes within 6 m and in sight, turns to face them, plays one of the
+// ANPC's Sounds/hawk_* lines ("Fresh bread!") and a hawk* sheet (else greet*, else talk*), then waits 10-20 s.
+{
+  "$schema": "../_Schemas/package.schema.json",
+  "type": "hawk",
+  "parameters": {
+    "range": 6,
+    "interval": [10, 20]
+  }
+}

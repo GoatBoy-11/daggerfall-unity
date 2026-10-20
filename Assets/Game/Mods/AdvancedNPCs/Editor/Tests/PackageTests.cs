@@ -30,6 +30,107 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void ShelterDefaultsAndOverridesLeaveSharedPackageUnchanged()
+        {
+            var package = Package("{\"type\":\"seek_shelter\"}");
+            string error;
+            var defaults = PackageParser.Resolve(package, null, out error);
+            Assert.AreEqual(16, defaults.Radius);
+            CollectionAssert.AreEqual(new[] { "shelter" }, defaults.Spots);
+            var overrides = (Dictionary<string, object>)Json.Parse("{\"radius\":12,\"spot\":[\"awning\",\"arch\"],\"run\":true}");
+            var settings = PackageParser.Resolve(package, overrides, out error);
+            Assert.AreEqual(12, settings.Radius);
+            Assert.IsTrue(settings.Run);
+            CollectionAssert.AreEqual(new[] { "awning", "arch" }, settings.Spots);
+            Assert.AreEqual(16, PackageParser.Resolve(package, null, out error).Radius);
+        }
+
+        [TestCase("{\"radius\":0}")]
+        [TestCase("{\"radius\":25}")]
+        [TestCase("{\"radius\":\"16\"}")]
+        [TestCase("{\"spot\":[]}")]
+        [TestCase("{\"run\":1}")]
+        [TestCase("{\"target\":[0,0,0]}")]
+        public void ShelterRejectsInvalidParameters(string parameters)
+        {
+            string error;
+            Assert.IsNull(PackageParser.Parse("shelter", "{\"type\":\"seek_shelter\",\"parameters\":" + parameters + "}", out error));
+            Assert.IsNotEmpty(error);
+        }
+
+        [Test]
+        public void ShelterMotionHoldsAndReturnsToTheSameReservedTarget()
+        {
+            var settings = Settings("{\"type\":\"seek_shelter\"}");
+            settings.Target = new PackagePoint(4, 0, 0);
+            var motion = new PackageMotion(settings, () => 0);
+            Assert.AreEqual(4, motion.Tick(new PackagePoint(0, 0, 0), 0, 0).X);
+            Assert.IsNull(motion.Tick(new PackagePoint(4, 0, 0), 1, 1));
+            Assert.AreEqual(4, motion.Tick(new PackagePoint(6, 0, 0), 2, 1).X);
+        }
+
+        [Test]
+        public void ScheduleDiagnosticsExplainPriorityConditionsAndHours()
+        {
+            var entries = Schedule("[{\"package\":\"fallback\"},{\"package\":\"normal\",\"hours\":[\"08:00\",\"18:00\"]},{\"package\":\"rain\",\"when\":{\"weather\":\"rain\"}},{\"package\":\"inside\",\"when\":{\"indoors\":true}}]");
+            var facts = new FakeFacts();
+            string text = AiSchedule.Describe(entries, 600, facts);
+            StringAssert.Contains("fallback - eligible; overridden by slot 2", text);
+            StringAssert.Contains("normal - selected", text);
+            StringAssert.Contains("rain - condition unmet: weather", text);
+            StringAssert.Contains("inside - condition unmet: indoors", text);
+            facts.Rain = true; facts.Inside = true;
+            text = AiSchedule.Describe(entries, 600, facts);
+            StringAssert.Contains("rain - selected", text);
+            StringAssert.Contains("inside - eligible; overridden by slot 3", text);
+            facts.Rain = false; facts.Inside = false;
+            text = AiSchedule.Describe(entries, 1080, facts);
+            StringAssert.Contains("normal - outside hours", text);
+            StringAssert.Contains("fallback - selected", text);
+            Assert.AreSame(entries[0], AiSchedule.Select(entries, 1080, facts));
+            StringAssert.Contains("No eligible entry", AiSchedule.Describe(Schedule("[{\"package\":\"night\",\"hours\":[\"23:00\",\"07:00\"]}]"), 420, facts));
+            StringAssert.Contains("No schedule", AiSchedule.Describe(null, 0, facts));
+            StringAssert.Contains("game facts unavailable", AiSchedule.Describe(entries, 600, null));
+        }
+
+        [TestCase("")]
+        [TestCase("{")]
+        [TestCase("[]")]
+        [TestCase("{\"schedule\":[],\"schedule\":[]}")]
+        [TestCase("{\"schedule\":5}")]
+        [TestCase("{\"schedule\":[{\"package\":\"test\",\"hours\":[\"08:00\",\"18:00\"]},{\"package\":\"test\",\"hours\":[\"17:00\",\"19:00\"]}]}")]
+        [TestCase("{\"schedule\":[{\"package\":\"missing\"}]}")]
+        [TestCase("{\"schedule\":[{\"package\":\"test\",\"parameters\":{\"radius\":5}}]}")]
+        [TestCase("{\"schedule\":[{\"package\":\"test\",\"when\":{\"variables\":{\"unknown\":true}}}]}")]
+        [TestCase("{\"schedule\":[{\"package\":\"test\",\"when\":{\"weater\":\"rain\"}}]}")]
+        public void InvalidScheduleReloadRetainsPreviousEntries(string json)
+        {
+            var definition = new NpcDefinition { Schedule = Schedule("[{\"package\":\"test\"}]") };
+            var previous = definition.Schedule;
+            var package = Package("{\"type\":\"stand\"}");
+            string error;
+            Assert.IsFalse(AiSchedule.TryReload(definition, json, id => id == "test" ? package : null, out error));
+            Assert.IsNotEmpty(error);
+            Assert.AreSame(previous, definition.Schedule);
+        }
+
+        [Test]
+        public void ScheduleReloadReplacesOnlyScheduleAndSupportsRemoval()
+        {
+            var definition = new NpcDefinition { Name = "Original", WanderRadius = 7, Schedule = Schedule("[{\"package\":\"test\"}]") };
+            var previous = definition.Schedule;
+            var package = Package("{\"type\":\"stand\"}");
+            string error;
+            Assert.IsTrue(AiSchedule.TryReload(definition, "{\"name\":\"Edited\",\"wanderRadius\":2,\"schedule\":[{\"package\":\"test\",\"hours\":[\"23:00\",\"07:00\"]}]}", id => package, out error), error);
+            Assert.AreNotSame(previous, definition.Schedule);
+            Assert.AreEqual("Original", definition.Name);
+            Assert.AreEqual(7, definition.WanderRadius);
+            Assert.IsNotNull(AiSchedule.Select(definition.Schedule, 0));
+            Assert.IsTrue(AiSchedule.TryReload(definition, "{}", id => package, out error), error);
+            Assert.IsEmpty(definition.Schedule);
+        }
+
+        [Test]
         public void NoSchedule_LeavesOldDefinitionAndAiAvailable()
         {
             ParseResult result = DefinitionParser.ParseFolder("citizen", "{}");
@@ -183,6 +284,64 @@ namespace AdvancedNPCs.Tests
             Assert.IsNotNull(motion.Tick(origin, 9, 9));
             Assert.IsNull(motion.Tick(origin, 10, 1));
             Assert.IsTrue(motion.Failed);
+        }
+
+        [Test]
+        public void StuckWanderPicksAnotherPointInsteadOfFailing()
+        {
+            double[] rolls = { 0, 1, 0.5, 1 };
+            int next = 0;
+            var motion = new PackageMotion(Settings("{\"type\":\"wander\",\"parameters\":{\"radius\":8,\"pause\":0}}"), () => rolls[next++ % rolls.Length]);
+            var origin = new PackagePoint(0, 0, 0);
+            PackagePoint first = motion.Tick(origin, 0, 0);
+            Assert.IsNotNull(first);
+            Assert.IsNull(motion.Tick(origin, 10, 10));
+            Assert.IsFalse(motion.Failed);
+            PackagePoint second = motion.Tick(origin, 11, 0);
+            Assert.IsNotNull(second);
+            Assert.AreNotEqual(first.X, second.X);
+        }
+
+        [Test]
+        public void BlockedTargetRetriesTwiceAfterActiveDelayAndKeepsPatrolProgress()
+        {
+            var settings = Settings("{\"type\":\"patrol\",\"parameters\":{\"points\":[[0,0,0],[5,0,0]],\"pauseAtStops\":0}}");
+            var motion = new PackageMotion(settings, () => 0);
+            var origin = new PackagePoint(0, 0, 0);
+            motion.Tick(origin, 0, 0);
+            Assert.AreEqual(1, motion.PointIndex);
+            motion.Tick(origin, 0, 0);
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                Assert.IsNull(motion.Tick(origin, 0, 10));
+                Assert.IsTrue(motion.Failed);
+                Assert.IsTrue(motion.CanRetry);
+                Assert.IsFalse(motion.Retry(0));
+                Assert.IsFalse(motion.Retry(14));
+                Assert.IsFalse(motion.Retry(-20));
+                Assert.IsTrue(motion.Retry(1));
+                Assert.AreEqual(attempt + 1, motion.RetryCount);
+                Assert.AreEqual(1, motion.PointIndex);
+                Assert.AreEqual(5, motion.Tick(origin, 99999, 0).X);
+            }
+            motion.Tick(origin, 99999, 10);
+            Assert.IsTrue(motion.Failed);
+            Assert.IsFalse(motion.CanRetry);
+            Assert.IsFalse(motion.Retry(100));
+            Assert.IsNull(motion.Tick(origin, 999999, 100));
+        }
+
+        [Test]
+        public void TemporaryBlockCanRecoverAndArriveAtTheSameDestination()
+        {
+            var motion = new PackageMotion(Settings("{\"type\":\"travel_to\",\"parameters\":{\"target\":[5,0,0]}}"), () => 0);
+            var origin = new PackagePoint(0, 0, 0);
+            motion.Tick(origin, 0, 0);
+            motion.Tick(origin, 10, 10);
+            Assert.IsTrue(motion.Retry(15));
+            Assert.AreEqual(5, motion.Tick(new PackagePoint(3, 0, 0), 25, 1).X);
+            Assert.IsNull(motion.Tick(new PackagePoint(5, 0, 0), 26, 1));
+            Assert.IsFalse(motion.Failed);
         }
 
         [Test]

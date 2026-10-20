@@ -43,6 +43,11 @@ namespace AdvancedNPCs
 
         public const string PackageState = "package_animation";
         public const string GuardState = "guard_idle";
+        public const string MealState = "meal";
+        MealAnimationLoop mealLoop;
+        LoadedSpriteSet mealSet;
+        List<SpriteAnimation> mealSheets;
+        int mealStarted;
         GuardAnimationLoop guardLoop;
         LoadedSpriteSet packageSet;
         string packageRequest;
@@ -517,6 +522,11 @@ namespace AdvancedNPCs
                         UpdatePackageAnimation(dt);
                         packagePlayed = true;
                     }
+                    else if (wanted == SpriteStates.Idle && brain != null && brain.MealAnimation != null && CanEat())
+                    {
+                        UpdateMealAnimation(dt, brain.MealAnimation);
+                        packagePlayed = true;
+                    }
                     else if (wanted == SpriteStates.Idle && brain != null && brain.GuardAnimation != null && CanPlayPackageAnimation("idle"))
                     {
                         UpdateGuardAnimation(dt, brain.GuardAnimation);
@@ -727,6 +737,22 @@ namespace AdvancedNPCs
             return true;
         }
 
+        /// <summary>Chore package stop: loops its chore sheets (idle without any) for a random number of full cycles.</summary>
+        public bool BeginChorePause(PackageSettings settings)
+        {
+            if (set == null || !set.IsReady || set.Failed) return false;
+            var available = new List<SpriteAnimation>(set.Set.Animations.Values);
+            available.RemoveAll(delegate(SpriteAnimation a) { return !set.Sheets.ContainsKey(a.Name); });
+            var variants = PackageAnimations.ChoreVariants(available, settings.ChoreAnimations);
+            if (variants.Count == 0) return false;
+            ResetPackageAnimation();
+            packageVariants = variants;
+            packageLoop = new PackageAnimationLoop(variants, set.Set.Fps, delegate { return Random.value; },
+                Random.Range(settings.CyclesMin, settings.CyclesMax + 1));
+            civilianLoop = true;
+            return true;
+        }
+
         public void ResetPackageAnimation()
         {
             packageSet = null;
@@ -735,6 +761,55 @@ namespace AdvancedNPCs
             packageVariants = null;
             packageLoop = null;
             guardLoop = null;
+            mealLoop = null;
+            mealSet = null;
+        }
+
+        /// <summary>The loaded set has an eat, drink or idle sheet for the eat package.</summary>
+        public bool CanEat()
+        {
+            if (set == null || !set.IsReady || set.Failed) return false;
+            if (mealSet != set)
+            {
+                mealSet = set;
+                mealLoop = null;
+                mealSheets = new List<SpriteAnimation>();
+                foreach (SpriteAnimation a in set.Set.Animations.Values)
+                    if (set.Sheets.ContainsKey(a.Name)) mealSheets.Add(a);
+            }
+            return MealAnimationLoop.CanPlay(mealSheets);
+        }
+
+        void UpdateMealAnimation(float dt, PackageSettings settings)
+        {
+            if (mealLoop == null || state != MealState)
+            {
+                mealLoop = new MealAnimationLoop(mealSheets, set.Set.Fps, settings.MealMin, settings.MealMax,
+                    settings.BreakMin, settings.BreakMax, delegate { return Random.value; });
+                mealStarted = 0;
+            }
+            mealLoop.Advance(dt);
+            if (mealLoop.Started != mealStarted)
+            {
+                mealStarted = mealLoop.Started;
+                if (voice != null && mealLoop.Family != MealAnimationLoop.IdleFamily)
+                    voice.PlayMeal(mealLoop.Family);
+            }
+            if (state != MealState || anim != mealLoop.Current)
+            {
+                state = null;
+                SetState(MealState, mealLoop.Current.Name);
+            }
+            time = (float)mealLoop.Elapsed;
+        }
+
+        /// <summary>Seconds of one full cycle of the longest sheet matching requested; 0 when the set has none.</summary>
+        public float PackageCycleSeconds(string requested)
+        {
+            if (!CanPlayPackageAnimation(requested)) return 0f;
+            int frames = 0;
+            foreach (SpriteAnimation a in packageVariants) frames = Mathf.Max(frames, a.Frames);
+            return frames / set.Set.Fps;
         }
 
         public bool CanPlayPackageAnimation(string requested)

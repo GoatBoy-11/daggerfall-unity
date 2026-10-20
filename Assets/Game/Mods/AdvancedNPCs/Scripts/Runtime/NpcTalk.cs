@@ -136,6 +136,8 @@ namespace AdvancedNPCs
             NpcChat chat = brain != null ? brain.GetComponent<NpcChat>() : null;
             if (chat != null && chat.Talking)
                 chat.End(true);
+            if (brain != null)
+                brain.FacePlayer();
             AdvancedNpcsMod mod = AdvancedNpcsMod.Instance;
             if (mod == null || mod.Flats == null || !mod.Flats.ClickFlat(StandIn))
                 TryTalk();
@@ -161,6 +163,8 @@ namespace AdvancedNPCs
             NpcChat chat = brain != null ? brain.GetComponent<NpcChat>() : null;
             if (chat != null && chat.Talking)
                 chat.End(true);     // the player interrupts (spec conversations §3)
+            if (brain != null)
+                brain.FacePlayer();
             TalkManager.Instance.TalkToMobileNPC(proxy);
             if (portrait != null)
                 ApplyPortrait(DaggerfallUI.Instance.TalkWindow, portrait);

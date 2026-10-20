@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using UnityEngine;
 using DaggerfallConnect.Arena2;
@@ -26,6 +28,8 @@ namespace AdvancedNPCs
             short legal = entity.RegionData[region].LegalRep;
             int oldHealth = entity.CurrentHealth, oldMaxHealth = entity.MaxHealth;
             bool god = entity.GodMode;
+            int voiceMode = mod.Config.VoiceMode;
+            AudioClip haltClip = null;
             FactionFile.FactionData people;
             bool hasPeople = entity.FactionData.FindFactionByTypeAndRegion(15, region, out people);
             var geometry = new GameObject("ANPC guard verification");
@@ -49,45 +53,112 @@ namespace AdvancedNPCs
                 Check("guard role retains its normal class", guard.Guard != null &&
                     ((EnemyEntity)guard.EntityBehaviour.Entity).MobileEnemy.ID == (int)MobileTypes.Knight, guard.Describe());
                 Check("guard ignores innocent player and civilian", !guard.EnforcingLaw, guard.Describe());
-                Check("explicit NPC crime is accepted", NpcCrime.ReportNpc(suspect.Id, PlayerEntity.Crimes.Assault), suspect.Describe());
-                NpcInstance person = suspect.Instance; NpcState state = suspect.State;
-                float deadline = Time.time + 6;
-                while (NpcBrain.Find(person.Key) != null && Time.time < deadline) yield return null;
-                Check("guard pursues and arrests surrendering NPC", state.arrestedUntil > DaggerfallUnity.Instance.WorldTime.Now.ToSeconds() && !state.dead,
-                    guard.Describe());
-                Check("arrest clears guilt and prevents spawning", state.wantedCrime == 0 && spawner.SpawnChecked(person, state, location.transform) == null, person.Key);
-                NpcSaveData saved = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, mod.Flags, delegate { }).GetSaveData();
-                string json = SaveLoadManager.Serialize(typeof(NpcSaveData), saved);
-                NpcSaveData restored = SaveLoadManager.Deserialize(typeof(NpcSaveData), json) as NpcSaveData;
-                Check("custody survives actual DFU serialization", restored != null && restored.States.ContainsKey(person.Key) &&
-                    restored.States[person.Key].arrestedUntil == state.arrestedUntil, json);
-                state.arrestedUntil = 0;
-                suspect = spawner.SpawnChecked(person, state, location.transform);
-                yield return Settle;
-                Check("released NPC respawns alive and innocent", suspect != null && !suspect.State.dead && suspect.State.wantedCrime == 0, person.Key);
-                civilian.Bravery = Bravery.Brave;
+                string soundDir = Path.Combine(Application.temporaryCachePath, "anpc_guard_halt");
+                Directory.CreateDirectory(soundDir);
+                string haltFile = Path.Combine(soundDir, "halt.wav");
+                File.WriteAllBytes(haltFile, ToneWav(0.1f));
+                LoadedSoundSet haltSet = SoundLibrary.IndexSet("selftest guard/Sounds", soundDir);
+                NpcVoice voice = guard.GetComponent<NpcVoice>();
+                mod.Config.VoiceMode = VoiceModes.Anpc;
+                duty.Sounds.GreetChance = duty.Sounds.CombatChance = 0;
+                voice.Swap(haltSet);
+                // No library owns this fixture: finish loading explicitly after the pursuit starts.
                 suspect.EntityBehaviour.Entity.MaxHealth = 500;
                 suspect.EntityBehaviour.Entity.CurrentHealth = 500;
                 suspect.enabled = false;
                 suspect.Motor.enabled = false;
                 suspect.GetComponent<EnemyAttack>().enabled = false;
                 suspect.GetComponent<EnemySenses>().enabled = false;
-                guard.Teleport(origin + Vector3.right * 6);
-                suspect.Teleport(origin + Vector3.right * 7.2f);
-                NpcCrime.ReportNpc(suspect.Id, PlayerEntity.Crimes.Assault);
+                Check("explicit NPC crime is accepted", NpcCrime.ReportNpc(suspect.Id, PlayerEntity.Crimes.Assault), suspect.Describe());
+                NpcInstance person = suspect.Instance; NpcState state = suspect.State;
+                NpcSaveData saved = (NpcSaveData)new NpcSaveDataInterface(mod.States, mod.Placed, mod.Flags, delegate { }).GetSaveData();
+                string json = SaveLoadManager.Serialize(typeof(NpcSaveData), saved);
+                string legacy = json.Replace("\"wantedCrime\":", "\"arrestedUntil\":999999999,\"wantedCrime\":");
+                Check("legacy custody fixture contains the removed field", legacy != json, json);
+                NpcSaveData restored = SaveLoadManager.Deserialize(typeof(NpcSaveData), legacy) as NpcSaveData;
+                Check("wanted offence survives actual DFU serialization", restored != null && restored.States.ContainsKey(person.Key) &&
+                    restored.States[person.Key].wantedCrime == state.wantedCrime, json);
                 yield return new WaitForSeconds(0.7f);
-                Check("healthy brave suspect resists arrest", guard.EnforcingLaw && state.arrestedUntil == 0, guard.Describe());
+                Check("guard pursues non-brave offender without arresting", guard.EnforcingLaw && !state.dead && state.wantedCrime != 0, guard.Describe());
+                Check("halt waits for custom audio instead of using default", voice.Played(SoundPools.Halt) == 0 && voice.Played("vanilla_halt") == 0, voice.Set.Summary());
+                string problem;
+                haltClip = SoundLibrary.LoadClip(haltFile, out problem);
+                Check("halt WAV decodes", haltClip != null, problem ?? "decoded");
+                if (haltClip == null) yield break;
+                haltSet.Clips[SoundPools.Halt] = new List<AudioClip> { haltClip };
+                haltSet.IsReady = true;
+                yield return new WaitForSeconds(0.15f);
+                Check("custom halt plays once despite zero voice chances", voice.Played(SoundPools.Halt) == 1 && voice.Played("vanilla_halt") == 0, "halt=" + voice.Played(SoundPools.Halt));
+                FieldInfo haltTimer = typeof(NpcGuard).GetField("haltWait", BindingFlags.Instance | BindingFlags.NonPublic);
+                float wait = (float)haltTimer.GetValue(guard.Guard);
+                Check("pursuit halt delay is less frequent than vanilla", wait > 14 && wait <= 30, "delay=" + wait);
+                haltTimer.SetValue(guard.Guard, 0.05f);
+                gm.DisableAI = true;
+                yield return new WaitForSeconds(0.15f);
+                Check("disabled AI freezes pursuit halt timer", (float)haltTimer.GetValue(guard.Guard) == 0.05f &&
+                    voice.Played(SoundPools.Halt) == 1, "halt=" + voice.Played(SoundPools.Halt));
+                gm.DisableAI = false;
+                yield return new WaitForSeconds(0.15f);
+                wait = (float)haltTimer.GetValue(guard.Guard);
+                Check("pursuit repeats custom halt and reschedules", voice.Played(SoundPools.Halt) == 2 &&
+                    wait > 14 && wait <= 30, "halt=" + voice.Played(SoundPools.Halt) + "; delay=" + wait);
+                voice.Swap(null);
+                haltTimer.SetValue(guard.Guard, 0f);
+                yield return new WaitForSeconds(0.15f);
+                Check("pursuit repeats vanilla halt without custom clip", voice.Played("vanilla_halt") == 1,
+                    "vanilla=" + voice.Played("vanilla_halt"));
+                voice.Swap(haltSet);
+                haltTimer.SetValue(guard.Guard, 0f);
+                state.wantedCrime = 0;
+                yield return new WaitForSeconds(0.15f);
+                Check("cleared NPC offence cancels overdue halt", !guard.EnforcingLaw &&
+                    voice.Played(SoundPools.Halt) == 2 && voice.Played("vanilla_halt") == 1, guard.Describe());
+                state.wantedCrime = (int)PlayerEntity.Crimes.Assault;
+                yield return new WaitForSeconds(0.7f);
+                wait = (float)haltTimer.GetValue(guard.Guard);
+                Check("new pursuit shouts immediately and resets halt delay", guard.EnforcingLaw &&
+                    voice.Played(SoundPools.Halt) == 3 && wait > 14 && wait <= 30, guard.Describe());
                 int healthy = suspect.EntityBehaviour.Entity.CurrentHealth;
                 for (int blow = 0; blow < 12 && suspect.EntityBehaviour.Entity.CurrentHealth == healthy; blow++)
                 {
                     guard.GetComponentInChildren<MobileUnit>().DoMeleeDamage = true;
                     yield return new WaitForSeconds(0.1f);
                 }
-                Check("resisting suspect takes real native melee damage", suspect.EntityBehaviour.Entity.CurrentHealth < healthy, suspect.Status);
-                suspect.EntityBehaviour.Entity.CurrentHealth = 100;
-                yield return new WaitForSeconds(0.5f);
-                Check("wounded brave suspect is arrested alive", state.arrestedUntil > DaggerfallUnity.Instance.WorldTime.Now.ToSeconds() && !state.dead, guard.Describe());
-                suspect = null;
+                Check("non-brave offender takes real native melee damage", suspect.EntityBehaviour.Entity.CurrentHealth < healthy, suspect.Status);
+                suspect.EntityBehaviour.Entity.CurrentHealth = 1;
+                for (int blow = 0; blow < 24 && !state.dead; blow++)
+                {
+                    guard.GetComponentInChildren<MobileUnit>().DoMeleeDamage = true;
+                    yield return new WaitForSeconds(0.1f);
+                }
+                Check("guard kills wounded offender instead of taking custody", state.dead, guard.Describe());
+                Check("ordinary death prevents offender respawning", spawner.SpawnChecked(person, state, location.transform) == null, person.Key);
+                NpcBrain.Discard(suspect); suspect = null;
+                NpcState legacyState = restored.States[person.Key];
+                legacyState.wantedCrime = 0;
+                suspect = spawner.SpawnChecked(person, legacyState, location.transform);
+                yield return Settle;
+                Check("old custody record no longer prevents spawning", suspect != null && !suspect.State.dead, person.Key);
+                NpcBrain.Discard(suspect); suspect = null;
+                int custom = voice.Played(SoundPools.Halt), native = voice.Played("vanilla_halt");
+                mod.Config.VoiceMode = VoiceModes.Off;
+                voice.PlayHalt();
+                Check("voices off mutes halt including fallback", voice.Played(SoundPools.Halt) == custom && voice.Played("vanilla_halt") == native, "off");
+                mod.Config.VoiceMode = VoiceModes.Vanilla;
+                voice.PlayHalt();
+                Check("vanilla voice setting uses default halt", voice.Played(SoundPools.Halt) == custom && voice.Played("vanilla_halt") == native + 1, "vanilla");
+                mod.Config.VoiceMode = VoiceModes.Anpc;
+                voice.Swap(null);
+                voice.PlayHalt();
+                Check("missing custom halt uses default", voice.Played("vanilla_halt") == native + 2, "no Sounds folder");
+                voice.Swap(new LoadedSoundSet { IsReady = true });
+                voice.PlayHalt();
+                Check("missing halt pool uses default", voice.Played("vanilla_halt") == native + 3, "empty Sounds folder");
+                haltSet.Clips.Clear();
+                voice.Swap(haltSet);
+                voice.PlayHalt();
+                Check("failed custom halt uses default", voice.Played("vanilla_halt") == native + 4, "no decoded halt clips");
+                voice.Swap(null);
 
                 guard.Teleport(player.position + Vector3.right * 1.2f);
                 duty = TestDefinition("selftest_law_guard_two", Bravery.Brave, location, player, 0);
@@ -156,6 +227,8 @@ namespace AdvancedNPCs
                 GuardArrest.Reset();
                 NpcBrain.Discard(guard); NpcBrain.Discard(second); NpcBrain.Discard(suspect);
                 Object.Destroy(geometry);
+                if (haltClip != null) Object.Destroy(haltClip);
+                mod.Config.VoiceMode = voiceMode;
                 entity.CrimeCommitted = oldCrime;
                 entity.HaveShownSurrenderToGuardsDialogue = shown;
                 entity.RegionData[region].LegalRep = legal;

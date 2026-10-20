@@ -71,7 +71,11 @@ namespace AdvancedNPCs
             yield return Settle;
 
             // Clicking the stand-in runs vanilla's own click on the flat: its talk window, with the ANPC's portrait.
+            brain.transform.rotation = Quaternion.LookRotation(Flatten(brain.transform.position - player.position).normalized);    // its back to the player
             talk.HandleActivate(PlayerActivateModes.Talk, 1f);
+            Vector3 toPlayer = Flatten(player.position - brain.transform.position).normalized;
+            Check("talking turns the ANPC to face the player", Vector3.Dot(Flatten(brain.transform.forward).normalized, toPlayer) > 0.95f,
+                "facing dot " + Vector3.Dot(Flatten(brain.transform.forward).normalized, toPlayer).ToString("0.00"));
             yield return null;
             yield return null;
             DaggerfallTalkWindow window = DaggerfallUI.UIManager.TopWindow as DaggerfallTalkWindow;
@@ -115,8 +119,68 @@ namespace AdvancedNPCs
                 "respawned " + again.Count + ", replaced " + mod.Flats.LastReplaced);
 
             Object.Destroy(parent);
+            yield return AllySteps(player);
             if (added != null)
                 mod.Catalog.Generics.Remove(added);
+        }
+
+        /// <summary>Two stand-ins of one faction on the same spot: one steps aside; attacking one turns the other against the player.</summary>
+        IEnumerator AllySteps(Transform player)
+        {
+            GameObject parent = new GameObject("selftest_allies");
+            parent.transform.SetParent(player.parent, true);
+            Vector3 spot = player.position + player.forward * 4f + Vector3.up;
+            for (int i = 0; i < 2; i++)
+            {
+                GameObject flatObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                flatObject.name = "selftest_ally_flat_" + i;
+                Object.Destroy(flatObject.GetComponent<Collider>());
+                flatObject.transform.SetParent(parent.transform, false);
+                flatObject.transform.position = spot;
+                StaticNPC flat = flatObject.AddComponent<StaticNPC>();
+                StaticNPC.NPCData data = new StaticNPC.NPCData();
+                StaticNPC.SetLayoutData(ref data, 5000 + i, 0, 5000, 0, 40, 177, 2, 5000 + i, -8, 0, 0);
+                FlatDataField.SetValue(flat, data);
+            }
+            List<NpcBrain> pair = mod.Flats.ReplaceIn(parent.transform, -8, "selftest", "Breton", IndoorSpawner.IndoorWander);
+            foreach (NpcBrain b in pair)
+            {
+                ids.Add(b.Id);
+                mod.States.GetOrCreate(b.Id).dead = false;
+            }
+            yield return Settle;
+            float apart = pair.Count == 2 ? Vector3.Distance(Flatten(pair[0].transform.position), Flatten(pair[1].transform.position)) : 0f;
+            Check("an ANPC spawned inside another steps aside", pair.Count == 2 && apart >= SpotFinder.PersonSpacing,
+                "spawned " + pair.Count + ", " + apart.ToString("0.00") + " m apart");
+            if (pair.Count == 2)
+            {
+                // A calm ANPC left staring at a wall turns to the open room.
+                NpcBrain starer = pair[1];
+                starer.WanderCap = 0f;
+                Vector3 ahead = Flatten(player.position - starer.transform.position).normalized;
+                GameObject wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                wall.name = "selftest_wall";
+                wall.transform.position = starer.transform.position + ahead * 0.8f;
+                wall.transform.rotation = Quaternion.LookRotation(ahead);
+                wall.transform.localScale = new Vector3(3f, 3f, 0.2f);
+                starer.transform.rotation = Quaternion.LookRotation(ahead);
+                yield return new WaitForSeconds(2.5f);
+                bool turned = !SpotFinder.WallAhead(starer.transform.position, starer.transform.forward, 1.2f);
+                Object.Destroy(wall);
+                Check("a calm ANPC facing a wall turns to the open room", turned,
+                    "angle to the wall " + Vector3.Angle(Flatten(starer.transform.forward), ahead).ToString("0"));
+
+                pair[0].CompanionBetrayed();    // the player's attack on a calm ANPC
+                yield return null;
+                Check("an attacked ANPC's ally takes its side", pair[1].State.hostile && pair[1].CurrentMode != NpcMode.Calm,
+                    "ally hostile " + pair[1].State.hostile + ", mode " + pair[1].CurrentMode);
+            }
+            foreach (NpcBrain b in pair)
+            {
+                b.SwitchHostile(false);
+                NpcBrain.Discard(b);
+            }
+            Object.Destroy(parent);
         }
 
         NpcDefinition CheckStandInExample(string id, int record, string label)

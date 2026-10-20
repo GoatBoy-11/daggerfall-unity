@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace AdvancedNPCs.Core
 {
@@ -124,6 +125,63 @@ namespace AdvancedNPCs.Core
                 else if (entry.Includes(minute)) return entry;
             }
             return fallback;
+        }
+
+        public static string Describe(IList<AiScheduleEntry> entries, int minute, INpcVariableFacts facts)
+        {
+            if (minute < 0 || minute >= 1440) return "Invalid game minute.";
+            if (entries == null || entries.Count == 0) return "No schedule; using current AI.";
+            AiScheduleEntry selected = Select(entries, minute, facts);
+            StringBuilder text = new StringBuilder();
+            for (int i = 0; i < entries.Count; i++)
+            {
+                AiScheduleEntry entry = entries[i];
+                string reason = null;
+                if (!entry.Includes(minute)) reason = "outside hours";
+                else if (entry.When != null && !entry.When.Holds(facts)) reason = "condition unmet: variables";
+                else if (entry.Rules != null)
+                {
+                    IDialogueFacts game = facts as IDialogueFacts;
+                    string clause = game != null ? entry.Rules.FirstFailing(game) : "game facts unavailable";
+                    if (clause != null) reason = "condition unmet: " + clause;
+                }
+                if (reason == null)
+                    reason = entry == selected ? "selected" : "eligible; overridden by slot " + (entries.IndexOf(selected) + 1);
+                text.Append("  slot ").Append(i + 1).Append(": ").Append(entry.Package).Append(" - ").Append(reason).Append('\n');
+            }
+            if (selected == null) text.Append("  No eligible entry; using current AI.\n");
+            return text.ToString().TrimEnd();
+        }
+
+        /// <summary>Only replace the schedule after all entries and package references pass validation.</summary>
+        public static bool TryReload(NpcDefinition definition, string json, Func<string, AiPackage> find, out string error)
+        {
+            error = null;
+            if (string.IsNullOrEmpty(json)) { error = "empty npc.json"; return false; }
+            Dictionary<string, object> root;
+            try
+            {
+                List<string> duplicates = new List<string>();
+                root = Json.Parse(json, duplicates) as Dictionary<string, object>;
+                if (duplicates.Count > 0) { error = "duplicate field " + duplicates[0]; return false; }
+            }
+            catch (JsonException e) { error = e.Message; return false; }
+            if (root == null) { error = "npc.json must be an object"; return false; }
+            object raw;
+            root.TryGetValue("schedule", out raw);
+            List<AiScheduleEntry> candidate = Read(raw, out error, definition);
+            if (error != null) return false;
+            for (int i = 0; i < candidate.Count; i++)
+            {
+                AiScheduleEntry entry = candidate[i];
+                if (PackagePlan.Build(find(entry.Package), entry.Parameters, find, out error) == null)
+                {
+                    error = "entry " + (i + 1) + " (" + entry.Package + "): " + error;
+                    return false;
+                }
+            }
+            definition.Schedule = candidate;
+            return true;
         }
 
         /// <summary>Identifies this day's occurrence, including the previous evening of a midnight slot.</summary>

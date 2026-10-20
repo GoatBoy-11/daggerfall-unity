@@ -7,6 +7,23 @@ namespace AdvancedNPCs.Core
     public static class PackageAnimations
     {
         public static readonly string[] CivilianFamilies = { "idle", "pray", "play", "emote", "dance" };
+        /// <summary>Chore package defaults: any of these families a set has.</summary>
+        public static readonly string[] ChoreFamilies = { "sweep", "chop", "scrub", "work" };
+        /// <summary>Hawk package: sheets tried after its own animation when the set has none of it.</summary>
+        public static readonly string[] HawkFallbacks = { "greet", "talk" };
+
+        /// <summary>Chore stop: the sheets matching any requested family or sheet; idle when the set has none of them.</summary>
+        public static List<SpriteAnimation> ChoreVariants(IEnumerable<SpriteAnimation> available, ICollection<string> requested)
+        {
+            var chores = new List<SpriteAnimation>();
+            var idle = new List<SpriteAnimation>();
+            foreach (var animation in available)
+            {
+                if (Referenced(requested, animation.Name)) chores.Add(animation);
+                else if (Matches("idle", animation.Name)) idle.Add(animation);
+            }
+            return chores.Count > 0 ? chores : idle;
+        }
 
         public static List<SpriteAnimation> CivilianVariants(IEnumerable<SpriteAnimation> available, double roll)
         {
@@ -71,6 +88,92 @@ namespace AdvancedNPCs.Core
             int choices = exclude ? count - 1 : count;
             int index = Math.Min(choices - 1, Math.Max(0, (int)(roll * choices)));
             return exclude && index >= previous ? index + 1 : index;
+        }
+    }
+
+    /// <summary>
+    /// Eat package: a bout of mealCycles eat / drink cycles (eat or drink picked at random each cycle when the set has
+    /// both), then a break of breakCycles idle cycles, repeated. Without eat and drink sheets only idle plays; without
+    /// idle sheets the bouts follow each other. Started counts cycles begun, so the caller can sound each one once.
+    /// </summary>
+    public class MealAnimationLoop
+    {
+        public const string EatFamily = "eat", DrinkFamily = "drink", IdleFamily = "idle";
+        readonly List<SpriteAnimation> eat = new List<SpriteAnimation>(), drink = new List<SpriteAnimation>(), idle = new List<SpriteAnimation>();
+        readonly double fps;
+        readonly int mealMin, mealMax, breakMin, breakMax;
+        readonly Func<double> random;
+        List<SpriteAnimation> pool;
+        int index = -1, left;
+        bool meal;
+        public SpriteAnimation Current { get { return pool[index]; } }
+        public string Family { get; private set; }
+        public double Elapsed { get; private set; }
+        public int Started { get; private set; }
+
+        public static bool CanPlay(IEnumerable<SpriteAnimation> available)
+        {
+            foreach (SpriteAnimation a in available)
+                if (a.Frames > 0 && (PackageAnimations.Matches(EatFamily, a.Name) || PackageAnimations.Matches(DrinkFamily, a.Name) ||
+                    PackageAnimations.Matches(IdleFamily, a.Name))) return true;
+            return false;
+        }
+
+        public MealAnimationLoop(IEnumerable<SpriteAnimation> available, double fps, int mealMin, int mealMax, int breakMin, int breakMax, Func<double> random)
+        {
+            foreach (SpriteAnimation a in available)
+            {
+                if (a.Frames < 1) continue;
+                if (PackageAnimations.Matches(EatFamily, a.Name)) eat.Add(a);
+                else if (PackageAnimations.Matches(DrinkFamily, a.Name)) drink.Add(a);
+                else if (PackageAnimations.Matches(IdleFamily, a.Name)) idle.Add(a);
+            }
+            if (eat.Count + drink.Count + idle.Count == 0 || !(fps > 0) || double.IsInfinity(fps) || mealMin < 1 || mealMax < mealMin ||
+                breakMin < 0 || breakMax < breakMin)
+                throw new ArgumentException("Eat package needs eat, drink or idle sheets, a positive fps and ordered cycle counts");
+            this.fps = fps;
+            this.mealMin = mealMin; this.mealMax = mealMax; this.breakMin = breakMin; this.breakMax = breakMax;
+            this.random = random;
+            NextPhase(true);
+            StartCycle();
+        }
+
+        bool HasMeal { get { return eat.Count + drink.Count > 0; } }
+
+        void NextPhase(bool wantMeal)
+        {
+            meal = (wantMeal && HasMeal) || idle.Count == 0;
+            // A zero-cycle break goes straight into the next bout; idle-only sets always play at least one cycle.
+            left = meal ? Roll(mealMin, mealMax) : Math.Max(HasMeal ? 0 : 1, Roll(breakMin, breakMax));
+            if (left == 0) NextPhase(true);
+        }
+
+        int Roll(int min, int max)
+        {
+            return Math.Min(max, min + (int)(Math.Max(0, random()) * (max - min + 1)));
+        }
+
+        void StartCycle()
+        {
+            List<SpriteAnimation> next = !meal ? idle : eat.Count == 0 ? drink : drink.Count == 0 ? eat : random() < 0.5 ? eat : drink;
+            index = PackageAnimations.Pick(next.Count, next == pool ? index : -1, random());
+            pool = next;
+            Family = pool == eat ? EatFamily : pool == drink ? DrinkFamily : IdleFamily;
+            Elapsed = 0;
+            Started++;
+        }
+
+        public void Advance(double seconds)
+        {
+            if (seconds < 0 || double.IsNaN(seconds) || double.IsInfinity(seconds)) return;
+            Elapsed += seconds;
+            while (Elapsed >= Current.Frames / fps)
+            {
+                double rest = Elapsed - Current.Frames / fps;
+                if (--left <= 0) NextPhase(!meal);
+                StartCycle();
+                Elapsed = rest;
+            }
         }
     }
 

@@ -10,7 +10,7 @@ using AdvancedNPCs.Core;
 namespace AdvancedNPCs
 {
     /// <summary>
-    /// Candidate points from DFU's markers and floor/clearance checks (outside-towns spec Â§5, spike findings).
+    /// Candidate points from DFU's markers and floor/clearance checks (outside-towns spec §5, spike findings).
     /// Candidates are returned in the parent's local space, sorted, so a place gives the same list every visit.
     /// </summary>
     public static class SpotFinder
@@ -99,7 +99,7 @@ namespace AdvancedNPCs
         /// Only fixed geometry decides a spot: monsters, people and loot move (and after a load DFU puts them back
         /// where they had wandered to), so the same place must give the same spots whoever happens to stand there.
         /// </summary>
-        static bool Reachable(Vector3 anchor, Vector3 target, out Vector3 feet)
+        internal static bool Reachable(Vector3 anchor, Vector3 target, out Vector3 feet)
         {
             feet = target;
             Vector3 from = anchor + Vector3.up;
@@ -117,6 +117,92 @@ namespace AdvancedNPCs
                     return false;
             }
             return true;
+        }
+
+        /// <summary>Closer than this (flat distance between centres) to another person counts as standing in them.</summary>
+        public const float PersonSpacing = 0.7f;
+
+        /// <summary>A shown vanilla flat NPC, or another ANPC that has already settled, stands within PersonSpacing of body.</summary>
+        public static bool Crowded(Vector3 body, NpcBrain self)
+        {
+            foreach (NpcBrain b in NpcBrain.All())
+            {
+                if (b != self && b.Settled && b.isActiveAndEnabled && Close(b.transform.position, body))
+                    return true;
+            }
+            // Flat NPCs click through trigger boxes; a flat hidden by a stand-in has its collider off and does not count.
+            foreach (Collider c in Physics.OverlapSphere(body, 2f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide))
+            {
+                if (c.enabled && c.GetComponent<StaticNPC>() != null && Close(c.transform.position, body))
+                    return true;
+            }
+            return false;
+        }
+
+        static bool Close(Vector3 a, Vector3 b)
+        {
+            return Mathf.Abs(a.y - b.y) < 2f && new Vector2(a.x - b.x, a.z - b.z).magnitude < PersonSpacing;
+        }
+
+        /// <summary>
+        /// The nearest free place around a person standing in someone (rings of eight 0.9 to 2.7 m out): reachable without
+        /// crossing a wall, floor below, room to stand, nobody there. Returns its feet point.
+        /// </summary>
+        public static bool Uncrowded(Vector3 body, NpcBrain self, float lift, out Vector3 feet)
+        {
+            for (int ring = 0; ring < 4; ring++)
+            {
+                float radius = 0.9f + ring * 0.6f;
+                for (int i = 0; i < 8; i++)
+                {
+                    float a = (i * 45f + ring * 22.5f) * Mathf.Deg2Rad;
+                    // Same floor only: the ground ray must not put it on a table or counter top.
+                    if (Reachable(body, body + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * radius, out feet) &&
+                        Mathf.Abs(feet.y + lift - body.y) < 0.5f && !Crowded(feet + Vector3.up * lift, self))
+                        return true;
+                }
+            }
+            feet = body;
+            return false;
+        }
+
+        /// <summary>A wall or other fixed obstacle within distance straight ahead at chest height.</summary>
+        public static bool WallAhead(Vector3 body, Vector3 forward, float distance)
+        {
+            forward.y = 0f;
+            if (forward.sqrMagnitude < 0.001f)
+                return false;
+            return AnyFixed(Physics.RaycastAll(body + Vector3.up * 0.5f, forward.normalized, distance, Mask, QueryTriggerInteraction.Ignore));
+        }
+
+        /// <summary>
+        /// The way with the most open room at chest height (16 directions, up to 20 m): a person placed by a wall or
+        /// counter faces into the room instead of the wall. Zero if every way is equally open or closed.
+        /// </summary>
+        public static Vector3 OpenDirection(Vector3 body)
+        {
+            const float Reach = 20f;
+            Vector3 best = Vector3.zero;
+            float bestFree = 0f, worstFree = Reach;
+            Vector3 from = body + Vector3.up * 0.5f;
+            for (int i = 0; i < 16; i++)
+            {
+                float a = i * 22.5f * Mathf.Deg2Rad;
+                Vector3 dir = new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a));
+                float free = Reach;
+                foreach (RaycastHit h in Physics.RaycastAll(from, dir, Reach, Mask, QueryTriggerInteraction.Ignore))
+                {
+                    if (h.distance < free && IsFixed(h.collider))
+                        free = h.distance;
+                }
+                if (free > bestFree)
+                {
+                    bestFree = free;
+                    best = dir;
+                }
+                worstFree = Mathf.Min(worstFree, free);
+            }
+            return bestFree - worstFree < 0.5f ? Vector3.zero : best;
         }
 
         /// <summary>Transition arrival with ground, walls, full-height clearance and other people checked.</summary>
@@ -143,7 +229,7 @@ namespace AdvancedNPCs
             feet = wanted; return false;
         }
 
-        static bool IsFixed(Collider c)
+        internal static bool IsFixed(Collider c)
         {
             return c.GetComponentInParent<DaggerfallEntityBehaviour>() == null && c.GetComponentInParent<DaggerfallLoot>() == null &&
                    c.GetComponentInParent<NpcBrain>() == null;

@@ -10,6 +10,7 @@ namespace AdvancedNPCs.Core
     public static class SoundPools
     {
         public const string Greet = "greet";
+        public const string Halt = "halt";
         public const string Attack = "attack";
         public const string AttackRange = "attack_range";
         public const string Cast = "cast";
@@ -21,7 +22,11 @@ namespace AdvancedNPCs.Core
         public const string Talk = "talk";
         /// <summary>Talk lines for one gender only (an ANPC whose gender is picked at random); before plain talk.</summary>
         public const string TalkMale = "talk_male", TalkFemale = "talk_female";
-        public static readonly string[] All = { Greet, Attack, AttackRange, Cast, Heal, Hit, Death, Step, Talk, TalkMale, TalkFemale, CompanionBarkRules.Bark, CompanionBarkRules.Dungeon, CompanionBarkRules.Inn, CompanionBarkRules.Hurt, CompanionBarkRules.NoMagicka, CompanionBarkRules.Recruit, CompanionBarkRules.Wait, CompanionBarkRules.Follow, CompanionBarkRules.Dismiss, CompanionBarkRules.Regroup, CompanionBarkRules.Push, CompanionBarkRules.Combat, CompanionBarkRules.Victory };
+        /// <summary>Eat package: one per eat / drink sheet cycle; the shared _Sounds ones where the folder has none.</summary>
+        public const string Eat = "eat", Drink = "drink";
+        /// <summary>Hawk package: a seller calling out to the passing player; no chance roll (its interval paces it).</summary>
+        public const string Hawk = "hawk";
+        public static readonly string[] All = { Greet, Halt, Attack, AttackRange, Cast, Heal, Hit, Death, Step, Talk, TalkMale, TalkFemale, Eat, Drink, Hawk, CompanionBarkRules.Bark, CompanionBarkRules.Dungeon, CompanionBarkRules.Inn, CompanionBarkRules.Hurt, CompanionBarkRules.NoMagicka, CompanionBarkRules.Recruit, CompanionBarkRules.Wait, CompanionBarkRules.Follow, CompanionBarkRules.Dismiss, CompanionBarkRules.Regroup, CompanionBarkRules.Push, CompanionBarkRules.Combat, CompanionBarkRules.Victory };
 
         /// <summary>The pool a file name (without extension) belongs to; null for any other name.</summary>
         public static string PoolOf(string name)
@@ -123,6 +128,8 @@ namespace AdvancedNPCs.Core
         public float StepPitchVariation = 0f;
         /// <summary>Without step files of its own, the shared _Sounds steps play (spec default steps).</summary>
         public bool DefaultSteps = true;
+        /// <summary>"voice": shared voice packs (ANPCs/_Sounds/va_*); one is picked per person by seed. Empty: none.</summary>
+        public List<string> Voices = new List<string>();
     }
 
     /// <summary>Settings, chances, pitch and footfall frames of custom sounds (spec sounds §C-E). No Unity or DFU types.</summary>
@@ -135,7 +142,9 @@ namespace AdvancedNPCs.Core
         /// <summary>Metres beyond which nothing of an ANPC is heard.</summary>
         public const float MaxAudibleDistance = 30f;
         static readonly string[] Keys =
-            { "combatChance", "greetChance", "stepDistance", "soundPitch", "soundPitchVariation", "stepPitch", "stepPitchVariation", "defaultSteps", "barkMinSeconds", "barkMaxSeconds" };
+            { "combatChance", "greetChance", "stepDistance", "soundPitch", "soundPitchVariation", "stepPitch", "stepPitchVariation", "defaultSteps", "barkMinSeconds", "barkMaxSeconds", "voice" };
+        /// <summary>Voice pack folders in ANPCs/_Sounds start with this.</summary>
+        public const string VoicePrefix = "va_";
 
         /// <summary>Reads "sounds" from an npc.json root: null, or a problem with its key ("sounds.greetChance"). Unknown keys only warn.</summary>
         public static string Read(Dictionary<string, object> root, out string key, out SoundSettings settings, List<string> warnings)
@@ -184,8 +193,47 @@ namespace AdvancedNPCs.Core
                 return "must be true or false";
             }
             settings.DefaultSteps = defaultSteps;
+            key = "sounds.voice";
+            object voice;
+            if (o.TryGetValue("voice", out voice) && voice != null)
+            {
+                List<string> names;
+                if (voice is string)
+                    names = new List<string> { (string)voice };
+                else if (FieldReader.Texts(o, "voice", out names) != null)
+                    names = null;
+                if (names == null || names.Count == 0)
+                    return "must be a voice pack name like \"va_mercenary_male\" or a list of them";
+                foreach (string n in names)
+                    if (!IsVoicePackName(n))
+                        return "\"" + n + "\" is not a voice pack name: a folder name in ANPCs/_Sounds starting with " + VoicePrefix;
+                settings.Voices = names;
+            }
             key = "sounds";
             return null;
+        }
+
+        /// <summary>"va_" plus a plain folder name (no path parts).</summary>
+        public static bool IsVoicePackName(string name)
+        {
+            return name != null && name.Length > VoicePrefix.Length && name.StartsWith(VoicePrefix, StringComparison.OrdinalIgnoreCase) &&
+                name.IndexOfAny(new[] { '/', '\\', ':' }) < 0 && name.IndexOf("..", StringComparison.Ordinal) < 0;
+        }
+
+        /// <summary>
+        /// The voice pack this person uses: same seed, same pack; null without any. Packs named for the other gender
+        /// ("_male" / "_female" at the end) are left out unless nothing else is left.
+        /// </summary>
+        public static string PickVoice(List<string> voices, uint seed, string gender)
+        {
+            if (voices == null || voices.Count == 0)
+                return null;
+            string other = string.Equals(gender, "Female", StringComparison.OrdinalIgnoreCase) ? "_male" :
+                string.Equals(gender, "Male", StringComparison.OrdinalIgnoreCase) ? "_female" : null;
+            List<string> fit = voices.FindAll(v => other == null || !v.EndsWith(other, StringComparison.OrdinalIgnoreCase));
+            if (fit.Count == 0)
+                fit = voices;
+            return fit.Count == 1 ? fit[0] : fit[new SeededRandom(seed ^ 0x9E3779B9u).Next(fit.Count)];
         }
 
         static string Ranged(Dictionary<string, object> o, string name, double fallback, double min, double max, bool whole,

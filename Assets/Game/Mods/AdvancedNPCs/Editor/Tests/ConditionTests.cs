@@ -70,6 +70,47 @@ namespace AdvancedNPCs.Tests
             Assert.IsFalse(clear.Holds(new FakeFacts { Clouds = true }));
         }
 
+        [TestCase(false, false, false, false)]
+        [TestCase(true, false, false, true)]
+        [TestCase(false, true, false, true)]
+        [TestCase(false, false, true, true)]
+        public void BadWeatherIncludesPrecipitationAndSupportsNegation(bool rain, bool storm, bool snow, bool expected)
+        {
+            var facts = new FakeFacts { Rain = rain, Storm = storm, Snow = snow, Clouds = true };
+            Assert.AreEqual(expected, When("{\"bad_weather\":true}").Holds(facts));
+            Assert.AreEqual(!expected, When("{\"bad_weather\":false}").Holds(facts));
+            Assert.IsEmpty(messages);
+        }
+
+        [TestCase("null")]
+        [TestCase("1")]
+        [TestCase("\"rain\"")]
+        public void BadWeatherRejectsNonBooleans(string value)
+        {
+            var condition = When("{\"bad_weather\":" + value + "}");
+            Assert.IsFalse(condition.Holds(new FakeFacts { Rain = true }));
+            Assert.IsNotEmpty(messages);
+        }
+
+        [Test]
+        public void BadWeatherWorksInSchedulesNestedConditionsAndSpawnFilters()
+        {
+            messages.Clear();
+            var facts = new FakeFacts { Snow = true };
+            var condition = ConditionParser.Parse((Dictionary<string, object>)Json.Parse("{\"any\":[{\"bad_weather\":true},{\"weather\":\"clear\"}],\"outdoors\":true}"), "test", messages, false, false);
+            Assert.IsEmpty(messages);
+            Assert.IsTrue(condition.Holds(facts));
+            facts.Inside = true;
+            Assert.IsFalse(condition.Holds(facts));
+            string error;
+            var schedule = AiSchedule.Read(Json.Parse("[{\"package\":\"seek_shelter\",\"when\":{\"bad_weather\":true,\"outdoors\":true}},{\"package\":\"stand\"}]"), out error);
+            Assert.IsNull(error);
+            facts.Inside = false;
+            Assert.AreEqual("seek_shelter", AiSchedule.Select(schedule, 600, facts).Package);
+            facts.Snow = false;
+            Assert.AreEqual("stand", AiSchedule.Select(schedule, 600, facts).Package);
+        }
+
         [Test]
         public void RegionAndTown_IgnoreCase()
         {

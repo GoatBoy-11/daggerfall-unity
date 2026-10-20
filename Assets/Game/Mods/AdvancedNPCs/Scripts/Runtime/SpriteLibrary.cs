@@ -33,7 +33,7 @@ namespace AdvancedNPCs
         public bool LostMovement;
         internal SpriteLibrary Library;
         internal float UnloadAt = -1f;
-        internal Queue<string> Pending;
+        internal List<SheetJob> Pending;
         internal float IdleHeight;
 
         public void Acquire()
@@ -51,7 +51,7 @@ namespace AdvancedNPCs
 
     /// <summary>
     /// Sprite sets of every NPC folder (spec 1b §5, §8): ANPCs/&lt;npc&gt;/sprites or sprites_&lt;n&gt;. Indexed at start
-    /// (sprites.json and sheet sizes only), loaded one image per frame while used, unloaded a while after the last user.
+    /// (sprites.json and sheet sizes only), decoded on worker threads while used, unloaded a while after the last user.
     /// </summary>
     public class SpriteLibrary
     {
@@ -395,14 +395,21 @@ namespace AdvancedNPCs
             s.UnloadAt = -1f;
             if (s.IsReady || s.Failed || s.Pending != null)
                 return;
-            s.Pending = new Queue<string>();
+            s.Pending = new List<SheetJob>();
             List<string> names = new List<string>(s.Set.Animations.Keys);
             names.AddRange(s.Set.Projectiles.Keys);
             names.Sort(StringComparer.Ordinal);
             foreach (string n in names)
-                s.Pending.Enqueue(n);
+            {
+                SpriteAnimation a;
+                bool projectile = s.Set.Projectiles.TryGetValue(n, out a);
+                if (!projectile)
+                    a = s.Set.Animations[n];
+                bool idle = !projectile && s.Set.StandingHeight <= 0 && SpriteStates.StateOf(n) == SpriteStates.Idle;
+                s.Pending.Add(SheetJob.Start(n, Path.Combine(s.Dir, n + ".png"), s.Set, a, projectile, idle));
+            }
             if (s.HasDeathStatic)
-                s.Pending.Enqueue(DeathStaticFile);
+                s.Pending.Add(SheetJob.Start(DeathStaticFile, Path.Combine(s.Dir, DeathStaticFile), s.Set, null, false, false));
             s.IdleHeight = 0f;
             loading.Add(s);
         }
@@ -416,17 +423,34 @@ namespace AdvancedNPCs
                 s.UnloadAt = Time.unscaledTime + UnloadDelaySeconds;
         }
 
-        /// <summary>Every frame (AdvancedNpcsMod.Update): loads one image, unloads sets whose countdown ran out.</summary>
+        /// <summary>Main-thread milliseconds per frame for uploading decoded sheets (at least one sheet per frame).</summary>
+        const double UploadBudgetMs = 4.0;
+
+        /// <summary>
+        /// Every frame (AdvancedNpcsMod.Update): uploads sheets the worker threads have decoded (within a small time
+        /// budget), finishes sets whose sheets are all in, unloads sets whose countdown ran out.
+        /// </summary>
         public void Tick(float now)
         {
-            if (loading.Count > 0)
+            System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
+            bool uploaded = false;
+            for (int i = 0; i < loading.Count; i++)
             {
-                LoadedSpriteSet s = loading[0];
-                if (s.Pending.Count > 0)
-                    LoadNext(s);
+                LoadedSpriteSet s = loading[i];
+                for (int j = 0; j < s.Pending.Count; j++)
+                {
+                    SheetJob job = s.Pending[j];
+                    if (!job.Done)
+                        continue;
+                    if (uploaded && watch.Elapsed.TotalMilliseconds >= UploadBudgetMs)
+                        break;
+                    s.Pending.RemoveAt(j--);
+                    Apply(s, job);
+                    uploaded = true;
+                }
                 if (s.Pending.Count == 0)
                 {
-                    loading.RemoveAt(0);
+                    loading.RemoveAt(i--);
                     FinishLoading(s);
                 }
             }
@@ -449,56 +473,45 @@ namespace AdvancedNPCs
             }
         }
 
-        void LoadNext(LoadedSpriteSet s)
+        /// <summary>Turns one decoded sheet into a texture of the set (or logs why it is skipped).</summary>
+        void Apply(LoadedSpriteSet s, SheetJob job)
         {
-            string name = s.Pending.Dequeue();
-            if (name == DeathStaticFile)
+            string label = s.Label + "/" + (job.Anim == null ? DeathStaticFile : job.Name + ".png");
+            if (job.Anim == null)
             {
-                s.DeathStatic = LoadPng(s.Label + "/" + DeathStaticFile, Path.Combine(s.Dir, DeathStaticFile), false);
-                if (s.DeathStatic != null)
-                    Finish(s.DeathStatic);
+                if (job.Missing)
+                    return;
+                s.DeathStatic = job.Error == null ? job.ToTexture(label) : null;
+                if (s.DeathStatic == null)
+                    AdvancedNpcsMod.Log(label + ": file: not a readable PNG; using the last death frame");
                 return;
             }
-            SpriteAnimation a;
-            if (s.Set.Projectiles.TryGetValue(name, out a))
-            {
-                LoadProjectile(s, a);
-                return;
-            }
-            if (!s.Set.Animations.TryGetValue(name, out a))
-                return;
-            Texture2D t = LoadPng(s.Label + "/" + name + ".png", Path.Combine(s.Dir, name + ".png"), true);
-            string sizeError = t != null ? SpriteSetParser.CheckSheetSize(s.Label, a, s.Set.CellHeight, t.width, t.height) : null;
+            Texture2D t = null;
+            if (job.Missing)
+                AdvancedNpcsMod.LogError(label + ": file: missing (sheet skipped)");
+            else if (job.Error != null)
+                AdvancedNpcsMod.LogError(label + ": file: " + job.Error + " (sheet skipped)");
+            else
+                t = job.ToTexture(label);
+            if (t == null && !job.Missing && job.Error == null)
+                AdvancedNpcsMod.LogError(label + ": file: not a readable PNG (sheet skipped)");
+            string sizeError = t == null ? null : job.Projectile ? SpriteSetParser.CheckProjectileSize(s.Label, job.Anim, t.width, t.height) :
+                SpriteSetParser.CheckSheetSize(s.Label, job.Anim, s.Set.CellHeight, t.width, t.height);
             if (t == null || sizeError != null)
             {
                 if (sizeError != null)
-                    AdvancedNpcsMod.LogError(sizeError + " (sheet skipped)");
+                    AdvancedNpcsMod.LogError(sizeError + (job.Projectile ? " (projectile skipped)" : " (sheet skipped)"));
                 if (t != null)
                     UnityEngine.Object.Destroy(t);
-                s.Set.Animations.Remove(name);
+                if (job.Projectile)
+                    s.Set.Projectiles.Remove(job.Name);
+                else
+                    s.Set.Animations.Remove(job.Name);
                 return;
             }
-            if (s.Set.StandingHeight <= 0 && SpriteStates.StateOf(name) == SpriteStates.Idle)
-                s.IdleHeight = Math.Max(s.IdleHeight, IdleHeight(s.Set, a, t));
-            Finish(t);
-            s.Sheets[name] = t;
-        }
-
-        static void LoadProjectile(LoadedSpriteSet s, SpriteAnimation a)
-        {
-            Texture2D t = LoadPng(s.Label + "/" + a.Name + ".png", Path.Combine(s.Dir, a.Name + ".png"), true);
-            string sizeError = t != null ? SpriteSetParser.CheckProjectileSize(s.Label, a, t.width, t.height) : null;
-            if (t == null || sizeError != null)
-            {
-                if (sizeError != null)
-                    AdvancedNpcsMod.LogError(sizeError + " (projectile skipped)");
-                if (t != null)
-                    UnityEngine.Object.Destroy(t);
-                s.Set.Projectiles.Remove(a.Name);
-                return;
-            }
-            Finish(t);
-            s.Sheets[a.Name] = t;
+            if (job.Idle)
+                s.IdleHeight = Math.Max(s.IdleHeight, job.IdleHeight);
+            s.Sheets[job.Name] = t;
         }
 
         void FinishLoading(LoadedSpriteSet s)
@@ -551,55 +564,6 @@ namespace AdvancedNPCs
             s.DeathStatic = null;
         }
 
-        static Texture2D LoadPng(string label, string path, bool required)
-        {
-            if (!File.Exists(path))
-            {
-                if (required)
-                    AdvancedNpcsMod.LogError(label + ": file: missing (sheet skipped)");
-                return null;
-            }
-            Texture2D texture = null;
-            try
-            {
-                byte[] bytes = File.ReadAllBytes(path);
-                int width, height;
-                if (!PngHeader.TryReadSize(bytes, out width, out height))
-                    throw new InvalidDataException("not a readable PNG");
-                texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-                if (texture.LoadImage(bytes) && texture.width == width && texture.height == height)
-                {
-                    texture.name = label;
-                    Texture2D loaded = texture;
-                    texture = null; // The caller now owns it.
-                    return loaded;
-                }
-                if (required)
-                    AdvancedNpcsMod.LogError(label + ": file: not a readable PNG (sheet skipped)");
-                else
-                    AdvancedNpcsMod.Log(label + ": file: not a readable PNG; using the last death frame");
-            }
-            catch (Exception e)
-            {
-                AdvancedNpcsMod.LogError(label + ": file: could not read (" + e.Message + ")");
-            }
-            finally
-            {
-                if (texture != null) UnityEngine.Object.Destroy(texture);
-            }
-            return null;
-        }
-
-        /// <summary>DFU's filter setting, no wrapping, compressed and released from CPU memory.</summary>
-        static void Finish(Texture2D texture)
-        {
-            NpcSprite.Filtered(texture);
-            texture.wrapMode = TextureWrapMode.Clamp;
-            if (texture.width % 4 == 0 && texture.height % 4 == 0)
-                texture.Compress(true);
-            texture.Apply(false, true);
-        }
-
         /// <summary>Tallest opaque pixel above the feet row over every frame and direction of the idle sheets.</summary>
         static float StandingHeight(SpriteSet set, Dictionary<string, Texture2D> sheets)
         {
@@ -616,38 +580,13 @@ namespace AdvancedNPCs
         }
 
         /// <summary>Tallest opaque pixel above the feet row in one idle sheet (0 if none); the texture must be readable.</summary>
-        static float IdleHeight(SpriteSet set, SpriteAnimation a, Texture2D t)
+        internal static float IdleHeight(SpriteSet set, SpriteAnimation a, Texture2D t)
         {
-            int best = 0;
             Color32[] px = t.GetPixels32();
-            int w = t.width;
-            for (int row = 0; row < SpriteSetParser.Directions.Length; row++)
-            {
-                int cellBottom = (SpriteSetParser.Directions.Length - 1 - row) * set.CellHeight;   // texture rows start at the bottom
-                for (int frame = 0; frame < a.Frames; frame++)
-                {
-                    int x0 = frame * a.CellWidth;
-                    for (int y = set.CellHeight - 1; y > set.GroundY + best; y--)
-                    {
-                        int line = (cellBottom + y) * w;
-                        bool opaque = false;
-                        for (int x = x0; x < x0 + a.CellWidth; x++)
-                        {
-                            if (px[line + x].a > 16)
-                            {
-                                opaque = true;
-                                break;
-                            }
-                        }
-                        if (opaque)
-                        {
-                            best = Math.Max(best, y + 1 - set.GroundY);
-                            break;
-                        }
-                    }
-                }
-            }
-            return best;
+            byte[] rgba = new byte[px.Length * 4];
+            for (int i = 0; i < px.Length; i++)
+                rgba[i * 4 + 3] = px[i].a;
+            return SheetCodec.IdleHeight(set, a, rgba, t.width);
         }
     }
 }

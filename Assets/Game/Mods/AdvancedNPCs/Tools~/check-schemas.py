@@ -45,6 +45,11 @@ def load(name):
         return None
 
 
+def strip_comments(text):
+    """Drops // and /* */ comments outside strings, as the mod's own reader does."""
+    return re.sub(r'("(?:\\.|[^"\\])*")|//[^\n]*|/\*.*?\*/', lambda m: m.group(1) or "", text, flags=re.S)
+
+
 def same(where, schema_keys, parser_keys):
     schema_keys = set(schema_keys) - {"$schema"}
     missing = parser_keys - schema_keys
@@ -78,7 +83,7 @@ if npc:
 
 if package:
     package_source = source("AiPackage.cs")
-    for branch, key in zip(package["oneOf"], ["StandKeys", "WanderKeys", "TravelKeys", "PatrolKeys", "AnimationKeys", "GuardKeys", "FollowKeys", "WorkKeys", "SequenceKeys", "CivilianKeys"]):
+    for branch, key in zip(package["oneOf"], ["StandKeys", "WanderKeys", "TravelKeys", "PatrolKeys", "AnimationKeys", "GuardKeys", "FollowKeys", "WorkKeys", "SequenceKeys", "CivilianKeys", "ShelterKeys", "EatKeys", "ChoreKeys", "HawkKeys", "SocialKeys"]):
         same("package", branch["properties"], array(package_source, "Keys"))
         same("package " + key, branch["properties"]["parameters"]["properties"], array(package_source, key))
 if spot:
@@ -116,13 +121,14 @@ if jsonschema and npc and sprites and dialogue:
         n = 0
         for path in sorted(glob.glob(os.path.join(EXAMPLES, pattern))):
             with open(path, encoding="utf-8") as f:
-                data = json.load(f)
+                data = json.loads(strip_comments(f.read()))
             for error in jsonschema.Draft7Validator(schema).iter_errors(data):
                 where = "/".join(str(x) for x in error.absolute_path)
                 problems.append(os.path.relpath(path, MOD) + ": " + (where + ": " if where else "") + error.message)
             n += 1
         return n
     count = validate(npc, "*/npc.json") + validate(sprites, "*/sprites*/sprites.json")
+    count += validate(npc, "_Examples/*/npc.json") + validate(sprites, "_Examples/*/sprites*/sprites.json")
     count += validate(dialogue, "_Dialogue/*.json") + validate(dialogue, "*/dialogue.json")
     if package:
         count += validate(package, "_Packages/*.json")

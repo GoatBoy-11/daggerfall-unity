@@ -1,0 +1,33 @@
+// EXAMPLE sprites.json: describes the PNG sheets next to it (this example ships without PNGs).
+// One PNG per animation: frames left to right, the 8 directions top to bottom
+// (front, front_right, right, back_right, back, back_left, left, front_left).
+// A sheet is cellWidth x frames pixels wide and cellHeight x 8 tall. Sizes are checked at startup.
+// Several looks: sprites_1/, sprites_2/, ... (each person gets one). No sprites folder = vanilla class sprite.
+{
+  "$schema": "../../../_Schemas/sprites.schema.json",
+
+  // Source scale. In-game height comes from the class / spriteHeight; this mainly scales projectiles.
+  "pixelsPerUnit": 64.6,
+  // Pixel height of one frame cell (same for every sheet).
+  "cellHeight": 256,
+  // Pixel row of the feet, counted up from the bottom of the cell.
+  "groundY": 32,
+  // Animation speed in frames per second.
+  "fps": 8,
+  // Optional: body height in pixels above groundY, for idles that hold a weapon above the head.
+  // "standingHeight": 190,
+
+  // Sheet names choose the animation: idle (required), walk, run, attack, attack_range, cast, heal, hit, greet,
+  // talk, death. Numbered names (idle_1, idle_2) are variants picked at random. Other names (pray_1) are for
+  // play_animation / work_at routines.
+  "animations": {
+    "idle_1":   { "cellWidth": 104, "frames": 10 },
+    // stepFrames: frames (from 1) that play a footstep. Default: the first and middle frame.
+    "walk_1":   { "cellWidth": 120, "frames": 8, "stepFrames": [2, 6] },
+    // actionFrame: frame (from 1) where the blow lands or the arrow leaves.
+    "attack_1": { "cellWidth": 168, "frames": 4, "actionFrame": 3 },
+    "hit_1":    { "cellWidth": 120, "frames": 3 },
+    // The last death frame stays as the corpse.
+    "death":    { "cellWidth": 344, "frames": 6 }
+  }
+}

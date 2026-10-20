@@ -7,7 +7,7 @@ using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
 {
-    /// <summary>Bounded player breadcrumbs and local steering. Only a paid follower may catch up out of sight.</summary>
+    /// <summary>Bounded player breadcrumbs and local steering. Only a paid follower may catch up, onto a spot out of sight.</summary>
     public class FollowNavigation
     {
         readonly NpcBrain brain;
@@ -19,7 +19,7 @@ namespace AdvancedNPCs
         readonly FollowRecovery recovery = new FollowRecovery();
         readonly RaycastHit[] hits = new RaycastHit[64];
         static readonly float[] angles = { 40, 70, 100, 135, 170 };
-        Vector3 previous, previousLeader, waypoint;
+        Vector3 previousLeader, waypoint;
         Transform currentLeader;
         public bool CatchupReady { get; private set; }
         bool observed;
@@ -49,15 +49,18 @@ namespace AdvancedNPCs
         }
         void Remember(Collider c)
         { if (Protected(c) && !barriers.Contains(c) && barriers.Count < 16) barriers.Add(c); }
-        bool BarrierTo(Vector3 from, Vector3 to)
+        /// <summary>Only a closed locked (or magically held) door on the line between blocks catch-up; walking memory does not.</summary>
+        bool LockedDoorTo(Vector3 from, Vector3 to)
         {
             Vector3 delta = to - from;
             int count = Physics.RaycastNonAlloc(from + Vector3.up, delta.normalized, hits, delta.magnitude, SpotFinder.Mask, QueryTriggerInteraction.Ignore);
             if (count == hits.Length) return true;
-            for (int i = 0; i < count; i++) if (!Mine(hits[i].collider)) Remember(hits[i].collider);
-            int removed = barriers.RemoveAll(delegate(Collider c) { return c == null || !c.enabled || !c.gameObject.activeInHierarchy || !Protected(c); });
-            if (removed > 0) { recovery.Reset(); return true; }
-            return barriers.Count > 0;
+            for (int i = 0; i < count; i++)
+            {
+                var door = hits[i].collider.GetComponentInParent<DaggerfallActionDoor>();
+                if (door != null && door.IsLocked && !door.IsOpen) return true;
+            }
+            return false;
         }
         bool Ground(Vector3 from, Vector3 wanted, out Vector3 feet)
         {
@@ -121,7 +124,7 @@ namespace AdvancedNPCs
         void Observe(Vector3 leader)
         {
             if (observed && Vector3.Distance(previousLeader, leader) > 24) Reset(); // teleport or floating-origin shift
-            if (!observed) { previous = brain.transform.position; previousLeader = leader; observed = true; }
+            if (!observed) { previousLeader = leader; observed = true; }
             if (trail.Count == 0 || Vector3.Distance(trail[trail.Count - 1], leader) >= 0.75f)
             {
                 trail.Add(leader); if (trail.Count > 128) trail.RemoveAt(0);
@@ -156,12 +159,12 @@ namespace AdvancedNPCs
             bool paid = companion != null && companion.status == "following";
             if (!paid || !recovery.Due(gap) || Time.time < nextCatchup) return false;
             nextCatchup = Time.time + 1;
-            bool barrier = BarrierTo(Feet, leader);
-            bool visible = Visible(Feet);
-            if (!FollowRecovery.MayCatchUp(paid, brain.CurrentMode == NpcMode.Calm, GameManager.IsGamePaused, visible, false, barrier)) return false;
+            // The follower may be in view; the arrival spot must not be (CompanionNear only accepts hidden spots).
+            if (!FollowRecovery.MayCatchUp(paid, brain.CurrentMode == NpcMode.Calm, GameManager.IsGamePaused, false, LockedDoorTo(Feet, leader))) return false;
+            Camera camera = GameManager.Instance.MainCamera;
+            Vector3 back = -Flat(camera != null ? camera.transform.forward : GameManager.Instance.PlayerObject.transform.forward).normalized;
             Vector3 feet;
-            Transform player = GameManager.Instance.PlayerObject.transform;
-            if (!SpotFinder.CompanionNear(leader, leader - player.forward * 2.5f, out feet, delegate(Vector3 p) { return !Visible(p); })) return false;
+            if (!SpotFinder.CompanionNear(leader, leader + back * 2.5f, out feet, delegate(Vector3 p) { return !Visible(p); })) return false;
             destination = feet + Vector3.up * (brain.transform.position.y - body.bounds.min.y);
             return true;
         }
@@ -204,9 +207,9 @@ namespace AdvancedNPCs
             Vector3 target = leader.position; if (leaderBody != null) target.y = leaderBody.bounds.min.y + 0.03f;
             Observe(target);
             float gap = Vector3.Distance(brain.transform.position, leader.position);
-            recovery.Tick(gap, Flat(brain.transform.position - previous).magnitude, Flat(target - previousLeader).magnitude, dt);
-            previous = brain.transform.position; previousLeader = target;
-            if (mayCatchUp && TryCatchUp(target, gap, out catchup)) { Status = "catching up out of sight"; CatchupReady = true; return false; }
+            recovery.Tick(gap, AdvancedNpcsMod.Instance.Config.CatchUpDistance, dt);
+            previousLeader = target;
+            if (mayCatchUp && TryCatchUp(target, gap, out catchup)) { Status = "catching up"; CatchupReady = true; return false; }
             if (Time.time < nextPlan && Vector3.Distance(Feet, waypoint) > 0.25f) { step = waypoint; return true; }
             nextPlan = Time.time + 0.2f;
             Vector3 from = Feet;
@@ -220,6 +223,7 @@ namespace AdvancedNPCs
                     if (Vector3.Distance(from, trail[i]) > 0.4f && Segment(from, trail[i], false)) { goal = trail[i]; break; }
             }
             Vector3 desired = Flat(goal - from).normalized;
+            barriers.RemoveAll(delegate(Collider c) { return c == null || !c.enabled || !c.gameObject.activeInHierarchy || !Protected(c); });
             foreach (Collider barrier in barriers)
             {
                 if (barrier == null || !Protected(barrier)) continue;

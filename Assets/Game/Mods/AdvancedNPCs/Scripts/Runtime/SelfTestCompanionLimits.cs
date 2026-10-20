@@ -84,7 +84,7 @@ namespace AdvancedNPCs
                 yield return new WaitForSecondsRealtime(.2f);ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.persistentDataPath,"ANPC-follower-settings.png"));yield return new WaitForSecondsRealtime(.2f);DaggerfallUI.Instance.PopToHUD();
                 var legacy=SaveLoadManager.Deserialize(typeof(CompanionRecord),"{\"status\":\"following\"}") as CompanionRecord;
                 Check("legacy companion records default to ordinary slot",legacy!=null && !legacy.noCompanionSlot,"legacy exemption="+(legacy!=null && legacy.noCompanionSlot));
-                Check("follower setting and exemption retain save format five",SaveFormat.Current==5 && !def.NoCompanionSlot,"version="+SaveFormat.Current);
+                Check("follower setting and exemption keep save format five or newer",SaveFormat.Current>=5 && !def.NoCompanionSlot,"version="+SaveFormat.Current);
             }
             finally
             {

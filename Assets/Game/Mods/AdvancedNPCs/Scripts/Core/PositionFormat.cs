@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Collections.Generic;
+using System.Text;
 
 namespace AdvancedNPCs.Core
 {
@@ -23,6 +25,18 @@ namespace AdvancedNPCs.Core
         public static string PositionJson(float x, float y, float z)
         {
             return "\"position\": [" + Num(x) + ", " + Num(y) + ", " + Num(z) + "]";
+        }
+
+        public static string PatrolJson(IList<PackagePoint> points)
+        {
+            StringBuilder text = new StringBuilder("{\n  \"type\": \"patrol\",\n  \"parameters\": {\n    \"points\": [");
+            for (int i = 0; i < points.Count; i++)
+            {
+                if (i > 0) text.Append(',');
+                PackagePoint point = points[i];
+                text.Append("\n      [").Append(FieldReader.Num(point.X)).Append(", ").Append(FieldReader.Num(point.Y)).Append(", ").Append(FieldReader.Num(point.Z)).Append(']');
+            }
+            return text.Append("\n    ]\n  }\n}").ToString();
         }
 
         static string Num(float f)

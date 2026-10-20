@@ -57,6 +57,10 @@ namespace AdvancedNPCs
         static Mod mod;
         NpcSpawner spawner;
         public CompanionRoster Companions { get; private set; }
+        NpcBrain routeActor;
+        Transform routeArea;
+        Vector3 routeHome;
+        readonly List<PackagePoint> routePoints = new List<PackagePoint>();
 
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
@@ -132,6 +136,9 @@ namespace AdvancedNPCs
             ConsoleCommandsDatabase.RegisterCommand("anpc_info",
                 "Shows the ANPC in front of you (or <id>): mode, bravery, health, opinion, sprite set, target and update rate.",
                 "anpc_info [id or key]", InfoCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_schedule",
+                "Explains every schedule entry at the current game time and shows the NPC's current activity.",
+                "anpc_schedule [id or key]", ScheduleCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_chat",
                 "Starts a conversation between the ANPC in front of you and the nearest other ANPC within 4 m (ignores chance and the 2-hour wait).",
                 "anpc_chat", ChatCommand);
@@ -145,13 +152,19 @@ namespace AdvancedNPCs
                 "anpc_topics [id]", TopicsCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_spot_pos",
                 "Prints a named-spot definition at your current position (town, building or dungeon).", "anpc_spot_pos", SpotPositionCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_route",
+                "Records patrol points relative to a spawned NPC's home and prints package JSON; never writes files.",
+                "anpc_route start <id or key> | add | finish | cancel", RouteCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_reload_spots",
                 "Reloads ANPCs/_Spots and restarts affected activities.", "anpc_reload_spots", ReloadSpotsCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_reload_packages",
-                "Re-reads ANPCs/_Packages/*.json; active schedules restart with the new settings (npc.json changes need a restart).",
+                "Re-reads ANPCs/_Packages/*.json; active schedules restart with the new settings.",
                 "anpc_reload_packages", ReloadPackagesCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_reload_schedules",
+                "Reloads only schedules from npc.json; invalid replacements keep the previous schedule.",
+                "anpc_reload_schedules [folder]", ReloadSchedulesCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_reload_dialogue",
-                "Re-reads ANPCs/_Dialogue/*.json and every dialogue.json (changes to npc.json need a restart).",
+                "Re-reads ANPCs/_Dialogue/*.json and every dialogue.json; use anpc_reload_schedules for schedule edits.",
                 "anpc_reload_dialogue", ReloadDialogueCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_flag",
                 "Lists dialogue flags, or sets / clears one (saved with your game).", "anpc_flag [name on|off]", FlagCommand);
@@ -186,6 +199,11 @@ namespace AdvancedNPCs
             Packages = PackageLibrary.Load(AnpcFiles.Root);
             foreach (NpcDefinition d in Catalog.ById.Values) Packages.Check(d);
             foreach (NpcDefinition d in Catalog.Generics) Packages.Check(d);
+            RefreshPackageAnimations();
+        }
+
+        void RefreshPackageAnimations()
+        {
             if (Sprites != null)
             {
                 List<NpcDefinition> definitions = new List<NpcDefinition>(Catalog.ById.Values);
@@ -202,8 +220,18 @@ namespace AdvancedNPCs
         }
         internal static string SpotPositionCommand(params string[] args)
         {
+            string region, place, context;
+            Transform root = PlayerArea(out region, out place, out context);
+            if(root==null) return "Stand in a loaded town, building or dungeon first.";
+            Vector3 p=root.InverseTransformPoint(GameManager.Instance.PlayerObject.transform.position);
+            string json=PositionFormat.SpotJson(region,place,context,p.x,p.y,p.z);
+            Log("anpc_spot_pos\n"+json);return json;
+        }
+
+        static Transform PlayerArea(out string region, out string place, out string context)
+        {
             GameManager gm=GameManager.Instance;
-            Transform root=null;string region=null,place=null,context="outdoors";
+            Transform root=null;region=null;place=null;context="outdoors";
             var pee=gm.PlayerEnterExit;
             if(pee.IsPlayerInsideDungeon && pee.Dungeon!=null)
             { root=pee.Dungeon.transform;region=pee.Dungeon.Summary.RegionName;place=pee.Dungeon.Summary.LocationName;context="dungeon"; }
@@ -217,18 +245,92 @@ namespace AdvancedNPCs
                 var town=gm.StreamingWorld.CurrentPlayerLocationObject;
                 if(town!=null) { root=town.transform;region=town.Summary.RegionName;place=town.Summary.LocationName; }
             }
-            if(root==null) return "Stand in a loaded town, building or dungeon first.";
-            Vector3 p=root.InverseTransformPoint(gm.PlayerObject.transform.position);
-            string json=PositionFormat.SpotJson(region,place,context,p.x,p.y,p.z);
-            Log("anpc_spot_pos\n"+json);return json;
+            return root;
+        }
+
+        internal static string RouteCommand(params string[] args)
+        {
+            if (args == null || args.Length == 0) return "Usage: anpc_route start <id or key> | add | finish | cancel";
+            AdvancedNpcsMod owner = Instance;
+            if (args.Length == 1 && args[0] == "cancel")
+            {
+                owner.routeActor = null; owner.routeArea = null; owner.routePoints.Clear();
+                return "Route recording cancelled.";
+            }
+            string region, place, context;
+            Transform area = PlayerArea(out region, out place, out context);
+            if (args[0] == "start" && args.Length == 2)
+            {
+                NpcBrain actor = NpcBrain.Find(args[1]);
+                if (actor == null || area == null || actor.transform.parent != area) return "Choose a spawned ANPC in your current town, building or dungeon (anpc_list).";
+                if (owner.routePoints.Count > 0) return "A route is already being recorded. Use finish or cancel first.";
+                owner.routeActor = actor; owner.routeArea = area; owner.routeHome = actor.HomeLocal;
+            }
+            else if (args.Length != 1 || (args[0] != "add" && args[0] != "finish"))
+                return "Usage: anpc_route start <id or key> | add | finish | cancel";
+            if (owner.routeActor == null || owner.routeArea == null) return "Start a route with anpc_route start <id or key>.";
+            if (area != owner.routeArea || owner.routeActor.transform.parent != area || owner.routeActor.HomeLocal != owner.routeHome)
+                return "The area or NPC home changed. Return to the original area or cancel and start again.";
+            if (args[0] == "finish")
+            {
+                if (owner.routePoints.Count < 2) return "Record at least two points with anpc_route add before finishing.";
+                string json = PositionFormat.PatrolJson(owner.routePoints);
+                string error;
+                if (PackageParser.Parse("recorded_patrol", json, out error) == null) return "Cannot export route: " + error;
+                Log("anpc_route for " + owner.routeActor.Id + " (offsets from its home)\n" + json);
+                owner.routeActor = null; owner.routeArea = null; owner.routePoints.Clear();
+                return json;
+            }
+            if (owner.routePoints.Count >= 32) return "The patrol limit is 32 points. Use finish or cancel.";
+            Vector3 offset = area.InverseTransformPoint(GameManager.Instance.PlayerObject.transform.position) - owner.routeHome;
+            if (!(offset.x >= -100 && offset.x <= 100 && offset.y >= -100 && offset.y <= 100 && offset.z >= -100 && offset.z <= 100))
+                return "Point rejected: stay within 100 metres of the NPC's home on every axis.";
+            owner.routePoints.Add(new PackagePoint(offset.x, offset.y, offset.z));
+            return "Recorded point " + owner.routePoints.Count + " for " + owner.routeActor.Id + ". Walk to the next waypoint and use anpc_route add, then finish to print JSON.";
         }
 
         static string ReloadPackagesCommand(params string[] args)
         {
             Instance.ReloadPackages();
-            string text = "Reloaded " + Instance.Packages.Count + " AI package(s). See Player.log for invalid definitions. Schedules in npc.json need a restart.";
+            string text = "Reloaded " + Instance.Packages.Count + " AI package(s). See Player.log for invalid definitions. Use anpc_reload_schedules for schedule edits in npc.json.";
             Log(text);
             return text;
+        }
+
+        internal static string ReloadSchedulesCommand(params string[] args)
+        {
+            if (args != null && args.Length > 1) return "Usage: anpc_reload_schedules [folder]";
+            List<NpcDefinition> definitions = new List<NpcDefinition>(Instance.Catalog.ById.Values);
+            definitions.AddRange(Instance.Catalog.Generics);
+            int loaded = 0, rejected = 0;
+            StringBuilder text = new StringBuilder();
+            foreach (NpcDefinition definition in definitions)
+            {
+                if (args != null && args.Length == 1 && definition.Folder != args[0]) continue;
+                string problem;
+                bool ok;
+                try
+                {
+                    ok = AiSchedule.TryReload(definition, File.ReadAllText(AnpcFiles.NpcJsonPath(definition.Folder)), Instance.Packages.Find, out problem);
+                }
+                catch (IOException e) { ok = false; problem = e.Message; }
+                catch (UnauthorizedAccessException e) { ok = false; problem = e.Message; }
+                if (!ok)
+                {
+                    rejected++;
+                    text.Append(definition.SourceFile).Append(": previous schedule retained: ").Append(problem).Append('\n');
+                    continue;
+                }
+                loaded++;
+                foreach (NpcBrain brain in NpcBrain.All())
+                    if (brain.Instance.Definition == definition) brain.ReloadSchedule();
+            }
+            if (loaded + rejected == 0) return "No matching loaded ANPC definition. Use its folder name.";
+            if (loaded > 0) Instance.RefreshPackageAnimations();
+            text.Append("Reloaded ").Append(loaded).Append(" schedule(s); retained ").Append(rejected).Append(" previous schedule(s). Only schedules were reloaded; other npc.json changes need a restart.");
+            string result = text.ToString();
+            Log("anpc_reload_schedules\n" + result);
+            return result;
         }
 
         void OnDestroy()
@@ -294,9 +396,11 @@ namespace AdvancedNPCs
                 // The shared default steps (ANPCs/_Sounds) too.
                 bool hasDefaults = Instance.Sounds.ReloadDefaults(AnpcFiles.Root);
                 SwapDefaultSteps();
-                defaultsText = " " + SoundLibrary.SharedFolder + ": " + (hasDefaults ? "default step sounds found." : "no default step sounds.");
+                defaultsText = " " + SoundLibrary.SharedFolder + ": " + (hasDefaults ? "default step sounds found" : "no default step sounds") +
+                    ", " + Instance.Sounds.Packs.Count + " voice pack(s).";
                 if (defaultsOnly || folders.Count == 0)
                 {
+                    SwapSounds(new List<string>(converses.Keys));     // voice packs re-read: every voice re-picks its set
                     Log("Reloaded" + defaultsText);
                     return "Reloaded" + defaultsText;
                 }
@@ -362,7 +466,8 @@ namespace AdvancedNPCs
                 NpcVoice voice = b.GetComponent<NpcVoice>();
                 if (voice == null)
                     continue;
-                LoadedSoundSet next = Instance.Sounds.For(b.Instance.Definition.Folder);
+                LoadedSoundSet next = Instance.Sounds.For(b.Instance.Definition.Folder,
+                    SoundRules.PickVoice(b.Instance.Definition.Sounds.Voices, b.Instance.Seed, b.Instance.Gender));
                 voice.Swap(next);
                 // Greet sounds now, on an ANPC that had no greeting (no greet sheet, no greet sounds): it starts greeting.
                 if (next != null && next.Pools.Contains(SoundPools.Greet) && b.GetComponent<NpcGreeter>() == null)
@@ -372,7 +477,7 @@ namespace AdvancedNPCs
             return updated;
         }
 
-        /// <summary>anpc_info (spec tools-quality Â§A1); internal for the self-test.</summary>
+        /// <summary>anpc_info (spec tools-quality §A1); internal for the self-test.</summary>
         internal static string InfoCommand(params string[] args)
         {
             bool named = args != null && args.Length > 0;
@@ -384,7 +489,23 @@ namespace AdvancedNPCs
             return text;
         }
 
-        /// <summary>anpc_chat (spec conversations Â§3); internal for the self-test.</summary>
+        internal static string ScheduleCommand(params string[] args)
+        {
+            if (args != null && args.Length > 1) return "Usage: anpc_schedule [id or key]";
+            bool named = args != null && args.Length > 0;
+            NpcBrain brain = named ? NpcBrain.Find(args[0]) : Nearest(5f);
+            if (brain == null) return "No matching spawned ANPC. Stand within 5 m or give an id/key from anpc_list.";
+            int minute = (int)(DaggerfallUnity.Instance.WorldTime.Now.ToSeconds() % 86400 / 60);
+            GameFacts facts = new GameFacts(brain.State, Instance.Flags, brain.DisplayName, null, brain.Instance.Definition, brain, true);
+            string text = brain.Id + " at " + (minute / 60).ToString("00") + ":" + (minute % 60).ToString("00") + "\n" +
+                AiSchedule.Describe(brain.Instance.Definition.Schedule, minute, facts) + "\nCurrent activity: " + brain.PackageDescription;
+            if (brain.State.companion != null) text += "\nCompanion orders override this schedule.";
+            if (brain.CurrentMode != NpcMode.Calm) text += "\nRoutine interrupted: " + brain.CurrentMode;
+            Log("anpc_schedule\n" + text);
+            return text;
+        }
+
+        /// <summary>anpc_chat (spec conversations §3); internal for the self-test.</summary>
         internal static string ChatCommand(params string[] args)
         {
             NpcBrain a = Nearest(5f);
@@ -886,7 +1007,7 @@ namespace AdvancedNPCs
         }
 
         /// <summary>
-        /// Turns an ANPC (by id or key) into an enemy of the player, or calms it (enemies spec Â§4). The switch is
+        /// Turns an ANPC (by id or key) into an enemy of the player, or calms it (enemies spec §4). The switch is
         /// saved. False if no ANPC has that id or key (spawned now, defined, placed, or remembered in the save).
         /// </summary>
         public bool SetHostile(string key, bool hostile)

@@ -144,7 +144,7 @@ namespace AdvancedNPCs
                 allCalm &= b.CurrentMode == NpcMode.Calm && !b.State.hostile && !b.Motor.IsHostile;
             Check("spawned NPCs are calm", allCalm, Describe(all));
             Check("calm NPCs do not block resting", !gm.AreEnemiesNearby(true), "GameManager.AreEnemiesNearby(resting) returned true");
-            // Talking (spec Â§9.2): name, PNG portrait, vanilla face fallback, Info text.
+            // Talking (spec §9.2): name, PNG portrait, vanilla face fallback, Info text.
             NpcTalk talk = normal.GetComponent<NpcTalk>();
             Texture2D testPortrait = TestPortrait();
             talk.Portrait = testPortrait;
@@ -261,7 +261,7 @@ namespace AdvancedNPCs
             }
             Check("generic ANPCs are planned on complete street grids", spawner.PlannedCellCounts.Count > 0 && partial.Count == 0,
                 "towns planned=" + spawner.PlannedCellCounts.Count + "; " + string.Join("; ", partial.ToArray()));
-            // Generic townsfolk (spec Â§7.4, Â§8). The test template only matches this town.
+            // Generic townsfolk (spec §7.4, §8). The test template only matches this town.
             List<NpcDefinition> templates = new List<NpcDefinition>();
             templates.Add(GenericTemplate(location, 3));
 
@@ -321,7 +321,7 @@ namespace AdvancedNPCs
             List<NpcBrain> none = SpawnGenerics(location, templates, GenericMode.SamePeople, 0);
             Check("MaxGenericPerTown 0 spawns no generic ANPCs", none.Count == 0, Layout(none));
 
-            // Name lists (spec v2.1 Â§5): one generic person from a simple list, one from a vanilla-format list.
+            // Name lists (spec v2.1 §5): one generic person from a simple list, one from a vanilla-format list.
             mod.Names.Add(NameListParser.Parse("selftest_simple", "{ \"male\": [\"Testmale\"], \"female\": [\"Testfemale\"] }").List);
             mod.Names.Add(NameListParser.Parse("selftest_vanilla", "{ \"style\": \"breton\", \"sets\": [ {\"parts\":[\"A\"]}, " +
                 "{\"parts\":[\"b\"]}, {\"parts\":[\"C\"]}, {\"parts\":[\"d\"]}, {\"parts\":[\"E\"]}, {\"parts\":[\"f\"]} ] }").List);
@@ -344,7 +344,7 @@ namespace AdvancedNPCs
             DiscardAll(named);
             yield return Settle;
 
-            // Portrait pools (spec v2.1 Â§6): the face shown at the first talk is kept, even when the pool grows.
+            // Portrait pools (spec v2.1 §6): the face shown at the first talk is kept, even when the pool grows.
             mod.Portraits.Add("selftest_face_1", TestPortrait());
             mod.Portraits.Add("selftest_face_2", TestPortrait());
             NpcDefinition faced = GenericTemplate(location, 1);
@@ -643,7 +643,7 @@ namespace AdvancedNPCs
                 firstHit == SpriteStates.Hit && secondHit == SpriteStates.Hit && hitStarts == 2 && frameAfterSecond < frameBeforeSecond,
                 "first hit=" + firstHit + ", second hit=" + secondHit + ", hit starts=" + hitStarts + ", frame " + frameBeforeSecond + " -> " + frameAfterSecond);
 
-            // Death (spec 1b Â§6.4): the death sheet plays, the body stays, the loot pile's own picture is hidden.
+            // Death (spec 1b §6.4): the death sheet plays, the body stays, the loot pile's own picture is hidden.
             int corpsesBefore = NpcCorpseSprite.All.Count;
             PlayerHit(sprited, playerBehaviour, 100000);
             yield return new WaitForSeconds(1.5f);
@@ -953,7 +953,7 @@ namespace AdvancedNPCs
                 yield return outside.Current;
         }
 
-        /// <summary>Dialogue topics in DFU's talk window (spec C1 Â§10), acting like the player through the window.</summary>
+        /// <summary>Dialogue topics in DFU's talk window (spec C1 §10), acting like the player through the window.</summary>
         IEnumerator DialogueSteps(DaggerfallLocation location, Transform playerTransform)
         {
             int hour = DaggerfallUnity.Instance.WorldTime.Now.Hour;

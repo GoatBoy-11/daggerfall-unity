@@ -34,8 +34,10 @@ namespace AdvancedNPCs
         bool acquired;
         bool started;
         bool gone;
-        LoadedSoundSet defaultsOffered;     // the library's shared steps
-        LoadedSoundSet stepDefaults;        // ... when this ANPC uses them
+        bool haltPending;
+        LoadedSoundSet defaultsOffered;     // the library's shared _Sounds (steps, eat, drink)
+        LoadedSoundSet heldDefaults;        // ... held while this ANPC uses any of them
+        AudioSource mealSource;
         bool defaultsAcquired;
         int lastHealth = -1;
         MobileStates lastState;
@@ -47,10 +49,14 @@ namespace AdvancedNPCs
         readonly CompanionBarkClock barkClock=new CompanionBarkClock();
         string lastSpeechPool;
         bool speechPaused;
+        bool companionClip;     // the last line started as companion speech (paused with the UI)
         bool CompanionSpeaker { get { return brain!=null && brain.State!=null && brain.State.companion!=null && CompanionCombatRules.Contract(brain.State.companion.status); } }
         public bool BarksEnabled { get { return CompanionSpeaker && SpeechControls; } }
         public string LastSpeechPool { get { return lastSpeechPool; } }
-        public int SpeechSourcesPlaying { get { int count=0;if(voices!=null)foreach(var source in voices)if(source!=null && source.isPlaying)count++;return count; } }
+        /// <summary>Voice sources speaking now; one fading out after being stopped (50 ms) no longer counts.</summary>
+        public int SpeechSourcesPlaying { get { int count=0;if(voices!=null)foreach(var source in voices)if(source!=null && source.isPlaying && !FadingOut(source))count++;return count; } }
+        /// <summary>The source was stopped and is fading out.</summary>
+        public bool FadingOut(AudioSource source) { return source!=null && stopping.Contains(source); }
         public void BarksChanged()
         {
             if(CompanionBarkRules.IsBark(lastSpeechPool))StopSpeech();
@@ -58,17 +64,126 @@ namespace AdvancedNPCs
         }
         void StopSpeech()
         {
-            if(voices!=null)foreach(var source in voices)if(source!=null)source.Stop();
+            if(voices!=null)foreach(var source in voices)FadeOut(source,false);
             talkSource=greetSource=null;lastSpeechPool=null;speechPaused=false;dismissalSource=null;dismissalContract=null;
         }
         AudioSource Speech(AudioClip clip,string pool,float pitch)
         {
             if(CompanionSpeech)StopSpeech();
-            AudioSource source=voices[nextVoice];nextVoice=SoundRules.NextVoice(nextVoice,voices.Length);
+            AudioSource source=FreeVoice();
             source.pitch=pitch;source.PlayOneShot(clip,DaggerfallUnity.Settings.SoundVolume);
-            lastVoice=source;lastSpeechPool=pool;return source;
+            lastVoice=source;lastSpeechPool=pool;companionClip=CompanionSpeech;return source;
         }
-        void OnDisable() { if(CompanionSpeaker || CompanionBarkRules.IsBark(lastSpeechPool))StopSpeech();barkClock.Reset(-1);ResetCompanionSpeech(); }
+        const float CutFadeSeconds = 0.05f;
+        readonly Dictionary<AudioSource, Coroutine> fading = new Dictionary<AudioSource, Coroutine>();
+        readonly HashSet<AudioSource> stopping = new HashSet<AudioSource>();   // fading out (to stop or pause)
+
+        /// <summary>
+        /// Stops or pauses a sound after a 50 ms fade (real time, so also while the game is paused): cutting a sound
+        /// mid-wave clicks loudly. An inactive ANPC (being switched off) cuts at once; Unity silences it anyway.
+        /// </summary>
+        void FadeOut(AudioSource s, bool pause)
+        {
+            if (s == null || stopping.Contains(s))
+                return;
+            Coroutine fadeIn;
+            if (fading.TryGetValue(s, out fadeIn))
+            {
+                StopCoroutine(fadeIn);      // stopped while fading back in after a pause: fade out from where it is
+                fading.Remove(s);
+            }
+            if (!s.isPlaying || !isActiveAndEnabled)
+            {
+                if (pause) s.Pause(); else s.Stop();
+                s.volume = 1f;
+                return;
+            }
+            stopping.Add(s);
+            fading[s] = StartCoroutine(Fade(s, pause));
+        }
+
+        System.Collections.IEnumerator Fade(AudioSource s, bool pause)
+        {
+            float start = s.volume;
+            for (float t = 0f; t < CutFadeSeconds && s != null; t += Time.unscaledDeltaTime)
+            {
+                s.volume = start * (1f - t / CutFadeSeconds);
+                yield return null;
+            }
+            if (s == null)
+                yield break;
+            if (pause) s.Pause(); else s.Stop();
+            s.volume = 1f;
+            fading.Remove(s);
+            stopping.Remove(s);
+        }
+
+        /// <summary>Unpauses a sound with a short fade in (a pause fade still running just stops: it never went quiet).</summary>
+        void Resume(AudioSource s)
+        {
+            if (s == null)
+                return;
+            Coroutine c;
+            if (fading.TryGetValue(s, out c))
+            {
+                StopCoroutine(c);
+                fading.Remove(s);
+                stopping.Remove(s);
+                s.volume = 1f;
+                return;
+            }
+            s.volume = 0f;
+            s.UnPause();
+            fading[s] = StartCoroutine(FadeIn(s));
+        }
+
+        System.Collections.IEnumerator FadeIn(AudioSource s)
+        {
+            for (float t = 0f; t < CutFadeSeconds && s != null; t += Time.unscaledDeltaTime)
+            {
+                s.volume = t / CutFadeSeconds;
+                yield return null;
+            }
+            if (s == null)
+                yield break;
+            s.volume = 1f;
+            fading.Remove(s);
+        }
+
+        /// <summary>The next voice source not playing and not fading out (else the next in turn, cut at once).</summary>
+        AudioSource FreeVoice()
+        {
+            for (int i = 0; i < voices.Length; i++)
+            {
+                AudioSource candidate = voices[nextVoice];
+                nextVoice = SoundRules.NextVoice(nextVoice, voices.Length);
+                if (!candidate.isPlaying && !fading.ContainsKey(candidate))
+                {
+                    candidate.volume = 1f;
+                    return candidate;
+                }
+            }
+            AudioSource source = voices[nextVoice];
+            nextVoice = SoundRules.NextVoice(nextVoice, voices.Length);
+            Coroutine running;
+            if (fading.TryGetValue(source, out running))
+            {
+                StopCoroutine(running);
+                fading.Remove(source);
+                stopping.Remove(source);
+            }
+            source.Stop();
+            source.volume = 1f;
+            return source;
+        }
+
+        void OnDisable()
+        {
+            CancelHalt(); if(CompanionSpeaker || CompanionBarkRules.IsBark(lastSpeechPool))StopSpeech();barkClock.Reset(-1);ResetCompanionSpeech();
+            fading.Clear();     // coroutines end with the object: no fade is left half way
+            stopping.Clear();
+            if(voices!=null)foreach(var source in voices)if(source!=null)source.volume=1f;
+        }
 
         public static string BarkContext()
         {
@@ -180,7 +295,7 @@ namespace AdvancedNPCs
             {
                 if (OwnSteps)
                     return set.IsReady && !set.Clips.ContainsKey(SoundPools.Step) ? "own (none could be loaded)" : "own";
-                return stepDefaults != null ? "default" : "none";
+                return StepDefaults != null ? "default" : "none";
             }
         }
 
@@ -262,21 +377,58 @@ namespace AdvancedNPCs
             ChooseSteps();
         }
 
-        /// <summary>The shared steps when it has none of its own and npc.json allows them; held while it is in the world.</summary>
+        /// <summary>The shared steps it plays: none of its own and npc.json allows them.</summary>
+        LoadedSoundSet StepDefaults
+        {
+            get { return heldDefaults != null && heldDefaults.Files.ContainsKey(SoundPools.Step) && SoundRules.UseDefaultSteps(OwnSteps, settings.DefaultSteps) ? heldDefaults : null; }
+        }
+
+        /// <summary>A shared eat/drink pool it has no files of its own for.</summary>
+        bool UsesMealDefaults(LoadedSoundSet defaults)
+        {
+            foreach (string pool in new[] { SoundPools.Eat, SoundPools.Drink })
+                if (defaults.Files.ContainsKey(pool) && (set == null || !set.Files.ContainsKey(pool))) return true;
+            return false;
+        }
+
+        /// <summary>The shared _Sounds when it uses their steps or eat/drink sounds; held while it is in the world.</summary>
         void ChooseSteps()
         {
-            LoadedSoundSet want = defaultsOffered != null && SoundRules.UseDefaultSteps(OwnSteps, settings.DefaultSteps) ? defaultsOffered : null;
-            if (want == stepDefaults)
+            LoadedSoundSet want = defaultsOffered != null && ((defaultsOffered.Files.ContainsKey(SoundPools.Step) &&
+                SoundRules.UseDefaultSteps(OwnSteps, settings.DefaultSteps)) || UsesMealDefaults(defaultsOffered)) ? defaultsOffered : null;
+            if (want == heldDefaults)
                 return;
             if (defaultsAcquired)
-                stepDefaults.Release();
+                heldDefaults.Release();
             defaultsAcquired = false;
-            stepDefaults = want;
-            if (started && !gone && stepDefaults != null)
+            heldDefaults = want;
+            if (started && !gone && heldDefaults != null)
             {
-                stepDefaults.Acquire();
+                heldDefaults.Acquire();
                 defaultsAcquired = true;
             }
+        }
+
+        /// <summary>
+        /// Eat package: an eat or drink cycle began. Its own pool, else the shared _Sounds one; no chance roll. Skipped
+        /// while the last bite or gulp still plays, so they never overlap. Muted only by the Off voice setting.
+        /// </summary>
+        public bool PlayMeal(string pool)
+        {
+            if (gone || voices == null || Mode == VoiceModes.Off || (brain != null && brain.CurrentMode == NpcMode.Dead))
+                return false;
+            if (mealSource != null && mealSource.isPlaying)
+                return false;
+            LoadedSoundSet source = set != null && set.Files.ContainsKey(pool) ? set : heldDefaults;
+            AudioClip clip = source != null ? source.Pick(pool) : null;
+            if (clip == null)
+                return false;
+            if (mealSource == null)
+                mealSource = MakeSources("AnpcMeal", 1)[0];
+            mealSource.pitch = SoundRules.Pitch(settings.SoundPitch, settings.SoundPitchVariation, Random.value);
+            mealSource.PlayOneShot(clip, DaggerfallUnity.Settings.SoundVolume);
+            Count(pool);
+            return true;
         }
 
         /// <summary>Sources that take turns, so overlapping one-shots each keep their own pitch.</summary>
@@ -322,9 +474,9 @@ namespace AdvancedNPCs
                 set.Acquire();
                 acquired = true;
             }
-            if (stepDefaults != null && !defaultsAcquired)
+            if (heldDefaults != null && !defaultsAcquired)
             {
-                stepDefaults.Acquire();
+                heldDefaults.Acquire();
                 defaultsAcquired = true;
             }
         }
@@ -342,8 +494,8 @@ namespace AdvancedNPCs
             if (acquired && set != null)
                 set.Release();
             acquired = false;
-            if (defaultsAcquired && stepDefaults != null)
-                stepDefaults.Release();
+            if (defaultsAcquired && heldDefaults != null)
+                heldDefaults.Release();
             defaultsAcquired = false;
         }
 
@@ -380,7 +532,7 @@ namespace AdvancedNPCs
             string playable = Playable(pool);
             if (playable == null || voices == null || !VoiceModes.CustomVoice(Mode))
                 return false;
-            if (pool != SoundPools.Death && !bark)
+            if (pool != SoundPools.Death && pool != SoundPools.Halt && pool != SoundPools.Hawk && !bark)
             {
                 int chance = SoundPools.IsCombat(pool) ? settings.CombatChance : settings.GreetChance;
                 if (!SoundRules.Rolls(chance, Random.value))
@@ -394,6 +546,20 @@ namespace AdvancedNPCs
                 greetSource = voice;
             Count(pool);
             return true;
+        }
+
+        /// <summary>Pursuit warning; a configured custom clip gets time to load before falling back.</summary>
+        public void PlayHalt() { haltPending = true; DeliverHalt(); }
+        public void CancelHalt() { haltPending = false; }
+        void DeliverHalt()
+        {
+            if (!haltPending || gone || !isActiveAndEnabled) return;
+            if (Mode == VoiceModes.Off) { haltPending = false; return; }
+            if (VoiceModes.CustomVoice(Mode) && set != null && set.Files.ContainsKey(SoundPools.Halt) && !set.IsReady) return;
+            haltPending = false;
+            if (Play(SoundPools.Halt)) return;
+            DaggerfallAudioSource source = GetComponent<DaggerfallAudioSource>();
+            if (source != null) { source.PlayOneShot(SoundClips.Halt); Count("vanilla_halt"); }
         }
 
         /// <summary>Loaded talk clips (spec conversations §1).</summary>
@@ -459,8 +625,7 @@ namespace AdvancedNPCs
         /// <summary>Cuts the talk clip short (a conversation ended early).</summary>
         public void StopTalk()
         {
-            if (talkSource != null)
-                talkSource.Stop();
+            FadeOut(talkSource, false);
             talkSource = null;
         }
 
@@ -506,6 +671,7 @@ namespace AdvancedNPCs
         void Step()
         {
             // Its own step files, else the shared defaults; its own replace the defaults even while they load.
+            LoadedSoundSet stepDefaults = StepDefaults;
             LoadedSoundSet source = OwnSteps ? set : stepDefaults;
             if (!FootstepsOn || source == null || steps == null || brain == null || brain.CurrentMode == NpcMode.Dead)
                 return;
@@ -538,14 +704,17 @@ namespace AdvancedNPCs
         {
             if (brain == null || behaviour == null || behaviour.Entity == null || brain.CurrentMode == NpcMode.Dead)
                 return;
+            DeliverHalt();
             ValidatePendingCommand();
             if(CompanionSpeech && GameManager.IsGamePaused)
             {
                 if(!SpeechControls && CompanionBarkRules.IsBark(lastSpeechPool))StopSpeech();
-                if(!speechPaused && voices!=null) {foreach(var source in voices)source.Pause();speechPaused=true;}
+                // Only lines spoken as a companion pause with the UI: cutting a greeting already playing when the
+                // player hires (talk window open) clicked loudly.
+                if(!speechPaused && companionClip && voices!=null) {foreach(var source in voices)FadeOut(source,true);speechPaused=true;}
                 return;
             }
-            if(speechPaused && voices!=null) {foreach(var source in voices)source.UnPause();speechPaused=false;}
+            if(speechPaused && voices!=null) {foreach(var source in voices)Resume(source);speechPaused=false;}
             DeliverCompanionCommand();
             SyncVoiceRace();
             SyncCreatureAttack();

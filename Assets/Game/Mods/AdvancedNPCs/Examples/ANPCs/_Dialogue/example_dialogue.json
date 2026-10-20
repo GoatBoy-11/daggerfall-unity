@@ -1,0 +1,68 @@
+// EXAMPLE dialogue type. The file name is the type: an npc.json with "dialogue": "example_dialogue" gets these topics.
+// Used by example_townsfolk. After editing, type anpc_reload_dialogue in the console (no restart needed).
+// anpc_topics (facing the ANPC) shows each topic and the condition that hides it.
+{
+  // Replace the vanilla greeting when one qualifies. Same format as answers. {player}, {npc}, {town}, {region} work.
+  "greetings": [
+    { "when": { "time": "night" }, "text": "Bit late to be wandering about, {player}." },
+    "Good day to you."
+  ],
+
+  "topics": [
+    {
+      // Text in the "Tell Me About" list (keep under 24 characters).
+      "caption": "Local gossip",
+      // One answer is picked at random each time.
+      "answers": [
+        "They say the smith waters his ale.",
+        "Old Marrow's cat had kittens again. Third time this year."
+      ]
+    },
+    {
+      "caption": "The weather",
+      // Answers with a "when" win over plain answers while their conditions hold.
+      "answers": [
+        { "when": { "weather": "rain" }, "text": "Wet enough to drown a slaughterfish." },
+        { "when": { "season": "winter" }, "text": "Cold. It's always cold." },
+        "Fair enough, for {town}."
+      ]
+    },
+    {
+      "caption": "A secret",
+      // Name other files and conditions use for this topic (default: caption in lowercase with _).
+      "id": "secret",
+      // Only listed while the player is liked or loved here and it is night.
+      "when": { "reaction": ["likes", "loves"], "time": "night" },
+      // What the player says, by chosen tone.
+      "question": { "polite": "Is there anything I should know?", "blunt": "Spill it." },
+      "answers": ["There's a door under the old well. Don't tell anyone I said so."],
+      // Sets a game-wide flag; any topic of any ANPC can test it with "when": { "flags": "heard_well" }.
+      "sets": ["heard_well"],
+      // Disappears for this person after being asked once.
+      "once": true
+    },
+    {
+      "caption": "Buy a drink",
+      "answers": ["Fancy a drink? Two gold."],
+      // Player choices shown after the answer. They can nest further "replies" (up to 8 deep).
+      "replies": [
+        {
+          "text": "Yes, please. (2 gold)",
+          // Actions: takeGold/giveGold, takeItem/giveItem, reputation, opinion, startQuest, becomeEnemy, endConversation.
+          // A reply that takes gold is only offered when the player has it.
+          "takeGold": 2,
+          // This ANPC's opinion of the player goes up.
+          "opinion": 5,
+          "answers": ["Cheers, {player}."]
+        },
+        {
+          "text": "Get lost.",
+          "opinion": -5,
+          "answers": ["Charming."],
+          // Closes the talk window after this line.
+          "endConversation": true
+        }
+      ]
+    }
+  ]
+}

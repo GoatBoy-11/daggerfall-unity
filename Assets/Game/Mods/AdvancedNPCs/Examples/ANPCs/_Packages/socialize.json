@@ -1,0 +1,10 @@
+// Town-square chatter: every 20-40 s, walk up to the nearest ANPC within 15 m that can talk right now and start a
+// conversation. Both need "conversation" on and talk_* sounds; the same pair talks at most once every 2 game hours.
+{
+  "$schema": "../_Schemas/package.schema.json",
+  "type": "socialize",
+  "parameters": {
+    "radius": 15,
+    "interval": [20, 40]
+  }
+}

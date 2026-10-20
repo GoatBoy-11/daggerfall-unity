@@ -1,0 +1,43 @@
+// EXAMPLE: a calm spellcaster who heals friends and fights with spells.
+// Never spawns by itself. Try it in game with:  anpc_spawn example_mage
+// Then  anpc_hostile <key> on  (key from anpc_list) to fight it.
+{
+  "$schema": "../_Schemas/npc.schema.json",
+
+  "kind": "generic",
+  "name": "Example Mage",
+  "baseClass": "Mage",
+
+  // Brave: never flees, and attacks enemies it sees within "aggroRange" metres.
+  "bravery": "Brave",
+  "aggroRange": 15,
+
+  "spawn": { "count": [0, 0] },
+
+  // Leave "magic" out to keep the class's vanilla spell behaviour.
+  "magic": {
+    // Standard DFU spell names (anpc_spells lists them). Replaces the class's spells. [] = no casting.
+    "spells": ["Fireball", "Heal", "Shield"],
+    // true: each cast costs magicka. false: unlimited casting.
+    "usesMagicka": true,
+    // Max and starting magicka.
+    "maxMagicka": 150,
+    // "onAreaEntry": full again on each new visit. "rest": refills over "restHours" game hours.
+    "recovery": "onAreaEntry",
+    // Random seconds between casts [min, max].
+    "castCooldown": [4, 7],
+    // Skill in every magic school (1 to 100); higher = cheaper spells.
+    "skill": 80,
+    // Leave "healing" out to heal only itself.
+    "healing": {
+      // Heal calm ANPC allies nearby.
+      "allies": true,
+      // "friendly": also heal the player when its people like the player. "none": never.
+      "player": "friendly",
+      // true: also heal when not fighting.
+      "outsideCombat": true,
+      // Heal someone below this health fraction (0.6 = 60%).
+      "healthThreshold": 0.6
+    }
+  }
+}

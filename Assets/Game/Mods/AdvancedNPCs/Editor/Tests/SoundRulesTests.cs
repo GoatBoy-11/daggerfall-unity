@@ -19,6 +19,8 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual(SoundPools.AttackRange, SoundPools.PoolOf("attack_range_2"));
             Assert.AreEqual(SoundPools.AttackRange, SoundPools.PoolOf("attack_range"));
             Assert.AreEqual(SoundPools.Greet, SoundPools.PoolOf("greet"));
+            Assert.AreEqual(SoundPools.Halt, SoundPools.PoolOf("halt"));
+            Assert.AreEqual(SoundPools.Halt, SoundPools.PoolOf("HALT_2"));
             Assert.AreEqual(SoundPools.TalkMale, SoundPools.PoolOf("talk_male_3"));
             Assert.AreEqual(SoundPools.TalkFemale, SoundPools.PoolOf("talk_female"));
             Assert.AreEqual(SoundPools.Step, SoundPools.PoolOf("step_10"));
@@ -30,6 +32,8 @@ namespace AdvancedNPCs.Tests
         {
             Assert.IsNull(SoundPools.PoolOf("foo_1"));
             Assert.IsNull(SoundPools.PoolOf("idle"));
+            Assert.IsNull(SoundPools.PoolOf("halt_extra"));
+            Assert.IsNull(SoundPools.PoolOf("halt2"));
             Assert.IsNull(SoundPools.PoolOf("attack_"));
             Assert.IsNull(SoundPools.PoolOf("attack_x"));
             Assert.IsNull(SoundPools.PoolOf(""));
@@ -235,6 +239,52 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual("sounds.defaultSteps", key);
             Assert.IsNull(SoundRules.Read(Root("{ \"sounds\": { \"defaultSteps\": null } }"), out key, out s, new List<string>()));
             Assert.IsTrue(s.DefaultSteps);      // null: the default, as for the other optional booleans
+        }
+
+        [Test]
+        public void Read_VoiceIsOnePackOrAList()
+        {
+            string key;
+            SoundSettings s;
+            Assert.IsNull(SoundRules.Read(Root("{ }"), out key, out s, new List<string>()));
+            Assert.AreEqual(0, s.Voices.Count);
+            Assert.IsNull(SoundRules.Read(Root("{ \"sounds\": { \"voice\": \"va_mercenary_male\" } }"), out key, out s, new List<string>()));
+            CollectionAssert.AreEqual(new[] { "va_mercenary_male" }, s.Voices);
+            Assert.IsNull(SoundRules.Read(Root("{ \"sounds\": { \"voice\": [\"va_a\", \"va_b\"] } }"), out key, out s, new List<string>()));
+            CollectionAssert.AreEqual(new[] { "va_a", "va_b" }, s.Voices);
+            foreach (string bad in new[] { "\"mercenary\"", "\"va_\"", "\"va_../x\"", "\"va_a/b\"", "[]", "[\"va_a\", 3]", "7" })
+            {
+                Assert.IsNotNull(SoundRules.Read(Root("{ \"sounds\": { \"voice\": " + bad + " } }"), out key, out s, new List<string>()), bad);
+                Assert.AreEqual("sounds.voice", key, bad);
+            }
+        }
+
+        [Test]
+        public void PickVoice_SameSeedSamePackAndEveryPackUsed()
+        {
+            Assert.IsNull(SoundRules.PickVoice(new List<string>(), 5, null));
+            List<string> one = new List<string> { "va_a" };
+            Assert.AreEqual("va_a", SoundRules.PickVoice(one, 123, null));
+            List<string> two = new List<string> { "va_a", "va_b" };
+            HashSet<string> seen = new HashSet<string>();
+            for (uint seed = 0; seed < 64; seed++)
+            {
+                Assert.AreEqual(SoundRules.PickVoice(two, seed, null), SoundRules.PickVoice(two, seed, null));
+                seen.Add(SoundRules.PickVoice(two, seed, null));
+            }
+            Assert.AreEqual(2, seen.Count);
+        }
+
+        [Test]
+        public void PickVoice_LeavesOutPacksOfTheOtherGender()
+        {
+            List<string> mixed = new List<string> { "va_x_male", "va_y_female", "va_z" };
+            for (uint seed = 0; seed < 64; seed++)
+            {
+                Assert.AreNotEqual("va_y_female", SoundRules.PickVoice(mixed, seed, "Male"));
+                Assert.AreNotEqual("va_x_male", SoundRules.PickVoice(mixed, seed, "female"));
+            }
+            Assert.AreEqual("va_y_female", SoundRules.PickVoice(new List<string> { "va_y_female" }, 1, "Male"));     // nothing else: kept
         }
 
         [Test]

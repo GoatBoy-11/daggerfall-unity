@@ -54,7 +54,7 @@ namespace AdvancedNPCs.EditorTools
             data.Sections.Add(section);
 
             Section companions=new Section();companions.Name="Companions";
-            companions.Description="Recruitment limits for hired ANPC companions.";
+            companions.Description="Recruitment limits and catch-up for hired ANPC companions.";
             MultipleChoiceKey followers=new MultipleChoiceKey();followers.Name="MaxFollowers";
             followers.Description="Maximum hired companions, including those waiting elsewhere.\r" +
                 "Escort NPCs with no_companion_slot do not count.\r" +
@@ -62,6 +62,14 @@ namespace AdvancedNPCs.EditorTools
             for(int count=3;count<=10;count++)followers.Options.Add(count.ToString());
             followers.Options.Add("Unlimited (Not Recommended)");followers.Value=0;
             companions.Keys.Add(followers);
+            SliderIntKey catchUp=new SliderIntKey();catchUp.Name="CatchUpDistance";
+            catchUp.Description="Metres a following companion may fall behind before it catches up.\r" +
+                "It reappears close to you, behind you if possible, on a spot you cannot see.\r" +
+                "It also catches up after 5 seconds farther than 6 m without closing in.\r" +
+                "Waiting, fighting or fleeing companions never catch up.";
+            catchUp.Min=AdvancedNPCs.Core.FollowRecovery.MinDistance;catchUp.Max=AdvancedNPCs.Core.FollowRecovery.MaxDistance;
+            catchUp.Value=AdvancedNPCs.Core.FollowRecovery.DefaultDistance;
+            companions.Keys.Add(catchUp);
             companions.Keys.Add(Toggle("DisableFollowerBarks",
                 "Disable follower barks.\rSilences cm_ companion speech and hides the individual bark option.\rCombat voices and footsteps keep their own settings.",false));
             data.Sections.Add(companions);

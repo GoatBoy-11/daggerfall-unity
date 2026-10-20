@@ -5,6 +5,14 @@ Persistent, data-defined NPCs ("ANPCs") for Daggerfall Unity 1.9.2. Each ANPC is
 calm down over in-game hours, and keep their state (alive/dead, hostile/calm, health) through visits
 and save/load.
 
+- Allies take sides: when an ANPC is attacked (or killed outright), calm ANPCs of the same building (a guild hall's
+  members, a shop's staff, a tavern's crowd), of the same spawn group, or standing in for the same vanilla faction join
+  in if they are within 20 m and see it (within 8 m they hear it). All but cowards fight the attacker; cowards run.
+  Companions, guards and enemies keep out of it.
+- An ANPC spawned inside another person (a shown vanilla flat NPC or another ANPC on the same spot) steps to a free
+  spot close by, which becomes its home. Indoors ANPCs start facing the most open way, into the room.
+- Clicking an ANPC to talk turns it to face you.
+
 ## Folder layout
 
 ```
@@ -20,6 +28,7 @@ DaggerfallUnity_Data/StreamingAssets/ANPCs/
 - Folder names use lowercase letters, digits and `_`. Never rename a folder after release: the name keys save data.
 - Folders starting with `_` hold shared data and are not ANPCs.
 - Unknown fields in `npc.json` are reported in `Player.log` and ignored (catches typos).
+- Every JSON file the mod reads accepts `//` line and `/* */` block comments. The commented `example_*` folders (manual spawn only) and `_Examples/example_unique` (never loaded) document each field.
 - Every ANPC is a **generic** template (people that add life to towns) unless its `npc.json` says `"kind": "unique"`.
 
 ## Making a unique ANPC
@@ -150,9 +159,12 @@ folder name is the old id.
 
 - `anpc_selftest healing` — runs the focused support-healing checks (eligibility, cost, AI, animation and audio); details in `Player.log`.
 - `anpc_info [id or key]` — the ANPC in front of you (within 5 m) or that ANPC: id, key, kind, folder, bravery, mode, health, opinion, sprite set (loaded, loading, vanilla, or shown by a dead ANPC's corpse) and height, sound pools and where its footsteps come from (`steps: own`, `default` or `none`), its conversation setting (and partner and line while talking, or why it cannot talk now), its current target, distance and update rate.
+- `anpc_schedule [id or key]` — explains every schedule entry at the current game time: selected, outside hours, first unmet condition, or overridden by another slot. Includes the current activity and reports combat/fleeing/death or companion overrides.
+- `anpc_reload_schedules [folder]` — reloads only schedules from existing loaded definitions, optionally one folder. Invalid JSON, overlapping ordinary slots, bad conditions, missing packages and invalid package parameters retain that NPC's previous schedule. Other valid NPC schedules still reload. Other `npc.json` fields require a restart.
+- `anpc_route start <id or key>` / `add` / `finish` / `cancel` — records patrol waypoints while you walk and prints package JSON; see [Recording a patrol route](#recording-a-patrol-route).
 - `anpc_chat` — starts a conversation at once between the ANPC in front of you (within 5 m) and the nearest other ANPC within 4 m of it, ignoring the chance and the 2-hour wait; says why not when one of them cannot talk. See [Conversations](#conversations).
 - `anpc_topics [id or key]` — the dialogue topics of the ANPC in front of you (within 5 m) or of that ANPC: which are shown, and for the others the condition that hides them. See [Dialogue topics](#dialogue-topics).
-- `anpc_reload_dialogue` — re-reads `_Dialogue/*.json` and every `dialogue.json` without restarting (a change to `npc.json` still needs a restart).
+- `anpc_reload_dialogue` — re-reads `_Dialogue/*.json` and every `dialogue.json` without restarting. Use `anpc_reload_schedules` for schedule edits; other `npc.json` changes still need a restart.
 - `anpc_reload_assets [id]` — re-reads the sprite sets and [Sounds](#sounds) of that ANPC folder (or of all, with the default steps in `_Sounds`; `anpc_reload_assets _Sounds` re-reads only those) from disk; spawned ANPCs using them switch to the new files (also ANPCs that had no Sounds). ANPCs that had the vanilla sprite, and changes to walk/run/greet sheets or `npc.json`, take effect when they next spawn; only whether they can move at all changes at once (a set left without walk/run sheets makes them stand still, see turrets). (`anpc_reload_sprites` is the old name.)
 - `anpc_flag` — lists the dialogue flags that are set; `anpc_flag <name> on|off` sets or clears one (saved with your game).
 - `anpc_here` — in a dungeon, building or the wilderness: which templates can appear there and what happened (filter, `when`, the chance roll, how many came). See [Spawning outside towns](#spawning-outside-towns).
@@ -181,9 +193,9 @@ Performance: ANPCs far from you update their animation and calm decisions less o
 
 Use `../../_Schemas/sprites.schema.json` in a `sprites` folder and `../_Schemas/dialogue.schema.json` in `_Dialogue/` or an ANPC folder. The mod ignores the `"$schema"` member. `Tools~/check-schemas.py` keeps the schemas in step with the mod's own field lists.
 
-## Guard authority and arrests
+## Guard authority and enforcement
 
-Set `"guard": true` in a peaceful human ANPC's `npc.json` to give it arrest authority.
+Set `"guard": true` in a peaceful human ANPC's `npc.json` to give it guard authority.
 The supplied `castle_guard_1` example enables it. Its normal class, sprites, combat tuning,
 and schedule stay in use; `guard_spot` alone still only holds a post. Restart DFU after
 changing the definition.
@@ -217,13 +229,23 @@ NPC identities. Unknown actors, guards, companions and random-per-visit identiti
 rejected. Register offences from an event that knows the actual offender; ordinary
 hostility is not automatically treated as evidence of crime.
 
-Non-brave NPC suspects surrender when caught. Brave suspects resist until at or below
-25% health and can be killed while resisting. Arrest clears the offence and hostility,
-records one game day of custody, and removes the actor without a death or corpse. It
-can spawn again on the next area entry after custody expires. Pending offences and
-custody survive saving/loading; saves predating this feature default to no offence.
-Pursuit targets and paths are recalculated after loading. `anpc_info` shows guard and
-wanted status. `anpc_selftest guards` runs the focused runtime checks outdoors in a town.
+Guards attack offending NPCs and try to kill them, regardless of bravery or remaining
+health. NPCs do not surrender to guards and are not taken into custody. Death uses the
+normal corpse and saved-death behaviour. Old saves' custody timers are ignored, so
+previously detained NPCs may spawn again on their next area entry. Pending offences
+still survive saving/loading. Pursuit targets and paths are recalculated after loading.
+`anpc_info` shows guard and wanted status. `anpc_selftest guards` runs the focused
+runtime checks outdoors in a town.
+
+Guards shout when starting a pursuit, then every 15-30 seconds at random while pursuing
+(vanilla guards repeat every 3-9 seconds). The timer stops while paused, AI is disabled,
+or the guard is paralyzed. Add `Sounds/halt.wav`, `halt.ogg` or `halt.mp3`
+to the ANPC's folder to replace the vanilla "Halt!"; numbered variants such as
+`halt_1.wav` and `halt_2.wav` are picked randomly. Halt ignores `greetChance` and
+`combatChance`, but follows the ANPC voice mode, pitch and volume settings. In ANPC
+voice mode it waits for a configured clip to load, using the vanilla shout if none
+can be decoded; without a halt file the vanilla shout plays immediately. Vanilla
+voice mode always uses the default shout, and Off mutes both.
 
 ## AI packages and schedules
 
@@ -268,8 +290,11 @@ Reference that filename (without `.json`) in any unique or generic NPC:
 - Routes use direct collision-aware movement along authored waypoints. Place points around obstacles.
   Automatic pathfinding, opening doors, changing interiors and C# extension handlers are unsupported.
   Named spots and sequences compose routines within the loaded area.
-- After 10 active seconds without progress, a coordinate-based package falls back to current AI until
-  the next schedule occurrence, a time jump or a reload. Paused/interrupted time does not count.
+- After 10 active seconds without progress, a coordinate-based package falls back to current AI and
+  retries the same target after 15 active seconds, at most twice per package step. Patrol waypoint and
+  sequence progress are retained; sequence timing pauses during fallback. After both retries fail,
+  current AI runs until the next occurrence, a time jump or a reload. Paused/interrupted time does not count.
+  Named spots keep their existing alternative-post/retry behaviour; `wander` and `wander_civilian` pick a new random point instead.
 - On save load or area entry, the current schedule is selected and navigation starts fresh.
   Resting/travel/time jumps do not replay missed activities. Package waits use in-game seconds.
 
@@ -283,8 +308,13 @@ Reference that filename (without `.json`) in any unique or generic NPC:
 | `play_animation` | `animation` (default `idle`), `only_interrupt_at_combat` (default false). Hold position and repeat full cycles; numbered names are exact, base names randomly select numbered variants without immediate repeats. |
 | `wander` | `center` (default `[0,0,0]`), `radius` (0–50, default 8), `pause` (0–3600 game seconds, default 3), `run` (default false). |
 | `wander_civilian` | `center` (default `[0,0,0]`), `radius` (0–50 m, default 40). Walk around town using vanilla road/surface preferences; occasionally stop for 1–4 full animation cycles. |
+| `seek_shelter` | `radius` (1–24 m, default 16), `spot` (preferred named spot ids/tags; default `shelter`), `run` (false). Find reachable outdoor cover and wait beneath it. |
 | `travel_to` | Required `target: [x,y,z]`; `run` (default false). Hold at the target, returning after displacement. |
 | `patrol` | Required `points: [[x,y,z], ...]` (2–32); `pauseAtStops` (0–3600 game seconds, default 10), `run` (default false). Loop through the points. |
+| `eat` | `mealCycles` (`[min,max]` 1–50, default `[2,5]`), `breakCycles` (`[min,max]` 0–50, default `[1,3]`). Stay put and eat/drink, see [Eating and drinking](#eating-and-drinking). |
+| `chore` | `center`, `radius` (0–50, default 4), `animation` (family/sheet or list, default `sweep`, `chop`, `scrub`, `work`), `cycles` (`[min,max]` 1–50, default `[2,4]`), `run`. Work around home, see [Chores, hawking and socializing](#chores-hawking-and-socializing). |
+| `hawk` | `range` (1–30 m, default 6), `interval` (`[min,max]` seconds, default `[10,20]`), `animation` (default `hawk`). Call out to the passing player. |
+| `socialize` | `radius` (2–50 m, default 15), `interval` (`[min,max]` seconds, default `[20,40]`). Walk over to another ANPC and start a conversation. |
 
 `wander_civilian` chooses its animation pool at each stop: 50% `idle*`, 50% available
 `pray*`, `play*`, `emote*` or `dance*`. Names use the normal bare name or `_N` suffix
@@ -311,11 +341,72 @@ Running respects `combat.canRun` and uses `combat.runSpeed` as its multiplier.
 Use `Schemas~/package.schema.json` for package autocomplete and the updated NPC schema for schedules.
 
 - `anpc_selftest packages`: focused in-game checks of takeover, holds, fallback and combat interruption.
-- `anpc_reload_packages`: re-read package JSON files and restart the current activities. Schedule changes
-  in `npc.json` require a game restart.
+- `anpc_reload_packages`: re-read package JSON files and restart the current activities.
+- `anpc_reload_schedules [folder]`: validate and replace schedules from `npc.json`, then restart affected
+  activities and refresh requested animation families. Existing generic instances and NPCs previously
+  without a schedule update too. The previous schedule remains running when a replacement is invalid;
+  rejection details appear in the console and `Player.log`. Checks use the currently loaded package library
+  and variable definitions, so reload new packages first; adding/changing variable declarations needs a restart.
+  An empty array, `null`, or removing `schedule` clears the routine. Nothing is written to definitions or saves.
+- `anpc_schedule [id or key]`: inspect selection without changing the clock, conditions or priority rules.
+  A selected entry may still be interrupted or fail at runtime; the current-activity line reports that separately.
 - `anpc_info [id or key]`: includes selected slot/package, fallback reason and interruption status.
 - `anpc_spawn package_tester`: opt-in example with day patrol, evening wander and night stand.
   From 07:00 to 08:00 it uses its original AI. It does not spawn automatically.
+
+### Recording a patrol route
+
+Stand at the first waypoint near a spawned ANPC and run `anpc_route start <id or key>`.
+This captures the first point relative to that NPC's original home, rather than its current moving position.
+Walk around obstacles, running `anpc_route add` at each waypoint, then `anpc_route finish`.
+The console and `Player.log` receive a complete patrol package. Save it under `_Packages/<name>.json`,
+run `anpc_reload_packages`, and reference `<name>` in the NPC's schedule. Use `anpc_reload_schedules`
+after editing that schedule. The recorder never writes files or changes the NPC's routine.
+
+Routes require 2-32 points, each within 100 metres of home on each axis. Record within the same loaded
+town, building or dungeon; changing area or teleporting/repositioning the NPC prevents further capture
+until you return or start again. `anpc_route cancel` discards an unfinished route. An unfinished route
+cannot be replaced by another `start`. This records authored waypoints, without automatic pathfinding.
+
+### Seeking outdoor shelter
+
+Use the supplied `_Packages/seek_shelter.json` and add a conditional entry above the ordinary routine:
+
+```json
+"schedule": [
+  { "package": "seek_shelter", "when": { "outdoors": true, "bad_weather": true } },
+  { "package": "wander_civilian" }
+]
+```
+
+`bad_weather` is a shared boolean condition for schedules, dialogue and spawn filters. `true` means
+rain, thunderstorms or snow; `false` means none of those. Overcast and fog alone do not count.
+It describes the weather independently of whether the NPC is indoors, so combine it with `outdoors`
+for shelter routines. Clearing weather selects the normal scheduled package again.
+
+An NPC already under usable cover stays there. Otherwise it tries up to 16 nearby matching named
+spots, respecting their capacity, then samples up to 64 surrounding points within `radius`. Named
+spots are preferred destinations, but must also have genuine solid cover, floor, standing clearance
+and a directly accessible walking route. Create outdoor spots with `anpc_spot_pos`, tag them
+`shelter`, and run `anpc_reload_spots`. A custom `spot` selector changes which authored spots are
+preferred; automatic cover remains available if none is usable.
+
+Cover is tested across the NPC's width, up to eight metres above its head. Trees represented by
+billboards, triggers, people, walls, low ceilings and gaps in the walking surface do not qualify.
+Automatic destinations reserve a small local cell to limit crowding. Routes stay within the loaded
+outdoor area and use clear straight approaches; the NPC does not open doors, enter buildings,
+teleport or navigate around corners. Narrow cover can be missed by the bounded sampling; authored
+spots make such destinations discoverable.
+
+With no usable cover, ordinary wander/leash AI takes over and the search retries after ten active
+seconds. This fallback is the original AI, rather than the next schedule entry. Cover and access are
+rechecked every two active seconds; blocked routes are abandoned after ten seconds without progress.
+Combat, slot changes, death, despawn and reload release reservations. A sequence can use the package
+with a duration, which starts on arrival. Stationary sprite sets can shelter where they already stand.
+No sprite sheets, save fields or automatic changes to existing NPCs are required.
+
+`anpc_info` reports seeking, sheltered, or why ordinary AI is being used. `shelter_tester` is a manual-only
+example (`anpc_spawn shelter_tester` after installing the example files); it never spawns automatically.
 
 ### Repeated animation packages
 
@@ -333,7 +424,7 @@ Names are case-insensitive. Each complete cycle uses the set's FPS and the selec
 With multiple variants, the next cycle picks a different one at random. No pose changes mid-cycle.
 Only standard sheets and custom sheets referenced by valid package schedules are loaded.
 Changing a package's animation then running `anpc_reload_packages` also refreshes affected sprite sets.
-New frames/sheets require `anpc_reload_assets`; NPC schedule changes require restarting DFU.
+New frames/sheets require `anpc_reload_assets`; use `anpc_reload_schedules` for NPC schedule changes.
 
 Greetings, conversations, healing, combat and fleeing interrupt playback; resuming restarts at the first
 frame. Ending the slot releases the animation immediately. These are visual loops: selecting an attack
@@ -476,16 +567,19 @@ It never toggles an open door shut, picks locks or bashes. Locked/magically held
 and doors carrying linked actions are left for the player. A short door posture lowers the collision
 capsule to fit common low lintels, keeps the feet anchored, and restores height when there is clearance.
 
-Only a hired companion actively following the player can use teleport catch-up. After six active seconds
-at least 30 m behind, or ten seconds without useful progress beyond 5 m, it may recover onto checked
-floor near the player. Both the follower and destination must be out of sight. The same living entity is
-moved, preserving health and contract; no respawn or healing occurs. Known locked/special/action-linked
-doors block recovery. Waiting, dismissed, fighting/fleeing, paused or deliberately held companions do
-not catch up. Ordinary follow packages can steer/open ordinary doors but do not teleport.
+Only a hired companion actively following the player can use teleport catch-up. After two active seconds
+at least `CatchUpDistance` behind (mod setting, Companions section, 8-50 m, default 15 m), or five seconds
+farther than 6 m without closing in by at least 1 m (sliding along a wall or circling a corner counts as
+stuck), it reappears on checked floor near the player: behind the player's view first, else beside or
+around the player. The destination must be out of sight; the companion itself may be in view when it
+leaves. The same living entity is moved, preserving health and contract; no respawn or healing occurs.
+Only a closed locked or magically held door on the straight line between companion and player blocks
+recovery. Waiting, dismissed, fighting/fleeing or deliberately held companions do not catch up.
+Ordinary follow packages can steer/open ordinary doors but do not teleport.
 
-Catch-up uses the existing floor, wall and person-clearance checks and retries when there is no safe
-hidden spot. Trail/recovery clocks are temporary, reset on target/area changes and interruptions, and
-add no save-format fields. `anpc_info` reports clear route, recent route, detouring, opening a door or
+Catch-up uses the existing floor, wall and person-clearance checks and retries each second when there is
+no safe hidden spot. Trail/recovery clocks are temporary: menus and pauses freeze them, target/area
+changes and interruptions (combat, talk, holds) reset them, and they add no save-format fields. `anpc_info` reports clear route, recent route, detouring, opening a door or
 waiting at a protected door. `anpc_selftest navigation` exercises the rogue on temporary collision fixtures.
 
 ### Companion combat and orders
@@ -834,8 +928,8 @@ Without an NPC context (e.g. spawn filters), the current player area is used.
 
 Omit the indoor entry to use the NPC's ordinary AI indoors, or replace it with another package
 such as `stand`. Conditions may be combined with hours or weather; first matching conditional
-entry wins. With no matching entry, the NPC uses its ordinary AI. Schedule edits in `npc.json`
-require a game restart.
+entry wins. With no matching entry, the NPC uses its ordinary AI. Use `anpc_reload_schedules`
+after editing schedules in `npc.json`.
 
 ### Broader schedule conditions
 
@@ -861,6 +955,43 @@ Every clause must hold; `any` is an OR of condition objects. Conditions are reev
 and the first eligible conditional schedule entry wins. Optional outer `hours` still use exact HH:mm;
 `when.hours` follows the existing whole-hour condition format. Invalid conditions warn and cannot
 activate a package. NPCs with old schedules retain their existing selection rules.
+
+### Eating and drinking
+
+The `eat` package (supplied as `_Packages/eat.json`) holds the NPC where it is and plays its `eat*` and `drink*`
+sheets: a bout of `mealCycles` full cycles, each cycle picking eat or drink at random (only one family if the set has
+only one), then a break of `breakCycles` idle cycles, repeated with new random counts. Variants of a family avoid
+immediate repeats. A set without eat or drink sheets plays only idle; without idle sheets the bouts follow each other;
+`breakCycles: [0, 0]` also removes the breaks. NPCs with vanilla sprites simply stand.
+
+```json
+"schedule": [{ "hours": ["12:00", "13:00"], "package": "eat" }]
+```
+
+Each eat or drink cycle starts an `eat` / `drink` sound (no chance roll): the ANPC's own `Sounds/eat_*` / `drink_*`
+files, else the shared `_Sounds` ones. A new one is skipped while the previous bite or gulp still plays, so they never
+overlap; keep these clips shorter than one cycle. They follow the pitch settings and are muted only by
+**ANPC sounds: Off**. Greetings, talk, combat and fleeing interrupt the routine; calm again, it starts a fresh bout.
+`eat*` and `drink*` sheets load only for NPCs whose schedule uses the package.
+
+### Chores, hawking and socializing
+
+**`chore`** (`_Packages/chore.json`): walks to a random point within `radius` of `center` (home), plays 2–4 (`cycles`)
+full cycles of a chore sheet, then picks the next point. Chore sheets are any of `sweep*`, `chop*`, `scrub*` and
+`work*` the set has (variants picked at random), or the families/sheets listed in `animation`
+(`"animation": "work"`, `["sweep", "dust_2"]`). A set with none of them idles at each stop; vanilla sprites stand
+2–6 seconds. `radius: 0` works on the spot. `man_with_a_broom` sweeps with it by day.
+
+**`hawk`** (`_Packages/hawk.json`): stays put. When the player is within `range` and in sight, it turns to face them,
+plays a random `Sounds/hawk_*` line (no chance roll; ANPC voice mode only) and one cycle of its `hawk*` sheet (or the
+`animation` named), falling back to a `greet*` sheet, then a `talk*` sheet; with none of them it only turns. Then it
+waits `interval` active seconds before the next call. Without hawk sound files the call is silent.
+
+**`socialize`** (`_Packages/socialize.json`): every `interval` active seconds it looks for the nearest ANPC within
+`radius` (same town, building or dungeon) that could talk right now, walks up to it and starts a
+[conversation](#conversations). Both need `"conversation"` on and `talk` sounds, and the usual 2-game-hour wait per
+pair applies; a partner not reached within 15 seconds is dropped until the next try. Between conversations it stands.
+`anpc_info` shows what it is doing (walking over, talking, nobody to talk to, why it cannot talk).
 
 ### Protecting an animation from social interruptions
 
@@ -1246,6 +1377,7 @@ Every condition in a `when` must hold. For "or", use `"any": [ { … }, { … } 
 | `outdoors` | `true` | the NPC is outside, in town or wilderness (`false`: inside) |
 | `season` | `["autumn", "winter"]` | it is one of these seasons (`spring`, `summer`, `autumn`/`fall`, `winter`) |
 | `weather` | `"rain"` | the weather is one of `clear`, `overcast`, `rain` (storms count), `storm`, `snow` |
+| `bad_weather` | `true` | rain, thunderstorms or snow; `false` requires none of these, regardless of indoors/outdoors |
 | `region` / `town` | `"Daggerfall"` | the player is in one of these regions / towns |
 | `minLevel` / `maxLevel` | `5` | the player's level is at least / at most this |
 | `playerRace` | `"Dark Elf"` | the player is one of these races |
@@ -1346,6 +1478,9 @@ ANPCs/wench/
 - For characters with a separate weapon mesh, `Tools~/render-character-sprites.py` includes both meshes in rendering and bounds: `--mesh body,sword`. `--keep-last death_1` keeps the final corpse pose. The Dunmer example documents a complete command.
 - A character whose idle holds a weapon above its head (a guard's upright spear) would look smaller in game, because the standing height is measured from the tallest idle pixel. Add `--standing-mesh body` (the body mesh alone) and the renderer writes `"standingHeight"` (pixels above the feet row, without the weapon) into `sprites.json`; the game then sizes the person by the body.
 - Sprite sets load when an ANPC using them appears (it may show up a moment after spawning) and unload a minute after the last one is gone; at startup only the files and their sizes are checked.
+  Sheets are decoded and compressed on background threads, so loading does not stall the game; only 8-bit, non-interlaced
+  PNGs take that path (other PNGs still load, on the main thread, with a short stall each). Big sheets still cost video
+  memory while shown: every 1000x1000 pixels is about 1 MB.
 - Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `run*` (running), `hit*` (hurt), `attack*` (attacking), `attack_range*` or `attack_ranged*` (shooting a bow or throwing, see `rangedAtDistance`), `cast*` (spellcasting), `greet*` (greeting), `talk*` (speaking in a [conversation](#conversations)), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing run sheets use walk sheets and missing walk sheets use run sheets, then idle; missing hit/attack sheets use idle; greet sheets have no fallback; missing talk sheets use idle; a set needs at least one idle sheet.
 - Turret: a set with no `walk*` and no `run*` sheet never moves: it does not wander, chase, flee or get knocked
   back, but still turns to its target and attacks, shoots or casts from where it stands. Like any DFU enemy it only
@@ -1398,9 +1533,10 @@ ANPCs/wench/
     step_1.ogg    step_2.ogg   step_3.ogg
 ```
 
-- A file's name says when it plays: `greet`, `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `heal` (self or support healing; no voice fallback), `hit` (hurt but alive), `death`, `step` and `talk` (a line in a [conversation](#conversations); always plays there, no chance roll, and nowhere else; `talk_male` / `talk_female` for one gender only). A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
+- A file's name says when it plays: `eat` / `drink` (each eat/drink cycle of the [eat package](#eating-and-drinking)), `hawk` (each call of the [hawk package](#chores-hawking-and-socializing)), `greet`, `halt` (guard pursuit warning; always plays, vanilla fallback), `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `heal` (self or support healing; no voice fallback), `hit` (hurt but alive), `death`, `step` and `talk` (a line in a [conversation](#conversations); always plays there, no chance roll, and nowhere else; `talk_male` / `talk_female` for one gender only). A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
 - Sounds follow what happens, not the sprite, so an ANPC with the vanilla sprite can have them too.
-- Default footsteps: `step_*` files in the shared `ANPCs/_Sounds` folder play for every ANPC whose own `Sounds` folder has no `step` files (the examples ship four dirt-ground steps there). They play 15% quieter than an ANPC's own steps. An ANPC with step files of its own uses only those; `"defaultSteps": false` turns the defaults off for one ANPC. Other names in `_Sounds` are ignored (logged).
+- Default footsteps: `step_*` files in the shared `ANPCs/_Sounds` folder play for every ANPC whose own `Sounds` folder has no `step` files (the examples ship four dirt-ground steps there). They play 15% quieter than an ANPC's own steps. An ANPC with step files of its own uses only those; `"defaultSteps": false` turns the defaults off for one ANPC.
+- Default eat and drink sounds: `eat_*` / `drink_*` in `_Sounds` (CC0 crunches and swallows ship there) play for the eat package where the ANPC's own folder has none of that pool. Other names in `_Sounds` are ignored (logged).
 - `death` always plays. `step` plays on every footfall while walking or running, but only when you are within `stepDistance`. The others play by chance.
 - With a walk/run sheet, footsteps fall on its first and middle frame; `"stepFrames": [2, 6]` on a `walk*`/`run*` animation in `sprites.json` picks the frames (counted from 1). Without one, a step every 0.5 s walking, 0.33 s running.
 - With **ANPC sounds** set to *ANPC* (the default, see [Settings](#settings)): DFU's own voice grunts (attack, pain) are replaced for the events the folder has sounds for, and kept for the others where DFU plays them: a melee attack, and a hit by a weapon (never for bow shots, spells or damage over time). While the folder's sounds are still loading, or when none of an event's files could be read, DFU's grunt stands in. A creature base class (an orc, say) with `attack` sounds also stops its own attack growl. Weapon swing, impact and parry sounds, and a creature's idle barks, are never changed.

@@ -36,6 +36,12 @@ namespace AdvancedNPCs.Core
         public double Radius = 8;
         public double Pause = 3;
         public bool Run;
+        public int MealMin = 2, MealMax = 5, BreakMin = 1, BreakMax = 3;
+        /// <summary>Chore: sheet families (or exact sheets) played at each stop, and full cycles per stop.</summary>
+        public List<string> ChoreAnimations = new List<string>(PackageAnimations.ChoreFamilies);
+        public int CyclesMin = 2, CyclesMax = 4;
+        /// <summary>Hawk: active seconds between calls; socialize: between conversation attempts.</summary>
+        public double IntervalMin = 10, IntervalMax = 20;
     }
 
     public static class PackageParser
@@ -50,8 +56,13 @@ namespace AdvancedNPCs.Core
         public static readonly string[] AnimationKeys = { "animation", "only_interrupt_at_combat" };
         public static readonly string[] WanderKeys = { "center", "radius", "pause", "run" };
         public static readonly string[] CivilianKeys = { "center", "radius" };
+        public static readonly string[] ShelterKeys = { "radius", "spot", "run" };
         public static readonly string[] TravelKeys = { "target", "run", "spot" };
         public static readonly string[] PatrolKeys = { "points", "pauseAtStops", "run" };
+        public static readonly string[] EatKeys = { "mealCycles", "breakCycles" };
+        public static readonly string[] ChoreKeys = { "center", "radius", "animation", "cycles", "run" };
+        public static readonly string[] HawkKeys = { "range", "interval", "animation" };
+        public static readonly string[] SocialKeys = { "radius", "interval" };
 
         public static AiPackage Parse(string id, string json, out string error)
         {
@@ -102,8 +113,13 @@ namespace AdvancedNPCs.Core
                 case "play_animation": allowed = AnimationKeys; break;
                 case "wander": allowed = WanderKeys; break;
                 case "wander_civilian": allowed = CivilianKeys; break;
+                case "seek_shelter": allowed = ShelterKeys; break;
                 case "travel_to": allowed = TravelKeys; break;
                 case "patrol": allowed = PatrolKeys; break;
+                case "eat": allowed = EatKeys; break;
+                case "chore": allowed = ChoreKeys; break;
+                case "hawk": allowed = HawkKeys; break;
+                case "socialize": allowed = SocialKeys; break;
                 default: error = "unknown type " + s.Type; return null;
             }
             List<string> unknown = FieldReader.UnknownKeys(p, allowed);
@@ -206,6 +222,12 @@ namespace AdvancedNPCs.Core
                 if (!Number(p, "radius", civilian ? 40 : 8, 0, 50, out s.Radius) || !Number(p, "pause", civilian ? 0 : 3, 0, 3600, out s.Pause))
                 { error = "radius must be 0-50 metres and pause 0-3600 game seconds"; return null; }
             }
+            if (s.Type == "seek_shelter")
+            {
+                if (!Number(p, "radius", 16, 1, 24, out s.Radius))
+                { error = "radius must be 1-24 metres"; return null; }
+                if (s.Spots.Count == 0) s.Spots.Add("shelter");
+            }
             if (s.Type == "travel_to")
             {
                 object target;
@@ -228,7 +250,67 @@ namespace AdvancedNPCs.Core
                 if (!Number(p, "pauseAtStops", 10, 0, 3600, out s.Pause))
                 { error = "pauseAtStops must be 0-3600 game seconds"; return null; }
             }
+            if (s.Type == "hawk")
+            {
+                if (!Number(p, "range", 6, 1, 30, out s.Radius)) { error = "range must be 1-30 metres"; return null; }
+                if ((p.ContainsKey("animation") && p["animation"] == null) ||
+                    FieldReader.Text(p, "animation", "hawk", out s.Animation) != null || !PackageAnimations.ValidName(s.Animation))
+                { error = "animation must be a sheet or family name without .png (letters, digits and underscores)"; return null; }
+            }
+            if (s.Type == "socialize")
+            {
+                if (!Number(p, "radius", 15, 2, 50, out s.Radius)) { error = "radius must be 2-50 metres"; return null; }
+                s.IntervalMin = 20; s.IntervalMax = 40;
+            }
+            if (s.Type == "hawk" || s.Type == "socialize")
+            {
+                object raw;
+                if (p.TryGetValue("interval", out raw))
+                {
+                    List<object> pair = raw as List<object>;
+                    if (pair == null || pair.Count != 2 || !(pair[0] is double) || !(pair[1] is double) ||
+                        (double)pair[0] < 1 || (double)pair[1] > 3600 || (double)pair[0] > (double)pair[1])
+                    { error = "interval must be ordered [min,max] seconds, each 1-3600"; return null; }
+                    s.IntervalMin = (double)pair[0]; s.IntervalMax = (double)pair[1];
+                }
+            }
+            if (s.Type == "chore")
+            {
+                if (p.ContainsKey("center") && (s.Center = Point(p["center"])) == null)
+                { error = "center must be [x,y,z] metre offsets, each -100 to 100"; return null; }
+                s.Pause = 0;
+                if (!Number(p, "radius", 4, 0, 50, out s.Radius)) { error = "radius must be 0-50 metres"; return null; }
+                if (!Range(p, "cycles", 1, 50, ref s.CyclesMin, ref s.CyclesMax))
+                { error = "cycles must be ordered [min,max] whole cycles 1-50"; return null; }
+                if (p.ContainsKey("animation"))
+                {
+                    List<string> names = p["animation"] is string ? new List<string> { (string)p["animation"] } : null;
+                    string nameError = names != null ? null : FieldReader.Texts(p, "animation", out names);
+                    if (nameError != null || names == null || names.Count == 0 || names.Count > 16 || !names.TrueForAll(PackageAnimations.ValidName))
+                    { error = "animation must be a sheet/family name or a list of 1-16 (letters, digits and underscores)"; return null; }
+                    s.ChoreAnimations = names;
+                }
+            }
+            if (s.Type == "eat")
+            {
+                if (!Range(p, "mealCycles", 1, 50, ref s.MealMin, ref s.MealMax) || !Range(p, "breakCycles", 0, 50, ref s.BreakMin, ref s.BreakMax))
+                { error = "mealCycles must be ordered [min,max] whole cycles 1-50; breakCycles 0-50"; return null; }
+            }
             return s;
+        }
+
+        /// <summary>An optional ordered [min,max] pair of whole numbers within limits; keeps the defaults when absent.</summary>
+        static bool Range(Dictionary<string, object> p, string name, int lowest, int highest, ref int min, ref int max)
+        {
+            object raw;
+            if (!p.TryGetValue(name, out raw)) return true;
+            List<object> pair = raw as List<object>;
+            if (pair == null || pair.Count != 2 || !(pair[0] is double) || !(pair[1] is double)) return false;
+            double a = (double)pair[0], b = (double)pair[1];
+            if (a != Math.Floor(a) || b != Math.Floor(b) || a < lowest || b > highest || a > b) return false;
+            min = (int)a;
+            max = (int)b;
+            return true;
         }
 
         internal static bool Number(Dictionary<string, object> p, string name, double fallback, double min, double max, out double value)

@@ -53,7 +53,7 @@ namespace AdvancedNPCs
                 def.Sounds.CombatChance=def.Sounds.GreetChance=0;
                 Check("barks use their own schedule rather than combat or greet chance",voice.Play(CompanionBarkRules.Bark),"bark count="+voice.Played(CompanionBarkRules.Bark));
                 var first=voice.LastVoice;voice.Play(CompanionBarkRules.Inn);
-                Check("new companion speech interrupts its preceding clip",!first.isPlaying && voice.SpeechSourcesPlaying==1 && voice.LastSpeechPool==CompanionBarkRules.Inn,"sources="+voice.SpeechSourcesPlaying);
+                Check("new companion speech interrupts its preceding clip",(!first.isPlaying || voice.FadingOut(first)) && voice.SpeechSourcesPlaying==1 && voice.LastSpeechPool==CompanionBarkRules.Inn,"sources="+voice.SpeechSourcesPlaying);
                 otherVoice.Play(CompanionBarkRules.Bark);
                 Check("different companions may speak at the same time",voice.SpeechSourcesPlaying==1 && otherVoice.SpeechSourcesPlaying==1,"own="+voice.SpeechSourcesPlaying+", other="+otherVoice.SpeechSourcesPlaying);
                 voice.OnSheetFrame(new SpriteAnimation{Frames=2},0);

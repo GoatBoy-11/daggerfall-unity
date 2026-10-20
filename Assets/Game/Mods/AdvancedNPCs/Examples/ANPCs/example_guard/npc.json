@@ -1,0 +1,27 @@
+// EXAMPLE: a town guard who holds a post and arrests wanted players.
+// Never spawns by itself. Try it in game with:  anpc_spawn example_guard
+{
+  "$schema": "../_Schemas/npc.schema.json",
+
+  "kind": "generic",
+  "name": "Example Guard",
+  "gender": "Male",
+  "baseClass": "Knight",
+  "bravery": "Brave",
+
+  // How far (metres) it spots enemies and wanted players.
+  "aggroRange": 20,
+
+  // true: chases players with an active crime and offers DFU's surrender; hunts NPCs reported for crimes.
+  "guard": true,
+
+  "spawn": { "count": [0, 0] },
+
+  "schedule": [
+    // Day: hold the spot where the schedule started, playing an idle now and then (every 6-15 s).
+    // Add "position": [x, y, z] from anpc_pos, or "spot": "<named spot>", for a fixed post.
+    { "hours": ["06:00", "22:00"], "package": "guard_spot", "parameters": { "idleInterval": [6, 15] } },
+    // Night: stand still.
+    { "package": "stand" }
+  ]
+}

@@ -16,7 +16,7 @@ namespace AdvancedNPCs.Core
     /// Minimal JSON reader with no Unity dependency. UnityEngine.JsonUtility cannot fill nested objects of
     /// classes from DFU's runtime-compiled mod assembly, so definitions are read with this instead.
     /// Objects become Dictionary&lt;string, object&gt; (a repeated key keeps the last value), arrays List&lt;object&gt;,
-    /// numbers double, plus string, bool and null.
+    /// numbers double, plus string, bool and null. // and /* */ comments are skipped.
     /// </summary>
     public static class Json
     {
@@ -218,10 +218,35 @@ namespace AdvancedNPCs.Core
             return line;
         }
 
+        /// <summary>Skips whitespace and // line or /* block */ comments, so authors can annotate files (JSONC).</summary>
         static void SkipWhitespace(string text, ref int pos)
         {
-            while (pos < text.Length && char.IsWhiteSpace(text[pos]))
-                pos++;
+            while (pos < text.Length)
+            {
+                if (char.IsWhiteSpace(text[pos]))
+                {
+                    pos++;
+                    continue;
+                }
+                if (text[pos] != '/' || pos + 1 >= text.Length)
+                    return;
+                if (text[pos + 1] == '/')
+                {
+                    while (pos < text.Length && text[pos] != '\n')
+                        pos++;
+                }
+                else if (text[pos + 1] == '*')
+                {
+                    int end = text.IndexOf("*/", pos + 2, StringComparison.Ordinal);
+                    if (end < 0)
+                        throw Error("unterminated /* comment", text, pos);
+                    pos = end + 2;
+                }
+                else
+                {
+                    return;
+                }
+            }
         }
 
         /// <summary>Position as line and column (1-based), which editors show, plus the character offset.</summary>
