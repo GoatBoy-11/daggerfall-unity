@@ -1051,6 +1051,10 @@ enemies. Bravery still applies (a Coward enemy runs).
   switch is saved with your game. Other mods can do the same with `AdvancedNpcsMod.Instance.SetHostile(key, true)`
   or the mod message `"SetHostile"` with data `"<key>|on"` / `"<key>|off"`.
 - Enemies spawn where any ANPC spawns: unique ones at their place, generic ones in towns, and with `anpc_spawn`.
+- Killer Instincts (with Vanilla Combat Event Handler): ANPCs are DFU enemies underneath, so it gives them its
+  special moves by `baseClass` (charges for most, leaps for Nightblade to Barbarian, cleaves for Barbarian and Knight,
+  back-dashes for Mage, Battlemage, Archer, Ranger and the like). Spells from a `magic` block are cast once by
+  ANPC itself; Killer Instincts does not cast them a second time.
 
 ### Combat tuning
 

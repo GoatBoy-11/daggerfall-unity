@@ -45,6 +45,18 @@ namespace AdvancedNPCs
                 d.Magic.UsesMagicka = false;
                 b.State.magicCooldown = 0;
                 Check("magic unlimited works with zero magicka", magic.TryCast(heal) && b.EntityBehaviour.Entity.CurrentMagicka == 0, b.Status);
+                // A listener like Killer Instincts' (it re-casts a readied spell) must not hear our casts, and stays subscribed.
+                EntityEffectManager fx = b.GetComponent<EntityEffectManager>();
+                int heard = 0;
+                EntityEffectManager.OnNewReadySpellEventHandler listener = delegate { heard++; };
+                fx.OnNewReadySpell += listener;
+                b.State.magicCooldown = 0;
+                bool quietCast = magic.TryCast(heal);
+                object kept = typeof(EntityEffectManager).GetField("OnNewReadySpell",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(fx);
+                fx.OnNewReadySpell -= listener;
+                Check("magic casts once: other mods' ready-spell listeners are muted, then restored",
+                    quietCast && heard == 0 && kept != null, "cast=" + quietCast + ", heard=" + heard + ", kept=" + (kept != null));
                 b.State.magicCooldown = 0;
                 b.EntityBehaviour.Entity.IsSilenced = true;
                 Check("magic unlimited still obeys silence", !magic.TryCast(heal), b.Status);
