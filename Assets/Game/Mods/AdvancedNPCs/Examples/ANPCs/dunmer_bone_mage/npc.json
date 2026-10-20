@@ -1,0 +1,47 @@
+{
+  "kind": "generic",
+  "name": "Dunmer Bone Mage",
+  "race": "DarkElf",
+  "gender": "Male",
+  "baseClass": "Sorcerer",
+  "bravery": "Normal",
+  "nameList": "dunmer_morrowind",
+  "spriteHeight": 2.03,
+  "wanderRadius": 4,
+  "portrait": "dunmer_bone_mage",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Mages Guild",
+        "Tavern"
+      ],
+      "chance": 12,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.45,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

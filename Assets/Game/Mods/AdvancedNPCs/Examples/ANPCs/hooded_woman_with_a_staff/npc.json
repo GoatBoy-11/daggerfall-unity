@@ -1,0 +1,30 @@
+{
+  "kind": "generic",
+  "name": "Hooded Woman with a Staff",
+  "race": "Redguard",
+  "gender": "Female",
+  "baseClass": "Mage",
+  "bravery": "Normal",
+  "spriteHeight": 2.075,
+  "wanderRadius": 2,
+  "stayNear": 2,
+  "portrait": "hooded_woman_with_a_staff",
+  "replaces": [
+    "184.1"
+  ],
+  "replacePortrait": false,
+  "replaceName": false,
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.4,
+    "canRun": true
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

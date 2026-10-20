@@ -1,0 +1,47 @@
+{
+  "kind": "generic",
+  "name": "Altmer in Orange Robes",
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Mage",
+  "bravery": "Prudent",
+  "nameList": "default_highelf",
+  "spriteHeight": 2.2,
+  "wanderRadius": 4,
+  "portrait": "altmer_in_orange_robes",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Mages Guild",
+        "Library"
+      ],
+      "chance": 20,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.45,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "kind": "generic",
+  "name": "Turbaned Merchant",
+  "race": "Redguard",
+  "gender": "Male",
+  "baseClass": "Bard",
+  "bravery": "Prudent",
+  "spriteHeight": 2.03,
+  "wanderRadius": 4,
+  "portrait": "turbaned_merchant",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Tavern"
+      ],
+      "chance": 12,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.2,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

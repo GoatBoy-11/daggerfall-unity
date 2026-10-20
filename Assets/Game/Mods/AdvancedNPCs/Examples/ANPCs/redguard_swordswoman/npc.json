@@ -1,0 +1,46 @@
+{
+  "kind": "generic",
+  "name": "Redguard Swordswoman",
+  "race": "Redguard",
+  "gender": "Female",
+  "baseClass": "Spellsword",
+  "bravery": "Brave",
+  "spriteHeight": 2.03,
+  "wanderRadius": 4,
+  "portrait": "redguard_swordswoman",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Tavern",
+        "Fighters Guild"
+      ],
+      "chance": 10,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.4,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

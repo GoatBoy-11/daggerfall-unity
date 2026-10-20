@@ -1,0 +1,45 @@
+{
+  "kind": "generic",
+  "name": "Elf Maid",
+  "race": "Breton",
+  "gender": "Female",
+  "baseClass": "Bard",
+  "bravery": "Prudent",
+  "spriteHeight": 2.03,
+  "wanderRadius": 4,
+  "portrait": "elf_maid",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Tavern"
+      ],
+      "chance": 15,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.4,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

@@ -4,7 +4,7 @@ Replaces vanilla flat 182.11 only. Vanilla name and conversation portrait are pr
 
 Carries the platter, teal bottle, goblet, tankard and green bottle in every living motion. Props fall separately during death. No attack or run.
 
-Eight directions at 8 fps, 256-pixel cell height, one action per motion. Actions: idle, walk, greet, talk, hit, death. Bezier interpolation with clamped handles. Welded by distance (0.0001 m) before Auto-Rig Pro matching/binding, then edited shoulder, arm, garment and boot weights.
+Eight directions at 8 fps, one action per motion. Actions: idle (6), walk (8), greet (6), talk (6), hit (4), death (7), re-authored 2026-10-17 with `output/coat_men/author_maiden.py` (Constant keys): breathing idle with hip drift and a level tray, the bottle arm hanging naturally as in flat 182.11, a real short stride with hip and skirt sway, a curtsy-nod greet, talk lifting the bottle, the tray tipping on hit, and on death the tray, the items on it (teal bottle, goblet, tankard - split onto their own bones) and her green bottle each fly off separately and land knocked over on the floor (straight legs, the skirt lies flat). Previous blend and sheets: output/comely_maiden/backup_20261017. Welded by distance (0.0001 m) before Auto-Rig Pro matching/binding, then edited shoulder, arm, garment and boot weights.
 
 Blood uses the shared larger defaults: pool width 70% of standing height, height 30% of pool width, penultimate scale 62%. Clean sheets and separate effect layers remain in output/comely_maiden.
 

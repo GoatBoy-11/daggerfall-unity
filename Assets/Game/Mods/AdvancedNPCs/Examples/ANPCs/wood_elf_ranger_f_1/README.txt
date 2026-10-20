@@ -64,3 +64,12 @@ Production scripts are `rig_wood_elf_ranger_f_1.py`, `ranger_assets.py`,
 run the author script against the new rigged scene. Rendering, effects,
 publication, parser validation and game smoke-test scripts are in the output
 folder. The final pack is copied into the mod's examples and DFU testing install.
+
+## Animation fix (2026-10-17)
+
+Re-authored from `author_wood_elf_ranger_f_1.py` after review: arms now hang against the body
+(the arm adduct was inverted, splaying the A-pose arms), a female-length stride (0.74 walk,
+0.78 run) with hip sway and a slight forward lean replaces the male stride that made her crouch,
+the run pumps the free arm, and both sword attacks turn the body with the swing while the head
+stays on the target. Bow shot, death and props are unchanged. Previous blend, script and sheets:
+`output/wood_elf_ranger_f_1/backup_20261017/`.

@@ -1,0 +1,7 @@
+{
+  "name": "Shelter Tester",
+  "spawn": { "count": [0, 0] },
+  "schedule": [
+    { "package": "seek_shelter", "when": { "outdoors": true, "bad_weather": true } }
+  ]
+}

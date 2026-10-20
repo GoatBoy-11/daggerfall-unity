@@ -1,0 +1,45 @@
+{
+  "kind": "generic",
+  "name": "Helmeted Barbarian",
+  "race": "Nord",
+  "gender": "Male",
+  "baseClass": "Barbarian",
+  "bravery": "Brave",
+  "spriteHeight": 2.08,
+  "wanderRadius": 4,
+  "portrait": "helmeted_barbarian",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Tavern"
+      ],
+      "chance": 8,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.45,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

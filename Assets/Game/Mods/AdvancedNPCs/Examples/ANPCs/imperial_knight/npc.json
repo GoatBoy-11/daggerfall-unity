@@ -1,0 +1,48 @@
+{
+  "kind": "generic",
+  "name": "Imperial Knight",
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Knight",
+  "bravery": "Brave",
+  "nameList": "default_imperial",
+  "spriteHeight": 2.08,
+  "wanderRadius": 4,
+  "portrait": "imperial_knight",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Palace",
+        "Fighters Guild",
+        "Tavern"
+      ],
+      "chance": 10,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.45,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

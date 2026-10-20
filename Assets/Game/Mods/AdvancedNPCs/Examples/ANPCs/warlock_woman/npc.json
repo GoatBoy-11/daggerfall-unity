@@ -1,0 +1,52 @@
+{
+  "kind": "generic",
+  "name": "Warlock",
+  "race": "Breton",
+  "gender": "Female",
+  "baseClass": "Nightblade",
+  "bravery": "Brave",
+  "spriteHeight": 2.05,
+  "wanderRadius": 4,
+  "portrait": "warlock_woman",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Tavern"
+      ],
+      "chance": 8,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.5,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [
+      "Fireball"
+    ],
+    "usesMagicka": true,
+    "maxMagicka": 80,
+    "recovery": "onAreaEntry",
+    "castCooldown": [
+      6,
+      10
+    ]
+  }
+}
