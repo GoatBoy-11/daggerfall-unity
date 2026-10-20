@@ -13,7 +13,6 @@ namespace AdvancedNPCs.Core
         public ulong hostileUntil;
         public int wantedCrime;
         public int wantedRegion;
-        public ulong arrestedUntil;
 
         /// <summary>Current health as a fraction of max (DFU re-rolls max health on every spawn).</summary>
         public float healthFraction = 1f;
@@ -42,10 +41,10 @@ namespace AdvancedNPCs.Core
         public bool magicUnlimited;
         public bool magicRefillsOnEntry;
         /// <summary>Personal opinion of the player, -100..100 (spec opinion-lod §A); drifts toward 0 from opinionAt.</summary>
-        public Dictionary<string, NpcVariableValue> variables;
         public int opinion;
         /// <summary>Game second of the last opinion change.</summary>
         public ulong opinionAt;
+        public Dictionary<string, NpcVariableValue> variables;
 
         public bool HasAsked(string topicId)
         {
@@ -69,7 +68,6 @@ namespace AdvancedNPCs.Core
             c.hostileUntil = hostileUntil;
             c.wantedCrime = wantedCrime;
             c.wantedRegion = wantedRegion;
-            c.arrestedUntil = arrestedUntil;
             c.healthFraction = healthFraction;
             c.portrait = portrait;
             c.enemyOn = enemyOn;
@@ -115,7 +113,7 @@ namespace AdvancedNPCs.Core
         /// <summary>Alive, calm, full health, no locked portrait, nothing asked: nothing worth saving (spec §8, v2.1 §6).</summary>
         public bool IsDefault()
         {
-            return wantedCrime == 0 && arrestedUntil == 0 && companion == null && MagicSettled() && !dead && !hostile && healthFraction >= 0.999f && string.IsNullOrEmpty(portrait) && !enemyOn && !enemyOff &&
+            return wantedCrime == 0 && companion == null && MagicSettled() && !dead && !hostile && healthFraction >= 0.999f && string.IsNullOrEmpty(portrait) && !enemyOn && !enemyOff &&
                    (asked == null || asked.Count == 0) && opinion == 0 && (variables == null || variables.Count == 0);
         }
     }

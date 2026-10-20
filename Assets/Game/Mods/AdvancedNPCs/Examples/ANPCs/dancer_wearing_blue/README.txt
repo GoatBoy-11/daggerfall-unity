@@ -8,7 +8,7 @@ Vanilla names and conversation portraits remain in use. No random spawning rules
 
 11 transparent sheets, 8 directions, 256-pixel cells, 8 fps: attack_1, attack_2,
 cast_1, dance, death_1, hit_1, idle_1, run_1, walk_1, talk, greet.
-Ten discrete dance frames (1.25 seconds), exported from the source dance_1.
+Fourteen discrete dance frames (1.75 seconds), exported from the source dance_1.
 Walk/run omit the repeated closing frame, giving nine frames each.
 Talk and greet use the user-polished actions from dancer_wearing_blue_anpc.blend.
 Both retain all ten authored frames at 8 fps, rendered in eight directions.
@@ -24,5 +24,5 @@ Editable blend: Models/dancer_wearing_blue/dancer_wearing_blue_anpc.blend.
 The requested dancer_wearing_blue_dance_3.blend and its nine actions are preserved.
 Clean sheets, effect layers, manifests, previews and rebuild scripts are retained
 in output/dancer_wearing_blue; generated effect layers also accompany the model.
-Validation covers all source poses, raised-hand timing, all 864 directional cells,
+Validation covers all source poses, raised-hand timing, all 896 directional cells,
 the real ANPC/sprite/package parsers, and every minute of the daily schedule.

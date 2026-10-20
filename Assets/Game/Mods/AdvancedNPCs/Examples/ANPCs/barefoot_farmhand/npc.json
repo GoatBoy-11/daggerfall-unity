@@ -1,0 +1,46 @@
+{
+  "kind": "generic",
+  "name": "Barefoot Farmhand",
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Warrior",
+  "bravery": "Prudent",
+  "spriteHeight": 2.03,
+  "wanderRadius": 4,
+  "portrait": "barefoot_farmhand",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Tavern",
+        "House"
+      ],
+      "chance": 10,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.45,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

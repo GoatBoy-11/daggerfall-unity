@@ -1,0 +1,43 @@
+{
+  "kind": "generic",
+  "name": "Man with a Broom",
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Warrior",
+  "bravery": "Prudent",
+  "spriteHeight": 1.925,
+  "wanderRadius": 2,
+  "stayNear": 2,
+  "portrait": "man_with_a_broom",
+  "replaces": [
+    "182.39"
+  ],
+  "replacePortrait": false,
+  "replaceName": false,
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.4,
+    "canRun": true
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  },
+  "schedule": [
+    {
+      "hours": [
+        "07:00",
+        "19:00"
+      ],
+      "package": "chore",
+      "parameters": {
+        "radius": 2,
+        "animation": "sweep"
+      }
+    }
+  ]
+}

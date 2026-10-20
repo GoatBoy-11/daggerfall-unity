@@ -1,0 +1,46 @@
+{
+  "kind": "generic",
+  "name": "Nord Shieldmaiden",
+  "race": "Nord",
+  "gender": "Female",
+  "baseClass": "Warrior",
+  "bravery": "Brave",
+  "spriteHeight": 2.05,
+  "wanderRadius": 4,
+  "portrait": "nord_shieldmaiden",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Tavern",
+        "Fighters Guild"
+      ],
+      "chance": 10,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.4,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

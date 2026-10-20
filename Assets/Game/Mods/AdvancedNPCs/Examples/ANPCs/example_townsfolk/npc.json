@@ -1,0 +1,87 @@
+// EXAMPLE: a calm generic townsperson.
+// Never spawns by itself ("count": [0, 0] below). Try it in game with:  anpc_spawn example_townsfolk
+// Copy this folder, rename it (lowercase, digits, _) and edit it to make your own ANPC.
+// Lines starting with // are comments; the game ignores them.
+{
+  // Lets editors such as VS Code autocomplete fields (copy Schemas~ to ANPCs/_Schemas first). Ignored by the game.
+  "$schema": "../_Schemas/npc.schema.json",
+
+  // "generic" = a template that makes several different people. "unique" = one person at one spot.
+  "kind": "generic",
+
+  // One of these names is picked per person. Leave out "names" to generate race-appropriate names.
+  "names": ["Edda Marrow", "Tomas Weld", "Brin Hollis"],
+
+  // Name list for generated names when "names" is missing (a file in _Namelists/ or a vanilla list).
+  "nameList": "default_breton",
+
+  // Breton, Redguard, Nord, DarkElf, Khajiit or Argonian. Leave out to use the region's people.
+  "race": "Breton",
+
+  // Male or Female. Leave out to roll a gender for each person.
+  // "gender": "Female",
+
+  // Portrait pool from _Portraits/ ("commoner" = commoner.png, commoner_1.png, ...). Leave out for a vanilla face.
+  // "portrait": "commoner",
+
+  // DFU class: sets stats, skills, the vanilla sprite and the default height.
+  "baseClass": "Bard",
+
+  // Where and how many. "count": [0, 0] = never spawns by itself; use anpc_spawn.
+  // For real townsfolk use e.g. "count": [1, 3]. "locationTypes": TownCity, TownHamlet, TownVillage.
+  "spawn": {
+    "locationTypes": ["TownCity", "TownHamlet", "TownVillage"],
+    "count": [0, 0]
+  },
+
+  // Coward always flees, Prudent flees when hurt, Normal may flee, Brave never flees.
+  "bravery": "Coward",
+
+  // Prudent flees below this health %. Normal rolls "fleeChance" below half of it.
+  "fleeHealthPercent": 25,
+
+  // Game hours [min, max] until an angered ANPC forgives the player.
+  "calmDownHours": [6, 48],
+
+  // true: hitting this ANPC is assault and killing it is murder.
+  "crimeOnAttack": true,
+
+  // Metres it wanders from home when no schedule entry is active. 0 = stands still.
+  "wanderRadius": 8,
+
+  // Dialogue type(s) from _Dialogue/ that add "Tell Me About" topics.
+  "dialogue": "example_dialogue",
+
+  // Lets two ANPCs that greet each other chat (needs talk_*.ogg files in a Sounds folder to be heard).
+  // "chance" = % chance after a greeting.
+  "conversation": { "enabled": true, "chance": 50 },
+
+  // Sound settings. Sound files go in this folder's Sounds/ (greet_1.ogg, hit_1.wav, step_1.ogg, ...).
+  "sounds": {
+    // Voice packs from _Sounds: a list gives each person one of them (the same one every time).
+    // Packs ending in _male / _female only go to people of that gender.
+    "voice": ["va_commoner_female", "va_townswoman_female", "va_commoner_male", "va_adventurer_male"],
+    // % chance of a greet sound when greeting.
+    "greetChance": 50,
+    // % chance of an attack/cast/heal/hit sound.
+    "combatChance": 50,
+    // No footsteps when the player is farther than this (metres).
+    "stepDistance": 15,
+    // Voice pitch (0.25 to 3) and random +/- per play (0 to 1).
+    "soundPitch": 1.0,
+    "soundPitchVariation": 0.05
+  },
+
+  // Daily routine. Entries with "when" win first (in order), then timed entries, then the one with no hours.
+  // Each "package" is a file in _Packages/. Edit, then type anpc_reload_schedules in the console.
+  "schedule": [
+    // In rain or snow, look for cover.
+    { "package": "seek_shelter", "when": { "outdoors": true, "bad_weather": true } },
+    // Indoors (a tavern, a house): wander a little.
+    { "package": "local_wander", "when": { "indoors": true }, "parameters": { "radius": 3 } },
+    // Daytime outdoors: roam the streets like vanilla citizens.
+    { "hours": ["07:00", "21:00"], "package": "wander_civilian" },
+    // Any other time: go back home and stay there.
+    { "package": "return_home" }
+  ]
+}

@@ -1,0 +1,11 @@
+// Chores around home: walk to a random spot within 4 m, play 2-4 cycles of a sweep*, chop*, scrub* or work* sheet,
+// then move on. Sets without any of those sheets idle at each stop; vanilla sprites stand a few seconds.
+// "animation" picks other sheets, e.g. "animation": "work" or ["sweep", "dust_2"].
+{
+  "$schema": "../_Schemas/package.schema.json",
+  "type": "chore",
+  "parameters": {
+    "radius": 4,
+    "cycles": [2, 4]
+  }
+}

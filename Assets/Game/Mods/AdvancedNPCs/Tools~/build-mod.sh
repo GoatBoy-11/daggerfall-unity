@@ -54,6 +54,7 @@ if [ "$EXAMPLES" = 1 ]; then
   for s in "$HERE/../Examples/ANPCs"/*/Sounds; do
     [ -d "$s" ] && rm -rf "$DEFS/$(basename "$(dirname "$s")")/Sounds"
   done
+  rm -rf "$DEFS/_Sounds"/va_*     # voice packs too (local ones are applied again below)
   (cd "$HERE/../Examples/ANPCs" && find . -name '*.meta' -prune -o -type f -print | while read -r f; do
     mkdir -p "$DEFS/$(dirname "$f")"
     cp "$f" "$DEFS/$f"
@@ -73,6 +74,18 @@ if [ "$EXAMPLES" = 1 ]; then
       done
       cp "$dir"/* "$dest/"
     done
+    # <ANPC_LOCAL_SOUNDS>/_Sounds/va_<name>/ is a whole voice pack.
+    for pack in "$LOCAL"/_Sounds/va_*; do
+      [ -d "$pack" ] || continue
+      mkdir -p "$DEFS/_Sounds"
+      rm -rf "$DEFS/_Sounds/$(basename "$pack")"
+      cp -r "$pack" "$DEFS/_Sounds/"
+    done
     echo "Applied local sounds from $LOCAL"
   fi
+
+  # Local meal sheets (made outside the repo; ship only as rendered sheets, never the 3D scenes): eat*/drink* sheets and their
+  # sprites.json entries from <ANPC_LOCAL_MEALS>/<anpc>/sprites*/ are added to the installed sets again.
+  MEALS="${ANPC_LOCAL_MEALS:-/f/_Projects/Dagerfall/output/arp_meals_batch/runtime/ANPCs}"
+  [ -d "$MEALS" ] && python "$HERE/apply-local-meals.py" "$MEALS" "$DEFS"
 fi

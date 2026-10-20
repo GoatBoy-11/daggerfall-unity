@@ -1,0 +1,11 @@
+// Eat and drink in place: bouts of 2-5 eat/drink cycles (picked at random), then 1-3 idle cycles as a break.
+// Needs eat*/drink* sheets in the ANPC's sprite set (idle only without them; vanilla sprites just stand).
+// Each eat/drink cycle plays an eat_*/drink_* sound: the ANPC's own Sounds, else the shared _Sounds ones.
+{
+  "$schema": "../_Schemas/package.schema.json",
+  "type": "eat",
+  "parameters": {
+    "mealCycles": [2, 5],
+    "breakCycles": [1, 3]
+  }
+}

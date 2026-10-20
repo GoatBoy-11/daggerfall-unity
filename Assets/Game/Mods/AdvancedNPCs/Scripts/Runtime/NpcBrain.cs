@@ -43,6 +43,7 @@ namespace AdvancedNPCs
 
         int lastHealth;
         Vector3 homeLocal;
+        internal Vector3 HomeLocal { get { return homeLocal; } }
         Vector3 wanderTargetLocal;
         bool hasWanderTarget;
         bool enemy;             // an enemy of the player now (enemies spec)
@@ -62,6 +63,13 @@ namespace AdvancedNPCs
         bool packageControlled;
         public bool PackageRunning { get { return mode == NpcMode.Calm && packages != null && packages.Running; } }
         public string PackageDescription { get { return packages != null ? packages.Description : "current AI (no schedule)"; } }
+        internal void ReloadSchedule()
+        {
+            if (packages != null) packages.Dispose();
+            packages = state.companion != null || (def.Schedule != null && def.Schedule.Count > 0) ? new NpcPackageDriver(this, mover) : null;
+            packageControlled = false;
+            hasWanderTarget = false;
+        }
         bool INpcVariableFacts.TryGetVariable(string name, out NpcVariableValue value)
         { return NpcVariables.TryGet(def, state, name, out value); }
         public bool TryGetVariable(string name, out NpcVariableValue value)
@@ -108,6 +116,10 @@ namespace AdvancedNPCs
         public bool CivilianAnimation
         {
             get { return isActiveAndEnabled && packages != null && mode == NpcMode.Calm && holdStill <= 0 && !GameManager.IsGamePaused && packages.CivilianPaused; }
+        }
+        public PackageSettings MealAnimation
+        {
+            get { return isActiveAndEnabled && packages != null && mode == NpcMode.Calm && holdStill <= 0 && !GameManager.IsGamePaused ? packages.MealSettings : null; }
         }
         public PackageSettings GuardAnimation
         {
@@ -156,7 +168,7 @@ namespace AdvancedNPCs
             return result;
         }
 
-        /// <summary>Most metres this person wanders from its spot (indoors 3 m, spec outside-towns Â§7).</summary>
+        /// <summary>Most metres this person wanders from its spot (indoors 3 m, spec outside-towns §7).</summary>
         public float WanderCap = float.MaxValue;
 
         /// <summary>A stand-in's "stayNear": metres it keeps to around its spot while calm (walks back after a fight); 0 = none.</summary>
@@ -288,7 +300,7 @@ namespace AdvancedNPCs
             get { return def; }
         }
 
-        /// <summary>Personal opinion of the player now (spec opinion-lod Â§A), -100..100.</summary>
+        /// <summary>Personal opinion of the player now (spec opinion-lod §A), -100..100.</summary>
         public int Opinion
         {
             get { return state != null ? OpinionRules.Current(state.opinion, state.opinionAt, Now()) : 0; }
@@ -343,6 +355,24 @@ namespace AdvancedNPCs
             holdStill = Mathf.Max(holdStill, seconds);
         }
 
+        /// <summary>
+        /// Turns at once to face the player (the talk window pauses the game, so a slow turn would not show) and stays
+        /// put while the window is open (calm movement would turn it back).
+        /// </summary>
+        public void FacePlayer()
+        {
+            GameObject player = GameManager.Instance.PlayerObject;
+            if (player == null || mode != NpcMode.Calm)
+                return;
+            Vector3 to = player.transform.position - transform.position;
+            to.y = 0f;
+            if (to.sqrMagnitude > 0.001f)
+                transform.rotation = Quaternion.LookRotation(to);
+            if (mover != null)
+                mover.Stop();
+            HoldStill(0.5f);    // counts down only while unpaused: covers the talk window, then a short beat
+        }
+
         internal bool IsTurret
         {
             get { return gait != null && gait.IsTurret; }
@@ -377,7 +407,7 @@ namespace AdvancedNPCs
             }
         }
 
-        /// <summary>What an author wants to know about this ANPC (anpc_info, spec tools-quality Â§A1), one fact per line.</summary>
+        /// <summary>What an author wants to know about this ANPC (anpc_info, spec tools-quality §A1), one fact per line.</summary>
         public string Describe()
         {
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
@@ -523,6 +553,9 @@ namespace AdvancedNPCs
             mover = GetComponent<NpcMover>();
             gait = GetComponent<NpcGait>();
             patrolTimer = Random.Range(0f, AggroRules.CheckInterval);
+            if (state.companion == null)
+                PlaceAmongPeople();
+            Settled = true;
             homeLocal = transform.localPosition;
             if (state.companion != null || (def.Schedule != null && def.Schedule.Count > 0))
                 packages = new NpcPackageDriver(this, mover);
@@ -556,6 +589,74 @@ namespace AdvancedNPCs
             { companionCombat=gameObject.AddComponent<NpcCompanionCombat>(); companionCombat.Init(this); }
             NpcMagic.EnsureCompanion(this);
             if (def.Guard) guard = new NpcGuard(this);
+        }
+
+        const float WallCheckSeconds = 1f;
+        const float WallNear = 1.2f;
+        const float WallTurnDegreesPerSecond = 240f;
+        float wallCheck;
+        Vector3 turnFromWall;
+        NpcChat chat;
+
+        /// <summary>
+        /// A calm ANPC standing still with a wall right in front of it (it walked there, or was pushed) turns to the most
+        /// open way. Work posts, package and guard poses, greetings and conversations keep their own facing.
+        /// </summary>
+        void TurnFromWall()
+        {
+            bool still = gait == null || gait.Current == Gait.Still;
+            if (chat == null)
+                chat = GetComponent<NpcChat>();
+            if (!still || holdStill > 0f || (chat != null && chat.Talking) || PackageWorkAtPost || PackageAnimation != null ||
+                GuardAnimation != null || MealAnimation != null || GameManager.IsGamePaused)
+            {
+                turnFromWall = Vector3.zero;
+                return;
+            }
+            if (turnFromWall != Vector3.zero)
+            {
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(turnFromWall),
+                    WallTurnDegreesPerSecond * Time.deltaTime);
+                if (Vector3.Angle(transform.forward, turnFromWall) < 1f)
+                    turnFromWall = Vector3.zero;
+                return;
+            }
+            wallCheck -= Time.deltaTime;
+            if (wallCheck > 0f)
+                return;
+            wallCheck = WallCheckSeconds;
+            if (SpotFinder.WallAhead(transform.position, transform.forward, WallNear))
+                turnFromWall = SpotFinder.OpenDirection(transform.position);
+        }
+
+        /// <summary>Has taken its spawn spot (moved off anyone it was spawned inside); others then step around it.</summary>
+        public bool Settled { get; private set; }
+
+        /// <summary>
+        /// Spawned inside another person (a vanilla flat NPC or an ANPC on the same marker): steps to a free spot close by,
+        /// which becomes its home. Indoors it then faces the most open way, into the room rather than at a wall.
+        /// </summary>
+        void PlaceAmongPeople()
+        {
+            CharacterController cc = GetComponent<CharacterController>();
+            float lift = cc != null ? cc.height * 0.52f : 1f;     // GameObjectHelper.AlignControllerToGround
+            Vector3 body = transform.position;
+            Vector3 feet;
+            if (cc != null && SpotFinder.Crowded(body, this) && SpotFinder.Uncrowded(body, this, lift, out feet))
+            {
+                bool wasEnabled = cc.enabled;
+                cc.enabled = false;
+                transform.position = feet + Vector3.up * lift;
+                cc.enabled = wasEnabled;
+                if (gait != null)
+                    gait.Repin();
+                AdvancedNpcsMod.Log(key + ": spawned inside someone; stepped " + Vector3.Distance(body, transform.position).ToString("0.0") + " m aside.");
+            }
+            if (transform.parent == null || (transform.parent.GetComponent<DaggerfallInterior>() == null && transform.parent.GetComponent<DaggerfallDungeon>() == null))
+                return;
+            Vector3 open = SpotFinder.OpenDirection(transform.position);
+            if (open != Vector3.zero)
+                transform.rotation = Quaternion.LookRotation(open);
         }
 
         // Companion policy owns permission and pursuit; the existing state machine owns component modes.
@@ -643,7 +744,7 @@ namespace AdvancedNPCs
             }
             else if (healthDropped && !state.hostile && senses.Target != null && senses.Target != player)
             {
-                OnAttackedByCreature(senses.Target);
+                OnAttackedByCreature(senses.Target, true);
             }
 
             if (guard != null && guard.Tick()) return;
@@ -660,13 +761,14 @@ namespace AdvancedNPCs
                         senses.Target != null && senses.Target.Entity != null && senses.Target.Entity.CurrentHealth > 0))
                     {
                         // Swung at, hit or missed (DFU's MakeEnemyHostileToAttacker): fight back or flee.
-                        OnAttackedByCreature(senses.Target);
+                        OnAttackedByCreature(senses.Target, true);
                         break;
                     }
                     motor.GiveUpTimer = 0;
                     if (EffectiveBravery == Bravery.Brave && Patrol())
                         break;
                     UpdateCalm();
+                    TurnFromWall();
                     break;
                 case NpcMode.Fighting:
                     UpdateFighting();
@@ -688,6 +790,8 @@ namespace AdvancedNPCs
             {
                 ChangeOpinion(OpinionRules.Assault);
                 WitnessPlayerViolence(transform.position, this);
+                if (!enemy && state.companion == null)
+                    RallyAllies(new AllyInfo(this), threat);
             }
             if (wasCalm && def.CrimeOnAttack)
             {
@@ -697,7 +801,7 @@ namespace AdvancedNPCs
             EnterCombat();
         }
 
-        /// <summary>A calm Brave ANPC attacks the nearest foe it sees within aggroRange (spec lazy-sprites Â§D).</summary>
+        /// <summary>A calm Brave ANPC attacks the nearest foe it sees within aggroRange (spec lazy-sprites §D).</summary>
         bool Patrol()
         {
             patrolTimer -= Time.deltaTime;
@@ -711,7 +815,7 @@ namespace AdvancedNPCs
                 return false;
             AdvancedNpcsMod.Log(key + ": attacks " + foe.name + " on sight.");
             senses.Target = foe;        // DFU's senses chase it now instead of waiting to notice it
-            OnAttackedByCreature(foe);
+            OnAttackedByCreature(foe, false);
             return true;
         }
 
@@ -760,12 +864,76 @@ namespace AdvancedNPCs
             return best;
         }
 
-        void OnAttackedByCreature(DaggerfallEntityBehaviour attacker)
+        void OnAttackedByCreature(DaggerfallEntityBehaviour attacker, bool attacked)
         {
             if (mode != NpcMode.Calm)
                 return;
             threat = attacker;
             EnterCombat();
+            if (attacked && !enemy && state.companion == null)
+                RallyAllies(new AllyInfo(this), attacker);
+        }
+
+        /// <summary>Who was attacked, kept by value: a victim killed outright is gone by the time its killer is known.</summary>
+        struct AllyInfo
+        {
+            public string Key;
+            public Vector3 At;
+            public Transform Parent;
+            public int Group;
+            public int Faction;
+
+            public AllyInfo(NpcBrain b)
+            {
+                Key = b.key;
+                At = b.transform.position;
+                Parent = b.transform.parent;
+                Group = b.instance != null ? b.instance.Group : -1;
+                Faction = b.StandInFaction;
+            }
+        }
+
+        /// <summary>The vanilla faction of the flat NPC this ANPC stands in for, 0 if none.</summary>
+        int StandInFaction
+        {
+            get
+            {
+                NpcTalk talk = GetComponent<NpcTalk>();
+                return talk != null && talk.StandIn != null ? talk.StandIn.Data.factionID : 0;
+            }
+        }
+
+        /// <summary>
+        /// Calm allies who see or hear an ANPC attacked take its side: all but cowards fight the attacker (bravery and
+        /// health decide as if attacked themselves), cowards run from it. Companions, guards and enemies stay out of it.
+        /// </summary>
+        static void RallyAllies(AllyInfo victim, DaggerfallEntityBehaviour attacker)
+        {
+            if (attacker == null)
+                return;
+            bool inBuilding = victim.Parent != null && victim.Parent.GetComponent<DaggerfallInterior>() != null;
+            DaggerfallEntityBehaviour player = GameManager.Instance.PlayerEntityBehaviour;
+            foreach (NpcBrain a in All())
+            {
+                if (a.key == victim.Key || !a.isActiveAndEnabled || a.mode != NpcMode.Calm || a.enemy || a.state == null || a.state.hostile ||
+                    a.state.companion != null || a.guard != null || a.entityBehaviour == null || a.entityBehaviour == attacker)
+                    continue;
+                if (!HostilityRules.Allied(a.transform.parent == victim.Parent, inBuilding, victim.Group, a.instance != null ? a.instance.Group : -1,
+                    victim.Faction, a.StandInFaction))
+                    continue;
+                float d = Vector3.Distance(a.transform.position, victim.At);
+                if (d > HostilityRules.AllyRange || (d > HostilityRules.AllyHearRange && !a.CanSeePoint(victim.At) && !a.CanSee(attacker)))
+                    continue;
+                if (attacker == player)
+                {
+                    a.state.hostile = true;
+                    a.state.hostileUntil = HostilityRules.NewCalmDeadline(Now(), a.def.CalmDownMinHours, a.def.CalmDownMaxHours, a.rng);
+                }
+                a.threat = attacker;
+                a.EnterCombat();
+                AdvancedNpcsMod.Log(a.key + ": takes the side of " + victim.Key + " against " + attacker.name +
+                    (a.mode == NpcMode.Fleeing ? " (flees)." : "."));
+            }
         }
 
         void EnterCombat()
@@ -801,7 +969,7 @@ namespace AdvancedNPCs
         {
             if (packages != null && GameManager.IsGamePaused)
             {
-                packages.InterruptFollow();
+                // Freeze, not reset: catch-up clocks continue after a menu closes.
                 mover.Stop();
                 return;
             }
@@ -985,17 +1153,18 @@ namespace AdvancedNPCs
             if (voice != null)
                 voice.OnDied();
 
-            // Custom sprites: the death sheet plays and the body stays as the corpse (spec 1b Â§6.4).
+            // Custom sprites: the death sheet plays and the body stays as the corpse (spec 1b §6.4).
             NpcSprite sprite = GetComponent<NpcSprite>();
             if (sprite != null && sprite.Set != null && NpcCorpseSprite.Spawn(sprite, entityBehaviour) != null)
                 sprite.Hide();
 
             // DFU tells the victim who hit it only after OnDeath; decide the killer once that has happened.
-            AdvancedNpcsMod.Instance.StartCoroutine(ResolveKiller(def, key, motor, wasHostile, fightingCreature, wasEnemy, transform.position));
+            AdvancedNpcsMod.Instance.StartCoroutine(ResolveKiller(def, key, motor, wasHostile, fightingCreature, wasEnemy, transform.position,
+                new AllyInfo(this), state.companion == null));
         }
 
         static IEnumerator ResolveKiller(NpcDefinition def, string key, EnemyMotor motor, bool wasHostile, bool fightingCreature, bool wasEnemy,
-            Vector3 diedAt)
+            Vector3 diedAt, AllyInfo victim, bool rally)
         {
             yield return null;
 
@@ -1008,6 +1177,8 @@ namespace AdvancedNPCs
             AdvancedNpcsMod.Log(key + ": died" + (byPlayer ? " (player)." : " (creature)."));
             if (byPlayer && !wasEnemy)
                 WitnessPlayerViolence(diedAt, null);
+            if (byPlayer && !wasEnemy && !wasHostile && rally)
+                RallyAllies(victim, GameManager.Instance.PlayerEntityBehaviour);     // killed in one blow: never fought back
         }
 
         float HealthFraction()

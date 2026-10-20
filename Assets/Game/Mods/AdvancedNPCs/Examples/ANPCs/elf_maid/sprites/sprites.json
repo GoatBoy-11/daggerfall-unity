@@ -1,0 +1,53 @@
+{
+  "pixelsPerUnit": 119.4675,
+  "cellHeight": 256,
+  "groundY": 29,
+  "anchorX": "centre",
+  "fps": 8,
+  "directions": [
+    "front",
+    "front_right",
+    "right",
+    "back_right",
+    "back",
+    "back_left",
+    "left",
+    "front_left"
+  ],
+  "animations": {
+    "attack_1": {
+      "cellWidth": 160,
+      "frames": 6,
+      "actionFrame": 3
+    },
+    "death_1": {
+      "cellWidth": 448,
+      "frames": 7
+    },
+    "greet_1": {
+      "cellWidth": 128,
+      "frames": 6
+    },
+    "hit_1": {
+      "cellWidth": 144,
+      "frames": 4
+    },
+    "idle_1": {
+      "cellWidth": 128,
+      "frames": 4
+    },
+    "run": {
+      "cellWidth": 128,
+      "frames": 8
+    },
+    "talk_1": {
+      "cellWidth": 136,
+      "frames": 6
+    },
+    "walk": {
+      "cellWidth": 128,
+      "frames": 8
+    }
+  },
+  "standingHeight": 219
+}

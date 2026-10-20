@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
+using AdvancedNPCs.Core;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.UserInterface;
@@ -49,6 +50,31 @@ namespace AdvancedNPCs
         }
         IEnumerator AuditSteps(DaggerfallLocation location, Transform player)
         {
+            // Voice packs (ANPCs/_Sounds/va_*): shared as they are, an ANPC's own pool replaces the pack's whole pool.
+            string packRoot = Path.Combine(Application.temporaryCachePath, "anpc_selftest_packs");
+            string packDir = Path.Combine(Path.Combine(packRoot, SoundLibrary.SharedFolder), "va_selftest");
+            string packOwnDir = Path.Combine(packRoot, "selftest_pack_own");
+            Directory.CreateDirectory(packDir);
+            Directory.CreateDirectory(packOwnDir);
+            foreach (string n in new[] { "greet_1", "attack_1", "attack_2" })
+                File.WriteAllBytes(Path.Combine(packDir, n + ".wav"), ToneWav(0.1f));
+            File.WriteAllBytes(Path.Combine(packOwnDir, "attack_1.wav"), ToneWav(0.1f));
+            SoundLibrary packs = new SoundLibrary();
+            packs.IndexPacks(packRoot);
+            packs.Add("selftest_pack_own", SoundLibrary.IndexSet("selftest_pack_own/Sounds", packOwnDir));
+            LoadedSoundSet packOnly = packs.For("selftest_pack_none", "va_selftest");
+            LoadedSoundSet packMerged = packs.For("selftest_pack_own", "va_selftest");
+            Check("a voice pack is found and shared as it is by ANPCs without Sounds",
+                packs.Packs.Count == 1 && packOnly != null && packOnly == packs.For("selftest_pack_other", "VA_SELFTEST") &&
+                packOnly.Files[SoundPools.Attack].Count == 2, packOnly == null ? "none" : packOnly.Summary());
+            Check("an ANPC's own pool replaces the pack's pool, other pools come from the pack",
+                packMerged != null && packMerged.Files[SoundPools.Attack].Count == 1 && packMerged.Files.ContainsKey(SoundPools.Greet) &&
+                packMerged == packs.For("selftest_pack_own", "va_selftest"), packMerged == null ? "none" : packMerged.Summary());
+            Check("an unknown voice pack leaves the ANPC's own sounds",
+                packs.For("selftest_pack_own", "va_missing") == packs.For("selftest_pack_own") && packs.For("selftest_pack_none", "va_missing") == null, "");
+            Check("the installed voice packs are indexed", mod.Sounds.Packs.Count > 0,
+                string.Join(", ", new List<string>(mod.Sounds.Packs).ToArray()));
+
             string root = Path.Combine(Application.temporaryCachePath, "anpc_audit_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
             var owned = new List<Texture2D>();

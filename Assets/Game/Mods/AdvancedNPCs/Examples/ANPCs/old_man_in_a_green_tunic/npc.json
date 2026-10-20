@@ -1,0 +1,30 @@
+{
+  "kind": "generic",
+  "name": "Old Man in a Green Tunic",
+  "race": "Redguard",
+  "gender": "Male",
+  "baseClass": "Monk",
+  "bravery": "Normal",
+  "spriteHeight": 1.975,
+  "wanderRadius": 2,
+  "stayNear": 2,
+  "portrait": "old_man_in_a_green_tunic",
+  "replaces": [
+    "184.0"
+  ],
+  "replacePortrait": false,
+  "replaceName": false,
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.4,
+    "canRun": true
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

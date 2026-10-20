@@ -1,0 +1,30 @@
+{
+  "kind": "generic",
+  "name": "Lady in a Brown Gown",
+  "race": "Redguard",
+  "gender": "Female",
+  "baseClass": "Bard",
+  "bravery": "Prudent",
+  "spriteHeight": 2.075,
+  "wanderRadius": 2,
+  "stayNear": 2,
+  "portrait": "lady_in_a_brown_gown",
+  "replaces": [
+    "183.18"
+  ],
+  "replacePortrait": false,
+  "replaceName": false,
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.4,
+    "canRun": true
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

@@ -147,6 +147,8 @@ namespace AdvancedNPCs
 
         IEnumerator PackageSteps(DaggerfallLocation location, Transform player)
         {
+            IEnumerator shelters = ShelterSteps(location, player);
+            while (shelters.MoveNext()) yield return shelters.Current;
             IEnumerator civilians = CivilianPackageSteps(location, player);
             while (civilians.MoveNext()) yield return civilians.Current;
             DiscardTestPeople();
@@ -207,6 +209,8 @@ namespace AdvancedNPCs
                 NpcBrain ordinary = Make("selftest_packages_ordinary", Bravery.Normal, location, player, OutOfGreeting);
                 yield return Settle;
                 Check("NPC without schedule retains current AI", ordinary.PackageDescription == "current AI (no schedule)", ordinary.PackageDescription);
+                IEnumerator tools = ScheduleToolSteps(ordinary, stand, location, player);
+                while (tools.MoveNext()) yield return tools.Current;
                 NpcBrain.Discard(ordinary);
             }
             finally
@@ -226,6 +230,102 @@ namespace AdvancedNPCs
             IEnumerator routines = RoutineSteps(location, player);
             while (routines.MoveNext())
                 yield return routines.Current;
+        }
+
+        IEnumerator ScheduleToolSteps(NpcBrain actor, AiPackage stand, DaggerfallLocation location, Transform player)
+        {
+            NpcDefinition definition = actor.Instance.Definition;
+            string directory = System.IO.Path.Combine(AnpcFiles.Root, definition.Folder);
+            if (System.IO.Directory.Exists(directory))
+            {
+                Check("schedule tools use an unused temporary folder", false, directory);
+                yield break;
+            }
+            string path = System.IO.Path.Combine(directory, AnpcFiles.NpcFile);
+            mod.Catalog.Generics.Add(definition);
+            try
+            {
+                System.IO.Directory.CreateDirectory(directory);
+                NpcState state = actor.State;
+                System.IO.File.WriteAllText(path, "{\"schedule\":[{\"package\":\"" + stand.Id + "\"}]}");
+                string result = AdvancedNpcsMod.ReloadSchedulesCommand(definition.Folder);
+                yield return Settle;
+                Check("schedule reload activates the first routine without respawning", result.Contains("Reloaded 1") &&
+                    actor.PackageDescription.Contains(stand.Id) && object.ReferenceEquals(state, actor.State), result + "; " + actor.Describe());
+                Check("schedule diagnostic reports selected slot and current activity", AdvancedNpcsMod.ScheduleCommand(actor.Id).Contains(stand.Id + " - selected"), actor.PackageDescription);
+                var previous = definition.Schedule;
+                System.IO.File.WriteAllText(path, "{\"schedule\":[{\"package\":\"selftest_missing_package\"}]}");
+                result = AdvancedNpcsMod.ReloadSchedulesCommand(definition.Folder);
+                yield return Settle;
+                Check("invalid schedule replacement leaves the running routine intact", result.Contains("previous schedule retained") &&
+                    object.ReferenceEquals(previous, definition.Schedule) && actor.PackageDescription.Contains(stand.Id), result);
+                System.IO.File.Delete(path);
+                result = AdvancedNpcsMod.ReloadSchedulesCommand(definition.Folder);
+                Check("missing schedule file retains the previous routine", result.Contains("previous schedule retained") && object.ReferenceEquals(previous, definition.Schedule), result);
+                CheckBlockedRouteRetries(actor);
+
+                result = AdvancedNpcsMod.RouteCommand("start", actor.Id);
+                Check("route recorder captures the first waypoint", result.Contains("Recorded point 1"), result);
+                Check("route recorder requires two points", AdvancedNpcsMod.RouteCommand("finish").Contains("at least two"), "single point rejected");
+                Check("route recorder does not overwrite unfinished work", AdvancedNpcsMod.RouteCommand("start", actor.Id).Contains("already being recorded"), "recording retained");
+                result = AdvancedNpcsMod.RouteCommand("add");
+                string json = AdvancedNpcsMod.RouteCommand("finish");
+                string error;
+                AiPackage recorded = PackageParser.Parse("recorded_patrol", json, out error);
+                Check("route recorder exports valid patrol JSON", result.Contains("Recorded point 2") && recorded != null, error ?? json);
+                if (recorded != null)
+                {
+                    PackageSettings settings = PackageParser.Resolve(recorded, null, out error);
+                    Vector3 expected = location.transform.InverseTransformPoint(player.position) - actor.HomeLocal;
+                    Check("recorded points are offsets from the NPC home", settings.Points.Count == 2 &&
+                        System.Math.Abs(settings.Points[0].X - expected.x) < 0.01 && System.Math.Abs(settings.Points[0].Z - expected.z) < 0.01, json);
+                }
+                Check("finished recording releases its temporary state", AdvancedNpcsMod.RouteCommand("add").Contains("Start a route"), "no active recording");
+
+                System.IO.File.WriteAllText(path, "{\"schedule\":[]}");
+                result = AdvancedNpcsMod.ReloadSchedulesCommand(definition.Folder);
+                yield return Settle;
+                Check("schedule reload can remove the last routine", result.Contains("Reloaded 1") && actor.PackageDescription == "current AI (no schedule)" && object.ReferenceEquals(state, actor.State), result + "; " + actor.PackageDescription);
+            }
+            finally
+            {
+                AdvancedNpcsMod.RouteCommand("cancel");
+                mod.Catalog.Generics.Remove(definition);
+                if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
+                if (System.IO.Directory.Exists(directory)) System.IO.Directory.Delete(directory);
+            }
+        }
+
+        void CheckBlockedRouteRetries(NpcBrain actor)
+        {
+            Vector3 offset = actor.transform.localPosition - actor.HomeLocal;
+            string error;
+            AiPackage blocked = PackageParser.Parse("selftest_blocked_route", "{\"type\":\"travel_to\",\"parameters\":{\"target\":[" +
+                FieldReader.Num(offset.x) + ",100," + FieldReader.Num(offset.z) + "]}}", out error);
+            mod.Packages.AddForTest(blocked);
+            var previous = actor.Instance.Definition.Schedule;
+            var driver = new NpcPackageDriver(actor, actor.GetComponent<NpcMover>());
+            try
+            {
+                actor.Instance.Definition.Schedule = new System.Collections.Generic.List<AiScheduleEntry> { new AiScheduleEntry { Package = blocked.Id } };
+                ulong seconds = DaggerfallUnity.Instance.WorldTime.Now.ToSeconds();
+                driver.Select(mod.Packages, seconds);
+                driver.Tick(actor.HomeLocal, seconds, 0);
+                bool blockedFirst = !driver.Tick(actor.HomeLocal, seconds, 10) && driver.Description.Contains("retry 1/2");
+                bool waited = !driver.Tick(actor.HomeLocal, seconds, 14);
+                bool retried = driver.Tick(actor.HomeLocal, seconds, 1) && driver.Description.Contains("retrying blocked target (1/2)");
+                Check("blocked coordinate package yields during delay and retries", blockedFirst && waited && retried, driver.Description);
+                driver.Tick(actor.HomeLocal, seconds, 10);
+                bool second = driver.Tick(actor.HomeLocal, seconds, 15) && driver.Description.Contains("retrying blocked target (2/2)");
+                bool exhausted = !driver.Tick(actor.HomeLocal, seconds, 10) && driver.Description.Contains("2 retries exhausted");
+                Check("coordinate retries stop after two attempts", second && exhausted && !driver.Tick(actor.HomeLocal, seconds, 100), driver.Description);
+            }
+            finally
+            {
+                driver.Dispose();
+                actor.Instance.Definition.Schedule = previous;
+                mod.Packages.RemoveForTest(blocked.Id);
+            }
         }
     }
 }

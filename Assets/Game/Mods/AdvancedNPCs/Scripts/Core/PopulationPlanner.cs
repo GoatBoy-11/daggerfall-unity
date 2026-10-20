@@ -54,8 +54,8 @@ namespace AdvancedNPCs.Core
             SeededRandom visit = new SeededRandom(visitSeed);
             HashSet<int> usedCells = new HashSet<int>();
 
-            List<NpcDefinition> ordered = new List<NpcDefinition>(templates);
-            ordered.Sort(delegate (NpcDefinition a, NpcDefinition b) { return string.CompareOrdinal(a.Id, b.Id); });
+            List<NpcDefinition> ordered = Ordered(templates,
+                same ? StableHash.Of("order@" + town.MapId.ToString(CultureInfo.InvariantCulture)) : visit.NextUInt());
 
             foreach (NpcDefinition t in ordered)
             {
@@ -96,6 +96,25 @@ namespace AdvancedNPCs.Core
                 }
             }
             return result;
+        }
+
+        /// <summary>
+        /// Template order before the cap is applied: sorted (deterministic), then shuffled by <paramref name="seed"/>.
+        /// Sorted alone, ids late in the alphabet never got a place once more templates matched than the cap allowed.
+        /// </summary>
+        public static List<NpcDefinition> Ordered(IList<NpcDefinition> templates, uint seed)
+        {
+            List<NpcDefinition> ordered = new List<NpcDefinition>(templates);
+            ordered.Sort(delegate (NpcDefinition a, NpcDefinition b) { return string.CompareOrdinal(a.Id, b.Id); });
+            SeededRandom order = new SeededRandom(seed);
+            for (int k = ordered.Count - 1; k > 0; k--)
+            {
+                int j = order.Next(k + 1);
+                NpcDefinition swap = ordered[k];
+                ordered[k] = ordered[j];
+                ordered[j] = swap;
+            }
+            return ordered;
         }
 
         /// <summary>

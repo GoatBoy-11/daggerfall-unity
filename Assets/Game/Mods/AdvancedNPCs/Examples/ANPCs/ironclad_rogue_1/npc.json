@@ -3,6 +3,7 @@
   "kind": "generic",
   "race": "Breton",
   "gender": "Female",
+  "portrait": "ironclad_rogue_1",
   "baseClass": "Rogue",
   "nameList": "breton_oblivion_skyrim",
   "bravery": "Normal",

@@ -1,0 +1,30 @@
+{
+  "kind": "generic",
+  "name": "Woman in a Blue Cloak",
+  "race": "Breton",
+  "gender": "Female",
+  "baseClass": "Bard",
+  "bravery": "Prudent",
+  "spriteHeight": 1.975,
+  "wanderRadius": 2,
+  "stayNear": 2,
+  "portrait": "woman_in_a_blue_cloak",
+  "replaces": [
+    "182.28"
+  ],
+  "replacePortrait": false,
+  "replaceName": false,
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.4,
+    "canRun": true
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

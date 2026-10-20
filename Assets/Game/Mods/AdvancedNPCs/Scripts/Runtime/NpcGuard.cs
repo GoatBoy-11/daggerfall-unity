@@ -11,7 +11,7 @@ using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
 {
-    /// <summary>Arrest policy interrupts routines without changing the actor into a disposable native guard.</summary>
+    /// <summary>Guard enforcement interrupts routines without changing the actor into a disposable native guard.</summary>
     public class NpcGuard
     {
         static readonly MethodInfo nativeHit = typeof(EnemyAttack).GetMethod("ApplyDamageToNonPlayer", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -28,7 +28,7 @@ namespace AdvancedNPCs
         GameObject lastSeen;
         readonly CompanionPursuit pursuit = new CompanionPursuit();
         DaggerfallEntityBehaviour avoided;
-        float retryAt, scan;
+        float retryAt, scan, haltWait;
         bool oldSenses;
         public bool OwnsTarget { get { return target != null; } }
         public string Description { get { return OwnsTarget ? "pursuing " + target.name : "on duty"; } }
@@ -67,7 +67,7 @@ namespace AdvancedNPCs
             // Quest actors and party members need their owning system to explicitly resolve them.
             return suspect != null && suspect != brain && !suspect.Definition.Guard && suspect.State.companion == null &&
                 other.GetComponent<QuestResourceBehaviour>() == null && nativeHit != null &&
-                GuardRules.Wanted(suspect.State, GameManager.Instance.PlayerGPS.CurrentRegionIndex, Now());
+                GuardRules.Wanted(suspect.State, GameManager.Instance.PlayerGPS.CurrentRegionIndex);
         }
         DaggerfallEntityBehaviour Find()
         {
@@ -90,6 +90,8 @@ namespace AdvancedNPCs
             navigation.Suspend(); navigation = null;
             if (lastSeen != null) Object.Destroy(lastSeen);
             pursuit.Reset();
+            NpcVoice voice = brain.GetComponent<NpcVoice>();
+            if (voice != null) voice.CancelHalt();
             target = null;
             senses.enabled = oldSenses;
             senses.Target = null;
@@ -117,6 +119,13 @@ namespace AdvancedNPCs
             }
         }
         public bool TargetsPlayer { get { return target != null && target == GameManager.Instance.PlayerEntityBehaviour; } }
+        void Halt()
+        {
+            // Vanilla repeats every 3-9 seconds; ANPC guards call less often.
+            haltWait = Random.Range(15f, 30f);
+            NpcVoice voice = brain.GetComponent<NpcVoice>();
+            if (voice != null) voice.PlayHalt();
+        }
         public bool Tick()
         {
             if (brain.IsEnemy || brain.CurrentMode == NpcMode.Dead || !brain.isActiveAndEnabled ||
@@ -138,6 +147,7 @@ namespace AdvancedNPCs
                 lastSeen.transform.position = target.transform.position;
                 brain.State.hostile = false; brain.State.hostileUntil = 0;
                 brain.CompanionMode(target, NpcMode.Fighting);
+                Halt();
                 AdvancedNpcsMod.Log(brain.Id + ": pursues wanted " + target.name + ".");
             }
             brain.Motor.enabled = false; attack.enabled = false; mover.enabled = true;
@@ -151,6 +161,8 @@ namespace AdvancedNPCs
             float reach = target == GameManager.Instance.PlayerEntityBehaviour ? attack.MeleeDistance : Mathf.Min(attack.MeleeDistance, attack.ClassicMeleeDistanceVsAI);
             if (pursuit.Tick(gap <= reach ? 1.5f : gap, visible, Time.deltaTime) || gap > AggroRules.GiveUpDistance(brain.Definition.AggroRange))
             { avoided = target; retryAt = Time.time + CompanionCombatRules.RetrySeconds; Release(); return true; }
+            haltWait -= Time.deltaTime;
+            if (haltWait <= 0) Halt();
             bool blow = mobile.DoMeleeDamage;
             mobile.DoMeleeDamage = false; mobile.ShootArrow = false;
             attack.MeleeTimer = Mathf.Max(0, attack.MeleeTimer - Time.deltaTime);
@@ -162,16 +174,6 @@ namespace AdvancedNPCs
                 if (target == GameManager.Instance.PlayerEntityBehaviour)
                 {
                     if (!GuardArrest.Demand(brain)) return true;
-                }
-                else
-                {
-                    NpcBrain suspect = target.GetComponent<NpcBrain>();
-                    if (GuardRules.Surrenders(suspect.EffectiveBravery, suspect.CurrentHealthFraction))
-                    {
-                        GuardRules.Arrest(suspect.State, Now());
-                        DaggerfallUI.AddHUDText(brain.DisplayName + " arrests " + suspect.DisplayName + ".");
-                        NpcBrain.Discard(suspect); Release(); return true;
-                    }
                 }
                 if (blow) Strike();
                 if (!Legal(target)) { Release(); return true; }
@@ -219,6 +221,5 @@ namespace AdvancedNPCs
             if (weapon == null) weapon = entity.ItemEquipTable.GetItem(EquipSlots.LeftHand);
             GameManager.Instance.PlayerObject.SendMessage(weapon != null ? "PlayWeaponHitSound" : "PlayWeaponlessHitSound");
         }
-        static ulong Now() { return DaggerfallUnity.Instance.WorldTime.Now.ToSeconds(); }
     }
 }

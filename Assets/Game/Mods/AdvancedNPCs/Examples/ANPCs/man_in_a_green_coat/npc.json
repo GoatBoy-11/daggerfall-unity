@@ -1,0 +1,30 @@
+{
+  "kind": "generic",
+  "name": "Man in a Green Coat",
+  "race": "Redguard",
+  "gender": "Male",
+  "baseClass": "Warrior",
+  "bravery": "Normal",
+  "spriteHeight": 1.925,
+  "wanderRadius": 2,
+  "stayNear": 2,
+  "portrait": "man_in_a_green_coat",
+  "replaces": [
+    "182.20"
+  ],
+  "replacePortrait": false,
+  "replaceName": false,
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.4,
+    "canRun": true
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

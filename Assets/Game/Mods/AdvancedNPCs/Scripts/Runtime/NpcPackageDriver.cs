@@ -17,11 +17,13 @@ namespace AdvancedNPCs
         PackageLibrary library;
         AiScheduleEntry active;
         PackageMotion motion;
+        ShelterSearch shelter;
         CityNavigation cityNavigation;
         int civilianDirection = -1;
         bool civilianPaused;
         float civilianIdleLeft;
-        public bool CivilianPaused { get { return settings != null && settings.Type == "wander_civilian" && civilianPaused && !failed; } }
+        bool StopsToAct { get { return settings != null && (settings.Type == "wander_civilian" || settings.Type == "chore"); } }
+        public bool CivilianPaused { get { return StopsToAct && civilianPaused && !failed; } }
         FollowMotion follow;
         FollowNavigation navigation;
         Transform followLeader;
@@ -52,12 +54,26 @@ namespace AdvancedNPCs
         public bool Running { get; private set; }
         public bool OnlyCombatInterrupts { get { return settings != null && settings.Type == "play_animation" && !failed && settings.OnlyInterruptAtCombat; } }
         public bool PlaysAnimation { get { return settings != null && (settings.Type == "play_animation" || settings.Type == "work_at"); } }
-        public bool Guarding { get { return settings != null && settings.Type == "guard_spot" && !failed && guardDuty; } }
+        public bool Guarding { get { return settings != null && settings.Type == "guard_spot" && !failed && guardDuty && (motion == null || !motion.Failed); } }
         public bool AtGuardPost { get; private set; }
         public PackageSettings GuardSettings { get { return Guarding && AtGuardPost ? settings : null; } }
         public bool Following { get { return settings != null && settings.Type == "follow" && !failed; } }
-        public bool AllowsStationary { get { return PlaysAnimation || Guarding || Following || (settings != null && settings.Spots.Count > 0); } }
-        public string Animation { get { return PlaysAnimation && !failed && (settings.Type != "work_at" || AtWorkPost) ? settings.Animation : null; } }
+        public bool Eating { get { return settings != null && settings.Type == "eat" && !failed; } }
+        bool Hawking { get { return settings != null && settings.Type == "hawk" && !failed; } }
+        float hawkWait, hawkShowLeft;
+        string hawkAnimation;
+        NpcChat socialPartner;
+        float socialWait, socialApproach;
+        public PackageSettings MealSettings { get { return Eating ? settings : null; } }
+        public bool AllowsStationary { get { return PlaysAnimation || Guarding || Following || Eating || Hawking || shelter != null || (settings != null && settings.Spots.Count > 0); } }
+        public string Animation
+        {
+            get
+            {
+                if (Hawking) return hawkShowLeft > 0 ? hawkAnimation : null;   // only while calling out
+                return PlaysAnimation && !failed && (settings.Type != "work_at" || AtWorkPost) ? settings.Animation : null;
+            }
+        }
         public string Description { get { return detail + (plan != null && plan.Sequence && !completed ? "; step " + (stepIndex+1) + "/" + plan.Steps.Count + ": " + plan.Steps[stepIndex].Package : "") + activity; } }
 
         public NpcPackageDriver(NpcBrain brain, NpcMover mover)
@@ -98,6 +114,7 @@ namespace AdvancedNPCs
             occurrence = period;
             failed = false;
             motion = null;
+            shelter = null;
             follow = null;
             navigation = null;
             followLeader = null;
@@ -128,9 +145,12 @@ namespace AdvancedNPCs
             ReleaseSpot();
             stepIndex = index; stepElapsed = 0; stepReady = false;
             settings = plan.Steps[index].Settings;
+            shelter = settings.Type == "seek_shelter" ? new ShelterSearch(brain, mover, settings, scheduleFacts) : null;
             activity = ""; spotRetry = 0; blockedRetry = 15; blockedSpots.Clear();
             AtWorkPost = false; AtGuardPost = false;
             civilianPaused = false; civilianIdleLeft = 0; civilianDirection = -1;
+            hawkWait = (float)random.NextDouble() * 2; hawkShowLeft = 0;
+            socialPartner = null; socialWait = 2 + (float)random.NextDouble() * 4; socialApproach = 0;
             cityNavigation = settings.Type == "wander_civilian" && areaTown != null && areaInterior == null && areaDungeon == null ? areaTown.GetComponent<CityNavigation>() : null;
             activityFacing = settings.Facing;
             guardDuty = settings.Type == "guard_spot" && settings.Spots.Count == 0;
@@ -149,6 +169,7 @@ namespace AdvancedNPCs
 
         void ReleaseSpot()
         {
+            if (shelter != null) shelter.Release();
             if (heldLibrary != null) heldLibrary.Occupancy.Release(brain.Id);
             if (reservation != null) activity = "; spot released; awaiting reservation";
             heldLibrary = null; reservation = null; spotRetry = 0;
@@ -192,7 +213,18 @@ namespace AdvancedNPCs
             try
             {
                 if (Following) return TickFollow(dt);
-                NpcSprite civilianSprite = settings.Type == "wander_civilian" ? brain.GetComponent<NpcSprite>() : null;
+                if (shelter != null)
+                {
+                    bool controlled = shelter.Tick(spotLibrary, homeLocal, seconds, dt);
+                    activity = "; " + shelter.Status; Running = shelter.Running; stepReady = shelter.AtShelter;
+                    return controlled;
+                }
+                if (motion.Failed && motion.CanRetry && settings.Spots.Count == 0)
+                {
+                    if (!motion.Retry(dt)) return false;
+                    activity = "; retrying blocked target (" + motion.RetryCount + "/2)";
+                }
+                NpcSprite civilianSprite = StopsToAct ? brain.GetComponent<NpcSprite>() : null;
                 if (civilianSprite != null && civilianSprite.Pending) { mover.Stop(); return true; }
                 if (civilianPaused)
                 {
@@ -214,6 +246,22 @@ namespace AdvancedNPCs
                     }
                     if (settings.Type == "play_animation") { stepReady=true; mover.Stop(); return true; }
                 }
+                if (settings.Type == "socialize") return TickSocialize(dt);
+                if (settings.Type == "hawk")
+                {
+                    stepReady = true; mover.Stop();
+                    hawkShowLeft = Mathf.Max(0, hawkShowLeft - dt);
+                    hawkWait -= dt;
+                    if (hawkWait <= 0) TryHawk();
+                    return true;
+                }
+                if (settings.Type == "eat")
+                {
+                    // Stays put; the sprite plays the meal loop. Without eat/drink/idle sheets (or vanilla sprites) it just stands.
+                    NpcSprite sprite = brain.GetComponent<NpcSprite>();
+                    activity = sprite != null && sprite.Pending ? "; sprites loading" : sprite != null && sprite.CanEat() ? "" : "; no eat, drink or idle sheets: standing";
+                    stepReady = true; mover.Stop(); return true;
+                }
                 bool absolute = settings.Type == "guard_spot" || settings.Type == "work_at" || settings.Spots.Count > 0;
                 Vector3 offset = absolute ? brain.transform.localPosition : brain.transform.localPosition - homeLocal;
                 PackagePoint target = motion.Tick(new PackagePoint(offset.x, offset.y, offset.z), seconds, dt);
@@ -225,7 +273,13 @@ namespace AdvancedNPCs
                         activity="; unreachable named spot, trying alternatives; current AI";
                         spotRetry=0; return false;
                     }
-                    Fail("target unreachable (no progress for 10 active seconds)");
+                    AtGuardPost = false; AtWorkPost = false;
+                    if (motion.CanRetry)
+                    {
+                        activity = "; target blocked; current AI (retry " + (motion.RetryCount + 1) + "/2 after 15 active seconds)";
+                        return false;
+                    }
+                    Fail("target unreachable (no progress for 10 active seconds; 2 retries exhausted)");
                     return false;
                 }
                 AtGuardPost = Guarding && target == null;
@@ -233,7 +287,13 @@ namespace AdvancedNPCs
                 stepReady = target == null || (settings.Type != "work_at" && settings.Type != "guard_spot" && settings.Type != "travel_to");
                 if (target == null)
                 {
-                    if (settings.Type == "wander_civilian" && (cityNavigation == null || settings.Radius == 0 || random.NextDouble() < 0.25))
+                    if (settings.Type == "chore")
+                    {
+                        // Every stop is a chore; vanilla sprites (no sheets) stand a few seconds instead.
+                        civilianPaused = true;
+                        if (civilianSprite == null || !civilianSprite.BeginChorePause(settings)) civilianIdleLeft = 2 + (float)random.NextDouble() * 4;
+                    }
+                    else if (settings.Type == "wander_civilian" && (cityNavigation == null || settings.Radius == 0 || random.NextDouble() < 0.25))
                     {
                         civilianPaused = true;
                         // Vanilla sprites have no named activity sheets; keep their normal standing animation.
@@ -268,6 +328,84 @@ namespace AdvancedNPCs
                 Fail(e.Message);
                 return false;
             }
+        }
+
+        float SocialInterval() { return (float)(settings.IntervalMin + (settings.IntervalMax - settings.IntervalMin) * random.NextDouble()); }
+
+        /// <summary>
+        /// Socialize: every interval, walk up to the nearest ANPC within radius that can talk now and start a conversation
+        /// (NpcChat holds both still while it lasts). Gives up on a partner after 15 active seconds of approach.
+        /// </summary>
+        bool TickSocialize(float dt)
+        {
+            stepReady = true;
+            NpcChat chat = brain.GetComponent<NpcChat>();
+            if (chat == null) { mover.Stop(); activity = "; no conversation setup"; return true; }
+            if (chat.Talking) { socialPartner = null; socialWait = SocialInterval(); activity = "; talking"; return true; }
+            socialWait -= dt;
+            if (socialPartner == null)
+            {
+                mover.Stop();
+                if (socialWait > 0) return true;
+                socialWait = 3f;
+                string why = chat.WhyNot();
+                if (why != null) { activity = "; cannot talk: " + why; return true; }
+                float best = (float)settings.Radius;
+                foreach (NpcChat other in UnityEngine.Object.FindObjectsOfType<NpcChat>())
+                {
+                    if (other.transform.parent != brain.transform.parent || !chat.CanTalkWith(other)) continue;
+                    float d = Vector3.Distance(other.transform.position, brain.transform.position);
+                    if (d <= best) { best = d; socialPartner = other; }
+                }
+                socialApproach = 0;
+                if (socialPartner == null) { activity = "; nobody to talk to within " + settings.Radius + " m"; return true; }
+            }
+            if (socialPartner == null || !chat.CanTalkWith(socialPartner)) { socialPartner = null; socialWait = 3f; mover.Stop(); return true; }
+            Vector3 to = socialPartner.transform.position - brain.transform.position; to.y = 0f;
+            if (to.magnitude <= 1.6f)
+            {
+                mover.Stop();
+                string why = chat.TryStart(socialPartner, false);
+                activity = why == null ? "; started a conversation with " + socialPartner.Brain.DisplayName : "; could not start: " + why;
+                socialPartner = null; socialWait = why == null ? 1f : SocialInterval();
+                return true;
+            }
+            socialApproach += dt;
+            if (socialApproach > 15f || brain.IsTurret)
+            {
+                activity = "; could not reach " + socialPartner.Brain.DisplayName;
+                socialPartner = null; socialWait = SocialInterval(); mover.Stop();
+                return true;
+            }
+            activity = "; walking over to " + socialPartner.Brain.DisplayName;
+            mover.MoveToward(socialPartner.transform.position, NpcMover.WalkSpeed);
+            return true;
+        }
+
+        /// <summary>Hawk: the player within range and in sight gets a call (voice line and hawk sheet), facing them.</summary>
+        void TryHawk()
+        {
+            hawkWait = 1f;     // nobody to call to: look again in a second
+            GameObject player = GameManager.Instance.PlayerObject;
+            DaggerfallWorkshop.Game.Entity.DaggerfallEntityBehaviour target = GameManager.Instance.PlayerEntityBehaviour;
+            if (player == null || target == null || Vector3.Distance(player.transform.position, brain.transform.position) > settings.Radius ||
+                !brain.CanSee(target))
+                return;
+            Vector3 to = player.transform.position - brain.transform.position; to.y = 0f;
+            if (to.sqrMagnitude > 0.001f) brain.transform.rotation = Quaternion.LookRotation(to);
+            NpcVoice voice = brain.GetComponent<NpcVoice>();
+            bool spoke = voice != null && voice.Play(SoundPools.Hawk);
+            NpcSprite sprite = brain.GetComponent<NpcSprite>();
+            // Its own hawk sheet, else greet, else talk; none: it only turns and calls.
+            hawkAnimation = null; hawkShowLeft = 0f;
+            if (sprite != null)
+                foreach (string name in new[] { settings.Animation, PackageAnimations.HawkFallbacks[0], PackageAnimations.HawkFallbacks[1] })
+                {
+                    float seconds = sprite.PackageCycleSeconds(name);
+                    if (seconds > 0) { hawkAnimation = name; hawkShowLeft = seconds; break; }
+                }
+            hawkWait = (float)(settings.IntervalMin + (settings.IntervalMax - settings.IntervalMin) * random.NextDouble());
+            activity = spoke ? "; called out to the player" : "; called out (no hawk sounds)";
         }
 
         PackagePoint CivilianTarget(PackagePoint current)
@@ -399,7 +537,7 @@ namespace AdvancedNPCs
                 activity = "; following " + settings.FollowTarget + "; " + navigation.Status;
                 if (navigation.CatchupReady)
                 {
-                    AdvancedNpcsMod.Log(brain.Id + ": companion caught up out of sight.");
+                    AdvancedNpcsMod.Log(brain.Id + ": companion caught up.");
                     brain.Teleport(catchup); // disposes this package driver; return without touching it again
                     return true;
                 }

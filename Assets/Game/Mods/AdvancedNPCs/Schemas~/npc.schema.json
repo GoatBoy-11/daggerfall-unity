@@ -500,6 +500,13 @@
           "default": true,
           "description": "Without step files of its own, play the shared ANPCs/_Sounds steps."
         },
+        "voice": {
+          "description": "Shared voice pack(s) in ANPCs/_Sounds (va_ folders). A list: one is picked per person. Its own Sounds pools replace the pack's.",
+          "oneOf": [
+            { "type": "string", "pattern": "^[Vv][Aa]_[^/\\:]+$" },
+            { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[Vv][Aa]_[^/\\:]+$" } }
+          ]
+        },
         "barkMinSeconds": {
           "type": "number",
           "minimum": 1,
@@ -674,6 +681,10 @@
         },
         "weather": {
           "$ref": "#/definitions/names"
+        },
+        "bad_weather": {
+          "type": "boolean",
+          "description": "Rain, thunderstorms or snow; ordinary overcast weather does not count."
         },
         "region": {
           "$ref": "#/definitions/names"

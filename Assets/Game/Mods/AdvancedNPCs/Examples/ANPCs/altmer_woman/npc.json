@@ -1,0 +1,53 @@
+{
+  "kind": "generic",
+  "name": "Altmer Woman",
+  "race": "Breton",
+  "gender": "Female",
+  "baseClass": "Mage",
+  "bravery": "Normal",
+  "spriteHeight": 2.18,
+  "wanderRadius": 4,
+  "portrait": "altmer_woman",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Tavern"
+      ],
+      "chance": 6,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.3,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [
+      "Fireball",
+      "Shield"
+    ],
+    "usesMagicka": true,
+    "maxMagicka": 150,
+    "recovery": "onAreaEntry",
+    "castCooldown": [
+      5,
+      9
+    ]
+  }
+}

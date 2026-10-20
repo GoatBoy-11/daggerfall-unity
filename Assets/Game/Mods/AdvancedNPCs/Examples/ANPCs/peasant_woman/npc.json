@@ -1,0 +1,46 @@
+{
+  "kind": "generic",
+  "name": "Peasant Woman",
+  "race": "Breton",
+  "gender": "Female",
+  "baseClass": "Bard",
+  "bravery": "Coward",
+  "spriteHeight": 1.98,
+  "wanderRadius": 4,
+  "portrait": "peasant_woman",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "House",
+        "GeneralStore"
+      ],
+      "chance": 12,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.4,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

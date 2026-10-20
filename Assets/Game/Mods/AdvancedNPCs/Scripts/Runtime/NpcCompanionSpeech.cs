@@ -69,7 +69,7 @@ namespace AdvancedNPCs
                 if(clip==null || voices==null)return;
                 StopSpeech();
                 dismissalSource=Speech(clip,pool,SoundRules.Pitch(settings.SoundPitch,settings.SoundPitchVariation,Random.value));
-                dismissalContract=contract;Count(pool);played=true;
+                dismissalContract=contract;companionClip=true;Count(pool);played=true;
             }
             else played=Play(pool);
             if(played)barkClock.Schedule(settings.BarkMinSeconds,settings.BarkMaxSeconds,Random.value);

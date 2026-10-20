@@ -26,6 +26,21 @@ namespace AdvancedNPCs.Core
     public static class HostilityRules
     {
         public const ulong SecondsPerHour = 3600;
+        /// <summary>Allies farther than this from an attacked ANPC do not notice.</summary>
+        public const float AllyRange = 20f;
+        /// <summary>Allies this close notice without seeing the fight (they hear it).</summary>
+        public const float AllyHearRange = 8f;
+
+        /// <summary>
+        /// Two ANPCs stand by each other when one is attacked: people of the same building (a guild hall's members, a
+        /// shop's staff, a tavern's crowd), of the same spawn group in one place, or stand-ins for the same vanilla faction.
+        /// </summary>
+        public static bool Allied(bool sameParent, bool inBuilding, int groupA, int groupB, int factionA, int factionB)
+        {
+            if (factionA > 0 && factionA == factionB)
+                return true;
+            return sameParent && (inBuilding || (groupA >= 0 && groupA == groupB));
+        }
 
         /// <summary>
         /// Fight or flee for the bravery and current health fraction (0..1). Prudent flees below fleeHealthPercent;

@@ -17,6 +17,29 @@ Sources
 - Free Generic Female Voice Pack, voiced by Rookie (r0okie.carrd.co).
 - RPG Voice Starter Pack and Free Voice Clips Pack (Mature Female) by Cici Fyre (https://cicifyre.itch.io/), CC0.
 - NOX_SOUND Voices Essentials and Footsteps Essentials by Nox Sound, CC0.
+- "7 Eating Crunches" by StarNinjas (OpenGameArt, https://opengameart.org/content/7-eating-crunches), CC0:
+  _Sounds/eat_1-7 (crunch 1-7; mono 44 kHz, trimmed to 0.8 s at most, peak -6 dB).
+- "Liquid Bottle Drink Set" by qubodup (OpenGameArt, https://opengameart.org/content/liquid-bottle-drink-set), CC0:
+  _Sounds/drink_1-4 (swallow 01, 03, 04, 05; mono 44 kHz, trimmed, peak -6 dB).
+
+Voice packs (_Sounds/va_*, built by Tools~/voice_packs.py)
+-----------------------------------------------------------
+- va_warrior_male: Warrior Voice Pack by John Carroll (https://johncarroll.itch.io/).
+- va_orc_male: Orc Voice Pack by John Carroll (https://johncarroll.itch.io/), CC0.
+- va_orc_warlord_male: "Orc Commander" voice pack (author: TODO).
+- va_hunter_male: Ash's Epic Voices Vol. 5 - Bountiful Hunter by AmalgamAsh, CC BY 4.0.
+- va_adventurer_male: "Male protagonist" voice pack (author: TODO).
+- va_adventurer_female: Female Voice Clips, voiced by Rookie (r0okie.carrd.co).
+- va_townswoman_female: Voice Pack by Elise Astoria.
+- va_commoner_female / va_commoner_male: "video_game_voices", voices Yvette / Peter (author: TODO).
+- va_cheerful_female: Rheia Voice Pack (author: TODO).
+- va_fighter_female: RPG Voice Pack 2.0 by N0sSyndrome (https://n0ssyndrome.itch.io/).
+- Local only (not shared): va_brawler_male, Generic Male Voice Pack by Dan Bosley (@daniconshow).
+- Local only (not shared): va_clifford_male, va_edwyn_male, va_nile_male, va_samuel_male, va_jamaal_*_male,
+  va_patrick_*_male, va_karenk_female, va_kimlinh_female, va_rina_female, va_karenh_*_female: "Action RPG Characters"
+  and "Merchants Enemies And Townsfolk" by Daniel Gooding / Affordable Audio 4 Everyone (Unity Asset Store). Voices:
+  Clifford Chapin, Edwyn Tiong, Jamaal E. (XTREEMMAK), Karen H., Karen Kahler, Kimlinh Tran, Nile, Patrick M. Seymour,
+  Rina, Samuel.
 
 Who uses what
 -------------

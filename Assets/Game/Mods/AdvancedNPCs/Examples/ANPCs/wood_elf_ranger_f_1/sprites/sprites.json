@@ -1,5 +1,5 @@
 {
-  "pixelsPerUnit": 106.7919,
+  "pixelsPerUnit": 106.132,
   "cellHeight": 256,
   "groundY": 25,
   "anchorX": "centre",
@@ -16,12 +16,12 @@
   ],
   "animations": {
     "attack_1": {
-      "cellWidth": 224,
+      "cellWidth": 232,
       "frames": 6,
       "actionFrame": 3
     },
     "attack_2": {
-      "cellWidth": 224,
+      "cellWidth": 232,
       "frames": 6,
       "actionFrame": 3
     },
@@ -43,19 +43,19 @@
       "frames": 4
     },
     "idle_1": {
-      "cellWidth": 96,
+      "cellWidth": 80,
       "frames": 4
     },
     "idle_2": {
-      "cellWidth": 96,
+      "cellWidth": 80,
       "frames": 6
     },
     "run": {
-      "cellWidth": 120,
+      "cellWidth": 104,
       "frames": 8
     },
     "talk_1": {
-      "cellWidth": 128,
+      "cellWidth": 120,
       "frames": 6
     },
     "talk_2": {
@@ -63,7 +63,7 @@
       "frames": 6
     },
     "walk": {
-      "cellWidth": 104,
+      "cellWidth": 88,
       "frames": 8
     },
     "projectile": {
@@ -74,5 +74,5 @@
       "fps": 8
     }
   },
-  "standingHeight": 181
+  "standingHeight": 180
 }

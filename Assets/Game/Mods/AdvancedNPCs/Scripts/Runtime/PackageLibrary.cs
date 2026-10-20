@@ -77,7 +77,22 @@ namespace AdvancedNPCs
                             if (!names.Exists(delegate(string n) { return string.Equals(n, family, StringComparison.OrdinalIgnoreCase); })) names.Add(family);
                         continue;
                     }
-                    if (settings.Type != "play_animation" && settings.Type != "work_at") continue;
+                    if (settings.Type == "chore")
+                    {
+                        foreach (string family in settings.ChoreAnimations)
+                            if (!names.Exists(delegate(string n) { return string.Equals(n, family, StringComparison.OrdinalIgnoreCase); })) names.Add(family);
+                        continue;
+                    }
+                    if (settings.Type == "eat")
+                    {
+                        foreach (string family in new[] { MealAnimationLoop.EatFamily, MealAnimationLoop.DrinkFamily })
+                            if (!names.Exists(delegate(string n) { return string.Equals(n, family, StringComparison.OrdinalIgnoreCase); })) names.Add(family);
+                        continue;
+                    }
+                    if (settings.Type == "hawk")
+                        foreach (string family in PackageAnimations.HawkFallbacks)
+                            if (!names.Exists(delegate(string n) { return string.Equals(n, family, StringComparison.OrdinalIgnoreCase); })) names.Add(family);
+                    if (settings.Type != "play_animation" && settings.Type != "work_at" && settings.Type != "hawk") continue;
                     if (!names.Exists(delegate(string n) { return string.Equals(n, settings.Animation, StringComparison.OrdinalIgnoreCase); }))
                         names.Add(settings.Animation);
                 }

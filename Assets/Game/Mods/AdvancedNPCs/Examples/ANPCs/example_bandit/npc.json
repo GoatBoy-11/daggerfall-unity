@@ -1,0 +1,47 @@
+// EXAMPLE: a hostile human enemy with combat tuning and a bow.
+// Never spawns by itself. Try it in game with:  anpc_spawn example_bandit
+{
+  "$schema": "../_Schemas/npc.schema.json",
+
+  "kind": "generic",
+  "name": "Example Bandit",
+  "gender": "Male",
+  "baseClass": "Rogue",
+
+  // "hostile" = attacks on sight with DFU's enemy AI, never calms down, killing it is no crime.
+  "attitude": "hostile",
+
+  // Optional: hostile only between these whole hours (here 20:00 to 06:00), calm townsfolk otherwise.
+  // "hostileHours": [20, 6],
+
+  // Prudent: fights, but runs once health drops below "fleeHealthPercent".
+  "bravery": "Prudent",
+  "fleeHealthPercent": 20,
+
+  "spawn": {
+    // Never in towns by itself (use anpc_spawn). To spawn outside towns, add blocks like these here:
+    //   "dungeons":   { "chance": 25, "count": [2, 4], "dungeonTypes": ["HumanStronghold", "Prison"] },
+    //   "interiors":  { "buildings": ["Tavern"], "chance": 30, "count": [1, 2], "when": { "time": "night" } },
+    //   "wilderness": { "chance": 5, "max": 2, "when": { "time": "night" } },
+    // A template with only those blocks (no "locationTypes") stays out of town streets.
+    "count": [0, 0]
+  },
+
+  // Scales DFU's own combat numbers for this ANPC. 1 (or leaving a field out) keeps vanilla.
+  "combat": {
+    // Multiplier on rolled max health (0.05 to 10).
+    "health": 1.2,
+    // Swing rate multiplier (0.25 to 4). 1.2 = 20% more often.
+    "attackSpeed": 1.2,
+    // true: shoots its bow when the target is far away. Without it, melee only.
+    "rangedAtDistance": true,
+    // Damage of a bow hit: [min, max] or one number (1 to 1000). Leave out for DFU's bow damage.
+    "projectileDamage": [2, 6],
+    // Run speed compared to walking (1 to 2). "canRun": false always walks.
+    "runSpeed": 1.2,
+    "canRun": true
+  },
+
+  // Hostile ANPCs with "conversation" chat with each other while they have no one to fight.
+  "conversation": true
+}

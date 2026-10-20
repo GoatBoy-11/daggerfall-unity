@@ -100,9 +100,107 @@ namespace AdvancedNPCs
                     library.Add(def.Folder, set);
             }
             library.SetDefaultSteps(IndexDefaults(root));
-            AdvancedNpcsMod.Log("Indexed " + library.Count + " sound folder(s)" +
-                (library.defaultSteps != null ? " and " + library.defaultSteps.Files[SoundPools.Step].Count + " default step sound(s)." : "."));
+            library.IndexPacks(root);
+            AdvancedNpcsMod.Log("Indexed " + library.Count + " sound folder(s), " + library.packs.Count + " voice pack(s)" +
+                (library.defaultSteps != null ? " and default sounds (" + library.defaultSteps.Summary() + ")." : "."));
+            library.WarnMissingPacks(defs);
             return library;
+        }
+
+        readonly Dictionary<string, LoadedSoundSet> packs = new Dictionary<string, LoadedSoundSet>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>"folder|va_pack" → the folder's own pools over the pack's (an ANPC with both).</summary>
+        readonly Dictionary<string, LoadedSoundSet> merged = new Dictionary<string, LoadedSoundSet>(StringComparer.Ordinal);
+
+        /// <summary>Voice pack names found in ANPCs/_Sounds (anpc_info, self-test).</summary>
+        public ICollection<string> Packs
+        {
+            get { return packs.Keys; }
+        }
+
+        /// <summary>(Re-)indexes the voice packs ANPCs/_Sounds/va_*; the old ones, and every merged set, go once unused.</summary>
+        public void IndexPacks(string root)
+        {
+            foreach (LoadedSoundSet old in packs.Values)
+                Retire(old);
+            packs.Clear();
+            foreach (string key in new List<string>(merged.Keys))
+                DropMerged(key);
+            string dir = Path.Combine(root, SharedFolder);
+            if (!Directory.Exists(dir))
+                return;
+            string[] subs = Directory.GetDirectories(dir);
+            Array.Sort(subs, StringComparer.Ordinal);
+            foreach (string sub in subs)
+            {
+                string name = Path.GetFileName(sub);
+                if (!SoundRules.IsVoicePackName(name))
+                {
+                    AdvancedNpcsMod.Log(SharedFolder + "/" + name + ": not a voice pack (its name must start with " + SoundRules.VoicePrefix + "); ignored");
+                    continue;
+                }
+                LoadedSoundSet set = IndexSet(SharedFolder + "/" + name, sub);
+                if (set == null)
+                    continue;
+                set.Library = this;
+                packs[name] = set;
+            }
+        }
+
+        /// <summary>Logs every "voice" pack name an npc.json gives that _Sounds does not have.</summary>
+        public void WarnMissingPacks(IEnumerable<NpcDefinition> defs)
+        {
+            foreach (NpcDefinition def in defs)
+                foreach (string voice in def.Sounds.Voices)
+                    if (!packs.ContainsKey(voice))
+                        AdvancedNpcsMod.Log(def.Folder + ": voice pack " + voice + " not found in " + SharedFolder + "; its own and vanilla sounds play instead");
+        }
+
+        /// <summary>
+        /// The sounds of a folder that uses a voice pack (null: none or not found): the pack itself, or, when the folder has
+        /// a Sounds folder too, its own pools over the pack's (an own pool replaces the pack's whole pool).
+        /// </summary>
+        public LoadedSoundSet For(string folder, string voice)
+        {
+            LoadedSoundSet own = For(folder);
+            LoadedSoundSet pack;
+            if (voice == null || !packs.TryGetValue(voice, out pack))
+                return own;
+            if (own == null)
+                return pack;
+            // shortcut: such a folder decodes the pack's files again for itself (pack clips shared only by ANPCs without
+            // a Sounds folder); share clips per file if many ANPC types with own sounds use one pack.
+            string key = folder + "|" + voice;
+            LoadedSoundSet m;
+            if (!merged.TryGetValue(key, out m))
+            {
+                m = new LoadedSoundSet();
+                m.Label = own.Label + " + " + pack.Label;
+                m.Dir = own.Dir;
+                m.Library = this;
+                foreach (KeyValuePair<string, List<string>> p in pack.Files)
+                    m.Files[p.Key] = p.Value;
+                foreach (KeyValuePair<string, List<string>> p in own.Files)
+                    m.Files[p.Key] = p.Value;
+                merged[key] = m;
+            }
+            return m;
+        }
+
+        void DropMerged(string key)
+        {
+            LoadedSoundSet m;
+            if (!merged.TryGetValue(key, out m))
+                return;
+            merged.Remove(key);
+            Retire(m);
+        }
+
+        /// <summary>The merged sets of a folder go: its own sounds changed.</summary>
+        void DropMergedOf(string folder)
+        {
+            foreach (string key in new List<string>(merged.Keys))
+                if (key.StartsWith(folder + "|", StringComparison.Ordinal))
+                    DropMerged(key);
         }
 
         /// <summary>The shared folder of default sounds: ANPCs/_Sounds.</summary>
@@ -128,14 +226,15 @@ namespace AdvancedNPCs
                 s.Library = this;
         }
 
-        /// <summary>Re-reads ANPCs/_Sounds (anpc_reload_assets); true when it has default steps.</summary>
+        /// <summary>Re-reads ANPCs/_Sounds and its voice packs (anpc_reload_assets); true when it has default steps.</summary>
         public bool ReloadDefaults(string root)
         {
             SetDefaultSteps(IndexDefaults(root));
+            IndexPacks(root);
             return defaultSteps != null;
         }
 
-        /// <summary>ANPCs/_Sounds under root indexed, step files only (others are logged and ignored); null without any.</summary>
+        /// <summary>ANPCs/_Sounds under root indexed: step, eat and drink files only (others are logged and ignored); null without any.</summary>
         public static LoadedSoundSet IndexDefaults(string root)
         {
             string dir = Path.Combine(root, SharedFolder);
@@ -146,17 +245,14 @@ namespace AdvancedNPCs
                 return null;
             foreach (string pool in new List<string>(set.Files.Keys))
             {
-                if (pool == SoundPools.Step)
+                if (pool == SoundPools.Step || pool == SoundPools.Eat || pool == SoundPools.Drink)
                     continue;
-                AdvancedNpcsMod.Log(SharedFolder + ": " + pool + " sounds are not used as defaults (only step); ignored");
+                AdvancedNpcsMod.Log(SharedFolder + ": " + pool + " sounds are not used as defaults (only step, eat, drink); ignored");
                 set.Files.Remove(pool);
             }
-            if (set.Files.Count == 0)
-            {
+            if (!set.Files.ContainsKey(SoundPools.Step))
                 AdvancedNpcsMod.Log(SharedFolder + ": no step sounds; ANPCs without their own have no footsteps");
-                return null;
-            }
-            return set;
+            return set.Files.Count == 0 ? null : set;
         }
 
         /// <summary>The Sounds folder (any case) of an NPC folder, indexed; null when it has none or no usable file.</summary>
@@ -194,7 +290,7 @@ namespace AdvancedNPCs
                 string pool = SoundPools.PoolOf(Path.GetFileNameWithoutExtension(path));
                 if (pool == null)
                 {
-                    AdvancedNpcsMod.Log(label + "/" + file + ": not a greet, attack, attack_range, cast, heal, hit, death, step talk or supported cm_ companion sound; ignored");
+                    AdvancedNpcsMod.Log(label + "/" + file + ": not a greet, halt, attack, attack_range, cast, heal, hit, death, step, talk or supported cm_ companion sound; ignored");
                     continue;
                 }
                 List<string> list;
@@ -223,6 +319,7 @@ namespace AdvancedNPCs
         /// <summary>Adds a set to a folder (also used by the self-test).</summary>
         public void Add(string folder, LoadedSoundSet set)
         {
+            DropMergedOf(folder);
             byFolder[folder] = set;
             set.Library = this;
         }
@@ -235,6 +332,7 @@ namespace AdvancedNPCs
                 return;
             byFolder.Remove(folder);
             Retire(old);
+            DropMergedOf(folder);
         }
 
         /// <summary>Re-indexes one NPC folder from disk (anpc_reload_assets); true when it now has sounds.</summary>
@@ -302,24 +400,33 @@ namespace AdvancedNPCs
                 s.UnloadAt = Time.unscaledTime + (s.Retired ? SoundRules.RetireDelay(LongestClip(s)) : UnloadDelaySeconds);
         }
 
-        /// <summary>Every frame (AdvancedNpcsMod.Update): loads one clip, unloads sets whose countdown ran out.</summary>
+        /// <summary>
+        /// Every frame (AdvancedNpcsMod.Update): keeps one clip decoding in the background (Unity's audio request, not
+        /// waited on), unloads sets whose countdown ran out.
+        /// </summary>
         public void Tick(float now)
         {
-            if (loading.Count > 0)
+            if (request != null && request.isDone)
+                FinishRequest();
+            while (request == null && loading.Count > 0)
             {
                 LoadedSoundSet s = loading[0];
                 if (s.Pending.Count > 0)
-                    LoadNext(s);
-                if (s.Pending.Count == 0)
                 {
-                    loading.RemoveAt(0);
-                    s.Pending = null;
-                    s.IsReady = true;
-                    if (s.Users == 0)
-                        s.UnloadAt = Time.unscaledTime + UnloadDelaySeconds;
+                    StartRequest(s, s.Pending.Dequeue());
+                    continue;
                 }
+                loading.RemoveAt(0);
+                s.Pending = null;
+                s.IsReady = true;
+                if (s.Users == 0)
+                    s.UnloadAt = Time.unscaledTime + UnloadDelaySeconds;
             }
             foreach (LoadedSoundSet s in byFolder.Values)
+                UnloadIfUnused(s, now);
+            foreach (LoadedSoundSet s in packs.Values)
+                UnloadIfUnused(s, now);
+            foreach (LoadedSoundSet s in merged.Values)
                 UnloadIfUnused(s, now);
             if (defaultSteps != null)
                 UnloadIfUnused(defaultSteps, now);
@@ -338,17 +445,44 @@ namespace AdvancedNPCs
                 Unload(s, true);
         }
 
-        static void LoadNext(LoadedSoundSet s)
+        UnityWebRequest request;
+        LoadedSoundSet requestSet;
+        string requestPath;
+
+        void StartRequest(LoadedSoundSet s, string path)
         {
-            string path = s.Pending.Dequeue();
             string problem;
-            AudioClip clip = LoadClip(path, out problem);
-            if (clip == null)
+            UnityWebRequest r = Begin(path, out problem);
+            if (r == null)
             {
                 AdvancedNpcsMod.LogError(s.Label + "/" + Path.GetFileName(path) + ": " + problem + " (sound skipped)");
                 return;
             }
-            string pool = SoundPools.PoolOf(Path.GetFileNameWithoutExtension(path));
+            request = r;
+            requestSet = s;
+            requestPath = path;
+        }
+
+        void FinishRequest()
+        {
+            UnityWebRequest r = request;
+            LoadedSoundSet s = requestSet;
+            request = null;
+            requestSet = null;
+            string problem;
+            AudioClip clip = End(r, requestPath, out problem);
+            if (s.Pending == null)
+            {
+                if (clip != null)
+                    UnityEngine.Object.Destroy(clip);      // the set was removed or reloaded meanwhile
+                return;
+            }
+            if (clip == null)
+            {
+                AdvancedNpcsMod.LogError(s.Label + "/" + Path.GetFileName(requestPath) + ": " + problem + " (sound skipped)");
+                return;
+            }
+            string pool = SoundPools.PoolOf(Path.GetFileNameWithoutExtension(requestPath));
             List<AudioClip> clips;
             if (!s.Clips.TryGetValue(pool, out clips))
             {
@@ -373,6 +507,16 @@ namespace AdvancedNPCs
         /// <summary>A clip from a .wav, .ogg or .mp3 file (blocking, as DFU's own loose-file sounds); null and a reason on failure.</summary>
         public static AudioClip LoadClip(string path, out string problem)
         {
+            UnityWebRequest r = Begin(path, out problem);
+            if (r == null)
+                return null;
+            while (!r.isDone) { }
+            return End(r, path, out problem);
+        }
+
+        /// <summary>Starts decoding a sound file in the background; null and a reason if it cannot be started.</summary>
+        static UnityWebRequest Begin(string path, out string problem)
+        {
             problem = null;
             AudioType type = TypeOf(Path.GetExtension(path));
             if (type == AudioType.UNKNOWN)
@@ -382,23 +526,39 @@ namespace AdvancedNPCs
             }
             try
             {
-                using (UnityWebRequest request = UnityWebRequestMultimedia.GetAudioClip(new Uri(Path.GetFullPath(path)).AbsoluteUri, type))
+                UnityWebRequest r = UnityWebRequestMultimedia.GetAudioClip(new Uri(Path.GetFullPath(path)).AbsoluteUri, type);
+                DownloadHandlerAudioClip handler = r.downloadHandler as DownloadHandlerAudioClip;
+                if (handler == null)
                 {
-                    DownloadHandlerAudioClip handler = request.downloadHandler as DownloadHandlerAudioClip;
-                    if (handler == null)
+                    r.Dispose();
+                    problem = "no audio handler";
+                    return null;
+                }
+                handler.streamAudio = false;
+                r.SendWebRequest();
+                return r;
+            }
+            catch (Exception e)
+            {
+                problem = e.Message;
+                return null;
+            }
+        }
+
+        /// <summary>The clip of a finished request (disposed here); null and a reason on failure.</summary>
+        static AudioClip End(UnityWebRequest r, string path, out string problem)
+        {
+            problem = null;
+            using (r)
+            {
+                try
+                {
+                    if (r.isNetworkError || r.isHttpError)
                     {
-                        problem = "no audio handler";
+                        problem = r.error;
                         return null;
                     }
-                    handler.streamAudio = false;
-                    request.SendWebRequest();
-                    while (!request.isDone) { }
-                    if (request.isNetworkError || request.isHttpError)
-                    {
-                        problem = request.error;
-                        return null;
-                    }
-                    AudioClip clip = handler.audioClip;
+                    AudioClip clip = ((DownloadHandlerAudioClip)r.downloadHandler).audioClip;
                     if (clip == null || clip.length <= 0f)
                     {
                         problem = "could not be decoded (an .ogg with a picture or video stream does not load: re-export it as audio only)";
@@ -407,11 +567,11 @@ namespace AdvancedNPCs
                     clip.name = Path.GetFileName(path);
                     return clip;
                 }
-            }
-            catch (Exception e)
-            {
-                problem = e.Message;
-                return null;
+                catch (Exception e)
+                {
+                    problem = e.Message;
+                    return null;
+                }
             }
         }
 

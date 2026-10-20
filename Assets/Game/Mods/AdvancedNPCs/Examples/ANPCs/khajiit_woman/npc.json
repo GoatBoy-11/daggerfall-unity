@@ -1,0 +1,46 @@
+{
+  "kind": "generic",
+  "name": "Khajiit Woman",
+  "race": "Khajiit",
+  "gender": "Female",
+  "baseClass": "Acrobat",
+  "bravery": "Normal",
+  "nameList": "khajiit_skyrim",
+  "spriteHeight": 1.98,
+  "wanderRadius": 4,
+  "portrait": "khajiit_woman",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Tavern"
+      ],
+      "chance": 10,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.4,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

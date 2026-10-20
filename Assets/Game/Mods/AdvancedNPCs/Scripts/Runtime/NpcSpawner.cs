@@ -291,8 +291,6 @@ namespace AdvancedNPCs
         /// <summary>Spawns under parent (a town, interior or dungeon object) unless dead or already there.</summary>
         public NpcBrain SpawnChecked(NpcInstance instance, NpcState state, Transform parent, bool companion = false)
         {
-            // shortcut: custody releases on area entry; add timed respawning if release must happen in view.
-            if (GuardRules.InCustody(state, DaggerfallUnity.Instance.WorldTime.Now.ToSeconds())) return null;
             // The roster owns recruited identities, including waiting/dismissed people away from home.
             if (!companion && owner.States.IsCompanion(instance.Key)) return null;
             NpcBrain existing = NpcBrain.Find(instance.Key);
@@ -388,7 +386,7 @@ namespace AdvancedNPCs
                 go.AddComponent<NpcRanged>().Init(def);
             // Custom sounds (spec sounds): the folder's Sounds, also for an ANPC with the vanilla sprite. Every ANPC has a
             // voice, so the "ANPC sounds" setting can hand it to DFU or silence it at any time.
-            LoadedSoundSet sounds = owner.Sounds != null ? owner.Sounds.For(def.Folder) : null;
+            LoadedSoundSet sounds = owner.Sounds != null ? owner.Sounds.For(def.Folder, SoundRules.PickVoice(def.Sounds.Voices, instance.Seed, instance.Gender)) : null;
             go.AddComponent<NpcVoice>().Init(sounds, def.Sounds, owner.Sounds != null ? owner.Sounds.DefaultSteps : null);
             if (sounds != null)
                 greets |= sounds.Pools.Contains(SoundPools.Greet);

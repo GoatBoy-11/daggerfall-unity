@@ -1,7 +1,7 @@
 {
-  "pixelsPerUnit": 130.5481,
+  "pixelsPerUnit": 121.9311,
   "cellHeight": 256,
-  "groundY": 30,
+  "groundY": 44,
   "anchorX": "centre",
   "fps": 8,
   "directions": [
@@ -15,30 +15,30 @@
     "front_left"
   ],
   "animations": {
-    "idle": {
-      "cellWidth": 184,
-      "frames": 24
-    },
-    "walk": {
-      "cellWidth": 192,
-      "frames": 12
+    "death": {
+      "cellWidth": 424,
+      "frames": 7
     },
     "greet": {
-      "cellWidth": 192,
-      "frames": 12
-    },
-    "talk": {
-      "cellWidth": 192,
-      "frames": 16
+      "cellWidth": 176,
+      "frames": 6
     },
     "hit": {
-      "cellWidth": 200,
-      "frames": 8
+      "cellWidth": 176,
+      "frames": 4
     },
-    "death": {
-      "cellWidth": 248,
-      "frames": 14
+    "idle": {
+      "cellWidth": 176,
+      "frames": 6
+    },
+    "talk": {
+      "cellWidth": 176,
+      "frames": 6
+    },
+    "walk": {
+      "cellWidth": 176,
+      "frames": 8
     }
   },
-  "standingHeight": 222
+  "standingHeight": 207
 }

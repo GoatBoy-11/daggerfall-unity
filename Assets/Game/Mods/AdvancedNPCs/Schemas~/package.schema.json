@@ -544,6 +544,285 @@
       ],
       "additionalProperties": false,
       "description": "Road-favouring town wander with 1-4 full animation cycles at occasional stops; equal idle/activity chance, with idle fallback."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": { "type": "string" },
+        "type": { "const": "seek_shelter" },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": { "type": "string" },
+            "radius": { "type": "number", "minimum": 1, "maximum": 24, "default": 16 },
+            "spot": {
+              "anyOf": [
+                { "type": "string", "pattern": "^[a-z0-9_]+$" },
+                { "type": "array", "items": { "type": "string", "pattern": "^[a-z0-9_]+$" }, "minItems": 1, "maxItems": 16 }
+              ],
+              "description": "Preferred named shelter spots or tags. Defaults to shelter."
+            },
+            "run": { "type": "boolean", "default": false }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [ "type" ],
+      "additionalProperties": false,
+      "description": "Seek nearby reachable outdoor cover; pair with outdoors and bad_weather conditions."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "eat"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "mealCycles": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "minItems": 2,
+              "maxItems": 2,
+              "default": [
+                2,
+                5
+              ],
+              "description": "[min,max] eat/drink sheet cycles per bout (eat or drink picked at random each cycle)."
+            },
+            "breakCycles": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 50
+              },
+              "minItems": 2,
+              "maxItems": 2,
+              "default": [
+                1,
+                3
+              ],
+              "description": "[min,max] idle cycles between bouts; 0 allows bouts back to back."
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "description": "Stay put, playing eat*/drink* sheets in random bouts with idle breaks; eat/drink sounds play per cycle."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "chore"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "center": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": -100,
+                "maximum": 100
+              },
+              "minItems": 3,
+              "maxItems": 3,
+              "default": [
+                0,
+                0,
+                0
+              ],
+              "description": "[x,y,z] metre offset from home that stops are picked around."
+            },
+            "radius": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 50,
+              "default": 4,
+              "description": "Metres around center; 0 works on the spot."
+            },
+            "animation": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+                  "maxLength": 64
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+                    "maxLength": 64
+                  },
+                  "minItems": 1,
+                  "maxItems": 16
+                }
+              ],
+              "default": [
+                "sweep",
+                "chop",
+                "scrub",
+                "work"
+              ],
+              "description": "Sheet families (or exact sheets) played at each stop; idle when the set has none."
+            },
+            "cycles": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "minItems": 2,
+              "maxItems": 2,
+              "default": [
+                2,
+                4
+              ],
+              "description": "[min,max] full chore cycles at each stop."
+            },
+            "run": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "description": "Walk to random nearby stops and play chore sheets (sweep, chop, scrub, work) a few cycles at each."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "hawk"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "range": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 30,
+              "default": 6,
+              "description": "Metres: the player within this distance and in sight gets a call."
+            },
+            "interval": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 3600
+              },
+              "minItems": 2,
+              "maxItems": 2,
+              "default": [
+                10,
+                20
+              ],
+              "description": "[min,max] active seconds between calls."
+            },
+            "animation": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+              "maxLength": 64,
+              "default": "hawk",
+              "description": "Sheet or family played once per call; without it greet*, then talk* (none: the ANPC just turns and calls)."
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "description": "Stay put and call out (hawk_* sounds, hawk* sheet) to the player passing within range, facing them."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "type": {
+          "const": "socialize"
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "type": "string"
+            },
+            "radius": {
+              "type": "number",
+              "minimum": 2,
+              "maximum": 50,
+              "default": 15,
+              "description": "Metres: how far it looks for someone to talk to."
+            },
+            "interval": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 3600
+              },
+              "minItems": 2,
+              "maxItems": 2,
+              "default": [
+                20,
+                40
+              ],
+              "description": "[min,max] active seconds between conversation attempts."
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "description": "Walk up to a nearby ANPC that can talk and start a conversation, every interval. Both need conversation on and talk sounds."
     }
   ]
 }

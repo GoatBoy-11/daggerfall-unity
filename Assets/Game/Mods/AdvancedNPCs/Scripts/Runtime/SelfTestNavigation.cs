@@ -54,6 +54,7 @@ namespace AdvancedNPCs
             GameManager gm = GameManager.Instance;
             Vector3 oldPosition = player.position; Quaternion oldRotation = player.rotation, oldView = gm.MainCamera.transform.rotation;
             bool oldLook = gm.PlayerMouseLook.enabled, oldAI = gm.DisableAI;
+            int oldCatchUp = mod.Config.CatchUpDistance;
             gm.PlayerMouseLook.enabled = false;
             const string key = "selftest_navigation_rogue"; ids.Add(key);
             var geometry = new GameObject("ANPC navigation verification"); geometry.transform.SetParent(location.transform,false);
@@ -63,6 +64,8 @@ namespace AdvancedNPCs
             {
                 var definition = mod.Catalog.Generics.Find(delegate(NpcDefinition d) { return d.Id == "ironclad_rogue_1"; });
                 if (definition == null) { Fail("navigation rogue setup", "ironclad_rogue_1 not installed"); yield break; }
+                Check("catch-up distance setting is present", !mod.Config.MissingKeys.Contains("CatchUpDistance"), "settings keys");
+                mod.Config.CatchUpDistance = FollowRecovery.DefaultDistance;
                 NavigationBox(geometry.transform,"test floor",navigationOrigin-Vector3.up*0.15f,new Vector3(160,0.3f,30));
                 NavigationPlayerAt(player,navigationOrigin+Vector3.right*7,Vector3.left);
                 Vector3 local = location.transform.InverseTransformPoint(navigationOrigin-Vector3.right*7+Vector3.up*2);
@@ -116,22 +119,32 @@ namespace AdvancedNPCs
                     actor.transform.position.x<navigationOrigin.x,"lock="+door.CurrentLockValue+" jump="+navigationJump+"; "+actor.Describe());
                 door.CurrentLockValue=0;
                 yield return WatchNavigation(actor,12);
-                Check("unlocking a blocked door lets follower resume walking",door.IsOpen && actor.transform.position.x>navigationOrigin.x && navigationJump<5,
+                // Stalled at the locked door, so it may catch up at once instead of walking through.
+                Check("unlocking a blocked door lets follower rejoin",actor.transform.position.x>navigationOrigin.x && Vector3.Distance(actor.transform.position,player.position)<3.3f,
                     "open="+door.IsOpen+" jump="+navigationJump+" offset="+(actor.transform.position-navigationOrigin)+"; "+actor.Describe());
                 UnityEngine.Object.Destroy(left);UnityEngine.Object.Destroy(right);UnityEngine.Object.Destroy(lintel);UnityEngine.Object.Destroy(doorObject);
                 yield return new WaitForSeconds(0.3f);
-                // In view: no pop. Out of view: bounded catch-up on safe floor with the same health/state.
+                // Moving along a wall without closing in counts as stalled, below the catch-up distance.
+                var barrier=NavigationBox(geometry.transform,"full wall",navigationOrigin+new Vector3(0,1.5f,0),new Vector3(0.25f,3,31));
+                NavigationPlayerAt(player,navigationOrigin+Vector3.right*7,Vector3.right);
+                NavigationActorAt(actor,navigationOrigin-Vector3.right*7);
+                yield return WatchNavigation(actor,10);
+                Check("follower stuck behind a wall closer than the catch-up distance recovers",navigationJump>5 && actor.transform.position.x>0.5f+navigationOrigin.x &&
+                    Vector3.Distance(actor.transform.position,player.position)<4,"jump="+navigationJump+" offset="+(actor.transform.position-navigationOrigin)+"; "+actor.Describe());
+                UnityEngine.Object.Destroy(barrier); yield return null;
+                // In view: the follower may vanish, but it arrives behind the player out of view. Same health/state.
                 NavigationPlayerAt(player,navigationOrigin+Vector3.right*22,Vector3.left);
                 NavigationActorAt(actor,navigationOrigin-Vector3.right*55);
                 yield return WatchNavigation(actor,7);
-                Check("visible distant follower never teleports",navigationJump<5,"largest jump="+navigationJump+" gap="+Vector3.Distance(actor.transform.position,player.position));
+                Check("follower in view catches up onto a hidden spot behind the player",navigationJump>10 && Vector3.Distance(actor.transform.position,player.position)<4 &&
+                    actor.transform.position.x>player.position.x+1,"jump="+navigationJump+" offset="+(actor.transform.position-player.position));
                 actor.EntityBehaviour.Entity.CurrentHealth=Math.Max(1,actor.EntityBehaviour.Entity.MaxHealth/2);
                 actor.CaptureState(); int health=actor.EntityBehaviour.Entity.CurrentHealth;
                 NavigationPlayerAt(player,navigationOrigin+Vector3.right*22,Vector3.right);
                 NavigationActorAt(actor,navigationOrigin-Vector3.right*55);
                 yield return WatchNavigation(actor,9);
-                Check("hidden distant follower catches up onto safe floor",navigationJump>10 && Vector3.Distance(actor.transform.position,player.position)<4 &&
-                    actor.GetComponent<CharacterController>().bounds.min.y>=navigationOrigin.y-0.15f,"jump="+navigationJump+" gap="+Vector3.Distance(actor.transform.position,player.position)+"; "+actor.Describe());
+                Check("hidden distant follower catches up onto safe floor behind the player",navigationJump>10 && Vector3.Distance(actor.transform.position,player.position)<4 &&
+                    actor.transform.position.x<player.position.x-1 && actor.GetComponent<CharacterController>().bounds.min.y>=navigationOrigin.y-0.15f,"jump="+navigationJump+" gap="+Vector3.Distance(actor.transform.position,player.position)+"; "+actor.Describe());
                 Check("catch-up preserves person contract and exact current health",actor.Id==key && actor.State.companion.status=="following" &&
                     actor.EntityBehaviour.Entity.CurrentHealth==health,"health="+actor.EntityBehaviour.Entity.CurrentHealth+" expected="+health);
                 mod.Companions.Command(actor,"wait");
@@ -164,7 +177,7 @@ namespace AdvancedNPCs
             finally
             {
                 NpcBrain.Discard(actor);mod.States.Remove(key);UnityEngine.Object.Destroy(geometry);
-                gm.DisableAI=oldAI; player.position=oldPosition; player.rotation=oldRotation; gm.MainCamera.transform.rotation=oldView; gm.PlayerMouseLook.enabled=oldLook;
+                gm.DisableAI=oldAI; mod.Config.CatchUpDistance=oldCatchUp; player.position=oldPosition; player.rotation=oldRotation; gm.MainCamera.transform.rotation=oldView; gm.PlayerMouseLook.enabled=oldLook;
             }
         }
     }

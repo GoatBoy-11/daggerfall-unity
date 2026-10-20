@@ -1,0 +1,47 @@
+{
+  "kind": "generic",
+  "name": "Imperial Battlemage",
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Battlemage",
+  "bravery": "Brave",
+  "nameList": "default_imperial",
+  "spriteHeight": 2.05,
+  "wanderRadius": 4,
+  "portrait": "imperial_battlemage",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Mages Guild",
+        "Tavern"
+      ],
+      "chance": 15,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.45,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "kind": "generic",
+  "name": "Bosmer in Green",
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Archer",
+  "bravery": "Normal",
+  "nameList": "default_woodelf",
+  "spriteHeight": 1.95,
+  "wanderRadius": 4,
+  "portrait": "bosmer_in_green",
+  "spawn": {
+    "locationTypes": [
+      "TownCity",
+      "TownHamlet",
+      "TownVillage"
+    ],
+    "count": [
+      0,
+      1
+    ],
+    "interiors": {
+      "buildings": [
+        "Tavern",
+        "GeneralStore"
+      ],
+      "chance": 10,
+      "count": [
+        1,
+        1
+      ]
+    }
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.45,
+    "canRun": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

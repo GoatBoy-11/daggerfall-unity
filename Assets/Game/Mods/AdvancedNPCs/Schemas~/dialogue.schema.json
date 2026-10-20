@@ -210,6 +210,10 @@
         "weather": {
           "$ref": "#/definitions/names"
         },
+        "bad_weather": {
+          "type": "boolean",
+          "description": "Rain, thunderstorms or snow; ordinary overcast weather does not count."
+        },
         "region": {
           "$ref": "#/definitions/names"
         },

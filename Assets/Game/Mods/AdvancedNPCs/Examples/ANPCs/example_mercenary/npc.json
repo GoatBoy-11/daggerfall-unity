@@ -1,0 +1,30 @@
+// EXAMPLE: a hireable companion.
+// Never spawns by itself. Try it in game with:  anpc_spawn example_mercenary  then talk to hire.
+// Hired companions follow, wait, fight by stance, trade belongings and travel with the player.
+{
+  "$schema": "../_Schemas/npc.schema.json",
+
+  "kind": "generic",
+  "name": "Example Mercenary",
+  "gender": "Female",
+  "race": "Redguard",
+  "baseClass": "Warrior",
+  "bravery": "Normal",
+
+  "spawn": { "count": [0, 0] },
+
+  // Gold charged to hire (0 to 1,000,000). Adds the hiring dialogue. Leave out = not hireable.
+  "recruitCost": 100,
+
+  // true: does not use up one of the "Max followers" slots (handy for escorts).
+  "no_companion_slot": false,
+
+  "sounds": {
+    // Shared voice pack (_Sounds/va_warrior_male): greet, attack, hit, death and companion lines without copying
+    // files. Files in this folder's own Sounds replace the pack's pool of the same name.
+    "voice": "va_warrior_male",
+    // Seconds between random companion chatter (Sounds/cm_bark_1.ogg, cm_dungeon_1.ogg, cm_inn_1.ogg, ...).
+    "barkMinSeconds": 45,
+    "barkMaxSeconds": 90
+  }
+}

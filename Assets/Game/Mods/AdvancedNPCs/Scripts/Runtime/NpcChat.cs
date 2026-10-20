@@ -88,6 +88,13 @@ namespace AdvancedNPCs
                 voice != null ? voice.TalkClips : 0);
         }
 
+        /// <summary>Both could start talking now (the socialize package's partner test): TryStart would succeed.</summary>
+        public bool CanTalkWith(NpcChat other)
+        {
+            return other != null && other != this && other.brain != null && WhyNot() == null && other.WhyNot() == null &&
+                GreetRules.SameSide(brain.ChatSide, other.brain.ChatSide) && Memory.CanStart(ChatRules.PairKey(brain.Id, other.brain.Id), NowHours());
+        }
+
         /// <summary>The greeter greeted another ANPC: maybe start a conversation (this one's chance, the pair's wait).</summary>
         public void OnGreeted(NpcBrain other)
         {

@@ -1,0 +1,32 @@
+// EXAMPLE: a unique ANPC (one person, one fixed spot).
+// This folder sits inside _Examples, and folders starting with _ are never loaded, so it never spawns.
+// To use it: copy this folder up into ANPCs/, rename it, and set "location" and "position" (see below).
+{
+  "$schema": "../../_Schemas/npc.schema.json",
+
+  // "unique" needs "name", "location" and "position".
+  "kind": "unique",
+  "name": "Sir Aldric Vane",
+
+  // Stand where they should live, type anpc_pos in the console and paste the two lines it prints.
+  // Later, anpc_place <folder> moves them to where you stand (rewrites only these two lines).
+  "location": { "region": "Daggerfall", "place": "Daggerfall" },
+  "position": [12.5, 1, -3.25],
+
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Knight",
+  "bravery": "Brave",
+
+  // Portrait from _Portraits/. Leave out for a vanilla face.
+  // "portrait": "aldric",
+
+  // Standing height in world units. Leave out to match the vanilla class sprite.
+  // "spriteHeight": 2.1,
+  // Scale height only (0.94 = 6% shorter, same width).
+  "spriteHeightScale": 1.0,
+
+  // Unique ANPCs can use everything generic ones can: dialogue, schedule, combat, magic, recruitCost, ...
+  "dialogue": "example_dialogue",
+  "wanderRadius": 4
+}

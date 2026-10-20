@@ -1,0 +1,30 @@
+{
+  "kind": "generic",
+  "name": "Nobleman with a Crown",
+  "race": "Breton",
+  "gender": "Male",
+  "baseClass": "Knight",
+  "bravery": "Normal",
+  "spriteHeight": 2.025,
+  "wanderRadius": 2,
+  "stayNear": 2,
+  "portrait": "nobleman_with_a_crown",
+  "replaces": [
+    "183.13"
+  ],
+  "replacePortrait": false,
+  "replaceName": false,
+  "combat": {
+    "rangedAtDistance": false,
+    "runSpeed": 1.4,
+    "canRun": true
+  },
+  "conversation": {
+    "enabled": true
+  },
+  "magic": {
+    "spells": [],
+    "maxMagicka": 0,
+    "usesMagicka": true
+  }
+}

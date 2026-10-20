@@ -16,6 +16,18 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void Comments_AreSkipped()
+        {
+            string json = "// header\n{\n  /* block\n  comment */ \"kind\": \"generic\", // trailing\n" +
+                          "  \"name\": \"http://not-a-comment\",\n  \"bravery\": /* inline */ \"Brave\"\n}\n// end";
+            ParseResult r = DefinitionParser.ParseFolder("bram", json);
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.AreEqual("http://not-a-comment", r.Definition.Name);
+            Assert.AreEqual(Bravery.Brave, r.Definition.Bravery);
+            Assert.Throws<JsonException>(() => Json.Parse("{ /* never closed }"));
+        }
+
+        [Test]
         public void DuplicateKeys_Warn()
         {
             ParseResult r = DefinitionParser.ParseFolder("bram", "{ \"kind\": \"generic\", \"bravery\": \"Brave\", \"bravery\": \"Coward\" }");
