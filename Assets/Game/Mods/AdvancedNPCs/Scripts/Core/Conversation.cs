@@ -273,6 +273,7 @@ namespace AdvancedNPCs.Core
             public bool Snowing { get { return f.Snowing; } }
             public bool Overcast { get { return f.Overcast; } }
             public string Region { get { return f.Region; } }
+            public string Climate { get { return f.Climate; } }
             public string Town { get { return f.Town; } }
             public int PlayerLevel { get { return f.PlayerLevel; } }
             public string PlayerRace { get { return f.PlayerRace; } }

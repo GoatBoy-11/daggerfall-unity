@@ -26,7 +26,9 @@ namespace AdvancedNPCs.Core
         public const string Eat = "eat", Drink = "drink";
         /// <summary>Hawk package: a seller calling out to the passing player; no chance roll (its interval paces it).</summary>
         public const string Hawk = "hawk";
-        public static readonly string[] All = { Greet, Halt, Attack, AttackRange, Cast, Heal, Hit, Death, Step, Talk, TalkMale, TalkFemale, Eat, Drink, Hawk, CompanionBarkRules.Bark, CompanionBarkRules.Dungeon, CompanionBarkRules.Inn, CompanionBarkRules.Hurt, CompanionBarkRules.NoMagicka, CompanionBarkRules.Recruit, CompanionBarkRules.Wait, CompanionBarkRules.Follow, CompanionBarkRules.Dismiss, CompanionBarkRules.Regroup, CompanionBarkRules.Push, CompanionBarkRules.Combat, CompanionBarkRules.Victory };
+        /// <summary>Animals (spec animal-ai 2.3): noticing the player, a territorial warning, a call now and then; else greet.</summary>
+        public const string Alert = "alert", Warn = "warn", Call = "call";
+        public static readonly string[] All = { Alert, Warn, Call, Greet, Halt, Attack, AttackRange, Cast, Heal, Hit, Death, Step, Talk, TalkMale, TalkFemale, Eat, Drink, Hawk, CompanionBarkRules.Bark, CompanionBarkRules.Dungeon, CompanionBarkRules.Inn, CompanionBarkRules.Hurt, CompanionBarkRules.NoMagicka, CompanionBarkRules.Recruit, CompanionBarkRules.Wait, CompanionBarkRules.Follow, CompanionBarkRules.Dismiss, CompanionBarkRules.Regroup, CompanionBarkRules.Push, CompanionBarkRules.Combat, CompanionBarkRules.Victory };
 
         /// <summary>The pool a file name (without extension) belongs to; null for any other name.</summary>
         public static string PoolOf(string name)
@@ -73,6 +75,8 @@ namespace AdvancedNPCs.Core
                 return pool;
             if (pool == AttackRange && available.Contains(Attack))
                 return Attack;
+            if ((pool == Alert || pool == Warn || pool == Call) && available.Contains(Greet))
+                return Greet;
             return null;
         }
     }

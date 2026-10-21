@@ -35,6 +35,15 @@ namespace AdvancedNPCs
         public bool Interiors = true;
         public bool Wilderness = true;
         public int MaxWildernessAround = 4;
+        public const string WildlifeSection = "Wildlife";
+        /// <summary>Animals (ANPCs with an "animal" block) appear in the wilderness (spec animal-ai 1.4).</summary>
+        public bool Wildlife = true;
+        /// <summary>Most wild animals alive around the player; they do not count toward MaxWildernessAround.</summary>
+        public int MaxWildlifeAround = 10;
+        /// <summary>WildlifeDensity choice: 0 Low (x0.5 chance), 1 Normal, 2 High (x2).</summary>
+        public int WildlifeDensity = 1;
+        /// <summary>The density setting as a multiplier on a wilderness block's chance.</summary>
+        public float WildlifeChanceFactor { get { return WildlifeDensity == 0 ? 0.5f : WildlifeDensity == 2 ? 2f : 1f; } }
 
         public const string CompanionsSection="Companions";
         /// <summary>Actual limited contract count; 0 means unlimited.</summary>
@@ -96,6 +105,9 @@ namespace AdvancedNPCs
             Interiors = Read("Interiors", delegate { return settings.GetBool(Section, "Interiors"); }, true);
             Wilderness = Read("Wilderness", delegate { return settings.GetBool(Section, "Wilderness"); }, true);
             MaxWildernessAround = Mathf.Clamp(Read("MaxWildernessAround", delegate { return settings.GetInt(Section, "MaxWildernessAround"); }, 4), 0, 10);
+            Wildlife = Read("Wildlife", delegate { return settings.GetBool(WildlifeSection, "Wildlife"); }, true);
+            MaxWildlifeAround = Mathf.Clamp(Read("MaxWildlifeAround", delegate { return settings.GetInt(WildlifeSection, "MaxWildlifeAround"); }, 10), 0, 30);
+            WildlifeDensity = Mathf.Clamp(Read("WildlifeDensity", delegate { return settings.GetInt(WildlifeSection, "WildlifeDensity"); }, 1), 0, 2);
             MaxFollowers=CompanionLimits.FromSetting(Read("MaxFollowers",delegate {return settings.GetInt(CompanionsSection,"MaxFollowers");},0));
             DisableFollowerBarks=Read("DisableFollowerBarks",delegate {return settings.GetBool(CompanionsSection,"DisableFollowerBarks");},false);
             CatchUpDistance=Mathf.Clamp(Read("CatchUpDistance",delegate {return settings.GetInt(CompanionsSection,"CatchUpDistance");},FollowRecovery.DefaultDistance),
@@ -109,7 +121,8 @@ namespace AdvancedNPCs
                 AdvancedNpcsMod.LogError("Settings without " + string.Join(", ", MissingKeys.ToArray()) + " (modsettings.json out of date); using defaults for them.");
             FromSettings = true;
             AdvancedNpcsMod.Log("Settings: generic people " + Mode + ", at most " + MaxGenericPerTown + " per town; dungeons " + Dungeons +
-                ", interiors " + Interiors + ", wilderness " + Wilderness + " (at most " + MaxWildernessAround + " around you); death animation " +
+                ", interiors " + Interiors + ", wilderness " + Wilderness + " (at most " + MaxWildernessAround + " around you); wildlife " + Wildlife + " (at most " +
+                MaxWildlifeAround + ", density x" + WildlifeChanceFactor + "); death animation " +
                 DeathAnimation + ", directional corpses " + DirectionalCorpses + ", ANPC sounds " + VoiceModeName(VoiceMode) + ", footsteps " + Footsteps +
                 " (volume " + StepsVolume + "%), follower limit " + (MaxFollowers==0?"Unlimited (Not Recommended)":MaxFollowers.ToString()) + ", catch-up at " + CatchUpDistance + " m.");
         }

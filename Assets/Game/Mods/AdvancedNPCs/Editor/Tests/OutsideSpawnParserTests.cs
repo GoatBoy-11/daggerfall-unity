@@ -80,7 +80,7 @@ namespace AdvancedNPCs.Tests
         [TestCase("{ \"dungeons\": { \"chance\": 5, \"count\": [0, 2] } }", "spawn.dungeons.count: need whole numbers 1 <= min <= max <= 10")]
         [TestCase("{ \"dungeons\": { \"chance\": 5, \"count\": [3, 11] } }", "spawn.dungeons.count: need whole numbers 1 <= min <= max <= 10")]
         [TestCase("{ \"interiors\": { \"chance\": 5 } }", "spawn.interiors.buildings: required, interiors ignored")]
-        [TestCase("{ \"wilderness\": { \"chance\": 5, \"max\": 11 } }", "spawn.wilderness.max: must be a whole number 1-10, wilderness ignored")]
+        [TestCase("{ \"wilderness\": { \"chance\": 5, \"max\": 21 } }", "spawn.wilderness.max: must be a whole number 1-20, wilderness ignored")]
         public void BadBlock_SkippedWithMessage_TemplateStillLoads(string spawn, string message)
         {
             ParseResult r = Parse(spawn);

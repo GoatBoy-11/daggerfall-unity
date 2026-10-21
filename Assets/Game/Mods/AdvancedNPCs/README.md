@@ -119,6 +119,12 @@ In DFU's mod list, select Advanced NPCs → Settings → **Population**:
 
 These apply the next time a town loads.
 
+**Wildlife** (animals, see [Animals](#animals)):
+
+- **Wildlife** — on (default) or off: animals with a `wilderness` spawn block appear in the wilderness. Farm animals are not affected.
+- **Max wild animals around you** — 0 to 30 (default 10); they do not count toward the wilderness ANPC limit.
+- **Wildlife density** — Low (half the chance), Normal (default), High (twice the chance).
+
 **Companions** (apply to new recruitment immediately):
 
 - **Max followers** — 3 (default), 4, 5, 6, 7, 8, 9, 10, or **Unlimited (Not Recommended)**.
@@ -1252,6 +1258,12 @@ its `spawn`:
 }
 ```
 
+Animals use the wilderness block for herds and packs, by climate and ground ([Animals](#animals)):
+
+```json
+"wilderness": { "chance": 12, "max": 6, "group": [2, 5], "terrain": "grass", "when": { "climate": ["woodlands", "mountainwoods"] } }
+```
+
 - **`chance`** (0–100): on each visit, how likely the template is there at all. **`count`** `[min, max]` (1–10):
   how many come when it is. A group stands together.
 - **`dungeonTypes`** (optional): Crypt, OrcStronghold, HumanStronghold, Prison, DesecratedTemple, Mine, NaturalCave,
@@ -1261,8 +1273,12 @@ its `spawn`:
   Library, PawnShop, WeaponSmith, Temple, Tavern, Palace, House (any house), GuildHall (any guild), or a guild:
   Fighters Guild, Mages Guild, Thieves Guild, Dark Brotherhood, Knightly Order.
 - **Wilderness**: every 10 in-game minutes outside any town or dungeon (not while resting or travelling), the
-  chance is rolled; one person appears out of sight 40–80 m away, on dry land. **`max`** (1–10) caps how many of the
+  chance is rolled; one person appears out of sight 40–80 m away, on dry land. **`max`** (1–20) caps how many of the
   template are around you at once. They leave when far behind you, when you enter a town or building, or travel.
+  **`group`** `[min, max]` (1–8): that many appear together around one spot, within 6 m (cut to what `max` and the
+  limit leave; none when there is no room for `min`). **`terrain`**: `dry` (dirt, grass or stone; the default),
+  `grass`, `rocky` (stone) or `nearWater` (dry ground with water within about 25 m). Animals count toward the
+  **Wildlife** limits, people toward the wilderness ones. Filter by place with the `climate` and `region` conditions.
 - **`when`** (optional): the [dialogue conditions](#conditions-when) (time, weather, season, place, player, flags,
   quest globals), except `asked`, `notAsked`, `tone` and `reaction`.
 - People stand on DFU's own monster, treasure and furniture spots: never within 2 m of a door, never within 20 m of
@@ -1273,6 +1289,81 @@ its `spawn`:
 - Attitude, bravery, sprites, portraits and dialogue work as in towns: a hostile bandit attacks on sight, a calm
   patron can be talked to. Indoors people wander at most 3 m.
 - Not sure why someone is (or isn't) there? Type `anpc_here`.
+
+## Animals
+
+An ANPC with an `animal` block is an animal, not a person: clicking it shows "*Name* ignores you." instead of the
+talk window, it cannot be hired, be a guard or chat with others, and it reacts to the player by its **temperament**.
+
+```json
+"baseClass": "SabertoothTiger",
+"combat": { "health": 0.45, "damage": 0.35 },
+"animal": {
+  "temperament": "predator",
+  "activity": "nocturnal",
+  "senses": { "alert": 30, "react": 10 },
+  "territory": 40,
+  "boldChance": 10,
+  "hunts": ["prey"],
+  "hungerHours": [4, 10],
+  "calls": [60, 200]
+},
+"spawn": { "wilderness": { "chance": 6, "max": 5, "group": [3, 5], "when": { "climate": ["woodlands", "mountainwoods"] } } }
+```
+
+`"animal": true` is a grazer with every default.
+
+| Temperament | Alert / react (m) | Notices you | Inside react range | When hit | Territory |
+|---|---|---|---|---|---|
+| `prey` | 25 / 15 | stops and looks (`alert*`/`look*` sheet, `alert` sound) | the group flees | flees | — |
+| `grazer` (default) | 10 / 4 | looks for 6 s, then grazes on and ignores you | shies a few metres away | the group flees | — |
+| `territorial` | 18 / 8 | watches | warns for `warnSeconds` (`warn` sound every 1.5 s), then attacks if you stay; at once at half the range | fights | 25 |
+| `predator` | 30 / 10 | watches; attacks on `boldChance` % (default 10) | attacks | fights | 40 |
+| `ambusher` | 6 / 3 | nothing shows | strikes | fights | 8 |
+| `ambient` | 6 / 3 | nothing shows | scatters a few metres | flees | — |
+
+- **Senses**: an animal notices a player it can see within `alert`, one it only hears within 40 % of that. Crouching
+  or creeping slowly halves both distances, running adds half, the player's Stealth takes up to half off, and magic
+  concealment (Chameleon, Shadow, Invisibility) leaves a quarter. A resting animal notices at half, an `always`
+  animal at night at 0.7. Never below 3 m (alert) and 1.5 m (react).
+- **Fleeing** ends once the threat is 35 m away, or out of sight for 4 s at twice the react range. The animal is not
+  angry at you for it; one you hit flees too and calms down the same way.
+- **Territory**: a chase ends once the animal is `territory` metres from home, or the player is twice its alert range
+  away; it calms at once and wanders home. Its health is not restored.
+- **Bravery** comes from the temperament: fighters are `Prudent` (they flee below `fleeHealthPercent`), the others
+  `Coward`. A `bravery` field still wins.
+- **`activity`**: `diurnal` (06–20), `nocturnal` (20–06), `crepuscular` (04–09 and 17–22) or `always` (default).
+  Outside those hours the animal rests where it is (`sleep*`, else `rest*`, else `idle`).
+- **`calls`** `[min, max]` seconds (default `[45, 150]`, ambushers never; `false` turns them off): now and then, while
+  you are within 40 m, it plays a `call` sound (a moo, a howl).
+- **Groups**: a wilderness `group` spawns together and defends itself together; the first one leads and the others
+  wander around it (`"herd": false` lets them roam alone). When the leader dies the next one leads. When one flees or
+  attacks because of you, its group within 30 m does the same (fighters attack, the rest flee); prey and grazers of any
+  kind within 20 m flee with a fleeing animal.
+- **Hunting**: a predator (any temperament, really) with `hunts` gets hungry every `hungerHours` game hours (default
+  `[4, 10]`). Then it attacks the nearest prey animal it sees within its `aggroRange`, with its group. Temperaments
+  (`"prey"`), template ids (`"an_hind"`) and id prefixes (`"an_rabbit_*"`) work. Prey seeing a hunt flees. After a kill
+  it walks to the body and eats for 20–40 s; if the prey gets away it tries again in an hour.
+- **Creature classes**: a calm animal may use `Rat`, `GiantBat`, `GrizzlyBear`, `SabertoothTiger`, `Spider` or
+  `GiantScorpion` as its `baseClass`, for creature stats and natural attacks (DFU's own effects stay: a rat's 5 % plague,
+  a scorpion's paralysis). Scale them with `combat.health` / `combat.damage`. `"attitude": "hostile"` is not allowed.
+- **Livestock**: with `"crimeOnAttack": true` hitting the animal is no crime, killing it is Theft (not Murder) unless it
+  attacked you first, and people around see it. Wild animals (`false`) are nobody's business.
+- **Farm and village animals**: `spawn.locationTypes` with `HomeFarms` (or towns) works as for people. Animals have their
+  own count under **Max generic per town**, so they never take a townsperson's place.
+- `anpc_info <key>` shows an `animal:` line (temperament, state, live sense distances, territory, leader, hunger) and
+  `anpc_here` the climate and the ground under you.
+
+### Diseases (any ANPC)
+
+```json
+"disease": { "chance": 5, "diseases": ["Plague", "StomachRot"] }
+```
+
+Each melee hit on the player rolls `chance` % (default 5); a success passes on one of the listed diseases through DFU's
+own infection (no diseases at level 1, the disease saving throw applies). Names: WitchesPox, Plague, YellowFever,
+StomachRot, Consumption, BrainFever, SwampRot, CalironsCurse, Cholera, Leprosy, WoundRot, RedDeath, BloodRot,
+TyphoidFever, Dementia, Chrondiasis, WizardFever (spaces and case do not matter).
 
 ## Replacing vanilla NPCs
 
@@ -1391,6 +1482,7 @@ Every condition in a `when` must hold. For "or", use `"any": [ { … }, { … } 
 | `weather` | `"rain"` | the weather is one of `clear`, `overcast`, `rain` (storms count), `storm`, `snow` |
 | `bad_weather` | `true` | rain, thunderstorms or snow; `false` requires none of these, regardless of indoors/outdoors |
 | `region` / `town` | `"Daggerfall"` | the player is in one of these regions / towns |
+| `climate` | `["woodlands", "swamp"]` | the player's map pixel has one of these climates: `ocean`, `desert`, `desert2` (hot, as around Dak'fron), `mountain`, `rainforest`, `swamp`, `subtropical`, `mountainwoods`, `woodlands`, `hauntedwoodlands` |
 | `minLevel` / `maxLevel` | `5` | the player's level is at least / at most this |
 | `playerRace` | `"Dark Elf"` | the player is one of these races |
 | `playerGender` | `"Female"` | the player is `Male` / `Female` |
@@ -1545,7 +1637,7 @@ ANPCs/wench/
     step_1.ogg    step_2.ogg   step_3.ogg
 ```
 
-- A file's name says when it plays: `eat` / `drink` (each eat/drink cycle of the [eat package](#eating-and-drinking)), `hawk` (each call of the [hawk package](#chores-hawking-and-socializing)), `greet`, `halt` (guard pursuit warning; always plays, vanilla fallback), `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `heal` (self or support healing; no voice fallback), `hit` (hurt but alive), `death`, `step` and `talk` (a line in a [conversation](#conversations); always plays there, no chance roll, and nowhere else; `talk_male` / `talk_female` for one gender only). A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
+- A file's name says when it plays: `eat` / `drink` (each eat/drink cycle of the [eat package](#eating-and-drinking)), `hawk` (each call of the [hawk package](#chores-hawking-and-socializing)), `greet`, `halt` (guard pursuit warning; always plays, vanilla fallback), `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `heal` (self or support healing; no voice fallback), `hit` (hurt but alive), `death`, `alert` / `warn` / `call` (an [animal](#animals) noticing you, warning you and calling now and then; no chance roll; `greet` sounds stand in), `step` and `talk` (a line in a [conversation](#conversations); always plays there, no chance roll, and nowhere else; `talk_male` / `talk_female` for one gender only). A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
 - Sounds follow what happens, not the sprite, so an ANPC with the vanilla sprite can have them too.
 - Default footsteps: `step_*` files in the shared `ANPCs/_Sounds` folder play for every ANPC whose own `Sounds` folder has no `step` files (the examples ship four dirt-ground steps there). They play 15% quieter than an ANPC's own steps. An ANPC with step files of its own uses only those; `"defaultSteps": false` turns the defaults off for one ANPC.
 - Default eat and drink sounds: `eat_*` / `drink_*` in `_Sounds` (CC0 crunches and swallows ship there) play for the eat package where the ANPC's own folder has none of that pool. Other names in `_Sounds` are ignored (logged).

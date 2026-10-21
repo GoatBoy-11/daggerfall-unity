@@ -120,9 +120,10 @@ namespace AdvancedNPCs
             }
             DaggerfallEntityBehaviour playerBehaviour = gm.PlayerEntityBehaviour;
             Transform playerTransform = gm.PlayerObject.transform;
-            if (Suite == GuardSuite || Suite == CompanionEventsSuite || Suite == CompanionBarksSuite || Suite == AuditSuite || Suite == CompanionSpellsSuite || Suite == CompanionLimitsSuite || Suite == CompanionPerformanceSuite || Suite == CompanionBowsSuite || Suite == CompanionEquipmentSuite || Suite == CompanionTradingSuite || Suite == CompanionPlaytestSuite || Suite == CompanionOrdersSuite || Suite == CompanionCombatSuite || Suite == NavigationSuite || Suite == CompanionSuite || Suite == RangedSuite || Suite == ReplaceSuite || Suite == HealingSuite || Suite == PackageSuite)
+            if (Suite == GuardSuite || Suite == CompanionEventsSuite || Suite == CompanionBarksSuite || Suite == AuditSuite || Suite == CompanionSpellsSuite || Suite == CompanionLimitsSuite || Suite == CompanionPerformanceSuite || Suite == CompanionBowsSuite || Suite == CompanionEquipmentSuite || Suite == CompanionTradingSuite || Suite == CompanionPlaytestSuite || Suite == CompanionOrdersSuite || Suite == CompanionCombatSuite || Suite == NavigationSuite || Suite == CompanionSuite || Suite == RangedSuite || Suite == ReplaceSuite || Suite == HealingSuite || Suite == PackageSuite || Suite == AnimalSuite)
             {
                 IEnumerator only = Suite == GuardSuite ? GuardSteps(location, playerTransform) : Suite == CompanionEventsSuite ? CompanionEventsSteps(location,playerTransform) : Suite == CompanionBarksSuite ? CompanionBarksSteps(location,playerTransform) : Suite == AuditSuite ? AuditSteps(location,playerTransform) : Suite == CompanionSpellsSuite ? CompanionSpellsSteps(location,playerTransform) : Suite == CompanionLimitsSuite ? CompanionLimitsSteps(location,playerTransform) : Suite == CompanionPerformanceSuite ? CompanionPerformanceSteps(location,playerTransform) : Suite == CompanionBowsSuite ? CompanionBowsSteps(location, playerTransform) : Suite == CompanionEquipmentSuite ? CompanionEquipmentSteps(location, playerTransform) : Suite == CompanionTradingSuite ? CompanionTradingSteps(location, playerTransform) : Suite == CompanionPlaytestSuite ? CompanionPlaytestSteps(location, playerTransform) : Suite == CompanionOrdersSuite ? CompanionOrdersSteps(location, playerTransform) : Suite == CompanionCombatSuite ? CompanionCombatSteps(location, playerTransform) : Suite == NavigationSuite ? NavigationSteps(location, playerTransform) : Suite == CompanionSuite ? CompanionSteps(location, playerTransform) : Suite == PackageSuite ? PackageSteps(location, playerTransform) :
+                    Suite == AnimalSuite ? AnimalSteps(location, playerTransform) :
                     Suite == HealingSuite ? HealingSteps(location, playerTransform) :
                     Suite == RangedSuite ? RangedSteps(location, playerTransform) : ReplaceSteps(location, playerTransform);
                 while (only.MoveNext())
@@ -1006,6 +1007,11 @@ namespace AdvancedNPCs
             IEnumerator outside = OutsideSteps(location);
             while (outside.MoveNext())
                 yield return outside.Current;
+
+            // After the wilderness checks the player is out there already.
+            IEnumerator animals = AnimalSteps(location, playerTransform);
+            while (animals.MoveNext())
+                yield return animals.Current;
         }
 
         /// <summary>Dialogue topics in DFU's talk window (spec C1 §10), acting like the player through the window.</summary>

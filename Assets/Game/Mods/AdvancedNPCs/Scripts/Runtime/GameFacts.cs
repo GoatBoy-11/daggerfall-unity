@@ -114,6 +114,12 @@ namespace AdvancedNPCs
             }
         }
 
+        /// <summary>The climate of the map pixel the player is on (spec animal-ai 1.1).</summary>
+        public string Climate
+        {
+            get { return ClimateNames.FromIndex(GameManager.Instance.PlayerGPS.CurrentClimateIndex); }
+        }
+
         public string Town
         {
             get

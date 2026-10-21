@@ -200,7 +200,9 @@ namespace AdvancedNPCs
             int cellCount = WalkableCount(location);
             PlannedCellCounts[town.MapId] = cellCount;
             uint visitSeed = (uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue);
-            List<NpcInstance> plan = PopulationPlanner.Plan(templates, town, mode, cap, cellCount, visitSeed, owner.Names);
+            // Farm animals and village hens have their own count under the same limit: they never take a person's place.
+            List<NpcInstance> plan = PopulationPlanner.Plan(templates, town, mode, cap, cellCount, visitSeed, owner.Names, false);
+            plan.AddRange(PopulationPlanner.Plan(templates, town, mode, cap, cellCount, visitSeed, owner.Names, true));
             if (plan.Count == 0)
                 return spawned;
 
@@ -356,6 +358,10 @@ namespace AdvancedNPCs
             brain.Init(instance, state);
             if (def.Magic != null)
                 go.AddComponent<NpcMagic>().Init(brain);
+            if (def.Animal != null)
+                go.AddComponent<NpcAnimal>().Init(def.Animal);
+            if (def.Disease != null)
+                go.AddComponent<NpcDisease>().Init(def.Disease);
             List<string> pool = PortraitPools.Joined(owner.Portraits.Names, instance.Definition.Portraits);
             string portraitFile = ResolvePortrait(instance, state, pool);
             instance.PortraitName = portraitFile;

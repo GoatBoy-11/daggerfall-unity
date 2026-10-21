@@ -104,5 +104,9 @@ namespace AdvancedNPCs.Core
         public string SourceFile;
         /// <summary>"replaces": vanilla flat NPCs this generic ANPC stands in for, or null.</summary>
         public ReplaceSettings Replace;
+        /// <summary>npc.json "animal": temperament, senses and hunting (spec animal-ai); null for people.</summary>
+        public AnimalSettings Animal;
+        /// <summary>npc.json "disease": what its melee hits may pass on to the player; null = none.</summary>
+        public DiseaseSettings Disease;
     }
 }

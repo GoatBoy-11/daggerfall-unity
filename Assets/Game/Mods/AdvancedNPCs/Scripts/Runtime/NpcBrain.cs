@@ -6,6 +6,7 @@ using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Formulas;
 using DaggerfallConnect;
+using DaggerfallWorkshop.Utility;
 using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
@@ -58,6 +59,8 @@ namespace AdvancedNPCs
         NpcGait gait;
         float patrolTimer;
         NpcPackageDriver packages;
+        NpcAnimal animal;       // animals only (spec animal-ai)
+        bool animalStarted;     // an animal attacked the player on its own: killing it then is no crime
         NpcCompanionCombat companionCombat;
         NpcGuard guard;
         public NpcGuard Guard { get { return guard; } }
@@ -130,7 +133,16 @@ namespace AdvancedNPCs
         }
         public string PackageAnimation
         {
-            get { return isActiveAndEnabled && packages != null && mode == NpcMode.Calm && (holdStill <= 0 || PackageOnlyCombatInterrupts) && (!GameManager.IsGamePaused || PackageOnlyCombatInterrupts) ? packages.Animation : null; }
+            get
+            {
+                if (animal != null && isActiveAndEnabled && mode == NpcMode.Calm && !GameManager.IsGamePaused)
+                {
+                    string own = animal.Animation;     // alert, warning, resting, feeding
+                    if (own != null)
+                        return own;
+                }
+                return isActiveAndEnabled && packages != null && mode == NpcMode.Calm && (holdStill <= 0 || PackageOnlyCombatInterrupts) && (!GameManager.IsGamePaused || PackageOnlyCombatInterrupts) ? packages.Animation : null;
+            }
         }
         static Collider[] nearby = new Collider[64];
         const int MaxNearby = 512;
@@ -494,6 +506,10 @@ namespace AdvancedNPCs
             if (target != null)
                 sb.Append(senses.TargetInSight ? " (in sight)" : " (not in sight)");
             sb.Append(", ").Append(distance.ToString("0.0")).Append(" m from you\n");
+            if (animal != null) sb.Append("  animal: ").Append(animal.Describe()).Append('\n');
+            NpcDisease disease = GetComponent<NpcDisease>();
+            if (disease != null) sb.Append("  disease: ").Append(def.Disease.Chance).Append("% per hit, ").Append(disease.Hits).Append(" hit(s), ")
+                .Append(disease.Infections).Append(" passed on\n");
             if(companionCombat!=null && companionCombat.Active) sb.Append("  combat: ").Append(companionCombat.Description).Append('\n');
             if (state.companion != null) sb.Append("  companion: ").Append(state.companion.status).Append(", area ").Append(state.companion.area).Append('\n');
             sb.Append("  LOD: updates every ").Append(NpcLod.Interval(distance, false)).Append(" frame(s) when calm");
@@ -556,6 +572,7 @@ namespace AdvancedNPCs
             attack = GetComponent<EnemyAttack>();
             mover = GetComponent<NpcMover>();
             gait = GetComponent<NpcGait>();
+            animal = GetComponent<NpcAnimal>();
             patrolTimer = Random.Range(0f, AggroRules.CheckInterval);
             if (state.companion == null)
                 PlaceAmongPeople();
@@ -593,6 +610,22 @@ namespace AdvancedNPCs
             { companionCombat=gameObject.AddComponent<NpcCompanionCombat>(); companionCombat.Init(this); }
             NpcMagic.EnsureCompanion(this);
             if (def.Guard) guard = new NpcGuard(this);
+            FloatingOrigin.OnPositionUpdate += OnOriginShift;
+        }
+
+        /// <summary>
+        /// DFU's floating origin moves each child of the streaming world on its own (FloatingOrigin.OffsetChildren), so the
+        /// local position of a wilderness ANPC jumps by the offset: its home and wander target must jump with it, or it
+        /// heads (or gives up a chase) 819 m away after the player crosses a map pixel.
+        /// </summary>
+        void OnOriginShift(Vector3 offset)
+        {
+            Transform parent = transform.parent;
+            if (parent == null || GameManager.Instance.StreamingTarget == null || parent != GameManager.Instance.StreamingTarget.transform)
+                return;
+            Vector3 local = parent.InverseTransformVector(offset);
+            homeLocal += local;
+            wanderTargetLocal += local;
         }
 
         const float WallCheckSeconds = 1f;
@@ -684,6 +717,7 @@ namespace AdvancedNPCs
 
         void OnDestroy()
         {
+            FloatingOrigin.OnPositionUpdate -= OnOriginShift;
             if (guard != null) guard.Release();
             if (packages != null) packages.Dispose();
             if (entityBehaviour != null && entityBehaviour.Entity != null)
@@ -840,11 +874,13 @@ namespace AdvancedNPCs
             if (wasCalm)
             {
                 ChangeOpinion(OpinionRules.Assault);
-                WitnessPlayerViolence(transform.position, this);
+                // Nobody minds a hunter shooting a wolf; a farmer minds someone beating his cow (livestock: crimeOnAttack).
+                if (def.Animal == null || def.CrimeOnAttack)
+                    WitnessPlayerViolence(transform.position, this);
                 if (!enemy && state.companion == null)
                     RallyAllies(new AllyInfo(this), threat);
             }
-            if (wasCalm && def.CrimeOnAttack)
+            if (wasCalm && def.CrimeOnAttack && def.Animal == null)
             {
                 NpcCrime.Report(PlayerEntity.Crimes.Assault);
                 AdvancedNpcsMod.Log(key + ": assaulted by player.");
@@ -1024,6 +1060,8 @@ namespace AdvancedNPCs
                 mover.Stop();
                 return;
             }
+            if (animal != null && animal.ControlsCalm(mover))
+                return;
             if (holdStill > 0f)
             {
                 holdStill = Mathf.Max(0f, holdStill - Time.deltaTime);
@@ -1211,25 +1249,81 @@ namespace AdvancedNPCs
 
             // DFU tells the victim who hit it only after OnDeath; decide the killer once that has happened.
             AdvancedNpcsMod.Instance.StartCoroutine(ResolveKiller(def, key, motor, wasHostile, fightingCreature, wasEnemy, transform.position,
-                new AllyInfo(this), state.companion == null));
+                new AllyInfo(this), state.companion == null, animalStarted));
         }
 
         static IEnumerator ResolveKiller(NpcDefinition def, string key, EnemyMotor motor, bool wasHostile, bool fightingCreature, bool wasEnemy,
-            Vector3 diedAt, AllyInfo victim, bool rally)
+            Vector3 diedAt, AllyInfo victim, bool rally, bool animalAttackedFirst)
         {
             yield return null;
 
             bool motorHostile = motor != null && motor.IsHostile;
             bool byPlayer = HostilityRules.KilledByPlayer(wasHostile, fightingCreature, motorHostile);
-            if (byPlayer && def.CrimeOnAttack && !wasEnemy)
+            if (byPlayer && def.CrimeOnAttack && !wasEnemy && def.Animal == null)
             {
                 NpcCrime.Report(PlayerEntity.Crimes.Murder);
             }
+            else if (byPlayer && def.CrimeOnAttack && def.Animal != null && !animalAttackedFirst)
+            {
+                NpcCrime.Report(PlayerEntity.Crimes.Theft);     // someone's livestock (spec animal-ai: build notes)
+            }
             AdvancedNpcsMod.Log(key + ": died" + (byPlayer ? " (player)." : " (creature)."));
-            if (byPlayer && !wasEnemy)
+            if (byPlayer && !wasEnemy && (def.Animal == null || def.CrimeOnAttack))
                 WitnessPlayerViolence(diedAt, null);
             if (byPlayer && !wasEnemy && !wasHostile && rally)
                 RallyAllies(victim, GameManager.Instance.PlayerEntityBehaviour);     // killed in one blow: never fought back
+        }
+
+        /// <summary>An animal runs from a threat (the player, a hunting predator) without being angry at it.</summary>
+        internal void AnimalFlee(DaggerfallEntityBehaviour from)
+        {
+            if (mode == NpcMode.Dead || from == null)
+                return;
+            threat = from;
+            SetMode(NpcMode.Fleeing);
+        }
+
+        /// <summary>An animal attacks the player on its own (spec animal-ai §2.1); its NpcAnimal ends the chase.</summary>
+        internal void AnimalAttackPlayer()
+        {
+            if (mode == NpcMode.Dead)
+                return;
+            DaggerfallEntityBehaviour player = GameManager.Instance.PlayerEntityBehaviour;
+            if (!state.hostile)
+                animalStarted = true;
+            state.hostile = true;
+            state.hostileUntil = HostilityRules.NewCalmDeadline(Now(), def.CalmDownMinHours, def.CalmDownMaxHours, rng);
+            threat = player;
+            senses.Target = player;
+            motor.IsHostile = true;
+            SetMode(NpcMode.Fighting);
+        }
+
+        /// <summary>A hungry predator attacks a prey animal (spec animal-ai §3).</summary>
+        internal void AnimalHunt(DaggerfallEntityBehaviour prey)
+        {
+            if (mode == NpcMode.Dead || prey == null)
+                return;
+            senses.Target = prey;
+            threat = prey;
+            SetMode(NpcMode.Fighting);
+        }
+
+        /// <summary>An animal calms down at once (a flight is over, a chase given up); health is not restored.</summary>
+        internal void AnimalCalm()
+        {
+            if (mode == NpcMode.Dead)
+                return;
+            animalStarted = false;
+            state.hostile = false;
+            motor.IsHostile = false;
+            SetMode(NpcMode.Calm);
+        }
+
+        /// <summary>Moves the centre it wanders around (herd followers keep near their leader). Not saved.</summary>
+        internal void SetHome(Vector3 local)
+        {
+            homeLocal = local;
         }
 
         float HealthFraction()

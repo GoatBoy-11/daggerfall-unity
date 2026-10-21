@@ -29,6 +29,7 @@ namespace AdvancedNPCs.Core
             "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "fleeChance", "aggroRange", "calmDownHours",
             "crimeOnAttack", "guard", "wanderRadius", "nameList", "spriteHeight", "spriteHeightScale", "spriteScale", "attitude", "hostileHours", "dialogue", "magic",
             "combat", "sounds", "conversation", "replaces", "replacePortrait", "replaceName", "stayNear", "schedule", "variables", "recruitCost", "no_companion_slot",
+            "animal", "disease",
         };
         static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
         static readonly string[] GenericKeys = { "name", "names", "portrait", "portraits", "spawn" };
@@ -416,8 +417,13 @@ namespace AdvancedNPCs.Core
             string creature = baseClass == null ? Creatures.Canonical(rawClass) : null;
             if (baseClass == null && creature == null)
                 return Problem(r, file, "baseClass", "unknown class \"" + rawClass + "\"");
-            if (creature != null && !hostile)
-                return Problem(r, file, "baseClass", "a creature (\"" + creature + "\") needs \"attitude\": \"hostile\"");
+            object animalBlock;
+            bool animal = o.TryGetValue("animal", out animalBlock) && animalBlock != null && !(animalBlock is bool && !(bool)animalBlock);
+            if (animal && hostile)
+                return Problem(r, file, "attitude", "an animal decides when to attack by its temperament; remove \"attitude\": \"hostile\"");
+            if (creature != null && !hostile && !(animal && Array.IndexOf(AnimalRules.SafeCreatures, creature) >= 0))
+                return Problem(r, file, "baseClass", "a creature (\"" + creature + "\") needs \"attitude\": \"hostile\"" +
+                    (animal ? " (a calm animal may use " + string.Join(", ", AnimalRules.SafeCreatures) + ")" : ""));
             if (creature != null && hours != null)
                 return Problem(r, file, "baseClass", "a creature (\"" + creature + "\") is always hostile; remove hostileHours");
             if (creature != null)
@@ -575,6 +581,33 @@ namespace AdvancedNPCs.Core
                 d.Schedule = AiSchedule.Read(schedule, out scheduleError, d);
                 if (scheduleError != null)
                     r.Warnings.Add(file + ": schedule: " + scheduleError + "; using current AI");
+            }
+            string animalKey;
+            List<string> animalWarnings = new List<string>();
+            if ((problem = AnimalRules.Read(o, out animalKey, out d.Animal, animalWarnings)) != null)
+                return Problem(r, file, animalKey, problem);
+            string diseaseKey;
+            if ((problem = DiseaseRules.Read(o, out diseaseKey, out d.Disease, animalWarnings)) != null)
+                return Problem(r, file, diseaseKey, problem);
+            foreach (string w in animalWarnings)
+                r.Warnings.Add(file + ": " + w);
+            if (d.Animal != null)
+            {
+                // Animals are not people (spec animal-ai 1.5): no talk, guard duty or hiring; bravery from the temperament.
+                if (d.Guard)
+                    return Problem(r, file, "guard", "an animal cannot be a guard");
+                if (!o.ContainsKey("bravery"))
+                    d.Bravery = AnimalRules.BraveryOf(d.Animal.Temperament);
+                if (d.Conversation.Enabled)
+                {
+                    d.Conversation.Enabled = false;
+                    r.Warnings.Add(file + ": conversation: animals do not talk, ignored");
+                }
+                if (d.RecruitCost >= 0)
+                {
+                    d.RecruitCost = -1;
+                    r.Warnings.Add(file + ": recruitCost: animals cannot be hired, ignored");
+                }
             }
             ReadDialogueTypes(file, o, d, r);
             return true;

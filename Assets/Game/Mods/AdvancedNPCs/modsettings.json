@@ -60,6 +60,42 @@
             "$version": "v1"
         },
         {
+            "Name": "Wildlife",
+            "Description": "Animal ANPCs (an \"animal\" block) in the wilderness.",
+            "IsAdvanced": false,
+            "Keys": [
+                {
+                    "Value": true,
+                    "Name": "Wildlife",
+                    "Description": "Animals appear in the wilderness, alone or in herds and packs,\rby climate, season and time of day. Farm animals are not affected.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
+                {
+                    "Min": 0,
+                    "Max": 30,
+                    "Value": 10,
+                    "Name": "MaxWildlifeAround",
+                    "Description": "Most wild animals alive around you at once (0 turns them off).\rThey do not count toward the wilderness ANPC limit.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderIntKey"
+                },
+                {
+                    "Options": [
+                        "Low",
+                        "Normal",
+                        "High"
+                    ],
+                    "Value": 1,
+                    "Name": "WildlifeDensity",
+                    "Description": "How often animals turn up in the wilderness.\rLow: half as often. High: twice as often.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.MultipleChoiceKey"
+                }
+            ],
+            "$version": "v1"
+        },
+        {
             "Name": "Companions",
             "Description": "Recruitment limits and catch-up for hired ANPC companions.",
             "IsAdvanced": false,

@@ -129,7 +129,7 @@ The base class decides stats, skills, the vanilla sprite and its default height.
 | `spawn.places` | all towns | only these: `[{ "region": "…", "place": "…" }]`; add `"positions": [[x,y,z], …]` from `anpc_pos` for fixed spots |
 | `spawn.dungeons` | — | `{ "chance": 25, "count": [2, 4], "dungeonTypes": [...], "when": {...} }` |
 | `spawn.interiors` | — | `{ "buildings": ["Tavern"], "chance": 60, "count": [1, 2], "when": {...} }` |
-| `spawn.wilderness` | — | `{ "chance": 5, "max": 2, "when": {...} }` — rolled every 10 game minutes, appears 40–80 m away out of sight |
+| `spawn.wilderness` | — | `{ "chance": 5, "max": 2, "group": [1, 1], "terrain": "dry", "when": {...} }` — rolled every 10 game minutes, appears 40–80 m away out of sight; `max` 1–20; `group` [min, max] 1–8 appear together; `terrain` `dry`, `grass`, `rocky`, `nearWater` |
 
 - `chance` 0–100 per visit; `count` 1–10 outside towns.
 - **dungeonTypes**: Crypt, OrcStronghold, HumanStronghold, Prison, DesecratedTemple, Mine, NaturalCave, Coven,
@@ -247,6 +247,30 @@ block the ANPC appears only as a stand-in.
 Rule of thumb: keep people no shorter than DFU's Warrior (~2.03 m). The spawn line in `Player.log` shows the
 final height.
 
+### Animals
+
+`"animal": { "temperament": "prey", "activity": "crepuscular" }` makes an animal: no talk window ("*Name* ignores
+you."), no hiring, guard duty or conversations; bravery from the temperament (fighters Prudent, others Coward).
+
+| Field | Default | Meaning |
+|---|---|---|
+| `temperament` | `grazer` | `prey` (flees), `grazer` (looks, shies away), `territorial` (warns, then attacks), `predator` (attacks close, or on `boldChance`), `ambusher` (strikes close), `ambient` (scatters) |
+| `activity` | `always` | `diurnal` 06–20, `nocturnal` 20–06, `crepuscular` 04–09 + 17–22; rests otherwise (`sleep*`/`rest*`/`idle`) |
+| `senses` | by temperament | `{ "alert": 25, "react": 15 }` metres; sneaking halves, running ×1.5, Stealth up to half off |
+| `territory` | by temperament | metres from home a chase may go (0 = until the player is far) |
+| `warnSeconds` | `3` | territorial warning before the attack |
+| `boldChance` | `10` predators | % chance to attack a player it just noticed |
+| `calls` | `[45, 150]` s | a `call` sound now and then within 40 m; `false` = never |
+| `hunts` | — | temperaments, ids or `id_*` prefixes it hunts when hungry (`aggroRange` = search range) |
+| `hungerHours` | `[4, 10]` | game hours between hunts |
+| `herd` | `true` | group members wander around their leader |
+
+- Calm animals may use the creature classes `Rat`, `GiantBat`, `GrizzlyBear`, `SabertoothTiger`, `Spider`,
+  `GiantScorpion`; no `"attitude": "hostile"`.
+- `crimeOnAttack: true` = livestock: hit no crime, kill = Theft unless it attacked first.
+- Farm and town animals have their own count under the per-town limit.
+- `"disease": { "chance": 5, "diseases": ["Plague"] }` (any ANPC): its melee hits may pass on a DFU disease.
+
 ### Other sections
 
 - `dialogue` — dialogue type(s) from `_Dialogue/`: `"tavern_wench"` or `["gossip", "tavern_wench"]` (§9).
@@ -346,6 +370,7 @@ Put `.wav`, `.ogg` or `.mp3` files in `ANPCs/<id>/Sounds/`. The file name says w
 | `step` | every footfall within `stepDistance` |
 | `eat`, `drink` | each eat / drink cycle of the `eat` package; never over the previous one |
 | `hawk` | each call of the `hawk` package |
+| `alert`, `warn`, `call` | animals: noticing the player, a territorial warning (every 1.5 s), now and then; no chance roll; else `greet` |
 | `talk` (`talk_male` / `talk_female`) | conversation lines (required for conversations) |
 | `halt` | guard starting a pursuit |
 | `cm_bark`, `cm_dungeon`, `cm_inn`, `cm_hurt`, `cm_no_magicka` | hired companion chatter |
@@ -467,6 +492,7 @@ All must hold; use `"any": [ {...}, {...} ]` for OR. Values may be one item or a
 | `weather` | `clear`, `overcast`, `rain`, `storm`, `snow` |
 | `bad_weather` | `true` (rain, storm or snow) |
 | `region` / `town` | `"Daggerfall"` |
+| `climate` | `["woodlands", "mountainwoods"]` (`ocean`, `desert`, `desert2`, `mountain`, `rainforest`, `swamp`, `subtropical`, `hauntedwoodlands`) |
 | `minLevel` / `maxLevel` | `5` |
 | `playerRace` / `playerGender` | `"Dark Elf"` / `"Female"` |
 | `minGold` / `hasItem` | `500` / `"Ruby"` |
@@ -571,6 +597,7 @@ DFU mod list → Advanced NPCs → Settings:
 
 - **Population**: same people every visit / random each visit; max generic per town (default 12; 0 = off);
   dungeons, interiors, wilderness on/off; max wilderness ANPCs around you.
+- **Wildlife**: wild animals on/off; max wild animals around you (default 10); density Low / Normal / High.
 - **Companions**: max followers (default 3); catch-up distance; disable follower barks.
 - **Corpses**: death animation; directional corpses.
 - **Sounds**: ANPC / Vanilla / Off voices; footsteps; step volume.

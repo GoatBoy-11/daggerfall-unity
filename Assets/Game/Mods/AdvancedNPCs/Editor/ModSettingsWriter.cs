@@ -53,6 +53,31 @@ namespace AdvancedNPCs.EditorTools
 
             data.Sections.Add(section);
 
+            // Animals (spec animal-ai 1.4): their own cap, so wild animals never crowd out wilderness people.
+            Section wildlife = new Section();
+            wildlife.Name = "Wildlife";
+            wildlife.Description = "Animal ANPCs (an \"animal\" block) in the wilderness.";
+            wildlife.Keys.Add(Toggle("Wildlife", "Animals appear in the wilderness, alone or in herds and packs,\r" +
+                "by climate, season and time of day. Farm animals are not affected."));
+            SliderIntKey wildMax = new SliderIntKey();
+            wildMax.Name = "MaxWildlifeAround";
+            wildMax.Description = "Most wild animals alive around you at once (0 turns them off).\r" +
+                "They do not count toward the wilderness ANPC limit.";
+            wildMax.Min = 0;
+            wildMax.Max = 30;
+            wildMax.Value = 10;
+            wildlife.Keys.Add(wildMax);
+            MultipleChoiceKey density = new MultipleChoiceKey();
+            density.Name = "WildlifeDensity";
+            density.Description = "How often animals turn up in the wilderness.\r" +
+                "Low: half as often. High: twice as often.";
+            density.Options.Add("Low");
+            density.Options.Add("Normal");
+            density.Options.Add("High");
+            density.Value = 1;
+            wildlife.Keys.Add(density);
+            data.Sections.Add(wildlife);
+
             Section companions=new Section();companions.Name="Companions";
             companions.Description="Recruitment limits and catch-up for hired ANPC companions.";
             MultipleChoiceKey followers=new MultipleChoiceKey();followers.Name="MaxFollowers";

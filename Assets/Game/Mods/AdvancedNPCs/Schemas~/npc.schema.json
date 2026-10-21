@@ -302,7 +302,19 @@
             },
             "max": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 20
+            },
+            "group": {
+              "type": "array",
+              "items": { "type": "integer", "minimum": 1, "maximum": 8 },
+              "minItems": 2,
+              "maxItems": 2,
+              "description": "[min, max] that appear together from one roll (a herd, a pack); the first leads."
+            },
+            "terrain": {
+              "enum": ["dry", "grass", "rocky", "nearWater"],
+              "description": "Ground the group needs: dry (dirt, grass or stone, the default), grass, rocky (stone), nearWater (dry ground near water)."
             },
             "when": {
               "type": "object"
@@ -648,6 +660,61 @@
       "maximum": 1000000,
       "description": "Opt into persistent mercenary recruitment. Gold charged per new contract; wait/resume is free."
     },
+    "animal": {
+      "description": "An animal (spec animal-ai): no talk; reacts to the player by its temperament.",
+      "anyOf": [
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "temperament": { "enum": ["prey", "grazer", "territorial", "predator", "ambusher", "ambient"] },
+            "activity": { "enum": ["diurnal", "nocturnal", "crepuscular", "always"] },
+            "senses": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "alert": { "type": "number", "minimum": 1, "maximum": 100, "description": "Metres at which it notices a visible player." },
+                "react": { "type": "number", "minimum": 0.5, "maximum": 100, "description": "Metres at which it flees, warns, attacks or shies away." }
+              }
+            },
+            "territory": { "type": "number", "minimum": 0, "maximum": 200, "description": "Metres from home a chase may go." },
+            "warnSeconds": { "type": "number", "minimum": 0, "maximum": 30 },
+            "boldChance": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Predators: % chance to attack a player it has just noticed." },
+            "calls": {
+              "anyOf": [
+                { "type": "boolean", "enum": [false] },
+                { "type": "array", "items": { "type": "number", "minimum": 5, "maximum": 3600 }, "minItems": 2, "maxItems": 2 }
+              ]
+            },
+            "hunts": {
+              "description": "Temperaments or template ids (an id prefix may end in *) a predator hunts when hungry.",
+              "anyOf": [
+                { "type": "string" },
+                { "type": "array", "items": { "type": "string" } }
+              ]
+            },
+            "hungerHours": { "type": "array", "items": { "type": "number", "minimum": 0 }, "minItems": 2, "maxItems": 2 },
+            "herd": { "type": "boolean", "description": "Group members keep near their leader (default true)." }
+          }
+        }
+      ]
+    },
+    "disease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diseases"],
+      "description": "Diseases its melee hits may pass on to the player (DFU's own infection and saving throw).",
+      "properties": {
+        "chance": { "type": "integer", "minimum": 0, "maximum": 100, "default": 5 },
+        "diseases": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+          ]
+        }
+      }
+    },
     "no_companion_slot": {
       "type": "boolean",
       "default": false,
@@ -688,6 +755,13 @@
         },
         "region": {
           "$ref": "#/definitions/names"
+        },
+        "climate": {
+          "description": "Where the player is: ocean, desert, desert2, mountain, rainforest, swamp, subtropical, mountainwoods, woodlands, hauntedwoodlands (one or a list).",
+          "anyOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+          ]
         },
         "town": {
           "$ref": "#/definitions/names"
