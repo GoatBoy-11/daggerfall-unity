@@ -1335,7 +1335,7 @@ talk window, it cannot be hired, be a guard or chat with others, and it reacts t
 - **`activity`**: `diurnal` (06–20), `nocturnal` (20–06), `crepuscular` (04–09 and 17–22) or `always` (default).
   Outside those hours the animal rests where it is (`sleep*`, else `rest*`, else `idle`).
 - **`calls`** `[min, max]` seconds (default `[45, 150]`, ambushers never; `false` turns them off): now and then, while
-  you are within 40 m, it plays a `call` sound (a moo, a howl).
+  you are within 30 m (hearing range), it plays a `call` sound (a moo, a howl).
 - **Groups**: a wilderness `group` spawns together and defends itself together; the first one leads and the others
   wander around it (`"herd": false` lets them roam alone). When the leader dies the next one leads. When one flees or
   attacks because of you, its group within 30 m does the same (fighters attack, the rest flee); prey and grazers of any

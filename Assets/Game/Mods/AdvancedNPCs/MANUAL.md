@@ -260,7 +260,7 @@ you."), no hiring, guard duty or conversations; bravery from the temperament (fi
 | `territory` | by temperament | metres from home a chase may go (0 = until the player is far) |
 | `warnSeconds` | `3` | territorial warning before the attack |
 | `boldChance` | `10` predators | % chance to attack a player it just noticed |
-| `calls` | `[45, 150]` s | a `call` sound now and then within 40 m; `false` = never |
+| `calls` | `[45, 150]` s | a `call` sound now and then within 30 m; `false` = never |
 | `hunts` | — | temperaments, ids or `id_*` prefixes it hunts when hungry (`aggroRange` = search range) |
 | `hungerHours` | `[4, 10]` | game hours between hunts |
 | `herd` | `true` | group members wander around their leader |

@@ -26,7 +26,7 @@ namespace AdvancedNPCs
         const float FeedMin = 20f, FeedMax = 40f;
         const float FeedReach = 1.3f;
         const float WarnSoundSeconds = 1.5f;
-        const float CallRange = 40f;
+        const float CallRange = SoundRules.MaxAudibleDistance;     // a call farther away would play silently
         const float TurnDegreesPerSecond = 360f;
 
         static readonly List<NpcAnimal> live = new List<NpcAnimal>();

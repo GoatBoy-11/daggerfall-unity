@@ -32,7 +32,7 @@
     // Hunts prey animals (a temperament, ids, or "an_rabbit_*" prefixes) every 4-10 game hours, then eats the kill.
     "hunts": ["prey"],
     "hungerHours": [4, 10],
-    // A call sound (Sounds/call_*.ogg, else greet_*) now and then while you are within 40 m.
+    // A call sound (Sounds/call_*.ogg, else greet_*) now and then while you are within 30 m.
     "calls": [60, 200]
   },
 
