@@ -33,5 +33,21 @@
   "sounds": {
     "barkMinSeconds": 45,
     "barkMaxSeconds": 90
-  }
+  },
+  "schedule": [
+    {
+      "hours": [
+        "06:55",
+        "08:00"
+      ],
+      "package": "eat"
+    },
+    {
+      "hours": [
+        "19:45",
+        "20:50"
+      ],
+      "package": "eat"
+    }
+  ]
 }

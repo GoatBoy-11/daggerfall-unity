@@ -37,5 +37,21 @@
   "nameList": "dunmer_morrowind",
   "conversation": {
     "enabled": true
-  }
+  },
+  "schedule": [
+    {
+      "hours": [
+        "12:45",
+        "13:45"
+      ],
+      "package": "eat"
+    },
+    {
+      "hours": [
+        "18:45",
+        "19:50"
+      ],
+      "package": "eat"
+    }
+  ]
 }

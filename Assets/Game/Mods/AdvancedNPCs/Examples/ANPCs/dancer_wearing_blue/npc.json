@@ -36,6 +36,36 @@
   "schedule": [
     {
       "hours": [
+        "06:40",
+        "07:40"
+      ],
+      "package": "eat",
+      "when": {
+        "minHealth": 50
+      }
+    },
+    {
+      "hours": [
+        "11:55",
+        "12:55"
+      ],
+      "package": "eat",
+      "when": {
+        "minHealth": 50
+      }
+    },
+    {
+      "hours": [
+        "19:10",
+        "20:10"
+      ],
+      "package": "eat",
+      "when": {
+        "minHealth": 50
+      }
+    },
+    {
+      "hours": [
         "06:00",
         "23:00"
       ],

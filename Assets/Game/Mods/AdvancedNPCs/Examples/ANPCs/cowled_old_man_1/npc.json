@@ -78,6 +78,27 @@
         "minOpinion": 20,
         "minHealth": 50
       }
+    },
+    {
+      "hours": [
+        "08:10",
+        "09:10"
+      ],
+      "package": "eat"
+    },
+    {
+      "hours": [
+        "13:05",
+        "13:50"
+      ],
+      "package": "eat"
+    },
+    {
+      "hours": [
+        "17:15",
+        "18:00"
+      ],
+      "package": "eat"
     }
   ]
 }

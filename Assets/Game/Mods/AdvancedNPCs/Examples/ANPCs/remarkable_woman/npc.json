@@ -25,5 +25,10 @@
     "castCooldown": [5, 9],
     "skill": 75
   },
-  "conversation": { "enabled": true }
+  "conversation": { "enabled": true },
+  "schedule": [
+    { "hours": ["07:40", "08:30"], "package": "eat" },
+    { "hours": ["12:35", "13:40"], "package": "eat" },
+    { "hours": ["17:05", "18:10"], "package": "eat" }
+  ]
 }

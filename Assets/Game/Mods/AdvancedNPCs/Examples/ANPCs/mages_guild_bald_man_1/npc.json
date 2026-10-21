@@ -26,5 +26,10 @@
   "sounds": { "soundPitch": 0.88, "soundPitchVariation": 0.03 },
   "conversation": {
     "enabled": true
-  }
+  },
+  "schedule": [
+    { "hours": ["06:35", "07:35"], "package": "eat" },
+    { "hours": ["12:10", "13:10"], "package": "eat" },
+    { "hours": ["18:50", "19:45"], "package": "eat" }
+  ]
 }

@@ -24,5 +24,10 @@
     "count": [0, 1],
     "interiors": {"buildings": ["Tavern"], "chance": 12, "count": [1, 1]},
     "wilderness": {"chance": 5, "max": 1, "when": {"time": "day"}}
-  }
+  },
+  "schedule": [
+    { "hours": ["07:55", "09:15"], "package": "eat" },
+    { "hours": ["12:05", "13:00"], "package": "eat" },
+    { "hours": ["18:35", "19:25"], "package": "eat" }
+  ]
 }

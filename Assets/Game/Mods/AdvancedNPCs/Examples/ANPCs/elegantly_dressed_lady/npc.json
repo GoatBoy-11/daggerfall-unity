@@ -25,5 +25,21 @@
     "spells": [],
     "maxMagicka": 0,
     "usesMagicka": true
-  }
+  },
+  "schedule": [
+    {
+      "hours": [
+        "12:45",
+        "13:45"
+      ],
+      "package": "eat"
+    },
+    {
+      "hours": [
+        "19:00",
+        "20:15"
+      ],
+      "package": "eat"
+    }
+  ]
 }

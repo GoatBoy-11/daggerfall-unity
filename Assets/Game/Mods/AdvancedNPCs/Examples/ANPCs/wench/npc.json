@@ -37,6 +37,36 @@
   },
   "schedule": [
     {
+      "hours": [
+        "07:30",
+        "08:30"
+      ],
+      "package": "eat",
+      "when": {
+        "minHealth": 50
+      }
+    },
+    {
+      "hours": [
+        "12:00",
+        "12:50"
+      ],
+      "package": "eat",
+      "when": {
+        "minHealth": 50
+      }
+    },
+    {
+      "hours": [
+        "17:35",
+        "18:20"
+      ],
+      "package": "eat",
+      "when": {
+        "minHealth": 50
+      }
+    },
+    {
       "package": "return_home",
       "when": {
         "maxHealth": 30

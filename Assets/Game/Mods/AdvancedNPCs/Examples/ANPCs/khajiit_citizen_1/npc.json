@@ -7,6 +7,9 @@
   "bravery": "Coward",
   "wanderRadius": 8,
   "schedule": [
+    { "hours": ["07:10", "08:10"], "package": "eat", "when": { "minHealth": 50 } },
+    { "hours": ["12:40", "13:35"], "package": "eat", "when": { "minHealth": 50 } },
+    { "hours": ["18:05", "19:05"], "package": "eat", "when": { "minHealth": 50 } },
     { "package": "wander_civilian", "when": { "outdoors": true } },
     { "package": "local_wander", "when": { "indoors": true }, "parameters": { "radius": 2 } }
   ],
