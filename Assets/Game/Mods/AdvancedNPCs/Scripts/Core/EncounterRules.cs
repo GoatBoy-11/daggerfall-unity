@@ -43,6 +43,25 @@ namespace AdvancedNPCs.Core
             return new float[] { (float)(px + Math.Cos(angle) * r), (float)(pz + Math.Sin(angle) * r) };
         }
 
+        /// <summary>Ahead spawns while the player moves (playtest 2026-10-21): this far along the way.</summary>
+        public const float AheadMin = 85f, AheadMax = 130f;
+        /// <summary>Half the cone around the direction of travel ahead spawns fall in, in degrees.</summary>
+        public const float AheadSpread = 60f;
+        /// <summary>An ahead spot in plain sight is used only this far away (a pop-in there is a few pixels).</summary>
+        public const float AheadVisibleMin = 105f;
+
+        /// <summary>
+        /// A point 85-130 m ahead of a moving player, within 60 degrees of the direction of travel (dirX, dirZ need not be
+        /// normalised). Spots behind a walking player are useless: the player leaves them behind unseen.
+        /// </summary>
+        public static float[] AheadPoint(float px, float pz, float dirX, float dirZ, double u1, double u2)
+        {
+            double heading = Math.Atan2(dirZ, dirX);
+            double angle = heading + (u1 * 2.0 - 1.0) * AheadSpread * Math.PI / 180.0;
+            double r = AheadMin + u2 * (AheadMax - AheadMin);
+            return new float[] { (float)(px + Math.Cos(angle) * r), (float)(pz + Math.Sin(angle) * r) };
+        }
+
         public static bool OutOfView(float px, float pz, float viewX, float viewZ, float x, float z)
         {
             double dx = x - px, dz = z - pz;

@@ -245,6 +245,22 @@ namespace AdvancedNPCs
         {
             feet = player;
             int tries = terrain == TerrainRules.NearWater ? ShoreTries : Tries;
+            // Walking or riding: put them ahead, hidden by the land or far enough not to see them appear.
+            Vector3 travel = Travel();
+            if (travel != Vector3.zero)
+            {
+                for (int i = 0; i < tries; i++)
+                {
+                    float[] p = EncounterRules.AheadPoint(player.x, player.z, travel.x, travel.z, rng.NextDouble(), rng.NextDouble());
+                    RaycastHit hit;
+                    if (!Ground(new Vector3(p[0], player.y, p[1]), out hit) || !Gentle(hit) || !Accepts(hit, terrain))
+                        continue;
+                    if (Vector3.Distance(Flat2(hit.point), Flat2(player)) < EncounterRules.AheadVisibleMin && CameraSees(hit.point))
+                        continue;
+                    feet = hit.point;
+                    return true;
+                }
+            }
             for (int i = 0; i < tries; i++)
             {
                 float[] p = EncounterRules.RingPoint(player.x, player.z, view.x, view.z, rng.NextDouble(), rng.NextDouble());
@@ -255,6 +271,32 @@ namespace AdvancedNPCs
                 return true;
             }
             return false;
+        }
+
+        /// <summary>The player's direction of travel on the ground, or zero when (nearly) standing still.</summary>
+        static Vector3 Travel()
+        {
+            CharacterController cc = GameManager.Instance.PlayerObject.GetComponent<CharacterController>();
+            if (cc == null)
+                return Vector3.zero;
+            Vector3 v = cc.velocity;
+            v.y = 0f;
+            return v.magnitude > 1f ? v.normalized : Vector3.zero;
+        }
+
+        /// <summary>A clear line from the camera to a metre above the point (terrain and buildings block it).</summary>
+        static bool CameraSees(Vector3 point)
+        {
+            Camera cam = GameManager.Instance.MainCamera;
+            if (cam == null)
+                return true;
+            return !Physics.Linecast(cam.transform.position, point + Vector3.up, SpotFinder.Mask, QueryTriggerInteraction.Ignore);
+        }
+
+        static Vector3 Flat2(Vector3 v)
+        {
+            v.y = 0f;
+            return v;
         }
 
         /// <summary>A dry, gentle spot 2-6 m from the group's first member.</summary>

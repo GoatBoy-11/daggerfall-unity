@@ -92,6 +92,8 @@ namespace AdvancedNPCs
             foreach (NpcDefinition def in defs)
             {
                 List<string> requested = packages != null ? packages.AnimationRequests(def) : new List<string>();
+                if (def.Animal != null)
+                    requested.AddRange(AnimalRules.SheetFamilies);     // the lazy loader skips sheets nothing asks for
                 library.packageAnimations[def.Folder] = requested;
                 foreach (LoadedSpriteSet set in IndexFolder(def.Folder, Path.Combine(root, def.Folder), def.Conversation.Enabled, requested))
                     library.Add(def.Folder, set);

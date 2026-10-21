@@ -377,6 +377,22 @@ namespace AdvancedNPCs.Tests
             Assert.AreEqual(1, TerrainRules.GroupSize(1, 1, 0.5, 1, 1));
         }
 
+        [Test]
+        public void AheadPoint_AlongTheWay_FarEnough()
+        {
+            foreach (double u1 in new[] { 0.0, 0.25, 0.5, 0.75, 1.0 })
+                foreach (double u2 in new[] { 0.0, 0.5, 1.0 })
+                {
+                    float[] p = EncounterRules.AheadPoint(10f, 20f, 0f, 3f, u1, u2);    // walking towards +z
+                    double dx = p[0] - 10f, dz = p[1] - 20f;
+                    double r = System.Math.Sqrt(dx * dx + dz * dz);
+                    double off = System.Math.Abs(System.Math.Atan2(dx, dz) * 180.0 / System.Math.PI);
+                    Assert.That(r, Is.InRange(EncounterRules.AheadMin - 0.01, EncounterRules.AheadMax + 0.01));
+                    Assert.That(off, Is.LessThanOrEqualTo(EncounterRules.AheadSpread + 0.01));
+                    Assert.Less(EncounterRules.AheadMax, EncounterRules.DespawnDistance, "never despawned right away");
+                }
+        }
+
         // --- climate condition
 
         [Test]

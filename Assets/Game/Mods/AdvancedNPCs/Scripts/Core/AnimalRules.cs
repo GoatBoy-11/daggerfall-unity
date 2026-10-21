@@ -103,6 +103,9 @@ namespace AdvancedNPCs.Core
         public const float GroupSpread = 6f;
         public const int MaxGroup = 8;
 
+        /// <summary>Sheet families an animal plays besides the standard ones (resting, noticing, warning, feeding).</summary>
+        public static readonly string[] SheetFamilies = { "sleep", "rest", "alert", "look", "warn", "eat" };
+
         /// <summary>Creature classes an animal may use while calm: no were-creatures, undead or daedra.</summary>
         public static readonly string[] SafeCreatures = { "Rat", "GiantBat", "GrizzlyBear", "SabertoothTiger", "Spider", "GiantScorpion" };
 
