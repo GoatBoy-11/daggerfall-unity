@@ -159,6 +159,39 @@ namespace AdvancedNPCs
             CloseTalkWindow();
             yield return Settle;
 
+            // Daggerfall Living World's Denizens closes talk windows for a one-line quip. A stand-in that closes every
+            // one: without the mute it closes ours too (the stand-in works), with it our window stays and quips come back.
+            // A box opened and closed over the talk window (as the reply picker does) must not let the quips back in early.
+            SelfTestQuipDirector quips = new GameObject("selftest quip director").AddComponent<SelfTestQuipDirector>();
+            string realQuips = TalkQuips.Use(null);
+            talk.TryTalk();
+            yield return null;
+            bool standInCloses = !TalkWindowOpen();
+            CloseTalkWindow();
+            TalkQuips.Use(typeof(SelfTestQuipDirector).FullName);
+            bool quipTalk = talk.TryTalk();
+            yield return null;
+            bool mutedWhileOpen = !quips.QuipsOn;
+            DaggerfallMessageBox overTalk = new DaggerfallMessageBox(DaggerfallUI.UIManager, DaggerfallUI.Instance.TalkWindow);
+            overTalk.Show();
+            yield return null;
+            overTalk.CloseWindow();
+            yield return null;
+            bool talkStayed = TalkWindowOpen();
+            CloseTalkWindow();
+            yield return null;
+            bool quipsBack = quips.QuipsOn;
+            TalkQuips.Use(realQuips);
+            UnityEngine.Object.Destroy(quips.gameObject);
+            yield return Settle;
+            bool proxyHidden = !talk.Proxy.gameObject.activeSelf &&
+                Array.IndexOf(UnityEngine.Object.FindObjectsOfType<MobilePersonNPC>(), talk.Proxy) < 0;
+            Check("Living World quips stay out of ANPC talk; the talk stand-in is hidden from townsfolk scans",
+                standInCloses && quipTalk && mutedWhileOpen && talkStayed && quipsBack && proxyHidden,
+                "stand-in closes=" + standInCloses + ", talked=" + quipTalk + ", muted=" + mutedWhileOpen + ", stayed=" + talkStayed +
+                ", quips back=" + quipsBack +
+                ", proxy hidden=" + proxyHidden);
+
             NpcTalk plain = bystander.GetComponent<NpcTalk>();
             plain.Portrait = null;
             opened = plain.TryTalk();

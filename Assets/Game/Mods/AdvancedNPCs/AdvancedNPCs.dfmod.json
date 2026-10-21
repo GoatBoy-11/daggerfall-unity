@@ -1,6 +1,6 @@
 {
     "ModTitle": "Advanced NPCs",
-    "ModVersion": "0.25.1",
+    "ModVersion": "0.25.2",
     "ModAuthor": "GoatBoy-11",
     "ContactInfo": "https://github.com/GoatBoy-11/daggerfall-unity",
     "DFUnity_Version": "1.9.2",
@@ -130,6 +130,8 @@
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcSpawner.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcSprite.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/NpcTalk.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/TalkQuips.cs",
+        "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SelfTestQuipDirector.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/PortraitLibrary.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SpriteLibrary.cs",
         "Assets/Game/Mods/AdvancedNPCs/Scripts/Runtime/SheetJob.cs",

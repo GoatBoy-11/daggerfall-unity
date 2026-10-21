@@ -69,6 +69,10 @@ namespace AdvancedNPCs
         {
             GameObject proxyObject = new GameObject("TalkProxy");
             proxyObject.transform.SetParent(transform, false);
+            // Inactive before the component exists: mods that scan live townsfolk (Living World's siege shelter, night
+            // crime victims, chatter) never find it, and its Awake never lists it as a vanilla civilian. TalkManager only
+            // reads its fields.
+            proxyObject.SetActive(false);
             proxy = proxyObject.AddComponent<MobilePersonNPC>();
             proxy.NameNPC = instance.Name;
             proxy.Race = ToRace(instance.Race);
@@ -139,7 +143,10 @@ namespace AdvancedNPCs
             if (brain != null)
                 brain.FacePlayer();
             AdvancedNpcsMod mod = AdvancedNpcsMod.Instance;
-            if (mod == null || mod.Flats == null || !mod.Flats.ClickFlat(StandIn))
+            bool clicked = false;
+            if (mod != null && mod.Flats != null)
+                TalkQuips.Open(delegate { clicked = mod.Flats.ClickFlat(StandIn); });     // a stand-in's talk is the ANPC's too
+            if (!clicked)
                 TryTalk();
         }
 
@@ -165,7 +172,7 @@ namespace AdvancedNPCs
                 chat.End(true);     // the player interrupts (spec conversations §3)
             if (brain != null)
                 brain.FacePlayer();
-            TalkManager.Instance.TalkToMobileNPC(proxy);
+            TalkQuips.Open(delegate { TalkManager.Instance.TalkToMobileNPC(proxy); });
             if (portrait != null)
                 ApplyPortrait(DaggerfallUI.Instance.TalkWindow, portrait);
             AdvancedNpcsMod mod = AdvancedNpcsMod.Instance;

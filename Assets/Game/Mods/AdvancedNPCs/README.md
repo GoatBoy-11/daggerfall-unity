@@ -1055,6 +1055,9 @@ enemies. Bravery still applies (a Coward enemy runs).
   special moves by `baseClass` (charges for most, leaps for Nightblade to Barbarian, cleaves for Barbarian and Knight,
   back-dashes for Mage, Battlemage, Archer, Ranger and the like). Spells from a `magic` block are cast once by
   ANPC itself; Killer Instincts does not cast them a second time.
+- Daggerfall Living World: Wayside Denizens' one-line greetings never close an ANPC's talk window. Its
+  rebuilt towns and houses (Wayside Settlements and Houses) move buildings, so ANPCs and named spots at fixed
+  positions may need placing again with `anpc_pos` / `anpc_place`; generic ANPCs find their own spots.
 
 ### Combat tuning
 
