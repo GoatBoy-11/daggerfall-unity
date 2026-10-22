@@ -80,6 +80,8 @@ namespace AdvancedNPCs.Core
         public float HungerMinHours = 4f, HungerMaxHours = 10f;
         /// <summary>Members of a spawn group keep near their leader.</summary>
         public bool Herd = true;
+        /// <summary>false: never attacks unprovoked (a dog barks at you but only bites back when hit).</summary>
+        public bool Attacks = true;
     }
 
     /// <summary>Animal rules (spec animal-ai): parsing, senses, reactions, leash, hunting. No Unity or DFU types.</summary>
@@ -109,7 +111,7 @@ namespace AdvancedNPCs.Core
         /// <summary>Creature classes an animal may use while calm: no were-creatures, undead or daedra.</summary>
         public static readonly string[] SafeCreatures = { "Rat", "GiantBat", "GrizzlyBear", "SabertoothTiger", "Spider", "GiantScorpion" };
 
-        static readonly string[] Keys = { "temperament", "activity", "senses", "territory", "warnSeconds", "boldChance", "calls", "hunts", "hungerHours", "herd" };
+        static readonly string[] Keys = { "temperament", "activity", "senses", "territory", "warnSeconds", "boldChance", "calls", "hunts", "hungerHours", "herd", "attacks" };
         static readonly string[] SenseKeys = { "alert", "react" };
 
         /// <summary>Defaults for a temperament: alert, react, territory (metres), bold chance, calls (seconds).</summary>
@@ -245,6 +247,9 @@ namespace AdvancedNPCs.Core
             bool herd;
             if ((problem = FieldReader.Bool(o, "herd", true, out herd)) != null) { key = "animal.herd"; return problem; }
             s.Herd = herd;
+            bool attacks;
+            if ((problem = FieldReader.Bool(o, "attacks", true, out attacks)) != null) { key = "animal.attacks"; return problem; }
+            s.Attacks = attacks;
             settings = s;
             return null;
         }
@@ -292,6 +297,16 @@ namespace AdvancedNPCs.Core
         /// habituated: a grazer that has looked already and the player has not left since.
         /// </summary>
         public static int Next(AnimalSettings s, int state, float distance, float alert, float react, bool noticed,
+            float stateSeconds, bool bold, bool habituated)
+        {
+            int next = NextAttacking(s, state, distance, alert, react, noticed, stateSeconds, bold, habituated);
+            if (next != AnimalStates.Attack || s.Attacks)
+                return next;
+            // "attacks": false: a territorial one keeps warning (barking) while the player stays close, others only watch.
+            return s.Temperament == Temperaments.Territorial ? AnimalStates.Warning : AnimalStates.Alert;
+        }
+
+        static int NextAttacking(AnimalSettings s, int state, float distance, float alert, float react, bool noticed,
             float stateSeconds, bool bold, bool habituated)
         {
             // Inside react range it acts when it sees the player, or hears one this close.

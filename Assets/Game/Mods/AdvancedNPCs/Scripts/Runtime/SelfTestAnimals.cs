@@ -161,10 +161,28 @@ namespace AdvancedNPCs
                 yield return new WaitForSecondsRealtime(1.5f);
                 Check("animals: it attacks when the player stays after the warning", grizzly.CurrentMode == NpcMode.Fighting && grizzly.Threat == player,
                     grizzly.Describe());
+                Check("animals: an animal attacking the player counts as a foe for companions and guards", grizzly.AttacksPeople, grizzly.Status);
                 PutPlayerNear(grizzly.transform.position, 70f);
                 yield return new WaitForSecondsRealtime(1.5f);
                 Check("animals: it gives up the chase once the player is far", grizzly.CurrentMode == NpcMode.Calm && !grizzly.State.hostile,
                     grizzly.Describe());
+            }
+
+            // --- a dog with "attacks": false barks but does not bite
+            NpcDefinition dog = AnimalTemplate("selftest_an_dog",
+                "{ \"baseClass\": \"SabertoothTiger\", \"crimeOnAttack\": true, " +
+                "\"animal\": { \"temperament\": \"territorial\", \"warnSeconds\": 1, \"attacks\": false, \"calls\": false }, \"spawn\": { \"wilderness\": { \"chance\": 100 } } }");
+            List<NpcBrain> dogs = dog != null ? mod.Wilderness.SpawnGroup(dog, 1, out why) : new List<NpcBrain>();
+            Track(dogs);
+            yield return new WaitForSecondsRealtime(1f);
+            if (dogs.Count > 0)
+            {
+                NpcAnimal da = dogs[0].GetComponent<NpcAnimal>();
+                PutPlayerNear(dogs[0].transform.position, Mathf.Max(1.5f, da.ReactNow * 0.4f));
+                yield return new WaitForSecondsRealtime(2.5f);
+                Check("animals: a dog that does not attack keeps barking at a close player", da.State == AnimalStates.Warning && dogs[0].CurrentMode == NpcMode.Calm,
+                    dogs[0].Describe());
+                PutPlayerNear(dogs[0].transform.position, 70f);
             }
 
             // --- a hungry predator hunts a prey animal and feeds on the kill
@@ -187,6 +205,7 @@ namespace AdvancedNPCs
                 yield return new WaitForSecondsRealtime(1.5f);
                 Check("animals: a hungry predator hunts a prey animal it sees", ta.Prey != null && hunter.CurrentMode == NpcMode.Fighting,
                     hunter.Describe());
+                Check("animals: a predator hunting an animal is no foe for companions and guards", !hunter.AttacksPeople, hunter.Status);
                 if (ta.Prey != null)
                     victim = ta.Prey.Brain;     // the nearest one it saw, not necessarily the one it was put next to
                 // Prey often outruns it (and goes when 150 m from the player): finish it early so the feeding is tested.

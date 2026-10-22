@@ -264,6 +264,7 @@ you."), no hiring, guard duty or conversations; bravery from the temperament (fi
 | `hunts` | — | temperaments, ids or `id_*` prefixes it hunts when hungry (`aggroRange` = search range) |
 | `hungerHours` | `[4, 10]` | game hours between hunts |
 | `herd` | `true` | group members wander around their leader |
+| `attacks` | `true` | `false`: never attacks unprovoked (keeps warning / watching), bites back when hit |
 
 - Calm animals may use the creature classes `Rat`, `GiantBat`, `GrizzlyBear`, `SabertoothTiger`, `Spider`,
   `GiantScorpion`; no `"attitude": "hostile"`.

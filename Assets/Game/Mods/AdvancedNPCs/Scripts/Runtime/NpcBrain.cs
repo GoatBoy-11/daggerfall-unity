@@ -201,6 +201,21 @@ namespace AdvancedNPCs
         }
 
         /// <summary>
+        /// An animal fighting a person: the player, a companion, a townsperson (playtest 2026-10-22: companions and brave
+        /// ANPCs ignored a wolf pack attacking the player, as it is no "enemy"). A predator hunting an animal is not.
+        /// </summary>
+        public bool AttacksPeople
+        {
+            get
+            {
+                if (def == null || def.Animal == null || mode != NpcMode.Fighting || threat == null)
+                    return false;
+                NpcBrain victim = threat.GetComponent<NpcBrain>();
+                return victim == null || victim.Definition == null || victim.Definition.Animal == null;
+            }
+        }
+
+        /// <summary>
         /// An enemy of the player with no one to fight yet: DFU's AI has no target (none seen, or it gave up searching),
         /// so it stands where it is (spec conversations: hostile ANPCs talk among themselves until they spot someone).
         /// </summary>
@@ -915,7 +930,7 @@ namespace AdvancedNPCs
                 if (other == this || !other.isActiveAndEnabled || other.entityBehaviour == null || other.entityBehaviour.Entity == null)
                     continue;
                 bool alive = other.mode != NpcMode.Dead && other.entityBehaviour.Entity.CurrentHealth > 0;
-                if (!AggroRules.IsFoe(true, other.IsEnemy, false, false, alive))
+                if (!AggroRules.IsFoe(true, other.IsEnemy || other.AttacksPeople, false, false, alive))
                     continue;
                 float d = Vector3.Distance(transform.position, other.transform.position);
                 if (d <= bestDistance && CanSee(other.entityBehaviour))

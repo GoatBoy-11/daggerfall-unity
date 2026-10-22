@@ -695,7 +695,8 @@
               ]
             },
             "hungerHours": { "type": "array", "items": { "type": "number", "minimum": 0 }, "minItems": 2, "maxItems": 2 },
-            "herd": { "type": "boolean", "description": "Group members keep near their leader (default true)." }
+            "herd": { "type": "boolean", "description": "Group members keep near their leader (default true)." },
+            "attacks": { "type": "boolean", "description": "false: never attacks unprovoked (barks, watches); bites back only when hit." }
           }
         }
       ]

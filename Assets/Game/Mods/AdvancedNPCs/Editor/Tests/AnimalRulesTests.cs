@@ -237,6 +237,18 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void AttacksFalse_BarksInsteadOfBiting()
+        {
+            AnimalSettings dog = Animal("{ \"temperament\": \"territorial\", \"attacks\": false }");
+            Assert.IsFalse(dog.Attacks);
+            Assert.AreEqual(AnimalStates.Warning, AnimalRules.Next(dog, AnimalStates.Warning, 2f, 18f, 8f, true, 10f, false, false), "keeps barking");
+            Assert.AreEqual(AnimalStates.Warning, AnimalRules.Next(dog, AnimalStates.Warning, 7f, 18f, 8f, true, 10f, false, false));
+            AnimalSettings shyWolf = Animal("{ \"temperament\": \"predator\", \"attacks\": false }");
+            Assert.AreEqual(AnimalStates.Alert, AnimalRules.Next(shyWolf, AnimalStates.Unaware, 2f, 30f, 10f, true, 0f, true, false), "only watches");
+            Assert.IsTrue(Animal("true").Attacks);
+        }
+
+        [Test]
         public void Grazer_LooksThenGoesBackToGrazing_AndStaysHabituated()
         {
             AnimalSettings s = Of(Temperaments.Grazer);

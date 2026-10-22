@@ -1330,6 +1330,10 @@ talk window, it cannot be hired, be a guard or chat with others, and it reacts t
   angry at you for it; one you hit flees too and calms down the same way.
 - **Territory**: a chase ends once the animal is `territory` metres from home, or the player is twice its alert range
   away; it calms at once and wanders home. Its health is not restored.
+- **`"attacks": false`**: never attacks unprovoked. A territorial one (a farm dog) keeps warning while you are close
+  and bites back only when hit; others just watch.
+- **Companions and brave ANPCs** (guards, `Brave` patrols) fight an animal that attacks you or another person, as they
+  would an enemy. An animal hunting another animal is left alone.
 - **Bravery** comes from the temperament: fighters are `Prudent` (they flee below `fleeHealthPercent`), the others
   `Coward`. A `bravery` field still wins.
 - **`activity`**: `diurnal` (06–20), `nocturnal` (20–06), `crepuscular` (04–09 and 17–22) or `always` (default).

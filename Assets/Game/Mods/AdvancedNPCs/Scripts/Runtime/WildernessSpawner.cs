@@ -3,6 +3,7 @@ using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Utility;
+using DaggerfallWorkshop.Game.Utility.ModSupport;
 using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
@@ -102,7 +103,7 @@ namespace AdvancedNPCs
             }
             if (!PeopleOn && !AnimalsOn)
                 return;
-            if (!EncounterRules.MayRoll(gm.PlayerGPS.IsPlayerInLocationRect, gm.IsPlayerOnHUD))
+            if (!EncounterRules.MayRoll(gm.PlayerGPS.IsPlayerInLocationRect, gm.IsPlayerOnHUD || TravelOptionsTravelling()))
                 return;
             ulong now = NowMinute;
             lastRollMinute = EncounterRules.RollClock(lastRollMinute, now);
@@ -110,6 +111,31 @@ namespace AdvancedNPCs
                 return;
             lastRollMinute = now;
             Roll();
+        }
+
+        /// <summary>
+        /// Travel Options' accelerated (real) travel keeps its control panel open as a window over the HUD; the journey is
+        /// still walking or riding through the wilderness, so encounters roll then too (asked through its mod message).
+        /// </summary>
+        static bool TravelOptionsTravelling()
+        {
+            ModManager mods = ModManager.Instance;
+            if (mods == null || mods.GetMod("TravelOptions") == null)
+                return false;
+            bool active = false;
+            try
+            {
+                mods.SendModMessage("TravelOptions", "isTravelActive", null, delegate (string message, object data)
+                {
+                    if (data is bool)
+                        active = (bool)data;
+                });
+            }
+            catch (System.Exception)
+            {
+                return false;
+            }
+            return active;
         }
 
         /// <summary>One roll for every template with a wilderness block (also the self-test).</summary>

@@ -103,7 +103,7 @@ namespace AdvancedNPCs
             bool ally=Party(e) || e.Entity.Team==MobileTeams.PlayerAlly;
             EnemyEntity enemy=e.Entity as EnemyEntity;
             bool guard=other==null && (e.Entity.Team==MobileTeams.CityWatch || (enemy!=null && enemy.MobileEnemy.ID==(int)MobileTypes.Knight_CityWatch));
-            bool hostile=other!=null?other.IsEnemy:m!=null && m.IsHostile;
+            bool hostile=other!=null?other.IsEnemy || other.AttacksPeople:m!=null && m.IsHostile;
             bool questProtected=false;
             if(quest!=null)
             {
