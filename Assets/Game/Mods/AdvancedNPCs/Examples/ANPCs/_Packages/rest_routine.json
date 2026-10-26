@@ -1,0 +1,31 @@
+{
+  "$schema": "../_Schemas/package.schema.json",
+  "type": "sequence",
+  "parameters": {
+    "loop": true,
+    "steps": [
+      {
+        "package": "local_wander",
+        "parameters": {
+          "radius": 4,
+          "pause": 3
+        },
+        "duration": 24
+      },
+      {
+        "package": "play_animation",
+        "parameters": {
+          "animation": "idle_2"
+        },
+        "duration": 4
+      },
+      {
+        "package": "play_animation",
+        "parameters": {
+          "animation": "sleep_1"
+        },
+        "duration": 10
+      }
+    ]
+  }
+}

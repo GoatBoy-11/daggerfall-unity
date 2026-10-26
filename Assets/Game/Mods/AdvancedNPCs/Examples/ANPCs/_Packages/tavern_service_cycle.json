@@ -13,7 +13,11 @@
         "duration": 20
       },
       {
-        "package": "tavern_roam",
+        "package": "local_wander",
+        "parameters": {
+          "radius": 1.5,
+          "pause": 8
+        },
         "duration": 15
       }
     ]

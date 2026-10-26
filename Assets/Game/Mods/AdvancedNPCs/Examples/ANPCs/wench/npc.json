@@ -87,7 +87,7 @@
         "07:00",
         "23:00"
       ],
-      "package": "tavern_roam"
+      "package": "local_wander", "parameters": {"radius": 1.5, "pause": 8}
     },
     {
       "package": "return_home"

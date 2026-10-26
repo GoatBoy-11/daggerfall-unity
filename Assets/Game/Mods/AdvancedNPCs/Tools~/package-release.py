@@ -35,6 +35,7 @@ PORTRAIT = re.compile(r'"portrait"\s*:\s*"([^"]+)"')
 LIST_OR_STRING = r'\s*:\s*(\[[^\]]*\]|"[^"]*")'
 DIALOGUE = re.compile(r'"dialogue"' + LIST_OR_STRING)
 VOICE = re.compile(r'"voice"' + LIST_OR_STRING)
+PACKAGE = re.compile(r'"package"\s*:\s*"([^"]+)"')
 
 
 def names(match):
@@ -53,6 +54,7 @@ def self_test():
     assert p == ["wench"] and d == ["gossip", "tavern"] and v == ["va_x"], (p, d, v)
     assert references('{ "dialogue": "one" }')[1] == ["one"]
     assert expand(["a*", "b"], ["a1", "a2", "b", "c"]) == ["a1", "a2", "b"]
+    assert PACKAGE.findall('{ "schedule": [ { "package": "eat" }, {"package":"dancer_routine"} ] }') == ["eat", "dancer_routine"]
     print("self-test OK")
 
 
@@ -127,6 +129,7 @@ def main(argv):
     fw_folders = expand(fw["folders"], repo_dirs)
     fw_dialogue = {os.path.splitext(f)[0] for f in os.listdir(os.path.join(REPO_ANPCS, "_Dialogue")) if f.endswith(".json")}
     fw_voices = {d for d in os.listdir(os.path.join(REPO_ANPCS, "_Sounds")) if d.startswith("va_")}
+    fw_packages = {os.path.splitext(f)[0] for f in os.listdir(os.path.join(REPO_ANPCS, "_Packages")) if f.endswith(".json")}
     if only is None or fw["zip"] in only:
         if not os.path.isfile(DFMOD) and not dry:
             raise SystemExit("ERROR: no release bundle at %s; run Tools~/build-mod.sh --release first" % DFMOD)
@@ -160,12 +163,13 @@ def main(argv):
                 print("  %s: held (%s)" % (name, pack["hold"]))
             continue
         entries, credits = [], []
-        extra_portraits, extra_dialogue = set(), set()
+        extra_portraits, extra_dialogue, extra_packages = set(), set(), set()
         for f in folders:
             npc = os.path.join(source, f, "npc.json")
             if not os.path.isfile(npc):
                 raise SystemExit("ERROR: %s has no npc.json" % f)
             ps, ds, vs = references(read(npc))
+            extra_packages.update(pkg for pkg in PACKAGE.findall(read(npc)) if pkg not in fw_packages)
             extra_portraits.update(ps)
             extra_dialogue.update(d for d in ds if d not in fw_dialogue)
             for v in vs:
@@ -181,6 +185,19 @@ def main(argv):
                 entries.append((disk, ANPCS_IN_ZIP + "_Portraits/" + p + ".png"))
             else:
                 print("  WARNING: %s: portrait %s.png missing (vanilla face shown)" % (name, p))
+        # Packages the framework lacks ship with the pack, with the packages they use in turn.
+        todo, shipped = sorted(extra_packages), set()
+        while todo:
+            pkg = todo.pop()
+            if pkg in shipped:
+                continue
+            shipped.add(pkg)
+            disk = os.path.join(source, "_Packages", pkg + ".json")
+            if not os.path.isfile(disk):
+                print("  WARNING: %s: package %s missing" % (name, pkg))
+                continue
+            entries.append((disk, ANPCS_IN_ZIP + "_Packages/" + pkg + ".json"))
+            todo += [n for n in PACKAGE.findall(read(disk)) if n not in fw_packages and n not in shipped]
         for d in sorted(extra_dialogue):
             disk = os.path.join(source, "_Dialogue", d + ".json")
             if os.path.isfile(disk):

@@ -1,0 +1,38 @@
+{
+  "$schema": "../_Schemas/package.schema.json",
+  "type": "sequence",
+  "parameters": {
+    "loop": true,
+    "steps": [
+      {
+        "package": "wander_civilian",
+        "duration": 24
+      },
+      {
+        "package": "play_animation",
+        "parameters": {
+          "animation": "idle_2"
+        },
+        "duration": 6
+      },
+      {
+        "package": "play_animation",
+        "parameters": {
+          "animation": "drink_1"
+        },
+        "duration": 9.333333333333334
+      },
+      {
+        "package": "wander_civilian",
+        "duration": 24
+      },
+      {
+        "package": "play_animation",
+        "parameters": {
+          "animation": "eat_1"
+        },
+        "duration": 4
+      }
+    ]
+  }
+}

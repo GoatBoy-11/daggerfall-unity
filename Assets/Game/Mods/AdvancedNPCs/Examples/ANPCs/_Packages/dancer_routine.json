@@ -1,0 +1,20 @@
+{
+  "$schema": "../_Schemas/package.schema.json",
+  "type": "sequence",
+  "parameters": {
+    "loop": true,
+    "steps": [
+      {
+        "package": "wander_civilian",
+        "duration": 24
+      },
+      {
+        "package": "play_animation",
+        "parameters": {
+          "animation": "dance_1"
+        },
+        "duration": 6
+      }
+    ]
+  }
+}

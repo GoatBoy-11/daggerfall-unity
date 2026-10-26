@@ -5,7 +5,11 @@
     "loop": true,
     "steps": [
       {
-        "package": "guard_patrol",
+        "package": "local_patrol",
+        "parameters": {
+          "points": [[0, 0, 0], [0, 0, 3], [0, 0, 0], [0, 0, -3]],
+          "pauseAtStops": 20
+        },
         "duration": 45
       },
       {
