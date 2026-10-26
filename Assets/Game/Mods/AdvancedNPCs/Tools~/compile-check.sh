@@ -10,6 +10,8 @@ MANAGED="$DFU/DaggerfallUnity_Data/Managed"
 MONO="/c/Program Files/Unity/Hub/Editor/2019.4.41f2/Editor/Data/MonoBleedingEdge"
 OUT="$(cygpath -w "${TMP:-/tmp}")\advancednpcs-compile-check.dll"
 
+# ANPC_RELEASE=1 checks the release build's sources: the SelfTest*.cs files left out.
+sources() { find "$MOD/Scripts" -name '*.cs' | if [ "${ANPC_RELEASE:-0}" = 1 ]; then grep -v '/SelfTest[^/]*\.cs$'; else cat; fi; }
 w() { cygpath -w "$1"; }
 
 args=(-noconfig -nostdlib -langversion:4 -target:library -nowarn:1591 "-out:$OUT" "-r:$(w "$MANAGED/mscorlib.dll")")
@@ -21,7 +23,7 @@ count=0
 while IFS= read -r src; do
   args+=("$(w "$src")")
   count=$((count + 1))
-done < <(find "$MOD/Scripts" -name '*.cs' | sort)
+done < <(sources | sort)
 
 "$MONO/bin/mono.exe" "$(w "$MONO/lib/mono/4.5/mcs.exe")" "${args[@]}"
 echo "compile-check: OK ($count source files)"

@@ -6,21 +6,32 @@
 # batch mode. Needs the Unity Editor and the game closed. The first run imports the whole
 # DFU project and can take 30-60+ minutes.
 #
-# Usage: build-mod.sh [DFU install dir] [--no-examples]
+# Usage: build-mod.sh [DFU install dir] [--no-examples] [--release]
+# --release: builds the player bundle without the SelfTest*.cs files into Builds/AdvancedNPCs-release and installs
+# nothing (Tools~/package-release.py zips it).
 # ANPC_BACKGROUND=1 starts the editor minimized.
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 PROJECT="$(cd "$HERE/../../../../.." && pwd)"
 DFU="/f/_Projects/Dagerfall/DFU_testing"
 EXAMPLES=1
+RELEASE=0
 for arg in "$@"; do
   case "$arg" in
     --no-examples) EXAMPLES=0 ;;
+    --release) RELEASE=1 ;;
     *) DFU="$arg" ;;
   esac
 done
 UNITY="${ANPC_UNITY_2019:-/c/Program Files/Unity/Hub/Editor/2019.4.41f2/Editor/Unity.exe}"
 OUT="$PROJECT/Builds/AdvancedNPCs"
+PS_EXTRA=""
+EXTRA=()
+if [ "$RELEASE" = 1 ]; then
+  OUT="$PROJECT/Builds/AdvancedNPCs-release"
+  PS_EXTRA=",'-release'"
+  EXTRA=(-release)
+fi
 LOG="$PROJECT/Builds/advancednpcs-build.log"
 mkdir -p "$OUT"
 
@@ -28,12 +39,12 @@ echo "Building with Unity 2019.4 (an editor window opens and closes by itself; l
 run_unity() {
   if [ "${ANPC_BACKGROUND:-0}" = 1 ]; then
     local code
-    code=$(powershell -NoProfile -Command "\$p = Start-Process -FilePath '$(cygpath -w "$UNITY")' -WindowStyle Minimized -PassThru -ArgumentList '-quit','-projectPath','\"$(cygpath -w "$PROJECT")\"','-executeMethod','AdvancedNPCs.EditorTools.AdvancedNpcsModBuilder.Build','-modOut','\"$(cygpath -w "$OUT")\"','-logFile','\"$(cygpath -w "$LOG")\"'; \$p.WaitForExit(); \$p.ExitCode")
+    code=$(powershell -NoProfile -Command "\$p = Start-Process -FilePath '$(cygpath -w "$UNITY")' -WindowStyle Minimized -PassThru -ArgumentList '-quit','-projectPath','\"$(cygpath -w "$PROJECT")\"','-executeMethod','AdvancedNPCs.EditorTools.AdvancedNpcsModBuilder.Build','-modOut','\"$(cygpath -w "$OUT")\"','-logFile','\"$(cygpath -w "$LOG")\"'$PS_EXTRA; \$p.WaitForExit(); \$p.ExitCode")
     [ "$(echo "$code" | tr -d '\r ')" = 0 ]
   else
     "$UNITY" -quit -projectPath "$(cygpath -w "$PROJECT")" \
       -executeMethod AdvancedNPCs.EditorTools.AdvancedNpcsModBuilder.Build \
-      -modOut "$(cygpath -w "$OUT")" -logFile "$(cygpath -w "$LOG")"
+      -modOut "$(cygpath -w "$OUT")" -logFile "$(cygpath -w "$LOG")" "${EXTRA[@]}"
   fi
 }
 if ! run_unity; then
@@ -44,6 +55,10 @@ fi
 
 BUNDLE="$OUT/StandaloneWindows/advancednpcs.dfmod"
 [ -f "$BUNDLE" ] || { echo "Build reported success but $BUNDLE is missing"; exit 1; }
+if [ "$RELEASE" = 1 ]; then
+  echo "Release bundle (no self-tests): $BUNDLE"
+  exit 0
+fi
 cp "$BUNDLE" "$DFU/DaggerfallUnity_Data/StreamingAssets/Mods/"
 echo "Installed $(basename "$BUNDLE") into $DFU"
 

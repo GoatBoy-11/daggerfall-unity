@@ -62,9 +62,13 @@ namespace AdvancedNPCs.EditorTools
             Directory.CreateDirectory(TempDir);
             AssetDatabase.Refresh();
 
+            // -release (build-mod.sh --release): leave the in-game self-tests out of the bundle players get.
+            bool release = Array.IndexOf(Environment.GetCommandLineArgs(), "-release") >= 0;
             List<string> assets = new List<string>();
             foreach (string path in manifest.Files)
             {
+                if (release && Path.GetFileName(path).StartsWith("SelfTest", StringComparison.Ordinal))
+                    continue;
                 if (!File.Exists(path))
                 {
                     Debug.LogError(LogPrefix + "missing file " + path);
@@ -103,7 +107,7 @@ namespace AdvancedNPCs.EditorTools
                 return false;
             }
 
-            Debug.Log(LogPrefix + "built " + Path.Combine(targetDir, BundleName) + " (" + assets.Count + " assets)");
+            Debug.Log(LogPrefix + "built " + Path.Combine(targetDir, BundleName) + " (" + assets.Count + " assets" + (release ? ", release: no self-tests" : "") + ")");
             return true;
         }
 

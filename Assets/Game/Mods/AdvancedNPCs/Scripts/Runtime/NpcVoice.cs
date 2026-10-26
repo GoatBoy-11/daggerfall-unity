@@ -804,7 +804,7 @@ namespace AdvancedNPCs
         /// <summary>DFU's own grunt (same setting, chance, race and gender), for an event the folder has no sound for.</summary>
         void VanillaGrunt(bool attack, bool heavy, int chance)
         {
-            bool force = ForceVanillaVoice && SelfTest.Running;
+            bool force = ForceVanillaVoice && AdvancedNpcsMod.TestRunning;
             if (enemySounds == null || voiceRace == Races.None || (!DaggerfallUnity.Settings.CombatVoices && !force))
                 return;
             EnemyEntity entity = behaviour.Entity as EnemyEntity;

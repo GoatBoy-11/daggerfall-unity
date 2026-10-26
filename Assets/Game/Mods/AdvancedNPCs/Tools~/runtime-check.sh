@@ -13,6 +13,8 @@ CC="$PROJECT/Assets/Game/Addons/CSharpCompiler"
 MONO="/c/Program Files/Unity/Hub/Editor/2019.4.41f2/Editor/Data/MonoBleedingEdge"
 OUTDIR="${TMP:-/tmp}/advancednpcs-runtime-check"
 mkdir -p "$OUTDIR"
+# ANPC_RELEASE=1 checks the release build's sources: the SelfTest*.cs files left out.
+sources() { find "$MOD/Scripts" -name '*.cs' | if [ "${ANPC_RELEASE:-0}" = 1 ]; then grep -v '/SelfTest[^/]*\.cs$'; else cat; fi; }
 w() { cygpath -w "$1"; }
 
 cp "$CC/Plugins/mcs.dll" "$OUTDIR/mcs.dll"
@@ -29,6 +31,6 @@ check() {
   "$MONO/bin/mono.exe" "$(w "$OUTDIR/harness.exe")" "$(w "$MANAGED")" "${sources[@]}"
 }
 echo "Order: by path"
-find "$MOD/Scripts" -name '*.cs' | sort | check
+sources | sort | check
 echo "Order: by file name"
-find "$MOD/Scripts" -name '*.cs' | awk -F/ '{print $NF "	" $0}' | sort | cut -f2 | check
+sources | awk -F/ '{print $NF "	" $0}' | sort | cut -f2 | check

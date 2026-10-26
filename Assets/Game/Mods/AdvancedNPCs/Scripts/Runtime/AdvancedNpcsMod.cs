@@ -20,9 +20,11 @@ namespace AdvancedNPCs
     public class AdvancedNpcsMod : MonoBehaviour
     {
         public const string LogPrefix = "[AdvancedNPCs] ";
-        public const string AutoRunFile = "selftest-autorun.txt";
 
         public static AdvancedNpcsMod Instance { get; private set; }
+
+        /// <summary>True while the in-game self-test runs (set by SelfTest; read by game code that the test must steer).</summary>
+        public static bool TestRunning { get; set; }
 
         public DefinitionCatalog Catalog { get; private set; }
         public PackageLibrary Packages { get; private set; }
@@ -189,12 +191,10 @@ namespace AdvancedNPCs
             Indoors.Enable();
             Wilderness = gameObject.AddComponent<WildernessSpawner>();
             Wilderness.Init(this, spawner);
-            ConsoleCommandsDatabase.RegisterCommand("anpc_selftest",
-                "Runs the Advanced NPCs in-game self-test next to you (god mode during the run; results in Player.log).", "anpc_selftest", SelfTestCommand);
-
-            string autorun = Path.Combine(AnpcFiles.Root, AutoRunFile);
-            if (File.Exists(autorun))
-                StartCoroutine(AutoRun(autorun));
+            // Release builds (build-mod.sh --release) leave the SelfTest*.cs files out: register them only when compiled in.
+            Type selfTests = typeof(AdvancedNpcsMod).Assembly.GetType("AdvancedNPCs.SelfTestHost");
+            if (selfTests != null)
+                selfTests.GetMethod("Register").Invoke(null, new object[] { this, spawner });
         }
 
         void ReloadPackages()
@@ -748,103 +748,6 @@ namespace AdvancedNPCs
                     return true;
             }
             return false;
-        }
-
-        static string SelfTestCommand(params string[] args)
-        {
-            if (SelfTest.Running)
-                return "The self-test is already running.";
-            SelfTest test = new SelfTest(Instance, Instance.spawner);
-            if(args.Length>0 && args[0]==SelfTest.CompanionPotionsSuite)test.Suite=args[0];
-            if(args.Length>0 && args[0]==SelfTest.CompanionSurvivabilitySuite)test.Suite=args[0];
-            if (args.Length > 0 && (args[0] == SelfTest.SoundSuite || args[0] == SelfTest.GuardSuite || args[0] == SelfTest.CompanionEventsSuite || args[0] == SelfTest.CompanionBarksSuite || args[0] == SelfTest.AuditSuite || args[0] == SelfTest.CompanionSpellsSuite || args[0] == SelfTest.CompanionLimitsSuite || args[0] == SelfTest.CompanionPerformanceSuite || args[0] == SelfTest.CompanionBowsSuite || args[0] == SelfTest.CompanionEquipmentSuite || args[0] == SelfTest.CompanionTradingSuite || args[0] == SelfTest.CompanionPlaytestSuite || args[0] == SelfTest.CompanionOrdersSuite || args[0] == SelfTest.CompanionCombatSuite || args[0] == SelfTest.NavigationSuite || args[0] == SelfTest.CompanionSuite || args[0] == SelfTest.RangedSuite || args[0] == SelfTest.ReplaceSuite || args[0] == SelfTest.HealingSuite || args[0] == SelfTest.PackageSuite || args[0] == SelfTest.AnimalSuite || args[0] == SelfTest.BlockSuite))
-                test.Suite = args[0];
-            Instance.StartCoroutine(test.Run(null));
-            return "Self-test started; results appear on screen and in Player.log (SELFTEST lines).";
-        }
-
-        /// <summary>
-        /// Unattended start used by Tools~/selftest.sh and Tools~/play.sh: the flag file's first two lines name a
-        /// character and a save, which is loaded straight from the title screen. A third line "play" stops there
-        /// (manual testing; the flag file is removed so the next start is normal); "ranged" / "replace" run only the
-        /// ranged-attack / flat replacement checks (Tools~/selftest-ranged.sh, selftest-replace.sh); otherwise the whole self-test runs. Then the game quits.
-        /// </summary>
-        IEnumerator AutoRun(string path)
-        {
-            string[] lines = File.ReadAllLines(path);
-            if (lines.Length < 2)
-            {
-                LogError(SelfTest.Prefix + "FAIL autorun -- " + AutoRunFile + " needs: character name, then save name");
-                Application.Quit();
-                yield break;
-            }
-            string character = lines[0].Trim();
-            string save = lines[1].Trim();
-            bool play = lines.Length > 2 && lines[2].Trim() == "play";
-            string third = lines.Length > 2 ? lines[2].Trim() : "";
-            string suite = third == SelfTest.SoundSuite || third == SelfTest.GuardSuite || third == SelfTest.CompanionEventsSuite || third == SelfTest.CompanionBarksSuite || third == SelfTest.AuditSuite || third == SelfTest.CompanionSpellsSuite || third == SelfTest.CompanionLimitsSuite || third == SelfTest.CompanionPerformanceSuite || third == SelfTest.CompanionBowsSuite || third == SelfTest.CompanionEquipmentSuite || third == SelfTest.CompanionTradingSuite || third == SelfTest.CompanionPlaytestSuite || third == SelfTest.CompanionOrdersSuite || third == SelfTest.CompanionCombatSuite || third == SelfTest.NavigationSuite || third == SelfTest.CompanionSuite || third == SelfTest.RangedSuite || third == SelfTest.ReplaceSuite || third == SelfTest.HealingSuite || third == SelfTest.PackageSuite || third == SelfTest.AnimalSuite || third == SelfTest.BlockSuite ? third : null;
-            if(third==SelfTest.CompanionPotionsSuite)suite=third;
-            if (third == SelfTest.SpriteLoadSuite) suite = third;
-            if(third==SelfTest.CompanionSurvivabilitySuite)suite=third;
-            if (play)
-                File.Delete(path);
-            Log(SelfTest.Prefix + "autorun: loading save '" + save + "' of '" + character + "'" + (play ? " to play" : ""));
-
-            // The title screen runs with the game paused (timeScale 0), so only real-time waits finish there.
-            float waited = 0f;
-            while (waited < 60f && !SaveLoadManager.Instance.IsReady())
-            {
-                waited += 0.5f;
-                yield return new WaitForSecondsRealtime(0.5f);
-            }
-            yield return new WaitForSecondsRealtime(2f);
-            SaveLoadManager.Instance.EnumerateSaves();
-            int key = SaveLoadManager.Instance.FindSaveFolderByNames(character, save);
-            if (key < 0)
-            {
-                LogError(SelfTest.Prefix + "FAIL autorun -- no save '" + save + "' of character '" + character + "'");
-                if (!play)
-                    Application.Quit();
-                yield break;
-            }
-            SaveLoadManager.Instance.Load(key);
-
-            // Like DFU's own Load button, close the title screen windows (intro video, start menu): while they
-            // are open the game stays paused. They can appear after the load starts, so keep closing them.
-            waited = 0f;
-            while (waited < 180f && !InTown())
-            {
-                DaggerfallUI.Instance.PopToHUD();
-                waited += 1f;
-                yield return new WaitForSecondsRealtime(1f);
-            }
-            DaggerfallUI.Instance.PopToHUD();
-            if (!InTown())
-            {
-                LogError(SelfTest.Prefix + "FAIL autorun -- save did not load into a town within 180 s");
-                if (!play)
-                    Application.Quit();
-                yield break;
-            }
-            if (play)
-            {
-                Log("Loaded '" + save + "'; have fun.");
-                yield break;
-            }
-            yield return new WaitForSecondsRealtime(5f); // let the town and its NPCs finish spawning
-            SelfTest run = new SelfTest(this, spawner);
-            run.Suite = suite;
-            yield return StartCoroutine(run.Run(null));
-            yield return new WaitForSecondsRealtime(1f);
-            Application.Quit();
-        }
-
-        static bool InTown()
-        {
-            GameManager gm = GameManager.Instance;
-            return gm != null && gm.StateManager.CurrentState == StateManager.StateTypes.Game &&
-                   !SaveLoadManager.Instance.LoadInProgress && !gm.PlayerEnterExit.IsPlayerInside &&
-                   gm.StreamingWorld.CurrentPlayerLocationObject != null;
         }
 
         static string SpawnCommand(params string[] args)

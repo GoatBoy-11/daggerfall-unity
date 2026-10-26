@@ -28,7 +28,7 @@ namespace AdvancedNPCs
         /// </summary>
         const float OutOfGreeting = 8f;
 
-        public static bool Running { get; private set; }
+        public static bool Running { get { return AdvancedNpcsMod.TestRunning; } private set { AdvancedNpcsMod.TestRunning = value; } }
 
         readonly AdvancedNpcsMod mod;
         readonly NpcSpawner spawner;

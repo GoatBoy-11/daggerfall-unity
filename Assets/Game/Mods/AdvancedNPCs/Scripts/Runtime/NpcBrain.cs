@@ -804,7 +804,7 @@ namespace AdvancedNPCs
 
             // Our own language pacification roll (DFU's is off, see Start): hostile-attitude enemies only, first sighting.
             // Not during the self-test: a random calm-down would break its enemy checks (it tests Pacify directly).
-            if (enemy && !pacifyRolled && !SelfTest.Running && !provoked && def.Hostile && !state.enemyOn && senses.Target == player && senses.DetectedTarget)
+            if (enemy && !pacifyRolled && !AdvancedNpcsMod.TestRunning && !provoked && def.Hostile && !state.enemyOn && senses.Target == player && senses.DetectedTarget)
                 TryPacify();
 
             // Keep vanilla in line with our state (EnemyMotor.Start resets IsHostile from MobileReactions).

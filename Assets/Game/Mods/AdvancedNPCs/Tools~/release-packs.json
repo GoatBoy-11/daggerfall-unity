@@ -1,0 +1,57 @@
+{
+  "_doc": [
+    "Which ANPC folders go into which Nexus zip (read by package-release.py).",
+    "framework: the mod itself plus shared folders and example folders, all from the repo's Examples/ANPCs.",
+    "packs: submods, copied from 'source' (the test install: shrunk sheets, meal sheets, latest portraits).",
+    "Folder names may use * and ?. A pack with 'hold' is skipped unless --include-held is given.",
+    "A folder may be in one zip only. 'never' folders are reported nowhere."
+  ],
+  "source": "F:/_Projects/Dagerfall/DFU_testing/DaggerfallUnity_Data/StreamingAssets/ANPCs",
+  "exclude": ["animation_assets", "*.meta", "*.before-*", "Thumbs.db", "desktop.ini", "__pycache__"],
+  "never": ["follower_tester", "package_tester", "shelter_tester", "test_enemy", "_probe_sounds", "_Schemas"],
+  "framework": {
+    "zip": "AdvancedNPCs",
+    "shared": ["_Sounds", "_Dialogue", "_Namelists", "_Packages", "_Spots", "_Examples", "SOUND_CREDITS.txt"],
+    "folders": ["example_*", "baker", "bandit", "commoner", "cooper", "patron", "smith", "spellcaster"]
+  },
+  "packs": {
+    "ANPC_Townsfolk": {
+      "folders": [
+        "altmer_in_orange_robes", "altmer_woman", "argonian_citizen_1", "argonian_female_acrobat_1", "argonian_staff_fighter_1",
+        "barefoot_farmhand", "blue_woman_healer", "bosmer_in_green", "breton_nightblade", "castle_guard_1", "dunmer_bone_mage",
+        "dunmer_citizen_1", "dunmer_mercenary", "dunmer_spellblade", "elf_citizen_female_1", "elf_maid", "helmeted_barbarian",
+        "imperial_battlemage", "imperial_knight", "khajiit_citizen_1", "khajiit_woman", "nord_shieldmaiden", "nun_in_black",
+        "ohmes_knight_1", "old_nord_warrior", "peasant_woman", "redguard_swordswoman", "tavern_dancer", "temple_monk_1",
+        "turbaned_merchant", "village_smith", "warlock_woman", "wench", "wood_elf_ranger_f_1"
+      ]
+    },
+    "ANPC_Replacers": {
+      "folders": [
+        "bald_man_with_a_jug", "comely_maiden", "cowled_old_man_1", "crimson_wanderer_1", "dancer_wearing_blue",
+        "elegantly_dressed_lady", "green_coated_wanderer", "hooded_monk", "hooded_woman_with_a_staff",
+        "knight_in_a_checkered_tabard", "lady_in_a_brown_gown", "mages_guild_bald_man_1", "man_in_a_blue_coat",
+        "man_in_a_green_coat", "man_in_a_green_vest", "man_in_a_red_bandana", "man_in_a_white_shirt", "man_with_a_broom",
+        "nobleman_with_a_crown", "old_beggar", "old_man_in_a_green_tunic", "remarkable_woman", "scruffy_looking_sailor",
+        "stern_rogue", "woman_in_a_blue_cloak", "woman_in_a_purple_skirt", "woman_in_a_white_blouse"
+      ]
+    },
+    "ANPC_Companions": {
+      "folders": ["ironclad_rogue_1"]
+    },
+    "ANPC_Enemies": {
+      "folders": ["iron_sentinel", "nord_barbarian_1", "orc_weakling"]
+    },
+    "ANPC_Animals": {
+      "folders": ["an_*"],
+      "hold": "some animals use Oblivion meshes or sounds: decide or replace before release"
+    },
+    "ANPC_Oblivion": {
+      "folders": ["ob_*", "oblivion_*", "adoring_fan", "karen"],
+      "hold": "Oblivion-derived content: release decision pending"
+    },
+    "ANPC_Morrowind": {
+      "folders": ["morrowind_*"],
+      "hold": "Morrowind-derived content: release decision pending"
+    }
+  }
+}
