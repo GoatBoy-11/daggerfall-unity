@@ -32,7 +32,7 @@ namespace AdvancedNPCs
         public string Stance { get { return CompanionOrders.Stance(brain.State.companion.stance); } }
         public bool Regrouping { get { return regroup.Active; } }
         public bool AllowsAttack { get { return Active && Stance!="passive" && !regroup.Active && Legal(target) && InLeash(target) &&
-            brain.CurrentMode==NpcMode.Fighting && !GameManager.Instance.DisableAI && !GameManager.IsGamePaused; } }
+            brain.CurrentMode==NpcMode.Fighting && (potionSprite==null || !potionSprite.DrinkingPotion) && !GameManager.Instance.DisableAI && !GameManager.IsGamePaused; } }
         public CompanionBow Bow { get; private set; }
         NpcBrain brain;
         EnemySenses senses;
@@ -41,6 +41,7 @@ namespace AdvancedNPCs
         EnemyMotor.TakeActionCallback previousAction, companionAction;
         NpcMover mover;
         NpcGait gait;
+        NpcSprite potionSprite;
         MobileUnit mobile;
         DaggerfallEntityBehaviour self, target;
         Transform area;
@@ -64,6 +65,7 @@ namespace AdvancedNPCs
             brain=owner; self=owner.EntityBehaviour; motor=owner.Motor; senses=GetComponent<EnemySenses>();
             attack=GetComponent<EnemyAttack>(); mover=GetComponent<NpcMover>(); gait=GetComponent<NpcGait>(); mobile=GetComponentInChildren<MobileUnit>();
             Bow=new CompanionBow(brain,mobile);
+            potionSprite=GetComponent<NpcSprite>();
             health=self.Entity.CurrentHealth; Description="defensive"; companionAction=Chase; body=GetComponent<CharacterController>();
         }
         void Update() { if(!Active) Release(); else if(owned) Perceive(true); }
@@ -102,8 +104,8 @@ namespace AdvancedNPCs
             var quest=e.GetComponent<QuestResourceBehaviour>();
             bool ally=Party(e) || e.Entity.Team==MobileTeams.PlayerAlly;
             EnemyEntity enemy=e.Entity as EnemyEntity;
-            bool guard=other==null && (e.Entity.Team==MobileTeams.CityWatch || (enemy!=null && enemy.MobileEnemy.ID==(int)MobileTypes.Knight_CityWatch));
-            bool hostile=other!=null?other.IsEnemy:m!=null && m.IsHostile;
+            bool guard=other==null && CompanionCombatRules.Guard(e.Entity.Team==MobileTeams.CityWatch,enemy!=null && enemy.MobileEnemy.ID==(int)MobileTypes.Knight_CityWatch,dungeon!=null);
+            bool hostile=other!=null?other.IsEnemy || other.AttacksPeople:m!=null && m.IsHostile;
             bool questProtected=false;
             if(quest!=null)
             {
@@ -341,6 +343,7 @@ namespace AdvancedNPCs
                 if(betrayal)
                 {
                     brain.State.companion.status="dismissed";
+                    NpcCombat.ApplyCompanionHealth(brain);
                     Release(); brain.CompanionBetrayed();
                     DaggerfallUI.AddHUDText(brain.DisplayName+": Our contract is over!"); return false;
                 }
@@ -348,6 +351,9 @@ namespace AdvancedNPCs
             }
             health=current; motor.IsHostile=false; self.Entity.Team=MobileTeams.PlayerAlly;
             if(GameManager.Instance.DisableAI || GameManager.IsGamePaused) { pushContact.Interrupt(); Perceive(); mover.Stop(); return true; }
+            NpcCompanionInventory.For(brain).UseHealingPotion();
+            current=self.Entity.CurrentHealth;health=current;
+            if(potionSprite!=null && potionSprite.DrinkingPotion) { Perceive();mover.Stop();return true; }
             hits.Tick(Time.deltaTime);
             if(regroup.Active)
             {

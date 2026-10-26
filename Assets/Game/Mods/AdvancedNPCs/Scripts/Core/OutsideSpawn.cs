@@ -45,6 +45,10 @@ namespace AdvancedNPCs.Core
         public int Chance;
         public int Max = 1;
         public Condition When;
+        /// <summary>"group" [min, max]: how many appear together from one roll (spec animal-ai 1.2).</summary>
+        public int GroupMin = 1, GroupMax = 1;
+        /// <summary>"terrain": a TerrainRules value for the group's spot.</summary>
+        public string Terrain = TerrainRules.Dry;
     }
 
     /// <summary>DFRegion.DungeonTypes names (copied: Core has no DFU references).</summary>
@@ -117,7 +121,7 @@ namespace AdvancedNPCs.Core
         public static readonly string[] BlockNames = { "dungeons", "interiors", "wilderness" };
         static readonly string[] DungeonKeys = { "chance", "count", "dungeonTypes", "when" };
         static readonly string[] InteriorKeys = { "chance", "count", "buildings", "when" };
-        static readonly string[] WildernessKeys = { "chance", "max", "when" };
+        static readonly string[] WildernessKeys = { "chance", "max", "when", "group", "terrain" };
 
         public static DungeonSpawn Dungeons(string file, Dictionary<string, object> o, List<string> messages)
         {
@@ -215,14 +219,46 @@ namespace AdvancedNPCs.Core
                 object raw;
                 if (o.TryGetValue("max", out raw) && raw != null)
                 {
-                    if (!(raw is double) || (double)raw != Math.Floor((double)raw) || (double)raw < 1 || (double)raw > 10)
+                    if (!(raw is double) || (double)raw != Math.Floor((double)raw) || (double)raw < 1 || (double)raw > 20)
                     {
                         field = "max";
-                        problem = "must be a whole number 1-10";
+                        problem = "must be a whole number 1-20";
                     }
                     else
                     {
                         w.Max = (int)(double)raw;
+                    }
+                }
+            }
+            if (problem == null)
+            {
+                double[] group;
+                if (!FieldReader.Numbers(o, "group", out group) || (group != null && (group.Length != 2 || group[0] != Math.Floor(group[0]) ||
+                    group[1] != Math.Floor(group[1]) || group[0] < 1 || group[0] > group[1] || group[1] > AnimalRules.MaxGroup)))
+                {
+                    field = "group";
+                    problem = "must be [min, max], whole numbers 1 <= min <= max <= " + AnimalRules.MaxGroup;
+                }
+                else if (group != null)
+                {
+                    w.GroupMin = (int)group[0];
+                    w.GroupMax = (int)group[1];
+                }
+            }
+            if (problem == null)
+            {
+                object rawTerrain;
+                if (o.TryGetValue("terrain", out rawTerrain) && rawTerrain != null)
+                {
+                    string terrain = TerrainRules.Canonical(rawTerrain as string);
+                    if (terrain == null)
+                    {
+                        field = "terrain";
+                        problem = "must be one of " + string.Join(", ", TerrainRules.Display);
+                    }
+                    else
+                    {
+                        w.Terrain = terrain;
                     }
                 }
             }

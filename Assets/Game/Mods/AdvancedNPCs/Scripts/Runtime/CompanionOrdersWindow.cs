@@ -51,6 +51,7 @@ namespace AdvancedNPCs
             Add("passive","Passive"+(stance=="passive"?" (current)":""));
             Add("regroup","Disengage and regroup");
             Add(brain.State.companion.status=="waiting"?"follow":"wait",brain.State.companion.status=="waiting"?"Follow me (waiting)":"Wait here (following)");
+            Add("heal","Give Healing Potion");
             if(brain.CurrentMode==NpcMode.Calm) { Add("push","Push");Add("talk","Talk");Add("trade","Give / Take belongings");Add("dismiss","Dismiss"); }
             barkOptionVisible=!AdvancedNpcsMod.Instance.Config.DisableFollowerBarks;
             if(barkOptionVisible) Add("barks",brain.State.companion.barksMuted?"Turn barks on":"Turn barks off");
@@ -81,6 +82,11 @@ namespace AdvancedNPCs
             if(command=="talk" || command=="trade") { pendingWindow=command;selectionFrame=Time.frameCount;return; }
             CloseWindow();
             if(command=="close") return;
+            if(command=="heal")
+            {
+                string message;NpcCompanionInventory.GiveHealingPotion(brain,out message);
+                DaggerfallUI.AddHUDText(message);return;
+            }
             if(command=="barks")
             {
                 // Recheck the setting as well as this exact live contract when the menu selection executes.

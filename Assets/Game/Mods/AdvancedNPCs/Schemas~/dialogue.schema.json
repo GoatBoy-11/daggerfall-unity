@@ -217,6 +217,13 @@
         "region": {
           "$ref": "#/definitions/names"
         },
+        "climate": {
+          "description": "Where the player is: ocean, desert, desert2, mountain, rainforest, swamp, subtropical, mountainwoods, woodlands, hauntedwoodlands (one or a list).",
+          "anyOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+          ]
+        },
         "town": {
           "$ref": "#/definitions/names"
         },

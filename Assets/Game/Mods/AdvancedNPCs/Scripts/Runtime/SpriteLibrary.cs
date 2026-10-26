@@ -92,6 +92,8 @@ namespace AdvancedNPCs
             foreach (NpcDefinition def in defs)
             {
                 List<string> requested = packages != null ? packages.AnimationRequests(def) : new List<string>();
+                if (def.Animal != null)
+                    requested.AddRange(AnimalRules.SheetFamilies);     // the lazy loader skips sheets nothing asks for
                 library.packageAnimations[def.Folder] = requested;
                 foreach (LoadedSpriteSet set in IndexFolder(def.Folder, Path.Combine(root, def.Folder), def.Conversation.Enabled, requested))
                     library.Add(def.Folder, set);
@@ -426,6 +428,9 @@ namespace AdvancedNPCs
         /// <summary>Main-thread milliseconds per frame for uploading decoded sheets (at least one sheet per frame).</summary>
         const double UploadBudgetMs = 4.0;
 
+        /// <summary>Longest Tick so far in milliseconds (self-test "spriteload" resets and reads it).</summary>
+        public static double MaxTickMs;
+
         /// <summary>
         /// Every frame (AdvancedNpcsMod.Update): uploads sheets the worker threads have decoded (within a small time
         /// budget), finishes sets whose sheets are all in, unloads sets whose countdown ran out.
@@ -452,6 +457,8 @@ namespace AdvancedNPCs
                 {
                     loading.RemoveAt(i--);
                     FinishLoading(s);
+                    if (loading.Count == 0)
+                        SheetJob.TrimSpare();       // nothing left to load: let the reused upload buffers go
                 }
             }
             foreach (List<LoadedSpriteSet> sets in byFolder.Values)
@@ -462,6 +469,7 @@ namespace AdvancedNPCs
                         Unload(s);
                 }
             }
+            MaxTickMs = Math.Max(MaxTickMs, watch.Elapsed.TotalMilliseconds);
             for (int i = retired.Count - 1; i >= 0; i--)
             {
                 LoadedSpriteSet s = retired[i];

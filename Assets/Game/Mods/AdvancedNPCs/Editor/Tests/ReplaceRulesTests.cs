@@ -60,6 +60,40 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void ReplacesFlat_ParsesAndNormalises()
+        {
+            ParseResult r = Generic("\"replacesFlat\": [\"1234/b5678/-90\", \" 7 / Town / 12 \"]");
+            Assert.IsTrue(r.Ok, r.Error);
+            Assert.AreEqual(new[] { "1234/b5678/-90", "7/town/12" }, r.Definition.Replace.Flats.ToArray());
+            Assert.AreEqual(0, r.Definition.Replace.Targets.Count, "replacesFlat alone needs no replaces");
+            Assert.IsTrue(Generic("\"replacesFlat\": \"3/dungeon/4\", \"stayNear\": 2").Ok, "settings work with replacesFlat alone");
+            Assert.IsFalse(Generic("\"replacesFlat\": \"177.2\"").Ok);
+            Assert.IsFalse(Generic("\"replacesFlat\": \"1/inn/2\"").Ok);
+            Assert.IsFalse(Generic("\"replacesFlat\": []").Ok);
+            Assert.IsFalse(Generic("\"replacesFlat\": \"1/town/2\"").Definition.Spawn.HasTownRules, "no spawn block: only stands in");
+            Assert.IsFalse(Generic("\"replaces\": [], \"replacesFlat\": \"1/town/2\"").Ok);
+            Assert.AreEqual("replace@" + ReplaceRules.FlatId(5, "b12", 777), ReplaceRules.KeyFor(5, "b12", 777), "save key unchanged");
+        }
+
+        [Test]
+        public void ReplacesFlat_WinsOverSpriteAndFaction()
+        {
+            NpcDefinition sprite = Generic("\"replaces\": [\"177.2\", \"faction:1003\"]").Definition;
+            sprite.Id = "a_sprite";
+            NpcDefinition one = Generic("\"replacesFlat\": \"5/b12/777\"").Definition;
+            one.Id = "z_one";
+            NpcDefinition two = Generic("\"replaces\": \"177.9\", \"replacesFlat\": \"5/b12/777\"").Definition;
+            two.Id = "y_two";
+            List<NpcDefinition> templates = new List<NpcDefinition> { sprite, one, two };
+
+            List<NpcDefinition> exact = ReplaceRules.Candidates(templates, 177, 2, 1003, "5/b12/777");
+            Assert.AreEqual(new[] { "y_two", "z_one" }, exact.ConvertAll(d => d.Id).ToArray(), "only the flat's own replacers, random between them");
+            List<NpcDefinition> other = ReplaceRules.Candidates(templates, 177, 2, 0, "5/b12/778");
+            Assert.AreEqual(new[] { "a_sprite" }, other.ConvertAll(d => d.Id).ToArray(), "other flats fall back to sprite ids");
+            Assert.AreEqual(0, ReplaceRules.Candidates(templates, 1, 1, 0, "5/b12/778").Count);
+        }
+
+        [Test]
         public void Pick_IsFixedPerFlat_AndSpreadsAcrossFlats()
         {
             List<NpcDefinition> templates = new List<NpcDefinition>();

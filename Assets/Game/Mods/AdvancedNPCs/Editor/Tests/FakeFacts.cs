@@ -22,6 +22,7 @@ namespace AdvancedNPCs.Tests
         public string SeasonValue = "summer";
         public bool Rain, Storm, Snow, Clouds;
         public string RegionValue = "Daggerfall";
+        public string ClimateValue = "woodlands";
         public string TownValue = "Daggerfall";
         public int Level = 1;
         public string Race = "breton";
@@ -43,6 +44,7 @@ namespace AdvancedNPCs.Tests
         public bool Snowing { get { return Snow; } }
         public bool Overcast { get { return Clouds; } }
         public string Region { get { return RegionValue; } }
+        public string Climate { get { return ClimateValue; } }
         public string Town { get { return TownValue; } }
         public int PlayerLevel { get { return Level; } }
         public string PlayerRace { get { return Race; } }

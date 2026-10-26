@@ -20,6 +20,8 @@ namespace AdvancedNPCs.Core
         bool Snowing { get; }
         bool Overcast { get; }
         string Region { get; }
+        /// <summary>ClimateNames key of where the player is ("woodlands"), "" when unknown.</summary>
+        string Climate { get; }
         string Town { get; }
         int PlayerLevel { get; }
         string PlayerRace { get; }
@@ -41,6 +43,23 @@ namespace AdvancedNPCs.Core
         bool HasPersonalState { get; }
         int Opinion { get; }
         double HealthPercent { get; }
+    }
+
+    /// <summary>DFU MapsFile.Climates names as condition keys (lowercase; the index minus 223 is the position).</summary>
+    public static class ClimateNames
+    {
+        public const int FirstIndex = 223;
+        public static readonly string[] All =
+        {
+            "ocean", "desert", "desert2", "mountain", "rainforest", "swamp", "subtropical", "mountainwoods", "woodlands", "hauntedwoodlands",
+        };
+
+        /// <summary>The key for a DFU climate index (223-232); "" for anything else.</summary>
+        public static string FromIndex(int climateIndex)
+        {
+            int i = climateIndex - FirstIndex;
+            return i >= 0 && i < All.Length ? All[i] : "";
+        }
     }
 
     /// <summary>Guild names authors may write, and the keys IDialogueFacts.GuildRank takes.</summary>
@@ -109,7 +128,7 @@ namespace AdvancedNPCs.Core
     {
         static readonly string[] KnownKeys =
         {
-            "hours", "time", "season", "weather", "region", "town", "minLevel", "maxLevel", "playerRace", "playerGender",
+            "hours", "time", "season", "weather", "region", "climate", "town", "minLevel", "maxLevel", "playerRace", "playerGender",
             "minGold", "hasItem", "guild", "minGuildRank", "reaction", "asked", "notAsked", "flags", "notFlags",
             "questGlobal", "notQuestGlobal", "tone", "any", "variables", "minOpinion", "maxOpinion", "minHealth", "maxHealth", "indoors", "outdoors", "bad_weather",
         };
@@ -182,6 +201,7 @@ namespace AdvancedNPCs.Core
                         break;
                     case "region": problem = Place(c, key, raw, delegate (IDialogueFacts f) { return f.Region; }); break;
                     case "town": problem = Place(c, key, raw, delegate (IDialogueFacts f) { return f.Town; }); break;
+                    case "climate": problem = OneOf(c, key, raw, ClimateNames.All, true, delegate (IDialogueFacts f) { return f.Climate; }); break;
                     case "minLevel": problem = Minimum(c, key, raw, delegate (IDialogueFacts f) { return f.PlayerLevel; }); break;
                     case "maxLevel": problem = Maximum(c, key, raw, delegate (IDialogueFacts f) { return f.PlayerLevel; }); break;
                     case "minGold": problem = Minimum(c, key, raw, delegate (IDialogueFacts f) { return f.Gold; }); break;

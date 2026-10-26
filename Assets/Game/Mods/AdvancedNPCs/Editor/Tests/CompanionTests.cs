@@ -6,6 +6,24 @@ namespace AdvancedNPCs.Tests
 {
     public class CompanionTests
     {
+        [TestCase(100,150)] [TestCase(101,152)] [TestCase(1,2)]
+        public void RecruitmentHealthNeverStacksAndDismissalRestoresBase(int baseline,int boosted)
+        {
+            var record=new CompanionRecord();
+            Assert.AreEqual(boosted,record.HealthForContract(baseline));
+            Assert.AreEqual(baseline,record.baseMaxHealth);
+            record.status="waiting";Assert.AreEqual(boosted,record.HealthForContract(boosted));
+            record=record.Clone();Assert.AreEqual(boosted,record.HealthForContract(boosted));
+            record.status="dismissed";Assert.AreEqual(baseline,record.HealthForContract(boosted));
+            record.status="following";Assert.AreEqual(boosted,record.HealthForContract(baseline));
+        }
+        [TestCase("following",120,180)] [TestCase("waiting",120,180)] [TestCase("dismissed",120,120)]
+        public void OldCompanionHealthMigratesFromSavedRoll(string status,int saved,int expected)
+        {
+            var record=new CompanionRecord{status=status,maxHealth=saved};
+            Assert.AreEqual(expected,record.HealthForContract(999));
+            Assert.AreEqual(saved,record.baseMaxHealth);
+        }
         [TestCase("0", true)] [TestCase("100", true)] [TestCase("1000000", true)]
         [TestCase("-1", false)] [TestCase("100.5", false)] [TestCase("null", false)]
         [TestCase("1000001", false)] [TestCase("true", false)] [TestCase("\"100\"", false)]

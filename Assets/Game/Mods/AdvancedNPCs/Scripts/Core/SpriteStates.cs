@@ -24,8 +24,10 @@ namespace AdvancedNPCs.Core
         public const string Greet = "greet";
         /// <summary>Speaking in a conversation with another ANPC (NpcChat); NpcSprite shows idle without one.</summary>
         public const string Talk = "talk";
+        /// <summary>An attack on it that did no damage (a miss, or a shield block with Physical Combat Overhaul); never a fallback.</summary>
+        public const string Block = "block";
 
-        static readonly string[] All = { Idle, Walk, Run, Hit, Attack, RangedAttack, Cast, Heal, Death, Greet, Talk };
+        static readonly string[] All = { Idle, Walk, Run, Hit, Attack, RangedAttack, Cast, Heal, Death, Greet, Talk, Block };
 
         /// <summary>
         /// A sheet is loaded when it names a state; talk* sheets only for an ANPC that converses (no texture memory spent
@@ -56,7 +58,7 @@ namespace AdvancedNPCs.Core
         /// <summary>
         /// Sheets for a state, sorted by name; heal falls back to cast, then attack, then nothing; cast falls back to attack sheets only (none: the spell plays no animation);
         /// attack_range falls back to attack, then idle; run falls back to walk and walk to run, then idle; hit and
-        /// attack fall back to idle; death, greet and talk have no fallback.
+        /// attack fall back to idle; death, greet, talk and block have no fallback.
         /// </summary>
         public static List<SpriteAnimation> Variants(SpriteSet set, string state)
         {

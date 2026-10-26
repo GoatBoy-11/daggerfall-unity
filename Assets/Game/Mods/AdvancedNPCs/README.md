@@ -13,6 +13,12 @@ and save/load.
   spot close by, which becomes its home. Indoors ANPCs start facing the most open way, into the room.
 - Clicking an ANPC to talk turns it to face you.
 
+Daggertalk 0.8.0 can voice ordinary enemies alongside ANPC. ANPCs, including animals and companions,
+keep their own sound system and are excluded from Daggertalk's voices. No class-wide mute setting is
+needed. Load Vanilla Combat Event Handler before Daggertalk, and Daggertalk before its voice packs.
+`anpc_selftest sounds` checks audio and, with Daggertalk and a Warrior voice pack enabled, verifies
+that ordinary enemies keep a voice while ANPCs are excluded.
+
 ## Folder layout
 
 ```
@@ -119,6 +125,12 @@ In DFU's mod list, select Advanced NPCs → Settings → **Population**:
 
 These apply the next time a town loads.
 
+**Wildlife** (animals, see [Animals](#animals)):
+
+- **Wildlife** — on (default) or off: animals with a `wilderness` spawn block appear in the wilderness. Farm animals are not affected.
+- **Max wild animals around you** — 0 to 30 (default 10); they do not count toward the wilderness ANPC limit.
+- **Wildlife density** — Low (half the chance), Normal (default), High (twice the chance).
+
 **Companions** (apply to new recruitment immediately):
 
 - **Max followers** — 3 (default), 4, 5, 6, 7, 8, 9, 10, or **Unlimited (Not Recommended)**.
@@ -132,6 +144,10 @@ These apply the next time a town loads.
 
 - **Death animation** — on (default): the death sheet plays, then the body lies still. Off: the body appears at once, as in vanilla Daggerfall.
 - **Directional corpses** — off (default): a body on its last death frame shows its front or back (chosen at random when it dies) and always faces you, like vanilla corpses and `death_static.png`. On: it shows the side you see it from, as it turns while you walk around.
+
+**Combat** (apply at once):
+
+- **Block animations** — on (default) or off: an ANPC plays its block animation when an attack on it does no damage, see [Block](#sprites). Only ANPCs whose sprite set has a `block*` sheet play one.
 
 **Sounds** (apply at once):
 
@@ -589,7 +605,8 @@ companions assist against visible hostile enemies currently threatening the play
 companion. Their own immediate attacker has first priority, then the player's attacker, then another
 companion's attacker. A current enemy is retained over equally important alternatives. Neutral ANPCs
 angry only because the player assaulted them are excluded, as are the player, friendly allies, city
-watch and protected quest actors. A hostile quest foe actively attacking the party can be defended
+watch and protected quest actors. In dungeons only DFU's own city watch knights count as city watch, so
+companions do fight other mods' CityWatch-team enemies there (Daggerfall Enemy Expansion's prison guards). A hostile quest foe actively attacking the party can be defended
 against even when DFU's default `IsAttackableByAI` flag is false (for example, Daggerfall's night ghosts).
 Unrelated, hidden or restrained quest foes remain protected, and the mod never changes the shared
 quest AI flag. Defensive stance does not initiate fights with unrelated hostiles.
@@ -601,8 +618,17 @@ sight or ten seconds without approach progress also release the enemy, with an e
 delay. Normal following resumes after combat. Combat/retreat never invokes teleport catch-up.
 
 Below 25% health a companion retreats towards the player or waiting point, and stays cautious until
-40%; configured bravery can also cause retreat earlier. Health, damage, equipment and actual melee
-attacks still use DFU's normal rules. Recruitment and area transfers do not heal the person.
+40%; configured bravery can also cause retreat earlier. Recruited companions have **1.5x maximum
+health**, including while waiting. The bonus preserves their health percentage, applies to existing
+companions on loading, never stacks on rehire or travel, and is removed on dismissal. Their base
+health roll is saved alongside maximum health; older contracts use their previous saved maximum.
+Damage, equipment and actual melee attacks still use DFU's normal rules.
+
+Under **Companions**, **InvulnerableCompanions** (off by default) prevents health loss from attacks,
+spells and other damage while recruited and following or waiting. It applies immediately to existing
+living companions, without healing them; switching it off or dismissing them restores normal damage.
+It does not revive dead companions or prevent non-health effects such as paralysis or equipment wear.
+Run `anpc_selftest survivability` on a disposable outdoor test save to verify health, protection and restoration.
 
 An isolated damaging player hit gives a warning and -5 opinion, preserving the contract and the
 damage taken. Three damaging player hits with no gap longer than ten active seconds end the contract
@@ -774,6 +800,30 @@ APIs; mods with their own follower/UI/save systems may still require integration
 checks native/custom item transfers, weight limits, quantity confirmation/cancellation, gold, restrictions,
 save restoration, stale actors and corpse ownership. `anpc_selftest companions` additionally checks an
 actual disk save/load, building and dungeon transitions and world rebuilds with persistent belongings.
+
+### Companion healing potions
+
+**Give Healing Potion** in the companion menu immediately consumes the cheapest usable healing
+potion in the player's inventory and restores **25% of the companion's maximum health**, rounded up
+to a whole HP and capped at full health. It is available during combat too. Full-health companions
+consume nothing. Quest, equipped and summoned potions are protected; other potion effects are ignored.
+Healing and Heal True both qualify, selected by native per-potion gold value rather than stack value.
+
+Companions with a loaded `drink` or `drink_N` animation play one full cycle and its usual `drink`
+sound when using a potion. Player-given potions wait until the companion menu closes and gameplay
+resumes. Any current attack finishes first; companions stand still and pause attacks while drinking.
+The existing voice/sound settings still apply. Without a drink animation, potion healing plays no
+animation or drink sound. Healing itself remains immediate.
+
+Under **Companions**, **AutoHealingPotions** (on by default) lets living, friendly hired companions
+drink the cheapest healing potion in their own inventory. **HealingPotionThreshold** defaults to **50%**
+and can be set from **1–99%**; health must be strictly below it. Following and waiting companions use
+this feature, including during combat and retreat. They check at most once per second while gameplay
+and AI are active. Each potion restores the same 25%; a badly injured companion may drink again after
+one second if still below the threshold, after any potion drink animation finishes. Give them spare
+potions through **Give / Take belongings**.
+Health and remaining potions use the existing companion save data. Run `anpc_selftest potions` on a
+disposable outdoor test save to check potion selection, menu use, settings, thresholds and persistence.
 
 ### Guarding a spot
 
@@ -1055,6 +1105,9 @@ enemies. Bravery still applies (a Coward enemy runs).
   special moves by `baseClass` (charges for most, leaps for Nightblade to Barbarian, cleaves for Barbarian and Knight,
   back-dashes for Mage, Battlemage, Archer, Ranger and the like). Spells from a `magic` block are cast once by
   ANPC itself; Killer Instincts does not cast them a second time.
+- Physical Combat and Armor Overhaul (and other mods that replace DFU's attack damage formula): their formula still
+  decides every hit; Advanced NPCs only reads the result, so an attack it turns into 0 damage (a full shield block)
+  plays a `block*` sheet. A partial block that still does damage plays the hit sheet.
 - Daggerfall Living World: Wayside Denizens' one-line greetings never close an ANPC's talk window. Its
   rebuilt towns and houses (Wayside Settlements and Houses) move buildings, so ANPCs and named spots at fixed
   positions may need placing again with `anpc_pos` / `anpc_place`; generic ANPCs find their own spots.
@@ -1252,6 +1305,12 @@ its `spawn`:
 }
 ```
 
+Animals use the wilderness block for herds and packs, by climate and ground ([Animals](#animals)):
+
+```json
+"wilderness": { "chance": 12, "max": 6, "group": [2, 5], "terrain": "grass", "when": { "climate": ["woodlands", "mountainwoods"] } }
+```
+
 - **`chance`** (0–100): on each visit, how likely the template is there at all. **`count`** `[min, max]` (1–10):
   how many come when it is. A group stands together.
 - **`dungeonTypes`** (optional): Crypt, OrcStronghold, HumanStronghold, Prison, DesecratedTemple, Mine, NaturalCave,
@@ -1261,8 +1320,12 @@ its `spawn`:
   Library, PawnShop, WeaponSmith, Temple, Tavern, Palace, House (any house), GuildHall (any guild), or a guild:
   Fighters Guild, Mages Guild, Thieves Guild, Dark Brotherhood, Knightly Order.
 - **Wilderness**: every 10 in-game minutes outside any town or dungeon (not while resting or travelling), the
-  chance is rolled; one person appears out of sight 40–80 m away, on dry land. **`max`** (1–10) caps how many of the
+  chance is rolled; one person appears out of sight 40–80 m away, on dry land. **`max`** (1–20) caps how many of the
   template are around you at once. They leave when far behind you, when you enter a town or building, or travel.
+  **`group`** `[min, max]` (1–8): that many appear together around one spot, within 6 m (cut to what `max` and the
+  limit leave; none when there is no room for `min`). **`terrain`**: `dry` (dirt, grass or stone; the default),
+  `grass`, `rocky` (stone) or `nearWater` (dry ground with water within about 25 m). Animals count toward the
+  **Wildlife** limits, people toward the wilderness ones. Filter by place with the `climate` and `region` conditions.
 - **`when`** (optional): the [dialogue conditions](#conditions-when) (time, weather, season, place, player, flags,
   quest globals), except `asked`, `notAsked`, `tone` and `reaction`.
 - People stand on DFU's own monster, treasure and furniture spots: never within 2 m of a door, never within 20 m of
@@ -1273,6 +1336,85 @@ its `spawn`:
 - Attitude, bravery, sprites, portraits and dialogue work as in towns: a hostile bandit attacks on sight, a calm
   patron can be talked to. Indoors people wander at most 3 m.
 - Not sure why someone is (or isn't) there? Type `anpc_here`.
+
+## Animals
+
+An ANPC with an `animal` block is an animal, not a person: clicking it shows "*Name* ignores you." instead of the
+talk window, it cannot be hired, be a guard or chat with others, and it reacts to the player by its **temperament**.
+
+```json
+"baseClass": "SabertoothTiger",
+"combat": { "health": 0.45, "damage": 0.35 },
+"animal": {
+  "temperament": "predator",
+  "activity": "nocturnal",
+  "senses": { "alert": 30, "react": 10 },
+  "territory": 40,
+  "boldChance": 10,
+  "hunts": ["prey"],
+  "hungerHours": [4, 10],
+  "calls": [60, 200]
+},
+"spawn": { "wilderness": { "chance": 6, "max": 5, "group": [3, 5], "when": { "climate": ["woodlands", "mountainwoods"] } } }
+```
+
+`"animal": true` is a grazer with every default.
+
+| Temperament | Alert / react (m) | Notices you | Inside react range | When hit | Territory |
+|---|---|---|---|---|---|
+| `prey` | 25 / 15 | stops and looks (`alert*`/`look*` sheet, `alert` sound) | the group flees | flees | — |
+| `grazer` (default) | 10 / 4 | looks for 6 s, then grazes on and ignores you | shies a few metres away | the group flees | — |
+| `territorial` | 18 / 8 | watches | warns for `warnSeconds` (`warn` sound every 1.5 s), then attacks if you stay; at once at half the range | fights | 25 |
+| `predator` | 30 / 10 | watches; attacks on `boldChance` % (default 10) | attacks | fights | 40 |
+| `ambusher` | 6 / 3 | nothing shows | strikes | fights | 8 |
+| `ambient` | 6 / 3 | nothing shows | scatters a few metres | flees | — |
+
+- **Senses**: an animal notices a player it can see within `alert`, one it only hears within 40 % of that. Crouching
+  or creeping slowly halves both distances, running adds half, the player's Stealth takes up to half off, and magic
+  concealment (Chameleon, Shadow, Invisibility) leaves a quarter. A resting animal notices at half, an `always`
+  animal at night at 0.7. Never below 3 m (alert) and 1.5 m (react).
+- **Fleeing** ends once the threat is 35 m away, or out of sight for 4 s at twice the react range. The animal is not
+  angry at you for it; one you hit flees too and calms down the same way.
+- **Territory**: a chase ends once the animal is `territory` metres from home, or the player is twice its alert range
+  away; it calms at once and wanders home. Its health is not restored.
+- **`"attacks": false`**: never attacks unprovoked. A territorial one (a farm dog) keeps warning while you are close
+  and bites back only when hit; others just watch.
+- **Companions and brave ANPCs** (guards, `Brave` patrols) fight an animal that attacks you or another person, as they
+  would an enemy. An animal hunting another animal is left alone.
+- **Bravery** comes from the temperament: fighters are `Prudent` (they flee below `fleeHealthPercent`), the others
+  `Coward`. A `bravery` field still wins.
+- **`activity`**: `diurnal` (06–20), `nocturnal` (20–06), `crepuscular` (04–09 and 17–22) or `always` (default).
+  Outside those hours the animal rests where it is (`sleep*`, else `rest*`, else `idle`).
+- **`calls`** `[min, max]` seconds (default `[45, 150]`, ambushers never; `false` turns them off): now and then, while
+  you are within 30 m (hearing range), it plays a `call` sound (a moo, a howl).
+- **Groups**: a wilderness `group` spawns together and defends itself together; the first one leads and the others
+  wander around it (`"herd": false` lets them roam alone). When the leader dies the next one leads. When one flees or
+  attacks because of you, its group within 30 m does the same (fighters attack, the rest flee); prey and grazers of any
+  kind within 20 m flee with a fleeing animal.
+- **Hunting**: a predator (any temperament, really) with `hunts` gets hungry every `hungerHours` game hours (default
+  `[4, 10]`). Then it attacks the nearest prey animal it sees within its `aggroRange`, with its group. Temperaments
+  (`"prey"`), template ids (`"an_hind"`) and id prefixes (`"an_rabbit_*"`) work. Prey seeing a hunt flees. After a kill
+  it walks to the body and eats for 20–40 s; if the prey gets away it tries again in an hour.
+- **Creature classes**: a calm animal may use `Rat`, `GiantBat`, `GrizzlyBear`, `SabertoothTiger`, `Spider` or
+  `GiantScorpion` as its `baseClass`, for creature stats and natural attacks (DFU's own effects stay: a rat's 5 % plague,
+  a scorpion's paralysis). Scale them with `combat.health` / `combat.damage`. `"attitude": "hostile"` is not allowed.
+- **Livestock**: with `"crimeOnAttack": true` hitting the animal is no crime, killing it is Theft (not Murder) unless it
+  attacked you first, and people around see it. Wild animals (`false`) are nobody's business.
+- **Farm and village animals**: `spawn.locationTypes` with `HomeFarms` (or towns) works as for people. Animals have their
+  own count under **Max generic per town**, so they never take a townsperson's place.
+- `anpc_info <key>` shows an `animal:` line (temperament, state, live sense distances, territory, leader, hunger) and
+  `anpc_here` the climate and the ground under you.
+
+### Diseases (any ANPC)
+
+```json
+"disease": { "chance": 5, "diseases": ["Plague", "StomachRot"] }
+```
+
+Each melee hit on the player rolls `chance` % (default 5); a success passes on one of the listed diseases through DFU's
+own infection (no diseases at level 1, the disease saving throw applies). Names: WitchesPox, Plague, YellowFever,
+StomachRot, Consumption, BrainFever, SwampRot, CalironsCurse, Cholera, Leprosy, WoundRot, RedDeath, BloodRot,
+TyphoidFever, Dementia, Chrondiasis, WizardFever (spaces and case do not matter).
 
 ## Replacing vanilla NPCs
 
@@ -1288,6 +1430,11 @@ quest givers. Name the vanilla NPC in `"replaces"`:
 
 - **`replaces`**: one id or a list. A sprite id is the flat's texture archive and record (`"177.2"`; `"177 2"` and
   `"177_2"` work too); `"faction:<id>"` matches every flat of that faction (named NPCs have their own faction).
+- **`replacesFlat`**: one or a list of single vanilla people, e.g. `"replacesFlat": "1234/b5678/-90"`. Stand next to
+  the vanilla NPC, open the console and type `anpc_flat`: it prints the nearest flat's name, sprite, faction and
+  the line to copy (also into `Player.log`). The id is map / place (`town`, `dungeon` or `b` + building key) /
+  flat. A flat named in any ANPC's `replacesFlat` only gets those ANPCs, never the ones matching its sprite or
+  faction. `replaces` and `replacesFlat` can be used together or alone.
 - The flat stays in the world but is hidden, and the ANPC appears on its spot with all its own sprites, AI, sounds
   and combat. Clicking it does exactly what clicking the vanilla NPC does: the same dialogue, quest offers, quest
   people, shop, bank, inn rooms and guild services (vanilla's own click is used, so other mods' services work too).
@@ -1297,7 +1444,8 @@ quest givers. Name the vanilla NPC in `"replaces"`:
 - **`stayNear`** (metres, default `0` = off): keeps a calm stand-in within this distance of its spot, so a
   shopkeeper stays by the counter; after a fight or flight it walks back. Indoors they wander at most 3 m anyway.
 - When several ANPCs replace the same vanilla NPC, each vanilla person gets one of them at random, and keeps that
-  one for the whole game (seeded by the flat itself, not saved).
+  one for the whole game (seeded by the flat itself, not saved). This holds for several `replacesFlat` ANPCs naming
+  the same person too, so replacer packs can be installed side by side.
 - Stand-ins can be fought and can die. A dead stand-in stays dead, and so does the vanilla NPC it replaced: that
   shop or guild has no one at the counter any more.
 - A quest that hides or shows the vanilla NPC hides or shows its stand-in. NPCs with their own scripted action (the
@@ -1391,6 +1539,7 @@ Every condition in a `when` must hold. For "or", use `"any": [ { … }, { … } 
 | `weather` | `"rain"` | the weather is one of `clear`, `overcast`, `rain` (storms count), `storm`, `snow` |
 | `bad_weather` | `true` | rain, thunderstorms or snow; `false` requires none of these, regardless of indoors/outdoors |
 | `region` / `town` | `"Daggerfall"` | the player is in one of these regions / towns |
+| `climate` | `["woodlands", "swamp"]` | the player's map pixel has one of these climates: `ocean`, `desert`, `desert2` (hot, as around Dak'fron), `mountain`, `rainforest`, `swamp`, `subtropical`, `mountainwoods`, `woodlands`, `hauntedwoodlands` |
 | `minLevel` / `maxLevel` | `5` | the player's level is at least / at most this |
 | `playerRace` | `"Dark Elf"` | the player is one of these races |
 | `playerGender` | `"Female"` | the player is `Male` / `Female` |
@@ -1488,17 +1637,22 @@ ANPCs/wench/
 - Make them with `Tools~/render-sprites.py` from a rigged, animated `.blend`: one sheet per Action, rows = directions (front, front_right, right, back_right, back, back_left, left, front_left), columns = frames, plus `sprites.json` (scale, frame sizes, feet row, fps). The feet row is the lowest point of the idle poses, so the character may stand at any height. Run with `test` first to check light and size:
   `blender -b character.blend --python render-sprites.py -- <out_dir> [test] [--rig NAME] [--mesh NAME]`
 - For characters with a separate weapon mesh, `Tools~/render-character-sprites.py` includes both meshes in rendering and bounds: `--mesh body,sword`. `--keep-last death_1` keeps the final corpse pose. The Dunmer example documents a complete command.
+- `Tools~/shrink-sprites.py <ANPCs folder> --backup <dir>` makes finished sets smaller: sets drawn with far more detail than a person (small animals) are halved, at most to 1/4, and every sheet is re-saved with maximum lossless compression. Smaller sheets load faster and use less video memory; world sizes stay the same.
 - A character whose idle holds a weapon above its head (a guard's upright spear) would look smaller in game, because the standing height is measured from the tallest idle pixel. Add `--standing-mesh body` (the body mesh alone) and the renderer writes `"standingHeight"` (pixels above the feet row, without the weapon) into `sprites.json`; the game then sizes the person by the body.
 - Sprite sets load when an ANPC using them appears (it may show up a moment after spawning) and unload a minute after the last one is gone; at startup only the files and their sizes are checked.
   Sheets are decoded and compressed on background threads, so loading does not stall the game; only 8-bit, non-interlaced
   PNGs take that path (other PNGs still load, on the main thread, with a short stall each). Big sheets still cost video
   memory while shown: every 1000x1000 pixels is about 1 MB.
-- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `run*` (running), `hit*` (hurt), `attack*` (attacking), `attack_range*` or `attack_ranged*` (shooting a bow or throwing, see `rangedAtDistance`), `cast*` (spellcasting), `greet*` (greeting), `talk*` (speaking in a [conversation](#conversations)), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing run sheets use walk sheets and missing walk sheets use run sheets, then idle; missing hit/attack sheets use idle; greet sheets have no fallback; missing talk sheets use idle; a set needs at least one idle sheet.
+- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `run*` (running), `hit*` (hurt), `attack*` (attacking), `attack_range*` or `attack_ranged*` (shooting a bow or throwing, see `rangedAtDistance`), `cast*` (spellcasting), `greet*` (greeting), `block*` (an attack on it did no damage), `talk*` (speaking in a [conversation](#conversations)), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing run sheets use walk sheets and missing walk sheets use run sheets, then idle; missing hit/attack sheets use idle; greet and block sheets have no fallback; missing talk sheets use idle; a set needs at least one idle sheet.
 - Turret: a set with no `walk*` and no `run*` sheet never moves: it does not wander, chase, flee or get knocked
   back, but still turns to its target and attacks, shoots or casts from where it stands. Like any DFU enemy it only
   notices a quiet player in front of it, so place turrets facing where trouble comes from. When `sprites.json` lists
   walk or run sheets but none of them can be used (wrong size, unreadable), `Player.log` says so: that set's people
   stand still too.
+- Block: when an attack on an ANPC does no damage (DFU's miss, heard as a parry, or a full shield block with Physical
+  Combat and Armor Overhaul), a `block*` sheet plays once if its set has one; `block_1`, `block_2`, ... are picked at
+  random. A hit sheet, its own swing, cast or heal is never cut short by it, and a hit cuts a block short. Spells never
+  count as blocked. Without a block sheet nothing changes. The **Block animations** setting turns it off.
 - Greeting: a calm ANPC with a `greet*` sheet sometimes (25 % per encounter) stops, turns and greets the player
   within 4 m and in sight when its people like you (`likes` or `loves`, the reaction dialogue uses), or another
   calm ANPC that is not an enemy. It greets the same person at most once every 2 game hours (not saved).
@@ -1545,7 +1699,7 @@ ANPCs/wench/
     step_1.ogg    step_2.ogg   step_3.ogg
 ```
 
-- A file's name says when it plays: `eat` / `drink` (each eat/drink cycle of the [eat package](#eating-and-drinking)), `hawk` (each call of the [hawk package](#chores-hawking-and-socializing)), `greet`, `halt` (guard pursuit warning; always plays, vanilla fallback), `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `heal` (self or support healing; no voice fallback), `hit` (hurt but alive), `death`, `step` and `talk` (a line in a [conversation](#conversations); always plays there, no chance roll, and nowhere else; `talk_male` / `talk_female` for one gender only). A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
+- A file's name says when it plays: `eat` / `drink` (each eat/drink cycle of the [eat package](#eating-and-drinking)), `hawk` (each call of the [hawk package](#chores-hawking-and-socializing)), `greet`, `halt` (guard pursuit warning; always plays, vanilla fallback), `attack`, `attack_range` (bow shots; uses `attack` sounds if it has none), `cast`, `heal` (self or support healing; no voice fallback), `hit` (hurt but alive), `death`, `alert` / `warn` / `call` (an [animal](#animals) noticing you, warning you and calling now and then; no chance roll; `greet` sounds stand in), `step` and `talk` (a line in a [conversation](#conversations); always plays there, no chance roll, and nowhere else; `talk_male` / `talk_female` for one gender only). A trailing `_<number>` only makes a pool to pick from at random, and it has nothing to do with the sprite sheets' numbers: any `attack*` sheet plays a random `attack_*` sound. Other names are ignored (logged).
 - Sounds follow what happens, not the sprite, so an ANPC with the vanilla sprite can have them too.
 - Default footsteps: `step_*` files in the shared `ANPCs/_Sounds` folder play for every ANPC whose own `Sounds` folder has no `step` files (the examples ship four dirt-ground steps there). They play 15% quieter than an ANPC's own steps. An ANPC with step files of its own uses only those; `"defaultSteps": false` turns the defaults off for one ANPC.
 - Default eat and drink sounds: `eat_*` / `drink_*` in `_Sounds` (CC0 crunches and swallows ship there) play for the eat package where the ANPC's own folder has none of that pool. Other names in `_Sounds` are ignored (logged).

@@ -46,6 +46,14 @@ namespace AdvancedNPCs.Core
         public static List<NpcInstance> Plan(IList<NpcDefinition> templates, TownInfo town, GenericMode mode, int cap,
             int cellCount, uint visitSeed, INameSource names)
         {
+            return Plan(templates, town, mode, cap, cellCount, visitSeed, names, null);
+        }
+
+        /// <param name="animals">null plans everyone; true only animal templates, false only people. The order is shuffled
+        /// over all templates either way, so a town's people stay the same when animals are planned on their own.</param>
+        public static List<NpcInstance> Plan(IList<NpcDefinition> templates, TownInfo town, GenericMode mode, int cap,
+            int cellCount, uint visitSeed, INameSource names, bool? animals)
+        {
             List<NpcInstance> result = new List<NpcInstance>();
             if (cap <= 0 || templates == null)
                 return result;
@@ -60,6 +68,8 @@ namespace AdvancedNPCs.Core
             foreach (NpcDefinition t in ordered)
             {
                 if (t.Kind != NpcKind.Generic || t.Spawn == null)
+                    continue;
+                if (animals.HasValue && (t.Animal != null) != animals.Value)
                     continue;
                 SpawnPlace place;
                 if (!t.Spawn.Matches(town, out place))

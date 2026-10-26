@@ -4,6 +4,8 @@ using UnityEngine;
 using DaggerfallConnect.Save;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
+using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.MagicAndEffects.MagicEffects;
 namespace AdvancedNPCs
 {
     [Serializable]
@@ -24,10 +26,63 @@ namespace AdvancedNPCs
         public bool ManagedEquipment { get; set; }
         public ulong Bow, Melee, Shield;
         bool dirty=true;
+        float nextPotionCheck;
         public int Captures {get;private set;}
         public void Invalidate() {dirty=true;}
         public bool Ready { get; private set; }
         public string Problem { get; private set; }
+        public static DaggerfallUnityItem CheapestHealingPotion(ItemCollection items)
+        {
+            DaggerfallUnityItem cheapest=null;
+            var broker=GameManager.Instance.EntityEffectBroker;
+            for(int i=0;i<items.Count;i++)
+            {
+                var item=items.GetItem(i);
+                if(!item.IsPotion || item.stackCount<=0 || CompanionTrade.Blocked(item)!=null)continue;
+                var recipe=broker.GetPotionRecipe(item.PotionRecipeKey);
+                var effect=recipe!=null?broker.GetPotionRecipeEffect(recipe):null;
+                if(effect!=null && effect.Key==HealHealth.EffectKey && (cheapest==null || item.value<cheapest.value))cheapest=item;
+            }
+            return cheapest;
+        }
+        public static bool GiveHealingPotion(NpcBrain person,out string message)
+        {
+            message="Healing requires a nearby hired companion.";
+            if(!CompanionOrdersWindow.Available(person))return false;
+            return For(person).DrinkHealingPotion(GameManager.Instance.PlayerEntity.Items,out message);
+        }
+        bool DrinkHealingPotion(ItemCollection source,out string message)
+        {
+            message=Problem;
+            if(!Ready)return false;
+            var entity=brain.EntityBehaviour.Entity;
+            message=brain.DisplayName+" is already at full health.";
+            if(entity.CurrentHealth<=0 || entity.CurrentHealth>=entity.MaxHealth)return false;
+            var potion=CheapestHealingPotion(source);
+            message="No usable healing potions available.";
+            if(potion==null)return false;
+            int before=entity.CurrentHealth;
+            source.RemoveOne(potion);
+            entity.IncreaseHealth(Mathf.CeilToInt(entity.MaxHealth*.25f));
+            nextPotionCheck=Time.time+1;
+            Invalidate();brain.CaptureState();
+            var sprite=brain.GetComponent<NpcSprite>();if(sprite!=null)sprite.QueuePotionDrink();
+            message=brain.DisplayName+" drinks a healing potion and recovers "+(entity.CurrentHealth-before)+" HP.";
+            return true;
+        }
+        public void UseHealingPotion()
+        {
+            var sprite=brain.GetComponent<NpcSprite>();if(sprite!=null && sprite.PotionDrinkBusy)return;
+            var config=AdvancedNpcsMod.Instance.Config;
+            if(!config.AutoHealingPotions || Time.time<nextPotionCheck || GameManager.IsGamePaused || GameManager.Instance.DisableAI ||
+                GameManager.Instance.PlayerEntity.CurrentHealth<=0 || SaveLoadManager.Instance.LoadInProgress ||
+                brain.CompanionCombat==null || !brain.CompanionCombat.Active)return;
+            nextPotionCheck=Time.time+1;
+            var entity=brain.EntityBehaviour.Entity;
+            if(entity.CurrentHealth*100L>=entity.MaxHealth*(long)config.HealingPotionThreshold)return;
+            string message;
+            if(DrinkHealingPotion(entity.Items,out message))DaggerfallUI.AddHUDText(message);
+        }
         public static NpcCompanionInventory For(NpcBrain person)
         {
             var inventory=person.GetComponent<NpcCompanionInventory>();

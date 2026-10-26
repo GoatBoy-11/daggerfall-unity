@@ -44,6 +44,17 @@ namespace AdvancedNPCs
         public const string PackageState = "package_animation";
         public const string GuardState = "guard_idle";
         public const string MealState = "meal";
+        public const string PotionDrinkState = "potion_drink";
+        int potionDrinks;
+        public bool DrinkingPotion { get { return state == PotionDrinkState && oneShotLeft > 0; } }
+        public bool PotionDrinkBusy { get { return potionDrinks > 0 || DrinkingPotion; } }
+        public void QueuePotionDrink()
+        {
+            var chosen=ChosenSet;
+            if(!isActiveAndEnabled || chosen==null || chosen.Failed)return;
+            foreach(var animation in PackageAnimations.Variants(chosen.Set,MealAnimationLoop.DrinkFamily))
+                if(!chosen.IsReady || chosen.Sheets.ContainsKey(animation.Name)) { potionDrinks++;return; }
+        }
         MealAnimationLoop mealLoop;
         LoadedSpriteSet mealSet;
         List<SpriteAnimation> mealSheets;
@@ -78,6 +89,8 @@ namespace AdvancedNPCs
         int sentBlow;           // the blow signalled last frame, for counting what DFU took
         int vanillaToHold;      // DFU blow signals still to hold back: one per swing whose blow is ours
         bool hitWaiting;        // hit during a swing: its sheet plays when the attack sheet ends
+        bool blockWaiting;      // an attack on it did no damage (AttackOutcomeHook); played on the next update
+        int blockStarts;
         bool paralysed;         // read in LateUpdate: DFU clears paralysis each frame and the effect sets it again
         int blowsLanded;
         int blowsDelivered;
@@ -102,7 +115,7 @@ namespace AdvancedNPCs
         {
             get
             {
-                return oneShotLeft > 0 || pendingBlow != NoBlow || (gait != null && gait.Current == Core.Gait.Run) ||
+                return PotionDrinkBusy || oneShotLeft > 0 || pendingBlow != NoBlow || (gait != null && gait.Current == Core.Gait.Run) ||
                        (mobile != null && IsAttack(mobile.EnemyState)) ||
                        (brain != null && (brain.CurrentMode == NpcMode.Fighting || brain.CurrentMode == NpcMode.Fleeing));
             }
@@ -192,6 +205,22 @@ namespace AdvancedNPCs
         public int HitStarts
         {
             get { return hitStarts; }
+        }
+
+        /// <summary>How many block sheets started (self-test).</summary>
+        public int BlockStarts
+        {
+            get { return blockStarts; }
+        }
+
+        /// <summary>
+        /// An attack on it did no damage (a miss, which DFU sounds as a parry, or a full shield block with Physical Combat
+        /// Overhaul): a block* sheet plays if the set has one. Ignored while paralysed or with the BlockAnimations setting off.
+        /// </summary>
+        public void Blocked()
+        {
+            AdvancedNpcsMod mod = AdvancedNpcsMod.Instance;
+            blockWaiting = set != null && !paralysed && (mod == null || mod.Config == null || mod.Config.BlockAnimations);
         }
 
         /// <summary>How often a greet sheet has started (self-test).</summary>
@@ -440,6 +469,7 @@ namespace AdvancedNPCs
                 }
                 else if (waitingSet.Failed)
                 {
+                    potionDrinks=0;
                     waitingSet = null;
                     if (vanilla != null)
                         vanilla.forceRenderingOff = false;
@@ -474,12 +504,19 @@ namespace AdvancedNPCs
             // plays a hit sheet from its first frame, to its end. A swing is not interrupted (no stun-lock, as in
             // vanilla): the hit sheet follows the attack sheet.
             int health = entityBehaviour != null && entityBehaviour.Entity != null ? entityBehaviour.Entity.CurrentHealth : -1;
+            bool blocked = blockWaiting;
+            blockWaiting = false;
+            if(UpdatePotionDrink(dt,health)) { lastHealth=health;return; }
             if (lastHealth >= 0 && health >= 0 && health < lastHealth && health > 0)
             {
                 if ((state == SpriteStates.Attack || state == SpriteStates.Cast || state == SpriteStates.Heal) && oneShotLeft > 0)
                     hitWaiting = true;
                 else
                     StartOneShot(SpriteStates.Hit);
+            }
+            else if (blocked && health > 0 && CanBlock())
+            {
+                StartOneShot(SpriteStates.Block);
             }
             lastHealth = health;
 
@@ -551,9 +588,55 @@ namespace AdvancedNPCs
             TimeBlows();
         }
 
+        /// <summary>A block sheet exists and nothing that outranks it plays: a hit sheet, an own swing, cast or heal.</summary>
+        bool CanBlock()
+        {
+            if (SpriteStates.Variants(set.Set, SpriteStates.Block).Count == 0 || hitWaiting || pendingBlow != NoBlow ||
+                (mobile != null && IsAttack(mobile.EnemyState)))
+                return false;
+            return oneShotLeft <= 0 || (state != SpriteStates.Hit && state != SpriteStates.Attack && state != SpriteStates.RangedAttack &&
+                state != SpriteStates.Cast && state != SpriteStates.Heal);
+        }
+
         static bool IsAttack(MobileStates s)
         {
             return s == MobileStates.PrimaryAttack || s == MobileStates.RangedAttack1 || s == MobileStates.RangedAttack2 || s == MobileStates.Spell;
+        }
+
+        bool UpdatePotionDrink(float dt,int health)
+        {
+            if(brain==null || brain.CompanionCombat==null || !brain.CompanionCombat.Active || health<=0)
+            {
+                potionDrinks=0;
+                if(state==PotionDrinkState)oneShotLeft=0;
+                return false;
+            }
+            if(DrinkingPotion)
+            {
+                if(GameManager.IsGamePaused)return true;
+                oneShotLeft-=dt;time+=dt;
+                if(oneShotLeft>0)return true;
+            }
+            // A player-given potion waits until the menu has closed and the current swing has finished.
+            if(potionDrinks==0 || GameManager.IsGamePaused || DaggerfallUI.UIManager.TopWindow is CompanionOrdersWindow ||
+                PlayingOneShot || (mobile!=null && mobile.IsPlayingOneShot()))return false;
+            var variants=PackageAnimations.Variants(set.Set,MealAnimationLoop.DrinkFamily);
+            variants.RemoveAll(delegate(SpriteAnimation a) { return !set.Sheets.ContainsKey(a.Name); });
+            if(variants.Count==0) { potionDrinks=0;return false; }
+            potionDrinks--;
+            StartOneShot(PotionDrinkState,variants[Random.Range(0,variants.Count)].Name);
+            var attack=GetComponent<EnemyAttack>();if(attack!=null)attack.enabled=false;
+            if(brain.Motor!=null)brain.Motor.enabled=false;
+            var mover=GetComponent<NpcMover>();if(mover!=null)mover.Stop();
+            if(voice!=null)voice.PlayMeal(SoundPools.Drink);
+            lastMobileState=mobile!=null?mobile.EnemyState:MobileStates.Idle;
+            return true;
+        }
+
+        void OnDisable()
+        {
+            potionDrinks=0;
+            if(state==PotionDrinkState)oneShotLeft=0;
         }
 
         /// <summary>Plays a cast sheet for a class without DFU spell frames, whose mobile state never shows Spell.</summary>
@@ -904,6 +987,8 @@ namespace AdvancedNPCs
             oneShotLeft = (float)anim.Frames / set.Set.Fps;
             if (wanted == SpriteStates.Hit)
                 hitStarts++;
+            else if (wanted == SpriteStates.Block)
+                blockStarts++;
         }
 
         void SetState(string wanted, string sheet = null)

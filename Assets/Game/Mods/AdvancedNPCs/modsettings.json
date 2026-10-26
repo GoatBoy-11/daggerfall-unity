@@ -60,10 +60,53 @@
             "$version": "v1"
         },
         {
-            "Name": "Companions",
-            "Description": "Recruitment limits and catch-up for hired ANPC companions.",
+            "Name": "Wildlife",
+            "Description": "Animal ANPCs (an \"animal\" block) in the wilderness.",
             "IsAdvanced": false,
             "Keys": [
+                {
+                    "Value": true,
+                    "Name": "Wildlife",
+                    "Description": "Animals appear in the wilderness, alone or in herds and packs,\rby climate, season and time of day. Farm animals are not affected.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
+                {
+                    "Min": 0,
+                    "Max": 30,
+                    "Value": 10,
+                    "Name": "MaxWildlifeAround",
+                    "Description": "Most wild animals alive around you at once (0 turns them off).\rThey do not count toward the wilderness ANPC limit.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderIntKey"
+                },
+                {
+                    "Options": [
+                        "Low",
+                        "Normal",
+                        "High"
+                    ],
+                    "Value": 1,
+                    "Name": "WildlifeDensity",
+                    "Description": "How often animals turn up in the wilderness.\rLow: half as often. High: twice as often.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.MultipleChoiceKey"
+                }
+            ],
+            "$version": "v1"
+        },
+        {
+            "Name": "Companions",
+            "Description": "Recruitment, protection, healing potions and catch-up for hired ANPC companions.",
+            "IsAdvanced": false,
+            "Keys": [
+                {
+                    "Value": false,
+                    "Name": "InvulnerableCompanions",
+                    "Description": "Recruited companions cannot lose health while following or waiting.\rApplies immediately to existing companions. Dismissed NPCs are not protected.\rOff by default. Recruited companions always have 1.5x normal maximum health.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
                 {
                     "Options": [
                         "3",
@@ -97,6 +140,22 @@
                     "Description": "Disable follower barks.\rSilences cm_ companion speech and hides the individual bark option.\rCombat voices and footsteps keep their own settings.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
+                {
+                    "Value": true,
+                    "Name": "AutoHealingPotions",
+                    "Description": "Companions drink their own cheapest healing potion below the health threshold.\rEach potion restores 25% of maximum health, up to full health.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
+                {
+                    "Min": 1,
+                    "Max": 99,
+                    "Value": 50,
+                    "Name": "HealingPotionThreshold",
+                    "Description": "Use a healing potion when health is below this percentage.\rRequires AutoHealingPotions. Default: 50%.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderIntKey"
                 }
             ],
             "$version": "v1"
@@ -117,6 +176,21 @@
                     "Value": false,
                     "Name": "DirectionalCorpses",
                     "Description": "A body on its last death frame keeps showing the side you see it from.\rOff: it shows its front or back and always faces you, like vanilla corpses.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                }
+            ],
+            "$version": "v1"
+        },
+        {
+            "Name": "Combat",
+            "Description": "How ANPCs with their own sprite sets look in a fight.",
+            "IsAdvanced": false,
+            "Keys": [
+                {
+                    "Value": true,
+                    "Name": "BlockAnimations",
+                    "Description": "Play a block animation when an attack on an ANPC does no damage\r(a miss or parry, or a full shield block with Physical Combat Overhaul).\rOnly plays if the ANPC has a block animation (block* sheet).",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
                 }

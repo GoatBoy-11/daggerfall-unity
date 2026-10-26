@@ -10,6 +10,7 @@ using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Utility;
 using AdvancedNPCs.Core;
+using DaggerfallWorkshop.Game.Utility.ModSupport;
 
 namespace AdvancedNPCs
 {
@@ -200,7 +201,9 @@ namespace AdvancedNPCs
             int cellCount = WalkableCount(location);
             PlannedCellCounts[town.MapId] = cellCount;
             uint visitSeed = (uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue);
-            List<NpcInstance> plan = PopulationPlanner.Plan(templates, town, mode, cap, cellCount, visitSeed, owner.Names);
+            // Farm animals and village hens have their own count under the same limit: they never take a person's place.
+            List<NpcInstance> plan = PopulationPlanner.Plan(templates, town, mode, cap, cellCount, visitSeed, owner.Names, false);
+            plan.AddRange(PopulationPlanner.Plan(templates, town, mode, cap, cellCount, visitSeed, owner.Names, true));
             if (plan.Count == 0)
                 return spawned;
 
@@ -334,6 +337,16 @@ namespace AdvancedNPCs
             GameObject go = GameObjectHelper.CreateEnemy(instance.Name, type, new Vector3(instance.X, instance.Y, instance.Z),
                 gender, parent, MobileReactions.Passive);
 
+            // Daggertalk attaches during CreateEnemy's spawn event; stop it before Start assigns a second voice.
+            Mod daggertalkMod = ModManager.Instance.GetModFromGUID("be4fe1b9-7c97-4755-a6c5-47a7ca9dce12");
+            Type daggertalkType = daggertalkMod != null ? daggertalkMod.GetCompiledType("DaggertalkBehaviour") : null;
+            Behaviour daggertalk = daggertalkType != null ? go.GetComponent(daggertalkType) as Behaviour : null;
+            if (daggertalk != null)
+            {
+                daggertalk.enabled = false;
+                UnityEngine.Object.Destroy(daggertalk);
+            }
+
             // SerializableEnemy only registers with the vanilla save system when LoadID != 0.
             // Keeping it 0 means our own state table is the only save, so loads never duplicate ANPCs.
             DaggerfallEnemy enemy = go.GetComponent<DaggerfallEnemy>();
@@ -344,6 +357,8 @@ namespace AdvancedNPCs
             // enemies default to KnightsAndMages/Criminals. On the CityWatch team, guards leave them alone
             // while monsters (other teams) can still attack them.
             DaggerfallEntityBehaviour behaviour = go.GetComponent<DaggerfallEntityBehaviour>();
+            if ((def.RecruitCost>=0 || state.companion!=null) && behaviour != null && behaviour.Entity is EnemyEntity)
+                behaviour.Entity = new NpcEnemyEntity(behaviour, (EnemyEntity)behaviour.Entity);
             if (behaviour != null && behaviour.Entity != null)
                 behaviour.Entity.Team = MobileTeams.CityWatch;
 
@@ -356,6 +371,10 @@ namespace AdvancedNPCs
             brain.Init(instance, state);
             if (def.Magic != null)
                 go.AddComponent<NpcMagic>().Init(brain);
+            if (def.Animal != null)
+                go.AddComponent<NpcAnimal>().Init(def.Animal);
+            if (def.Disease != null)
+                go.AddComponent<NpcDisease>().Init(def.Disease);
             List<string> pool = PortraitPools.Joined(owner.Portraits.Names, instance.Definition.Portraits);
             string portraitFile = ResolvePortrait(instance, state, pool);
             instance.PortraitName = portraitFile;

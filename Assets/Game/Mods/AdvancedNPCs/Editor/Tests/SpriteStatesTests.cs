@@ -50,6 +50,9 @@ namespace AdvancedNPCs.Tests
         [TestCase("greet", "greet")]
         [TestCase("greet_1", "greet")]
         [TestCase("talk_1", "talk")]
+        [TestCase("block", "block")]
+        [TestCase("Block_3", "block")]
+        [TestCase("blocking", null)]
         [TestCase("pray_1", null)]
         [TestCase("idle_x", null)]
         [TestCase("death_static", null)]
@@ -162,6 +165,13 @@ namespace AdvancedNPCs.Tests
         {
             CollectionAssert.AreEqual(new[] { "run" }, Names(SpriteStates.Variants(Set("idle_1", "run"), SpriteStates.Walk)));
             CollectionAssert.AreEqual(new[] { "walk" }, Names(SpriteStates.Variants(Set("idle_1", "walk", "run"), SpriteStates.Walk)));
+        }
+
+        [Test]
+        public void Block_HasNoFallback()
+        {
+            Assert.AreEqual(0, SpriteStates.Variants(Set("idle_1", "hit", "attack_1"), SpriteStates.Block).Count);
+            CollectionAssert.AreEqual(new[] { "block_1", "block_2" }, Names(SpriteStates.Variants(Set("idle_1", "block_2", "block_1"), SpriteStates.Block)));
         }
 
         [Test]

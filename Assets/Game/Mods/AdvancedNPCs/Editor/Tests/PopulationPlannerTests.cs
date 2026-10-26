@@ -285,5 +285,21 @@ namespace AdvancedNPCs.Tests
             Assert.That(Keys(PopulationPlanner.Plan(templates, Town(77), GenericMode.SamePeople, 12, 400, 1, new FakeNames())),
                 Is.EqualTo(Keys(PopulationPlanner.Plan(templates, Town(77), GenericMode.SamePeople, 12, 400, 2, new FakeNames()))));
         }
+
+        [Test]
+        public void Animals_HaveTheirOwnCount_AndLeavePeopleAsTheyWere()
+        {
+            NpcDefinition person = Template("baker", 3, 3);
+            NpcDefinition hen = Template("an_hen", 3, 3);
+            hen.Animal = new AnimalSettings();
+            List<NpcInstance> peopleBefore = Plan(GenericMode.SamePeople, 3, 400, 1, person, Template("an_hen", 0, 0));
+            List<NpcInstance> people = PopulationPlanner.Plan(new[] { person, hen }, Town(1234), GenericMode.SamePeople, 3, 400, 1, new FakeNames(), false);
+            List<NpcInstance> animals = PopulationPlanner.Plan(new[] { person, hen }, Town(1234), GenericMode.SamePeople, 3, 400, 1, new FakeNames(), true);
+            Assert.AreEqual(3, people.Count, "the hens do not take the people's places under the cap");
+            Assert.IsTrue(people.TrueForAll(delegate (NpcInstance i) { return i.Definition == person; }));
+            Assert.AreEqual(3, animals.Count);
+            Assert.IsTrue(animals.TrueForAll(delegate (NpcInstance i) { return i.Definition == hen; }));
+            Assert.That(Keys(people), Is.EqualTo(Keys(peopleBefore)), "same people as before the hens became animals");
+        }
     }
 }

@@ -159,7 +159,7 @@ PACKS = {
         ("hit", ["Damage_Grunt*"]),
         ("death", ["Death*"]),
     ]),
-    "va_brawler_male": ("GenericMale_VoicePack(1)", "local", [
+    "va_brawler_male": ("GenericMale_VoicePack(1)", "git", [
         ("attack", ["Hiyah!*", "Hwah!*", "Yah!*", "Heavy Swing*"]),
         ("hit", ["Take Impact*", "Impact*"]),
         ("talk", ["Hmm*", "Huh*", "Uh huh*", "Umm*", "Ermm*", "Acknowledgement*", "Yeah_positive*", "Curious*",
@@ -171,7 +171,7 @@ PACKS = {
     ]),
 }
 
-# Daniel Gooding's Unity Asset Store packs (bought; Asset Store EULA: never in git). One local pack per character of
+# Daniel Gooding's Unity Asset Store packs (bought; shared with the author's permission, user 2026-10-26). One pack per character of
 # "Action RPG Characters" (combat, spells, companion lines by the file name's category), plus that actor's townsfolk
 # greetings and merchant calls from "Merchants Enemies And Townsfolk".
 ARPG = "Action RPG Characters/Assets/Action RPG Characters/Vocal Files"
@@ -216,7 +216,7 @@ for _name, _char, _actor, _g in GOODING:
     talk = said(town, lambda t: not GREETING.search(t))
     for prefix in chat + regional:
         talk += [p for p in said(prefix, lambda t: True) if "GuardChild" not in p]
-    PACKS[_name] = (".", "local", [
+    PACKS[_name] = (".", "git", [
         ("greet", said(town, lambda t: GREETING.search(t))),
         ("talk", talk + ["dup:" + c + "Idle*"]),
         ("hawk", said(MET + "/Merchants/", lambda t: not NOT_HAWK.search(t)) and

@@ -1,0 +1,46 @@
+// EXAMPLE: a wolf-like animal (spec animal-ai). Never spawns by itself. Try it in game with:  anpc_spawn example_animal
+// Real animals (the an_ folders) add a "spawn" block like the commented one below.
+{
+  "$schema": "../_Schemas/npc.schema.json",
+
+  "kind": "generic",
+  "name": "Example Wolf",
+
+  // A calm animal may use these creature classes for creature stats and bites:
+  // Rat, GiantBat, GrizzlyBear, SabertoothTiger, Spider, GiantScorpion. Animals are never "attitude": "hostile".
+  "baseClass": "SabertoothTiger",
+  "combat": { "health": 0.45, "damage": 0.35 },
+
+  // Fighters flee below this (their bravery comes from the temperament: Prudent).
+  "fleeHealthPercent": 30,
+  // Wild: killing it is no crime. true = livestock: killing it is Theft.
+  "crimeOnAttack": false,
+  // How far it looks for prey when hungry.
+  "aggroRange": 30,
+
+  "animal": {
+    // prey, grazer, territorial, predator, ambusher, ambient
+    "temperament": "predator",
+    // diurnal, nocturnal, crepuscular, always: it rests outside its hours.
+    "activity": "nocturnal",
+    // Notices a visible player within 30 m, attacks within 10 m (sneaking halves, running x1.5, Stealth up to half off).
+    "senses": { "alert": 30, "react": 10 },
+    // Gives up a chase 40 m from home.
+    "territory": 40,
+    // 10% chance to attack a player it has just noticed farther away.
+    "boldChance": 10,
+    // Hunts prey animals (a temperament, ids, or "an_rabbit_*" prefixes) every 4-10 game hours, then eats the kill.
+    "hunts": ["prey"],
+    "hungerHours": [4, 10],
+    // A call sound (Sounds/call_*.ogg, else greet_*) now and then while you are within 30 m.
+    "calls": [60, 200]
+  },
+
+  // Each bite may pass on one of these (DFU's own infection rules).
+  "disease": { "chance": 5, "diseases": ["Plague"] },
+
+  // A wild animal would use:
+  // "spawn": { "wilderness": { "chance": 4, "max": 5, "group": [3, 5], "terrain": "dry",
+  //            "when": { "climate": ["woodlands", "mountainwoods"], "season": ["spring", "summer", "autumn"] } } }
+  "spawn": { "count": [0, 0] }
+}

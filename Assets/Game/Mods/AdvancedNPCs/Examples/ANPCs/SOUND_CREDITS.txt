@@ -26,18 +26,18 @@ Voice packs (_Sounds/va_*, built by Tools~/voice_packs.py)
 -----------------------------------------------------------
 - va_warrior_male: Warrior Voice Pack by John Carroll (https://johncarroll.itch.io/).
 - va_orc_male: Orc Voice Pack by John Carroll (https://johncarroll.itch.io/), CC0.
-- va_orc_warlord_male: "Orc Commander" voice pack (author: TODO).
+- va_orc_warlord_male: "Orc Commander" voice pack (royalty free, no attribution required).
 - va_hunter_male: Ash's Epic Voices Vol. 5 - Bountiful Hunter by AmalgamAsh, CC BY 4.0.
-- va_adventurer_male: "Male protagonist" voice pack (author: TODO).
+- va_adventurer_male: "Male protagonist" voice pack (royalty free, no attribution required).
 - va_adventurer_female: Female Voice Clips, voiced by Rookie (r0okie.carrd.co).
 - va_townswoman_female: Voice Pack by Elise Astoria.
-- va_commoner_female / va_commoner_male: "video_game_voices", voices Yvette / Peter (author: TODO).
-- va_cheerful_female: Rheia Voice Pack (author: TODO).
+- va_commoner_female / va_commoner_male: "video_game_voices", voices Yvette / Peter (royalty free, no attribution required).
+- va_cheerful_female: Rheia Voice Pack (royalty free, no attribution required).
 - va_fighter_female: RPG Voice Pack 2.0 by N0sSyndrome (https://n0ssyndrome.itch.io/).
-- Local only (not shared): va_brawler_male, Generic Male Voice Pack by Dan Bosley (@daniconshow).
-- Local only (not shared): va_clifford_male, va_edwyn_male, va_nile_male, va_samuel_male, va_jamaal_*_male,
+- va_brawler_male: Generic Male Voice Pack by Dan Bosley (@daniconshow), royalty free.
+- va_clifford_male, va_edwyn_male, va_nile_male, va_samuel_male, va_jamaal_*_male,
   va_patrick_*_male, va_karenk_female, va_kimlinh_female, va_rina_female, va_karenh_*_female: "Action RPG Characters"
-  and "Merchants Enemies And Townsfolk" by Daniel Gooding / Affordable Audio 4 Everyone (Unity Asset Store). Voices:
+  and "Merchants Enemies And Townsfolk" by Daniel Gooding / Affordable Audio 4 Everyone (Unity Asset Store), shared with the author's permission. Voices:
   Clifford Chapin, Edwyn Tiong, Jamaal E. (XTREEMMAK), Karen H., Karen Kahler, Kimlinh Tran, Nile, Patrick M. Seymour,
   Rina, Samuel.
 

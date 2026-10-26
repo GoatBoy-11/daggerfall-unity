@@ -117,6 +117,11 @@ namespace AdvancedNPCs
             }
             if (distance > PlayerActivate.MobileNPCActivationDistance)
                 return;
+            if (brain != null && brain.Definition != null && brain.Definition.Animal != null)
+            {
+                Say(displayName + " ignores you.");     // animals do not talk (spec animal-ai §1.5)
+                return;
+            }
             TryTalk();
         }
 

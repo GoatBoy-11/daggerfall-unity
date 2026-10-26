@@ -77,6 +77,7 @@ namespace AdvancedNPCs
         void Update()
         {
             GuardArrest.Refresh();
+            AttackOutcomeHook.Keep();
             if (Companions != null) Companions.Tick();
             if (Sprites != null)
                 Sprites.Tick(Time.unscaledTime);
@@ -109,6 +110,8 @@ namespace AdvancedNPCs
             StartGameBehaviour.OnNewGame += OnNewGame;
             ConsoleCommandsDatabase.RegisterCommand("anpc_pos",
                 "Prints your position as Advanced NPC definition JSON (also written to Player.log).", "anpc_pos", PosCommand);
+            ConsoleCommandsDatabase.RegisterCommand("anpc_flat",
+                "Prints the nearest vanilla flat NPC's id for \"replacesFlat\" (also written to Player.log).", "anpc_flat", FlatCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_list",
                 "Lists spawned Advanced NPCs with distance, direction and state.", "anpc_list", ListCommand);
             ConsoleCommandsDatabase.RegisterCommand("anpc_place",
@@ -652,6 +655,13 @@ namespace AdvancedNPCs
             return snippet;
         }
 
+        static string FlatCommand(params string[] args)
+        {
+            string text = Instance.Flats.DescribeNearest(GameManager.Instance.PlayerObject.transform.position);
+            Log("anpc_flat\n" + text);
+            return text;
+        }
+
         static string ListCommand(params string[] args)
         {
             List<NpcBrain> brains = NpcBrain.All();
@@ -745,7 +755,9 @@ namespace AdvancedNPCs
             if (SelfTest.Running)
                 return "The self-test is already running.";
             SelfTest test = new SelfTest(Instance, Instance.spawner);
-            if (args.Length > 0 && (args[0] == SelfTest.GuardSuite || args[0] == SelfTest.CompanionEventsSuite || args[0] == SelfTest.CompanionBarksSuite || args[0] == SelfTest.AuditSuite || args[0] == SelfTest.CompanionSpellsSuite || args[0] == SelfTest.CompanionLimitsSuite || args[0] == SelfTest.CompanionPerformanceSuite || args[0] == SelfTest.CompanionBowsSuite || args[0] == SelfTest.CompanionEquipmentSuite || args[0] == SelfTest.CompanionTradingSuite || args[0] == SelfTest.CompanionPlaytestSuite || args[0] == SelfTest.CompanionOrdersSuite || args[0] == SelfTest.CompanionCombatSuite || args[0] == SelfTest.NavigationSuite || args[0] == SelfTest.CompanionSuite || args[0] == SelfTest.RangedSuite || args[0] == SelfTest.ReplaceSuite || args[0] == SelfTest.HealingSuite || args[0] == SelfTest.PackageSuite))
+            if(args.Length>0 && args[0]==SelfTest.CompanionPotionsSuite)test.Suite=args[0];
+            if(args.Length>0 && args[0]==SelfTest.CompanionSurvivabilitySuite)test.Suite=args[0];
+            if (args.Length > 0 && (args[0] == SelfTest.SoundSuite || args[0] == SelfTest.GuardSuite || args[0] == SelfTest.CompanionEventsSuite || args[0] == SelfTest.CompanionBarksSuite || args[0] == SelfTest.AuditSuite || args[0] == SelfTest.CompanionSpellsSuite || args[0] == SelfTest.CompanionLimitsSuite || args[0] == SelfTest.CompanionPerformanceSuite || args[0] == SelfTest.CompanionBowsSuite || args[0] == SelfTest.CompanionEquipmentSuite || args[0] == SelfTest.CompanionTradingSuite || args[0] == SelfTest.CompanionPlaytestSuite || args[0] == SelfTest.CompanionOrdersSuite || args[0] == SelfTest.CompanionCombatSuite || args[0] == SelfTest.NavigationSuite || args[0] == SelfTest.CompanionSuite || args[0] == SelfTest.RangedSuite || args[0] == SelfTest.ReplaceSuite || args[0] == SelfTest.HealingSuite || args[0] == SelfTest.PackageSuite || args[0] == SelfTest.AnimalSuite || args[0] == SelfTest.BlockSuite))
                 test.Suite = args[0];
             Instance.StartCoroutine(test.Run(null));
             return "Self-test started; results appear on screen and in Player.log (SELFTEST lines).";
@@ -770,7 +782,10 @@ namespace AdvancedNPCs
             string save = lines[1].Trim();
             bool play = lines.Length > 2 && lines[2].Trim() == "play";
             string third = lines.Length > 2 ? lines[2].Trim() : "";
-            string suite = third == SelfTest.GuardSuite || third == SelfTest.CompanionEventsSuite || third == SelfTest.CompanionBarksSuite || third == SelfTest.AuditSuite || third == SelfTest.CompanionSpellsSuite || third == SelfTest.CompanionLimitsSuite || third == SelfTest.CompanionPerformanceSuite || third == SelfTest.CompanionBowsSuite || third == SelfTest.CompanionEquipmentSuite || third == SelfTest.CompanionTradingSuite || third == SelfTest.CompanionPlaytestSuite || third == SelfTest.CompanionOrdersSuite || third == SelfTest.CompanionCombatSuite || third == SelfTest.NavigationSuite || third == SelfTest.CompanionSuite || third == SelfTest.RangedSuite || third == SelfTest.ReplaceSuite || third == SelfTest.HealingSuite || third == SelfTest.PackageSuite ? third : null;
+            string suite = third == SelfTest.SoundSuite || third == SelfTest.GuardSuite || third == SelfTest.CompanionEventsSuite || third == SelfTest.CompanionBarksSuite || third == SelfTest.AuditSuite || third == SelfTest.CompanionSpellsSuite || third == SelfTest.CompanionLimitsSuite || third == SelfTest.CompanionPerformanceSuite || third == SelfTest.CompanionBowsSuite || third == SelfTest.CompanionEquipmentSuite || third == SelfTest.CompanionTradingSuite || third == SelfTest.CompanionPlaytestSuite || third == SelfTest.CompanionOrdersSuite || third == SelfTest.CompanionCombatSuite || third == SelfTest.NavigationSuite || third == SelfTest.CompanionSuite || third == SelfTest.RangedSuite || third == SelfTest.ReplaceSuite || third == SelfTest.HealingSuite || third == SelfTest.PackageSuite || third == SelfTest.AnimalSuite || third == SelfTest.BlockSuite ? third : null;
+            if(third==SelfTest.CompanionPotionsSuite)suite=third;
+            if (third == SelfTest.SpriteLoadSuite) suite = third;
+            if(third==SelfTest.CompanionSurvivabilitySuite)suite=third;
             if (play)
                 File.Delete(path);
             Log(SelfTest.Prefix + "autorun: loading save '" + save + "' of '" + character + "'" + (play ? " to play" : ""));

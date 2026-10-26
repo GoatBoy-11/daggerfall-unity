@@ -12,6 +12,7 @@ namespace AdvancedNPCs.Core
         // Opaque native item records, equipment links and permanent stats; absent in pre-trading saves.
         public string belongings;
         public int faceOutfit, faceVariant, maxHealth;
+        public int baseMaxHealth; // Missing in older saves: their saved maxHealth is the unboosted value.
         public bool barksMuted; // Optional saved preference; older contracts default to audible.
         public bool noCompanionSlot; // Fallback when a saved contract has no installed definition.
         // All three states reserve the original spawn key, preventing duplicate people.
@@ -20,6 +21,11 @@ namespace AdvancedNPCs.Core
         public string area;
         public int mapX, mapY;
         public float x, y, z;
+        public int HealthForContract(int fallback)
+        {
+            if(baseMaxHealth<=0) baseMaxHealth=Math.Max(1,maxHealth>0?maxHealth:fallback);
+            return maxHealth=CompanionCombatRules.Contract(status)?CombatRules.ScaleHealth(baseMaxHealth,1.5f):baseMaxHealth;
+        }
         public CompanionRecord Clone() { var copy=(CompanionRecord)MemberwiseClone(); copy.stance=CompanionOrders.Stance(stance); return copy; }
         public static CompanionRecord From(NpcInstance person)
         {

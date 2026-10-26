@@ -30,6 +30,8 @@ namespace AdvancedNPCs.Core
     public class ReplaceSettings
     {
         public readonly List<ReplaceTarget> Targets = new List<ReplaceTarget>();
+        /// <summary>"replacesFlat": single vanilla people by flat id (ReplaceRules.FlatId); these win over Targets.</summary>
+        public readonly List<string> Flats = new List<string>();
         /// <summary>The talk window shows the ANPC's portrait instead of the vanilla face.</summary>
         public bool Portrait = true;
         /// <summary>The ANPC's own name instead of the vanilla NPC's (quest text keeps the vanilla name).</summary>
@@ -51,6 +53,8 @@ namespace AdvancedNPCs.Core
     /// <summary>
     /// "replaces" in npc.json (flat replacement spec): a generic ANPC takes the place of vanilla flat NPCs (StaticNPC),
     /// given as sprite ids "177.2" (also "177 2", "177_2") or "faction:1003"; one entry or a list.
+    /// "replacesFlat" names single vanilla people by flat id "mapId/where/hash" (anpc_flat prints it); a flat with any
+    /// replacesFlat candidate ignores the sprite/faction ones. Either field turns replacement on.
     /// "replacePortrait" (default true), "replaceName" (default false) and "stayNear" (metres, default 0) go with it.
     /// When several ANPCs replace the same flat, each flat picks one by its own seed, so every vanilla person keeps
     /// the same stand-in for the whole game. No Unity or DFU types.
@@ -58,42 +62,65 @@ namespace AdvancedNPCs.Core
     public static class ReplaceRules
     {
         public const float MaxStayNear = 50f;
-        public static readonly string[] Keys = { "replaces", "replacePortrait", "replaceName", "stayNear" };
+        public static readonly string[] Keys = { "replaces", "replacesFlat", "replacePortrait", "replaceName", "stayNear" };
         static readonly Regex SpriteId = new Regex(@"^\s*(\d+)\s*[._ ]\s*(\d+)\s*$");
         static readonly Regex FactionId = new Regex(@"^\s*faction\s*:\s*(\d+)\s*$", RegexOptions.IgnoreCase);
+        static readonly Regex FlatIdPattern = new Regex(@"^\s*(\d+)\s*/\s*(town|dungeon|b\d+)\s*/\s*(-?\d+)\s*$", RegexOptions.IgnoreCase);
 
         /// <summary>Reads the replacement fields. settings is null when "replaces" is absent. Returns null or a problem (key set).</summary>
         public static string Read(Dictionary<string, object> o, out string key, out ReplaceSettings settings)
         {
             settings = null;
             key = "replaces";
-            object raw;
-            if (!o.TryGetValue("replaces", out raw) || raw == null)
+            object raw, rawFlats;
+            bool hasTargets = o.TryGetValue("replaces", out raw) && raw != null;
+            bool hasFlats = o.TryGetValue("replacesFlat", out rawFlats) && rawFlats != null;
+            if (!hasTargets && !hasFlats)
             {
                 foreach (string k in Keys)
                 {
-                    if (k != "replaces" && o.ContainsKey(k))
+                    if (o.ContainsKey(k))
                     {
                         key = k;
-                        return "only works together with \"replaces\"";
+                        return "only works together with \"replaces\" or \"replacesFlat\"";
                     }
                 }
                 return null;
             }
-            List<object> items = raw as List<object>;
-            if (items == null)
-                items = new List<object> { raw };
-            if (items.Count == 0)
-                return "needs at least one vanilla NPC, like \"177.2\" (sprite) or \"faction:1003\"";
             ReplaceSettings s = new ReplaceSettings();
-            foreach (object item in items)
+            if (hasTargets)
             {
-                string text = item as string;
-                ReplaceTarget t = text != null ? ParseTarget(text) : null;
-                if (t == null)
-                    return "\"" + (item == null ? "null" : item.ToString()) + "\" is not a vanilla NPC id: use a sprite like \"177.2\" or \"faction:1003\"";
-                s.Targets.Add(t);
+                List<object> items = raw as List<object> ?? new List<object> { raw };
+                if (items.Count == 0)
+                    return "needs at least one vanilla NPC, like \"177.2\" (sprite) or \"faction:1003\"";
+                foreach (object item in items)
+                {
+                    string text = item as string;
+                    ReplaceTarget t = text != null ? ParseTarget(text) : null;
+                    if (t == null)
+                        return "\"" + (item == null ? "null" : item.ToString()) + "\" is not a vanilla NPC id: use a sprite like \"177.2\" or \"faction:1003\"";
+                    s.Targets.Add(t);
+                }
             }
+            else if (o.ContainsKey("replaces"))
+                return "needs at least one vanilla NPC, like \"177.2\" (sprite) or \"faction:1003\"";
+            key = "replacesFlat";
+            if (hasFlats)
+            {
+                List<object> items = rawFlats as List<object> ?? new List<object> { rawFlats };
+                if (items.Count == 0)
+                    return "needs at least one flat id from anpc_flat, like \"1234/b5678/-90\"";
+                foreach (object item in items)
+                {
+                    string text = item as string;
+                    string id = text != null ? ParseFlatId(text) : null;
+                    if (id == null)
+                        return "\"" + (item == null ? "null" : item.ToString()) + "\" is not a flat id: stand by the vanilla NPC, type anpc_flat and copy what it prints";
+                    s.Flats.Add(id);
+                }
+            }
+            else if (o.ContainsKey("replacesFlat"))
+                return "needs at least one flat id from anpc_flat, like \"1234/b5678/-90\"";
             string problem;
             key = "replacePortrait";
             if ((problem = FieldReader.Bool(o, "replacePortrait", true, out s.Portrait)) != null)
@@ -126,16 +153,47 @@ namespace AdvancedNPCs.Core
             return null;
         }
 
-        /// <summary>Every template that replaces this flat, sorted by id (so the pick does not depend on load order).</summary>
-        public static List<NpcDefinition> Candidates(IList<NpcDefinition> templates, int archive, int record, int faction)
+        /// <summary>"1234/b5678/-90" (any case, spaces allowed) in its normal form; null if not a flat id.</summary>
+        public static string ParseFlatId(string text)
+        {
+            Match m = FlatIdPattern.Match(text);
+            int map, hash;
+            if (!m.Success || !int.TryParse(m.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out map) ||
+                !int.TryParse(m.Groups[3].Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out hash))
+                return null;
+            return FlatId(map, m.Groups[2].Value.ToLowerInvariant(), hash);
+        }
+
+        /// <summary>One vanilla flat person's id for "replacesFlat": map id, place ("town", "dungeon", "b" + building key), flat hash.</summary>
+        public static string FlatId(int mapId, string where, int flatHash)
+        {
+            return mapId.ToString(CultureInfo.InvariantCulture) + "/" + where + "/" + flatHash.ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// Every template that replaces this flat, sorted by id (so the pick does not depend on load order). Templates
+        /// naming this very flat in "replacesFlat" win; only without any do sprite and faction matches count.
+        /// </summary>
+        public static List<NpcDefinition> Candidates(IList<NpcDefinition> templates, int archive, int record, int faction, string flatId = null)
         {
             List<NpcDefinition> result = new List<NpcDefinition>();
             if (templates == null)
                 return result;
-            foreach (NpcDefinition t in templates)
+            if (flatId != null)
             {
-                if (t.Replace != null && t.Replace.Matches(archive, record, faction))
-                    result.Add(t);
+                foreach (NpcDefinition t in templates)
+                {
+                    if (t.Replace != null && t.Replace.Flats.Contains(flatId))
+                        result.Add(t);
+                }
+            }
+            if (result.Count == 0)
+            {
+                foreach (NpcDefinition t in templates)
+                {
+                    if (t.Replace != null && t.Replace.Matches(archive, record, faction))
+                        result.Add(t);
+                }
             }
             result.Sort(delegate (NpcDefinition x, NpcDefinition y) { return string.CompareOrdinal(x.Id, y.Id); });
             return result;
@@ -147,7 +205,7 @@ namespace AdvancedNPCs.Core
         /// </summary>
         public static string KeyFor(int mapId, string where, int flatHash)
         {
-            return "replace@" + mapId.ToString(CultureInfo.InvariantCulture) + "/" + where + "/" + flatHash.ToString(CultureInfo.InvariantCulture);
+            return "replace@" + FlatId(mapId, where, flatHash);
         }
 
         /// <summary>The template one flat uses, picked by the flat's key: fixed for that flat, random across flats. Null if none.</summary>

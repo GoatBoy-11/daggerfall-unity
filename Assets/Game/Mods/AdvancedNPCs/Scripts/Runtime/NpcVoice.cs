@@ -532,7 +532,9 @@ namespace AdvancedNPCs
             string playable = Playable(pool);
             if (playable == null || voices == null || !VoiceModes.CustomVoice(Mode))
                 return false;
-            if (pool != SoundPools.Death && pool != SoundPools.Halt && pool != SoundPools.Hawk && !bark)
+            // Animal alert, warning and call sounds are paced by the animal itself (spec animal-ai §2.3): no chance roll.
+            if (pool != SoundPools.Death && pool != SoundPools.Halt && pool != SoundPools.Hawk && !bark &&
+                pool != SoundPools.Alert && pool != SoundPools.Warn && pool != SoundPools.Call)
             {
                 int chance = SoundPools.IsCombat(pool) ? settings.CombatChance : settings.GreetChance;
                 if (!SoundRules.Rolls(chance, Random.value))
