@@ -599,11 +599,11 @@ namespace AdvancedNPCs
             // No language pacification roll: it would turn a player's attack back off before Update sees it.
             senses.HasEncounteredPlayer = true;
 
-            if (state.companion != null && state.companion.maxHealth > 0)
-                entityBehaviour.Entity.MaxHealth = state.companion.maxHealth;
+            if (state.companion != null)
+                entityBehaviour.Entity.MaxHealth = state.companion.HealthForContract(entityBehaviour.Entity.MaxHealth);
             int restored = HealthRules.Restore(entityBehaviour.Entity.MaxHealth, state.healthFraction);
             if (restored != entityBehaviour.Entity.CurrentHealth)
-                entityBehaviour.Entity.CurrentHealth = restored;
+                entityBehaviour.Entity.SetHealth(restored, true);
             if (state.companion != null) NpcCompanionInventory.For(this);
             lastHealth = entityBehaviour.Entity.CurrentHealth;
             entityBehaviour.Entity.OnDeath += OnDeath;

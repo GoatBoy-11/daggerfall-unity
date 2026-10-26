@@ -116,6 +116,7 @@ namespace AdvancedNPCs
                     actor.EntityBehaviour.Entity.MaxHealth == maxHealth && Math.Abs(actor.State.healthFraction-health)<0.02f && CountObjects(key)==1,
                     actor != null ? actor.Describe() : "missing");
                 if (actor == null) yield break;
+                Check("companion reconstructed on area entry excludes Daggertalk", DaggertalkOn(actor.gameObject) == null, actor.Id);
                 Check("bark preference survives real tavern entry",actor.State.companion.barksMuted && NpcVoice.BarkContext()==CompanionBarkRules.Inn,"muted="+actor.State.companion.barksMuted);
                 Check("area entry safely interrupts companion combat",transferringFight && actor.CurrentMode==NpcMode.Calm && actor.Threat==null &&
                     actor.State.companion.status=="following" && Math.Abs(actor.State.healthFraction-health)<.02f,actor.Describe());

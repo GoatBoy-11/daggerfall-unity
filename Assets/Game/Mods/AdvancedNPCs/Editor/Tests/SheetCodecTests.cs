@@ -103,6 +103,43 @@ namespace AdvancedNPCs.Tests
         }
 
         [Test]
+        public void Dxt5_StreamedRowsMatchWholeImage_InADirtyReusedBuffer()
+        {
+            int w = 12, h = 8;
+            byte[] top = new byte[w * h * 4];
+            new Random(9).NextBytes(top);
+            for (int i = 0; i < w * 4 * 4; i += 4)
+                top[i + 3] = 0;     // an empty top block row
+            byte[] png = Png(top, w, h, 6, 4);
+            int width, height;
+            byte[] expected = SheetCodec.EncodeDxt5(SheetCodec.DecodePng(png, out width, out height), w, h);
+            byte[] output = new byte[w * h + 7];
+            for (int i = 0; i < output.Length; i++) output[i] = 0xAB;
+            using (PngRows rows = PngRows.Open(png, png.Length, new MemoryStream()))
+                SheetCodec.EncodeDxt5(rows, output, null);
+            for (int i = 0; i < expected.Length; i++)
+                Assert.AreEqual(expected[i], output[i], "byte " + i);
+        }
+
+        [Test]
+        public void IdleProbe_TallestOpaquePixelAboveGround_StreamedOrWhole()
+        {
+            SpriteSet set = new SpriteSet { CellHeight = 4, GroundY = 1 };
+            SpriteAnimation idle = new SpriteAnimation { Name = "idle", CellWidth = 4, Frames = 2 };
+            int w = 8, h = 4 * 8;
+            byte[] top = new byte[w * h * 4];
+            top[((3 * 4 + 0) * w + 5) * 4 + 3] = 255;   // direction 3, frame 1, top row of the cell (y 3)
+            top[((5 * 4 + 2) * w + 1) * 4 + 3] = 255;   // direction 5, on the feet row (y 1): not counted
+            byte[] png = Png(top, w, h, 6, 4);
+            IdleProbe probe = new IdleProbe(set, idle);
+            using (PngRows rows = PngRows.Open(png, png.Length, new MemoryStream()))
+                SheetCodec.EncodeDxt5(rows, new byte[w * h], probe);
+            Assert.AreEqual(3, probe.Best);
+            int width, height;
+            Assert.AreEqual(3f, SheetCodec.IdleHeight(set, idle, SheetCodec.DecodePng(png, out width, out height), w));
+        }
+
+        [Test]
         public void Dxt5_GradientBlockStaysClose()
         {
             byte[] rgba = new byte[4 * 4 * 4];

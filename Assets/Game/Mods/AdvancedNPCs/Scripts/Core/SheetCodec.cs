@@ -11,8 +11,6 @@ namespace AdvancedNPCs.Core
     /// </summary>
     public static class SheetCodec
     {
-        static readonly byte[] Signature = { 137, 80, 78, 71, 13, 10, 26, 10 };
-
         /// <summary>
         /// RGBA32 pixels, rows bottom-up, of an 8-bit non-interlaced PNG (grey, RGB, palette, grey+alpha, RGBA);
         /// null for any other PNG (the caller falls back to Unity's decoder). Throws on a damaged file.
@@ -20,105 +18,46 @@ namespace AdvancedNPCs.Core
         public static byte[] DecodePng(byte[] png, out int width, out int height)
         {
             width = height = 0;
-            if (png == null || png.Length < 33)
-                return null;
-            for (int i = 0; i < Signature.Length; i++)
-                if (png[i] != Signature[i])
+            using (PngRows rows = PngRows.Open(png, png == null ? 0 : png.Length, new MemoryStream()))
+            {
+                if (rows == null)
                     return null;
-            int colorType = -1, bitDepth = 0, interlace = 0;
-            byte[] palette = null, paletteAlpha = null;
-            MemoryStream idat = new MemoryStream();
-            int pos = 8;
-            while (pos + 12 <= png.Length)
-            {
-                int length = (png[pos] << 24) | (png[pos + 1] << 16) | (png[pos + 2] << 8) | png[pos + 3];
-                string type = new string(new char[] { (char)png[pos + 4], (char)png[pos + 5], (char)png[pos + 6], (char)png[pos + 7] });
-                int data = pos + 8;
-                if (length < 0 || data + length > png.Length)
-                    throw new InvalidDataException("truncated PNG chunk");
-                if (type == "IHDR")
-                {
-                    width = (png[data] << 24) | (png[data + 1] << 16) | (png[data + 2] << 8) | png[data + 3];
-                    height = (png[data + 4] << 24) | (png[data + 5] << 16) | (png[data + 6] << 8) | png[data + 7];
-                    bitDepth = png[data + 8];
-                    colorType = png[data + 9];
-                    interlace = png[data + 12];
-                }
-                else if (type == "PLTE")
-                {
-                    palette = new byte[length];
-                    Buffer.BlockCopy(png, data, palette, 0, length);
-                }
-                else if (type == "tRNS")
-                {
-                    paletteAlpha = new byte[length];
-                    Buffer.BlockCopy(png, data, paletteAlpha, 0, length);
-                }
-                else if (type == "IDAT")
-                    idat.Write(png, data, length);
-                else if (type == "IEND")
-                    break;
-                pos = data + length + 4;
+                width = rows.Width;
+                height = rows.Height;
+                byte[] rgba = new byte[width * height * 4];
+                for (int y = 0; y < height; y++)
+                    rows.Next(rgba, (height - 1 - y) * width * 4);
+                return rgba;
             }
-            int channels = colorType == 0 ? 1 : colorType == 2 ? 3 : colorType == 3 ? 1 : colorType == 4 ? 2 : colorType == 6 ? 4 : 0;
-            if (bitDepth != 8 || interlace != 0 || channels == 0 || width <= 0 || height <= 0 || (colorType == 3 && palette == null))
-                return null;
-
-            int stride = width * channels;
-            byte[] raw = new byte[(long)(stride + 1) * height];
-            idat.Position = 2;      // zlib header; DeflateStream reads the raw deflate data after it
-            using (DeflateStream z = new DeflateStream(idat, CompressionMode.Decompress))
-            {
-                int read = 0;
-                while (read < raw.Length)
-                {
-                    int n = z.Read(raw, read, raw.Length - read);
-                    if (n <= 0)
-                        throw new InvalidDataException("PNG image data ends early");
-                    read += n;
-                }
-            }
-
-            byte[] rgba = new byte[width * height * 4];
-            byte[] prev = new byte[stride];
-            byte[] line = new byte[stride];
-            for (int y = 0; y < height; y++)
-            {
-                int rowStart = y * (stride + 1);
-                Unfilter(raw[rowStart], raw, rowStart + 1, line, prev, channels);
-                int o = (height - 1 - y) * width * 4;
-                for (int x = 0; x < width; x++, o += 4)
-                {
-                    switch (colorType)
-                    {
-                        case 6:
-                            rgba[o] = line[x * 4]; rgba[o + 1] = line[x * 4 + 1]; rgba[o + 2] = line[x * 4 + 2]; rgba[o + 3] = line[x * 4 + 3];
-                            break;
-                        case 2:
-                            rgba[o] = line[x * 3]; rgba[o + 1] = line[x * 3 + 1]; rgba[o + 2] = line[x * 3 + 2]; rgba[o + 3] = 255;
-                            break;
-                        case 0:
-                            rgba[o] = rgba[o + 1] = rgba[o + 2] = line[x]; rgba[o + 3] = 255;
-                            break;
-                        case 4:
-                            rgba[o] = rgba[o + 1] = rgba[o + 2] = line[x * 2]; rgba[o + 3] = line[x * 2 + 1];
-                            break;
-                        default:
-                            int p = line[x];
-                            if (p * 3 + 2 < palette.Length)
-                            {
-                                rgba[o] = palette[p * 3]; rgba[o + 1] = palette[p * 3 + 1]; rgba[o + 2] = palette[p * 3 + 2];
-                            }
-                            rgba[o + 3] = paletteAlpha != null && p < paletteAlpha.Length ? paletteAlpha[p] : (byte)255;
-                            break;
-                    }
-                }
-                byte[] swap = prev; prev = line; line = swap;
-            }
-            return rgba;
         }
 
-        static void Unfilter(int filter, byte[] raw, int start, byte[] line, byte[] prev, int bpp)
+        /// <summary>
+        /// DXT5 blocks (rows bottom-up) of a PNG whose width and height are multiples of 4, written into output (at least
+        /// width * height bytes). Decodes and encodes four rows at a time, so no whole-image RGBA copy is ever made.
+        /// idle, if given, sees every row.
+        /// </summary>
+        public static void EncodeDxt5(PngRows rows, byte[] output, IdleProbe idle)
+        {
+            int width = rows.Width, height = rows.Height;
+            if (width % 4 != 0 || height % 4 != 0)
+                throw new ArgumentException("DXT5 needs a width and height divisible by 4");
+            byte[] band = new byte[width * 16];
+            DxtScratch scratch = new DxtScratch();
+            int blockRows = height / 4;
+            for (int k = 0; k < blockRows; k++)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    int offset = (3 - i) * width * 4;   // file rows run top-down, texture rows bottom-up
+                    rows.Next(band, offset);
+                    if (idle != null)
+                        idle.Row(k * 4 + i, band, offset, width);
+                }
+                EncodeBand(band, 0, width, output, (blockRows - 1 - k) * width * 4, scratch);
+            }
+        }
+
+        internal static void Unfilter(int filter, byte[] raw, int start, byte[] line, byte[] prev, int bpp)
         {
             int n = line.Length;
             for (int i = 0; i < n; i++)
@@ -149,26 +88,36 @@ namespace AdvancedNPCs.Core
             if (width % 4 != 0 || height % 4 != 0)
                 throw new ArgumentException("DXT5 needs a width and height divisible by 4");
             byte[] output = new byte[width * height];   // 16 bytes per 16 pixels
-            byte[] block = new byte[64];
-            int[] pr = new int[4], pg = new int[4], pb = new int[4];
-            int o = 0;
+            DxtScratch scratch = new DxtScratch();
             for (int by = 0; by < height; by += 4)
-            {
-                for (int bx = 0; bx < width; bx += 4, o += 16)
-                {
-                    bool empty = true;
-                    for (int r = 0; r < 4; r++)
-                    {
-                        int src = ((by + r) * width + bx) * 4;
-                        Buffer.BlockCopy(rgba, src, block, r * 16, 16);
-                        if (rgba[src + 3] != 0 || rgba[src + 7] != 0 || rgba[src + 11] != 0 || rgba[src + 15] != 0)
-                            empty = false;
-                    }
-                    if (!empty)     // most of a sprite sheet is empty: all-zero blocks decode as transparent black
-                        EncodeBlock(block, output, o, pr, pg, pb);
-                }
-            }
+                EncodeBand(rgba, by * width * 4, width, output, by * width, scratch);
             return output;
+        }
+
+        sealed class DxtScratch
+        {
+            public readonly byte[] Block = new byte[64];
+            public readonly int[] R = new int[4], G = new int[4], B = new int[4];
+        }
+
+        /// <summary>One row of 4x4 blocks: four RGBA rows from src[start] to output[o] (16 bytes per block).</summary>
+        static void EncodeBand(byte[] src, int start, int width, byte[] output, int o, DxtScratch scratch)
+        {
+            byte[] block = scratch.Block;
+            for (int bx = 0; bx < width; bx += 4, o += 16)
+            {
+                bool empty = true;
+                for (int r = 0; r < 4; r++)
+                {
+                    int p = start + (r * width + bx) * 4;
+                    Buffer.BlockCopy(src, p, block, r * 16, 16);
+                    if (src[p + 3] != 0 || src[p + 7] != 0 || src[p + 11] != 0 || src[p + 15] != 0)
+                        empty = false;
+                }
+                Array.Clear(output, o, 16);     // output may be a reused buffer
+                if (!empty)     // most of a sprite sheet is empty: all-zero blocks decode as transparent black
+                    EncodeBlock(block, output, o, scratch.R, scratch.G, scratch.B);
+            }
         }
 
         static void EncodeBlock(byte[] px, byte[] output, int o, int[] pr, int[] pg, int[] pb)
@@ -282,35 +231,177 @@ namespace AdvancedNPCs.Core
         /// </summary>
         public static float IdleHeight(SpriteSet set, SpriteAnimation a, byte[] rgba, int width)
         {
-            int best = 0;
-            int rows = SpriteSetParser.Directions.Length;
-            for (int row = 0; row < rows; row++)
+            IdleProbe probe = new IdleProbe(set, a);
+            int height = rgba.Length / 4 / width;
+            for (int y = 0; y < height; y++)
+                probe.Row(y, rgba, (height - 1 - y) * width * 4, width);
+            return probe.Best;
+        }
+    }
+
+    /// <summary>
+    /// Measures an idle sheet's standing height row by row: the tallest opaque pixel (alpha above 16) above the feet row
+    /// in any frame and direction, in pixels above groundY.
+    /// </summary>
+    public sealed class IdleProbe
+    {
+        readonly SpriteSet set;
+        readonly SpriteAnimation anim;
+        public int Best;
+
+        public IdleProbe(SpriteSet set, SpriteAnimation anim)
+        {
+            this.set = set;
+            this.anim = anim;
+        }
+
+        /// <summary>File row fileRow (top-down) as RGBA at rgba[offset].</summary>
+        public void Row(int fileRow, byte[] rgba, int offset, int width)
+        {
+            int cell = set.CellHeight;
+            if (fileRow >= SpriteSetParser.Directions.Length * cell)
+                return;
+            int y = cell - 1 - fileRow % cell;      // height in the cell, 0 = its bottom row
+            int candidate = y + 1 - set.GroundY;
+            if (y <= set.GroundY || candidate <= Best)
+                return;
+            int end = Math.Min(width, anim.Frames * anim.CellWidth);
+            for (int x = 0; x < end; x++)
             {
-                int cellBottom = (rows - 1 - row) * set.CellHeight;   // texture rows start at the bottom
-                for (int frame = 0; frame < a.Frames; frame++)
+                if (rgba[offset + x * 4 + 3] > 16)
                 {
-                    int x0 = frame * a.CellWidth;
-                    for (int y = set.CellHeight - 1; y > set.GroundY + best; y--)
-                    {
-                        int line = (cellBottom + y) * width;
-                        bool opaque = false;
-                        for (int x = x0; x < x0 + a.CellWidth; x++)
-                        {
-                            if (rgba[(line + x) * 4 + 3] > 16)
-                            {
-                                opaque = true;
-                                break;
-                            }
-                        }
-                        if (opaque)
-                        {
-                            best = Math.Max(best, y + 1 - set.GroundY);
-                            break;
-                        }
-                    }
+                    Best = candidate;
+                    return;
                 }
             }
-            return best;
+        }
+    }
+
+    /// <summary>
+    /// An 8-bit non-interlaced PNG read one row at a time (top-down) as RGBA32: only a few rows are ever held.
+    /// </summary>
+    public sealed class PngRows : IDisposable
+    {
+        static readonly byte[] Signature = { 137, 80, 78, 71, 13, 10, 26, 10 };
+
+        public int Width, Height;
+        int colorType, channels;
+        byte[] palette, paletteAlpha;
+        byte[] raw, line, prev;
+        DeflateStream z;
+
+        /// <summary>
+        /// The rows of png[0..length), with idat (emptied first) holding its image data; null for a PNG this reader does
+        /// not handle (16-bit, interlaced, ...). Throws on a damaged file.
+        /// </summary>
+        public static PngRows Open(byte[] png, int length, MemoryStream idat)
+        {
+            if (png == null || length < 33)
+                return null;
+            for (int i = 0; i < Signature.Length; i++)
+                if (png[i] != Signature[i])
+                    return null;
+            PngRows r = new PngRows();
+            int bitDepth = 0, interlace = 0;
+            r.colorType = -1;
+            idat.SetLength(0);
+            int pos = 8;
+            while (pos + 12 <= length)
+            {
+                int size = (png[pos] << 24) | (png[pos + 1] << 16) | (png[pos + 2] << 8) | png[pos + 3];
+                int data = pos + 8;
+                if (size < 0 || data + size > length)
+                    throw new InvalidDataException("truncated PNG chunk");
+                if (Is(png, pos + 4, "IHDR"))
+                {
+                    r.Width = (png[data] << 24) | (png[data + 1] << 16) | (png[data + 2] << 8) | png[data + 3];
+                    r.Height = (png[data + 4] << 24) | (png[data + 5] << 16) | (png[data + 6] << 8) | png[data + 7];
+                    bitDepth = png[data + 8];
+                    r.colorType = png[data + 9];
+                    interlace = png[data + 12];
+                }
+                else if (Is(png, pos + 4, "PLTE"))
+                {
+                    r.palette = new byte[size];
+                    Buffer.BlockCopy(png, data, r.palette, 0, size);
+                }
+                else if (Is(png, pos + 4, "tRNS"))
+                {
+                    r.paletteAlpha = new byte[size];
+                    Buffer.BlockCopy(png, data, r.paletteAlpha, 0, size);
+                }
+                else if (Is(png, pos + 4, "IDAT"))
+                    idat.Write(png, data, size);
+                else if (Is(png, pos + 4, "IEND"))
+                    break;
+                pos = data + size + 4;
+            }
+            int ct = r.colorType;
+            r.channels = ct == 0 ? 1 : ct == 2 ? 3 : ct == 3 ? 1 : ct == 4 ? 2 : ct == 6 ? 4 : 0;
+            if (bitDepth != 8 || interlace != 0 || r.channels == 0 || r.Width <= 0 || r.Height <= 0 || (ct == 3 && r.palette == null))
+                return null;
+            int stride = r.Width * r.channels;
+            r.raw = new byte[stride + 1];
+            r.line = new byte[stride];
+            r.prev = new byte[stride];
+            idat.Position = 2;      // zlib header; DeflateStream reads the raw deflate data after it
+            r.z = new DeflateStream(idat, CompressionMode.Decompress, true);
+            return r;
+        }
+
+        static bool Is(byte[] png, int at, string type)
+        {
+            return png[at] == type[0] && png[at + 1] == type[1] && png[at + 2] == type[2] && png[at + 3] == type[3];
+        }
+
+        /// <summary>The next row (top-down) as RGBA32 into rgba[offset .. offset + Width * 4).</summary>
+        public void Next(byte[] rgba, int offset)
+        {
+            int read = 0;
+            while (read < raw.Length)
+            {
+                int n = z.Read(raw, read, raw.Length - read);
+                if (n <= 0)
+                    throw new InvalidDataException("PNG image data ends early");
+                read += n;
+            }
+            SheetCodec.Unfilter(raw[0], raw, 1, line, prev, channels);
+            int o = offset;
+            for (int x = 0; x < Width; x++, o += 4)
+            {
+                switch (colorType)
+                {
+                    case 6:
+                        rgba[o] = line[x * 4]; rgba[o + 1] = line[x * 4 + 1]; rgba[o + 2] = line[x * 4 + 2]; rgba[o + 3] = line[x * 4 + 3];
+                        break;
+                    case 2:
+                        rgba[o] = line[x * 3]; rgba[o + 1] = line[x * 3 + 1]; rgba[o + 2] = line[x * 3 + 2]; rgba[o + 3] = 255;
+                        break;
+                    case 0:
+                        rgba[o] = rgba[o + 1] = rgba[o + 2] = line[x]; rgba[o + 3] = 255;
+                        break;
+                    case 4:
+                        rgba[o] = rgba[o + 1] = rgba[o + 2] = line[x * 2]; rgba[o + 3] = line[x * 2 + 1];
+                        break;
+                    default:
+                        int p = line[x];
+                        if (p * 3 + 2 < palette.Length)
+                        {
+                            rgba[o] = palette[p * 3]; rgba[o + 1] = palette[p * 3 + 1]; rgba[o + 2] = palette[p * 3 + 2];
+                        }
+                        else
+                            rgba[o] = rgba[o + 1] = rgba[o + 2] = 0;    // the row buffer may be reused
+                        rgba[o + 3] = paletteAlpha != null && p < paletteAlpha.Length ? paletteAlpha[p] : (byte)255;
+                        break;
+                }
+            }
+            byte[] swap = prev; prev = line; line = swap;
+        }
+
+        public void Dispose()
+        {
+            if (z != null)
+                z.Dispose();
         }
     }
 }

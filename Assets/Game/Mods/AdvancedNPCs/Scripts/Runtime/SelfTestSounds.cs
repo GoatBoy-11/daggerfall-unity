@@ -15,6 +15,13 @@ namespace AdvancedNPCs
     /// <summary>Self-test: custom ANPC sounds (spec sounds).</summary>
     public partial class SelfTest
     {
+        public const string SoundSuite = "sounds";
+
+        static MonoBehaviour DaggertalkOn(GameObject actor)
+        {
+            return Array.Find(actor.GetComponents<MonoBehaviour>(), delegate(MonoBehaviour c) { return c != null && c.GetType().FullName == "DaggertalkBehaviour"; });
+        }
+
         /// <summary>
         /// Developer probe (only when ANPCs/_probe_sounds exists): which audio formats Unity decodes at runtime here.
         /// </summary>
@@ -66,6 +73,24 @@ namespace AdvancedNPCs
                 d.Sounds = new SoundSettings { CombatChance = 100, GreetChance = 100 };
                 NpcBrain b = SpawnDefinition(d, location);
                 yield return Settle;
+                Check("ANPC voices exclude Daggertalk", DaggertalkOn(b.gameObject) == null, b.Id);
+                var daggertalkMod = DaggerfallWorkshop.Game.Utility.ModSupport.ModManager.Instance.GetModFromGUID("be4fe1b9-7c97-4755-a6c5-47a7ca9dce12");
+                if (daggertalkMod != null && daggertalkMod.Enabled)
+                {
+                    GameObject native = DaggerfallWorkshop.Utility.GameObjectHelper.CreateEnemy("selftest Daggertalk Warrior", MobileTypes.Warrior,
+                        location.transform.InverseTransformPoint(player.position + open * 20f), MobileGender.Male, location.transform, MobileReactions.Passive);
+                    try
+                    {
+                        native.GetComponent<EnemyMotor>().enabled = false;
+                        native.GetComponent<EnemyAttack>().enabled = false;
+                        native.GetComponent<EnemySenses>().enabled = false;
+                        yield return Settle;
+                        Behaviour talk = DaggertalkOn(native);
+                        string pack = talk != null ? talk.GetType().GetProperty("VoicePackId").GetValue(talk, null) as string : null;
+                        Check("ordinary enemies retain an initialized Daggertalk voice", talk != null && talk.enabled && !string.IsNullOrEmpty(pack), "pack=" + pack);
+                    }
+                    finally { UnityEngine.Object.Destroy(native); }
+                }
                 NpcVoice voice = b.GetComponent<NpcVoice>();
                 EnemySounds enemySounds = b.GetComponent<EnemySounds>();
                 float until = Time.time + 3f;
@@ -195,6 +220,7 @@ namespace AdvancedNPCs
                 yield return null;
                 NpcVoice offVoice = off != null ? off.GetComponent<NpcVoice>() : null;
                 EnemySounds offSounds = off != null ? off.GetComponent<EnemySounds>() : null;
+                Check("ANPCs spawned inactive exclude Daggertalk on activation", off != null && DaggertalkOn(off.gameObject) == null, "inactive spawn");
                 Check("an ANPC spawned into a switched-off town still has DFU's voice silenced once it turns on",
                     offVoice != null && offSounds != null && offSounds.RaceForSounds == Races.None &&
                     offVoice.VoiceRace >= Races.Breton && offVoice.VoiceRace <= Races.HighElf,
@@ -297,6 +323,7 @@ namespace AdvancedNPCs
                     yield return null;
                 NpcVoice mVoice = m.GetComponent<NpcVoice>();
                 NpcVoice bareVoice = bare.GetComponent<NpcVoice>();
+                Check("ANPCs without custom sounds exclude Daggertalk", DaggertalkOn(bare.gameObject) == null, bare.Id);
                 Check("an ANPC without a Sounds folder has a voice that leaves it to DFU",
                     bareVoice != null && bareVoice.Set == null && bareVoice.DfuVoicing, "voice=" + (bareVoice != null) +
                     ", DFU voicing=" + (bareVoice != null && bareVoice.DfuVoicing));

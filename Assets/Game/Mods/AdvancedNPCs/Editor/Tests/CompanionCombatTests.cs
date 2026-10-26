@@ -15,6 +15,10 @@ namespace AdvancedNPCs.Tests
         [TestCase(true,false,false,false,false,false,false)]
         public void ProtectedPeopleNeverBecomeTargets(bool alive,bool player,bool ally,bool guard,bool quest,bool hostile,bool allowed)
         { Assert.AreEqual(allowed,CompanionCombatRules.Legal(alive,player,ally,guard,quest,hostile)); }
+        [TestCase(true,false,false,true)] [TestCase(true,false,true,false)] [TestCase(true,true,true,true)]
+        [TestCase(false,true,true,true)] [TestCase(false,true,false,true)] [TestCase(false,false,false,false)]
+        public void OnlyTheCityWatchKnightIsAGuardInDungeons(bool team,bool knight,bool dungeon,bool guard)
+        { Assert.AreEqual(guard,CompanionCombatRules.Guard(team,knight,dungeon)); }
         [TestCase(false,true,true,false,true,false)]
         [TestCase(false,true,true,false,false,true)]
         [TestCase(false,false,true,false,true,true)]

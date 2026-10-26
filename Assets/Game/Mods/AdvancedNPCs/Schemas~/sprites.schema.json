@@ -25,7 +25,7 @@
     },
     "animations": {
       "type": "object",
-      "description": "Standard state names include idle, walk, run, hit, attack, attack_range, cast, heal, greet, talk and death. Custom names such as pray_1 or eat_2 load when referenced by a play_animation package. Projectiles are images a ranged attack flies.",
+      "description": "Standard state names include idle, walk, run, hit, attack, attack_range, cast, heal, greet, block, talk and death. Custom names such as pray_1 or eat_2 load when referenced by a play_animation package. Projectiles are images a ranged attack flies.",
       "propertyNames": { "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
       "additionalProperties": {
         "type": "object",

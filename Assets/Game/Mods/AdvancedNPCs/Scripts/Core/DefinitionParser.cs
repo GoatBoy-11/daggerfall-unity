@@ -28,7 +28,7 @@ namespace AdvancedNPCs.Core
         {
             "id", "kind", "race", "baseClass", "gender", "bravery", "fleeHealthPercent", "fleeChance", "aggroRange", "calmDownHours",
             "crimeOnAttack", "guard", "wanderRadius", "nameList", "spriteHeight", "spriteHeightScale", "spriteScale", "attitude", "hostileHours", "dialogue", "magic",
-            "combat", "sounds", "conversation", "replaces", "replacePortrait", "replaceName", "stayNear", "schedule", "variables", "recruitCost", "no_companion_slot",
+            "combat", "sounds", "conversation", "replaces", "replacesFlat", "replacePortrait", "replaceName", "stayNear", "schedule", "variables", "recruitCost", "no_companion_slot",
             "animal", "disease",
         };
         static readonly string[] UniqueKeys = { "name", "location", "position", "portrait" };
@@ -238,7 +238,7 @@ namespace AdvancedNPCs.Core
             if (spawn == null)
             {
                 // A stand-in for vanilla flat NPCs with no spawn block appears only in their place.
-                if (o.ContainsKey("replaces") && o["replaces"] != null)
+                if ((o.ContainsKey("replaces") && o["replaces"] != null) || (o.ContainsKey("replacesFlat") && o["replacesFlat"] != null))
                     d.Spawn.HasTownRules = false;
                 return true;
             }

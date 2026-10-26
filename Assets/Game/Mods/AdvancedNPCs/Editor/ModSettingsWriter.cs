@@ -79,7 +79,9 @@ namespace AdvancedNPCs.EditorTools
             data.Sections.Add(wildlife);
 
             Section companions=new Section();companions.Name="Companions";
-            companions.Description="Recruitment limits and catch-up for hired ANPC companions.";
+            companions.Description="Recruitment, protection, healing potions and catch-up for hired ANPC companions.";
+            companions.Keys.Add(Toggle("InvulnerableCompanions",
+                "Recruited companions cannot lose health while following or waiting.\rApplies immediately to existing companions. Dismissed NPCs are not protected.\rOff by default. Recruited companions always have 1.5x normal maximum health.",false));
             MultipleChoiceKey followers=new MultipleChoiceKey();followers.Name="MaxFollowers";
             followers.Description="Maximum hired companions, including those waiting elsewhere.\r" +
                 "Escort NPCs with no_companion_slot do not count.\r" +
@@ -97,6 +99,12 @@ namespace AdvancedNPCs.EditorTools
             companions.Keys.Add(catchUp);
             companions.Keys.Add(Toggle("DisableFollowerBarks",
                 "Disable follower barks.\rSilences cm_ companion speech and hides the individual bark option.\rCombat voices and footsteps keep their own settings.",false));
+            companions.Keys.Add(Toggle("AutoHealingPotions",
+                "Companions drink their own cheapest healing potion below the health threshold.\rEach potion restores 25% of maximum health, up to full health."));
+            SliderIntKey potionThreshold=new SliderIntKey();potionThreshold.Name="HealingPotionThreshold";
+            potionThreshold.Description="Use a healing potion when health is below this percentage.\rRequires AutoHealingPotions. Default: 50%.";
+            potionThreshold.Min=1;potionThreshold.Max=99;potionThreshold.Value=50;
+            companions.Keys.Add(potionThreshold);
             data.Sections.Add(companions);
 
             // Corpse and sound settings (spec corpse-sound settings); ModConfig reads them by these names. The version
@@ -110,6 +118,15 @@ namespace AdvancedNPCs.EditorTools
                 "A body on its last death frame keeps showing the side you see it from.\rOff: it shows its front or back and always faces you, like vanilla corpses.",
                 false));
             data.Sections.Add(corpses);
+
+            Section combat = new Section();
+            combat.Name = "Combat";
+            combat.Description = "How ANPCs with their own sprite sets look in a fight.";
+            combat.Keys.Add(Toggle("BlockAnimations",
+                "Play a block animation when an attack on an ANPC does no damage\r" +
+                "(a miss or parry, or a full shield block with Physical Combat Overhaul).\r" +
+                "Only plays if the ANPC has a block animation (block* sheet)."));
+            data.Sections.Add(combat);
 
             Section sounds = new Section();
             sounds.Name = "Sounds";

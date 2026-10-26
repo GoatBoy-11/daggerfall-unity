@@ -93,6 +93,7 @@ namespace AdvancedNPCs
             }
             if(brain.CompanionCombat!=null && brain.CompanionCombat.Active) brain.CompanionCombat.CancelOrders();
             brain.State.companion.status = command == "wait" ? "waiting" : command == "dismiss" ? "dismissed" : "following";
+            NpcCombat.ApplyCompanionHealth(brain);
             brain.State.companion.area = area;
             NpcMagic.EnsureCompanion(brain, command == "recruit");
             if(brain.CompanionCombat!=null) brain.CompanionCombat.Reanchor();

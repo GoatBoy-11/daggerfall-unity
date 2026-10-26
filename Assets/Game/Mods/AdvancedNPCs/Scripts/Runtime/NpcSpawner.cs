@@ -10,6 +10,7 @@ using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Utility;
 using AdvancedNPCs.Core;
+using DaggerfallWorkshop.Game.Utility.ModSupport;
 
 namespace AdvancedNPCs
 {
@@ -336,6 +337,16 @@ namespace AdvancedNPCs
             GameObject go = GameObjectHelper.CreateEnemy(instance.Name, type, new Vector3(instance.X, instance.Y, instance.Z),
                 gender, parent, MobileReactions.Passive);
 
+            // Daggertalk attaches during CreateEnemy's spawn event; stop it before Start assigns a second voice.
+            Mod daggertalkMod = ModManager.Instance.GetModFromGUID("be4fe1b9-7c97-4755-a6c5-47a7ca9dce12");
+            Type daggertalkType = daggertalkMod != null ? daggertalkMod.GetCompiledType("DaggertalkBehaviour") : null;
+            Behaviour daggertalk = daggertalkType != null ? go.GetComponent(daggertalkType) as Behaviour : null;
+            if (daggertalk != null)
+            {
+                daggertalk.enabled = false;
+                UnityEngine.Object.Destroy(daggertalk);
+            }
+
             // SerializableEnemy only registers with the vanilla save system when LoadID != 0.
             // Keeping it 0 means our own state table is the only save, so loads never duplicate ANPCs.
             DaggerfallEnemy enemy = go.GetComponent<DaggerfallEnemy>();
@@ -346,6 +357,8 @@ namespace AdvancedNPCs
             // enemies default to KnightsAndMages/Criminals. On the CityWatch team, guards leave them alone
             // while monsters (other teams) can still attack them.
             DaggerfallEntityBehaviour behaviour = go.GetComponent<DaggerfallEntityBehaviour>();
+            if ((def.RecruitCost>=0 || state.companion!=null) && behaviour != null && behaviour.Entity is EnemyEntity)
+                behaviour.Entity = new NpcEnemyEntity(behaviour, (EnemyEntity)behaviour.Entity);
             if (behaviour != null && behaviour.Entity != null)
                 behaviour.Entity.Team = MobileTeams.CityWatch;
 

@@ -414,22 +414,39 @@
         }
       ]
     },
+    "replacesFlat": {
+      "description": "Single vanilla flat NPCs this generic ANPC stands in for, by the id anpc_flat prints (\"1234/b5678/-90\"). A flat named here only ever gets the ANPCs that name it, never the ones matching its sprite or faction.",
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^\\s*\\d+\\s*/\\s*([Tt][Oo][Ww][Nn]|[Dd][Uu][Nn][Gg][Ee][Oo][Nn]|[Bb]\\d+)\\s*/\\s*-?\\d+\\s*$"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^\\s*\\d+\\s*/\\s*([Tt][Oo][Ww][Nn]|[Dd][Uu][Nn][Gg][Ee][Oo][Nn]|[Bb]\\d+)\\s*/\\s*-?\\d+\\s*$"
+          }
+        }
+      ]
+    },
     "replacePortrait": {
       "type": "boolean",
       "default": true,
-      "description": "With replaces: the talk window shows this ANPC's portrait."
+      "description": "With replaces or replacesFlat: the talk window shows this ANPC's portrait."
     },
     "replaceName": {
       "type": "boolean",
       "default": false,
-      "description": "With replaces: show this ANPC's name instead of the vanilla NPC's."
+      "description": "With replaces or replacesFlat: show this ANPC's name instead of the vanilla NPC's."
     },
     "stayNear": {
       "type": "number",
       "minimum": 0,
       "maximum": 50,
       "default": 0,
-      "description": "With replaces: metres a calm stand-in keeps to around its spot (0 = off)."
+      "description": "With replaces or replacesFlat: metres a calm stand-in keeps to around its spot (0 = off)."
     },
     "conversation": {
       "description": "Talks with other ANPCs it greets (needs talk sounds; calm ANPCs with calm ones, enemies with enemies that have no one to fight). true, or an object (writing the object opts in).",

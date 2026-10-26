@@ -7,6 +7,10 @@ namespace AdvancedNPCs.Core
         public static bool Contract(string status) { return status == "following" || status == "waiting"; }
         public static bool Legal(bool alive, bool player, bool ally, bool guard, bool questProtected, bool hostile)
         { return alive && !player && !ally && !guard && !questProtected && hostile; }
+        // Only DFU's city watch knight is a guard in dungeons: other mods' CityWatch-team enemies
+        // (Daggerfall Enemy Expansion's prison guards) are ordinary foes there.
+        public static bool Guard(bool cityWatchTeam, bool cityWatchKnight, bool inDungeon)
+        { return cityWatchKnight || (cityWatchTeam && !inDungeon); }
         // DFU marks every quest foe AI-protected by default, including attacking night ghosts.
         // Permit party defence without changing that shared flag or initiating quest fights.
         public static bool QuestProtected(bool attackableByAI,bool hostile,bool foe,bool restricted,bool attackingParty)

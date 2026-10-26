@@ -49,6 +49,9 @@ namespace AdvancedNPCs
         /// <summary>Actual limited contract count; 0 means unlimited.</summary>
         public int MaxFollowers=CompanionLimits.Default;
         public bool DisableFollowerBarks;
+        public bool InvulnerableCompanions;
+        public bool AutoHealingPotions=true;
+        public int HealingPotionThreshold=50;
         /// <summary>Metres behind the player at which a following companion catches up (FollowRecovery).</summary>
         public int CatchUpDistance = FollowRecovery.DefaultDistance;
 
@@ -57,6 +60,10 @@ namespace AdvancedNPCs
         public bool DeathAnimation = true;
         /// <summary>A body on its last death frame keeps turning with the view; off: front or back, as a billboard.</summary>
         public bool DirectionalCorpses;
+
+        public const string CombatSection = "Combat";
+        /// <summary>An attack on an ANPC that does no damage plays its block* sheet, if it has one.</summary>
+        public bool BlockAnimations = true;
 
         public const string SoundsSection = "Sounds";
         /// <summary>Whose voice ANPCs use (VoiceModes); read every time a sound would play.</summary>
@@ -110,10 +117,14 @@ namespace AdvancedNPCs
             WildlifeDensity = Mathf.Clamp(Read("WildlifeDensity", delegate { return settings.GetInt(WildlifeSection, "WildlifeDensity"); }, 1), 0, 2);
             MaxFollowers=CompanionLimits.FromSetting(Read("MaxFollowers",delegate {return settings.GetInt(CompanionsSection,"MaxFollowers");},0));
             DisableFollowerBarks=Read("DisableFollowerBarks",delegate {return settings.GetBool(CompanionsSection,"DisableFollowerBarks");},false);
+            InvulnerableCompanions=Read("InvulnerableCompanions",delegate {return settings.GetBool(CompanionsSection,"InvulnerableCompanions");},false);
+            AutoHealingPotions=Read("AutoHealingPotions",delegate {return settings.GetBool(CompanionsSection,"AutoHealingPotions");},true);
+            HealingPotionThreshold=Mathf.Clamp(Read("HealingPotionThreshold",delegate {return settings.GetInt(CompanionsSection,"HealingPotionThreshold");},50),1,99);
             CatchUpDistance=Mathf.Clamp(Read("CatchUpDistance",delegate {return settings.GetInt(CompanionsSection,"CatchUpDistance");},FollowRecovery.DefaultDistance),
                 FollowRecovery.MinDistance,FollowRecovery.MaxDistance);
             DeathAnimation = Read("DeathAnimation", delegate { return settings.GetBool(CorpsesSection, "DeathAnimation"); }, true);
             DirectionalCorpses = Read("DirectionalCorpses", delegate { return settings.GetBool(CorpsesSection, "DirectionalCorpses"); }, false);
+            BlockAnimations = Read("BlockAnimations", delegate { return settings.GetBool(CombatSection, "BlockAnimations"); }, true);
             VoiceMode = VoiceModes.FromSetting(Read("ANPCSounds", delegate { return settings.GetInt(SoundsSection, "ANPCSounds"); }, VoiceModes.Anpc));
             Footsteps = Read("Footsteps", delegate { return settings.GetBool(SoundsSection, "Footsteps"); }, true);
             StepsVolume = Mathf.Clamp(Read("StepsVolume", delegate { return settings.GetInt(SoundsSection, "StepsVolume"); }, 100), 0, 100);
@@ -123,7 +134,7 @@ namespace AdvancedNPCs
             AdvancedNpcsMod.Log("Settings: generic people " + Mode + ", at most " + MaxGenericPerTown + " per town; dungeons " + Dungeons +
                 ", interiors " + Interiors + ", wilderness " + Wilderness + " (at most " + MaxWildernessAround + " around you); wildlife " + Wildlife + " (at most " +
                 MaxWildlifeAround + ", density x" + WildlifeChanceFactor + "); death animation " +
-                DeathAnimation + ", directional corpses " + DirectionalCorpses + ", ANPC sounds " + VoiceModeName(VoiceMode) + ", footsteps " + Footsteps +
+                DeathAnimation + ", directional corpses " + DirectionalCorpses + ", block animations " + BlockAnimations + ", ANPC sounds " + VoiceModeName(VoiceMode) + ", footsteps " + Footsteps +
                 " (volume " + StepsVolume + "%), follower limit " + (MaxFollowers==0?"Unlimited (Not Recommended)":MaxFollowers.ToString()) + ", catch-up at " + CatchUpDistance + " m.");
         }
 

@@ -76,6 +76,7 @@ namespace AdvancedNPCs
             List<NpcBrain> herd = mod.Wilderness.SpawnGroup(prey, 4, out why);
             Track(herd);
             yield return new WaitForSecondsRealtime(1f);
+            Check("animals: Bard-based wildlife excludes Daggertalk", herd.Count > 0 && herd.TrueForAll(delegate(NpcBrain b) { return DaggertalkOn(b.gameObject) == null; }), "herd=" + herd.Count);
             int group = herd.Count > 0 ? herd[0].Instance.Group : -1;
             bool together = herd.Count >= 3 && group >= 0;
             foreach (NpcBrain b in herd)

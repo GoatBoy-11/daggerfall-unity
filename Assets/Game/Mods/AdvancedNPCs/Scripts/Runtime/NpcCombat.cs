@@ -7,6 +7,32 @@ using AdvancedNPCs.Core;
 
 namespace AdvancedNPCs
 {
+    /// <summary>Native enemy with a health guard for the optional recruited-companion protection.</summary>
+    public class NpcEnemyEntity : EnemyEntity
+    {
+        public NpcEnemyEntity(DaggerfallEntityBehaviour behaviour, EnemyEntity original) : base(behaviour)
+        {
+            // Preserve DFU's rolled stats, loot and mod changes without generating a second kit.
+            for(System.Type type=typeof(EnemyEntity);type!=typeof(object);type=type.BaseType)
+                foreach(var field in type.GetFields(BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.DeclaredOnly))
+                    if(field.Name!="equipTable" && !typeof(System.Delegate).IsAssignableFrom(field.FieldType))
+                        field.SetValue(this,field.GetValue(original));
+            equipTable.DeserializeEquipTable(original.ItemEquipTable.SerializeEquipTable(),items);
+        }
+        public override int SetHealth(int amount,bool restoreMode=false)
+        {
+            if(!restoreMode && amount<currentHealth && currentHealth>0)
+            {
+                var mod=AdvancedNpcsMod.Instance;
+                var brain=EntityBehaviour.GetComponent<NpcBrain>();
+                if(mod!=null && mod.Config.InvulnerableCompanions && brain!=null && brain.State!=null &&
+                    !brain.State.dead && !brain.State.hostile && !brain.IsEnemy && brain.State.companion!=null &&
+                    CompanionCombatRules.Contract(brain.State.companion.status)) return currentHealth;
+            }
+            return base.SetHealth(amount,restoreMode);
+        }
+    }
+
     /// <summary>
     /// Applies an ANPC's optional "combat" tuning (CombatRules): scaled max health and creature melee damage at
     /// spawn, and a faster melee rhythm while it lives (shortens each wait DFU's EnemyAttack sets after a swing).
@@ -19,6 +45,16 @@ namespace AdvancedNPCs
         EnemyAttack attack;
         float attackSpeed = 1f;
         float lastTimer;
+
+        public static void ApplyCompanionHealth(NpcBrain brain)
+        {
+            var entity=brain.EntityBehaviour.Entity;
+            int maximum=brain.State.companion.HealthForContract(entity.MaxHealth);
+            if(maximum==entity.MaxHealth || entity.CurrentHealth<=0)return;
+            float fraction=HealthRules.Fraction(entity.CurrentHealth,entity.MaxHealth);
+            entity.MaxHealth=maximum;
+            entity.SetHealth(HealthRules.Restore(entity.MaxHealth,fraction),true);
+        }
 
         /// <summary>Call right after GameObjectHelper.CreateEnemy, before the brain restores saved health.</summary>
         public static void Apply(GameObject go, NpcDefinition def, string key)

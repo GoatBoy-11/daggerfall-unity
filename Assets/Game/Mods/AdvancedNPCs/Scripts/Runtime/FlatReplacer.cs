@@ -35,9 +35,20 @@ namespace AdvancedNPCs
             public ReplaceSettings Settings;
         }
 
+        /// <summary>A place ReplaceIn looked at, so anpc_flat can name the flats there.</summary>
+        class Scanned
+        {
+            public Transform Root;
+            public int MapId;
+            public string Where;
+        }
+
+        const float FlatLookupRange = 10f;
+
         AdvancedNpcsMod owner;
         NpcSpawner spawner;
         readonly List<Link> links = new List<Link>();
+        readonly List<Scanned> scanned = new List<Scanned>();
         float pollTimer;
         bool warnedNoClick;
         bool listening;
@@ -73,6 +84,11 @@ namespace AdvancedNPCs
         {
             List<NpcBrain> spawned = new List<NpcBrain>();
             LastReplaced = 0;
+            if (root != null)
+            {
+                scanned.RemoveAll(delegate (Scanned s) { return s.Root == null || s.Root == root; });
+                scanned.Add(new Scanned { Root = root, MapId = mapId, Where = where });
+            }
             if (root == null || !Active)
                 return spawned;
             ListenForTalk();
@@ -81,7 +97,8 @@ namespace AdvancedNPCs
                 if (IsLinked(flat) || HasOwnAction(flat))
                     continue;
                 StaticNPC.NPCData d = flat.Data;
-                List<NpcDefinition> candidates = ReplaceRules.Candidates(owner.Catalog.Generics, d.billboardArchiveIndex, d.billboardRecordIndex, d.factionID);
+                List<NpcDefinition> candidates = ReplaceRules.Candidates(owner.Catalog.Generics, d.billboardArchiveIndex, d.billboardRecordIndex,
+                    d.factionID, ReplaceRules.FlatId(mapId, where, d.hash));
                 if (candidates.Count == 0)
                     continue;
                 string key = ReplaceRules.KeyFor(mapId, where, d.hash);
@@ -125,6 +142,40 @@ namespace AdvancedNPCs
                     return l.Flat;
             }
             return null;
+        }
+
+        /// <summary>anpc_flat: the vanilla flat NPC nearest to a point (within 10 m) with its "replacesFlat" id.</summary>
+        public string DescribeNearest(Vector3 from)
+        {
+            StaticNPC best = null;
+            Scanned bestPlace = null;
+            float bestDistance = FlatLookupRange;
+            scanned.RemoveAll(delegate (Scanned s) { return s.Root == null; });
+            foreach (Scanned place in scanned)
+            {
+                if (!place.Root.gameObject.activeInHierarchy)
+                    continue;
+                foreach (StaticNPC flat in place.Root.GetComponentsInChildren<StaticNPC>(true))
+                {
+                    float distance = Vector3.Distance(from, flat.transform.position);
+                    if (distance < bestDistance)
+                    {
+                        best = flat;
+                        bestPlace = place;
+                        bestDistance = distance;
+                    }
+                }
+            }
+            if (best == null)
+                return "No vanilla flat NPC within " + FlatLookupRange + " m (stand next to one in a town, building or dungeon).";
+            StaticNPC.NPCData d = best.Data;
+            string id = ReplaceRules.FlatId(bestPlace.MapId, bestPlace.Where, d.hash);
+            Link link = links.Find(delegate (Link l) { return l.Flat == best && l.Brain != null; });
+            string now = HasOwnAction(best) ? "It has its own scripted action and is never replaced."
+                : link != null ? "Now replaced by " + link.Brain.Instance.Definition.Id + "."
+                : "Not replaced now.";
+            return best.DisplayName + " (sprite " + d.billboardArchiveIndex + "." + d.billboardRecordIndex + ", faction " + d.factionID + ", " +
+                bestDistance.ToString("0.0") + " m away). " + now + "\n\"replacesFlat\": \"" + id + "\"";
         }
 
         bool IsLinked(StaticNPC flat)

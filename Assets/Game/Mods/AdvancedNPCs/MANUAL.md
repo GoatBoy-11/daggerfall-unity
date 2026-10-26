@@ -228,6 +228,7 @@ Companion barks come from `cm_*` sound pools (see §6).
 | Field | Default | Meaning |
 |---|---|---|
 | `replaces` | — | `"177.2"` (flat texture archive.record) or `"faction:1003"`, one or a list |
+| `replacesFlat` | — | one vanilla person by the id `anpc_flat` prints (`"1234/b5678/-90"`), one or a list; wins over `replaces` |
 | `replacePortrait` | `true` | show the ANPC's own PNG portrait |
 | `replaceName` | `false` | show the ANPC's name (quest text keeps vanilla) |
 | `stayNear` | `0` | keep a calm stand-in within this many metres of its spot |
@@ -340,6 +341,7 @@ Numbered names (`idle_1`, `idle_2`) are variants picked at random. At least one 
 | `cast*` | spellcasting | attack, then none |
 | `heal*` | healing | cast, attack |
 | `hit*` | hurt | idle |
+| `block*` | an attack on it did no damage (miss/parry, or a full shield block with Physical Combat and Armor Overhaul) | no block |
 | `greet*` | greeting the player/ANPCs | no greeting |
 | `talk*` | ANPC conversations | idle |
 | `death*` | dying; last frame stays as the corpse | — |

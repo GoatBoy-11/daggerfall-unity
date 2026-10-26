@@ -13,6 +13,12 @@ and save/load.
   spot close by, which becomes its home. Indoors ANPCs start facing the most open way, into the room.
 - Clicking an ANPC to talk turns it to face you.
 
+Daggertalk 0.8.0 can voice ordinary enemies alongside ANPC. ANPCs, including animals and companions,
+keep their own sound system and are excluded from Daggertalk's voices. No class-wide mute setting is
+needed. Load Vanilla Combat Event Handler before Daggertalk, and Daggertalk before its voice packs.
+`anpc_selftest sounds` checks audio and, with Daggertalk and a Warrior voice pack enabled, verifies
+that ordinary enemies keep a voice while ANPCs are excluded.
+
 ## Folder layout
 
 ```
@@ -138,6 +144,10 @@ These apply the next time a town loads.
 
 - **Death animation** — on (default): the death sheet plays, then the body lies still. Off: the body appears at once, as in vanilla Daggerfall.
 - **Directional corpses** — off (default): a body on its last death frame shows its front or back (chosen at random when it dies) and always faces you, like vanilla corpses and `death_static.png`. On: it shows the side you see it from, as it turns while you walk around.
+
+**Combat** (apply at once):
+
+- **Block animations** — on (default) or off: an ANPC plays its block animation when an attack on it does no damage, see [Block](#sprites). Only ANPCs whose sprite set has a `block*` sheet play one.
 
 **Sounds** (apply at once):
 
@@ -595,7 +605,8 @@ companions assist against visible hostile enemies currently threatening the play
 companion. Their own immediate attacker has first priority, then the player's attacker, then another
 companion's attacker. A current enemy is retained over equally important alternatives. Neutral ANPCs
 angry only because the player assaulted them are excluded, as are the player, friendly allies, city
-watch and protected quest actors. A hostile quest foe actively attacking the party can be defended
+watch and protected quest actors. In dungeons only DFU's own city watch knights count as city watch, so
+companions do fight other mods' CityWatch-team enemies there (Daggerfall Enemy Expansion's prison guards). A hostile quest foe actively attacking the party can be defended
 against even when DFU's default `IsAttackableByAI` flag is false (for example, Daggerfall's night ghosts).
 Unrelated, hidden or restrained quest foes remain protected, and the mod never changes the shared
 quest AI flag. Defensive stance does not initiate fights with unrelated hostiles.
@@ -607,8 +618,17 @@ sight or ten seconds without approach progress also release the enemy, with an e
 delay. Normal following resumes after combat. Combat/retreat never invokes teleport catch-up.
 
 Below 25% health a companion retreats towards the player or waiting point, and stays cautious until
-40%; configured bravery can also cause retreat earlier. Health, damage, equipment and actual melee
-attacks still use DFU's normal rules. Recruitment and area transfers do not heal the person.
+40%; configured bravery can also cause retreat earlier. Recruited companions have **1.5x maximum
+health**, including while waiting. The bonus preserves their health percentage, applies to existing
+companions on loading, never stacks on rehire or travel, and is removed on dismissal. Their base
+health roll is saved alongside maximum health; older contracts use their previous saved maximum.
+Damage, equipment and actual melee attacks still use DFU's normal rules.
+
+Under **Companions**, **InvulnerableCompanions** (off by default) prevents health loss from attacks,
+spells and other damage while recruited and following or waiting. It applies immediately to existing
+living companions, without healing them; switching it off or dismissing them restores normal damage.
+It does not revive dead companions or prevent non-health effects such as paralysis or equipment wear.
+Run `anpc_selftest survivability` on a disposable outdoor test save to verify health, protection and restoration.
 
 An isolated damaging player hit gives a warning and -5 opinion, preserving the contract and the
 damage taken. Three damaging player hits with no gap longer than ten active seconds end the contract
@@ -780,6 +800,30 @@ APIs; mods with their own follower/UI/save systems may still require integration
 checks native/custom item transfers, weight limits, quantity confirmation/cancellation, gold, restrictions,
 save restoration, stale actors and corpse ownership. `anpc_selftest companions` additionally checks an
 actual disk save/load, building and dungeon transitions and world rebuilds with persistent belongings.
+
+### Companion healing potions
+
+**Give Healing Potion** in the companion menu immediately consumes the cheapest usable healing
+potion in the player's inventory and restores **25% of the companion's maximum health**, rounded up
+to a whole HP and capped at full health. It is available during combat too. Full-health companions
+consume nothing. Quest, equipped and summoned potions are protected; other potion effects are ignored.
+Healing and Heal True both qualify, selected by native per-potion gold value rather than stack value.
+
+Companions with a loaded `drink` or `drink_N` animation play one full cycle and its usual `drink`
+sound when using a potion. Player-given potions wait until the companion menu closes and gameplay
+resumes. Any current attack finishes first; companions stand still and pause attacks while drinking.
+The existing voice/sound settings still apply. Without a drink animation, potion healing plays no
+animation or drink sound. Healing itself remains immediate.
+
+Under **Companions**, **AutoHealingPotions** (on by default) lets living, friendly hired companions
+drink the cheapest healing potion in their own inventory. **HealingPotionThreshold** defaults to **50%**
+and can be set from **1–99%**; health must be strictly below it. Following and waiting companions use
+this feature, including during combat and retreat. They check at most once per second while gameplay
+and AI are active. Each potion restores the same 25%; a badly injured companion may drink again after
+one second if still below the threshold, after any potion drink animation finishes. Give them spare
+potions through **Give / Take belongings**.
+Health and remaining potions use the existing companion save data. Run `anpc_selftest potions` on a
+disposable outdoor test save to check potion selection, menu use, settings, thresholds and persistence.
 
 ### Guarding a spot
 
@@ -1061,6 +1105,9 @@ enemies. Bravery still applies (a Coward enemy runs).
   special moves by `baseClass` (charges for most, leaps for Nightblade to Barbarian, cleaves for Barbarian and Knight,
   back-dashes for Mage, Battlemage, Archer, Ranger and the like). Spells from a `magic` block are cast once by
   ANPC itself; Killer Instincts does not cast them a second time.
+- Physical Combat and Armor Overhaul (and other mods that replace DFU's attack damage formula): their formula still
+  decides every hit; Advanced NPCs only reads the result, so an attack it turns into 0 damage (a full shield block)
+  plays a `block*` sheet. A partial block that still does damage plays the hit sheet.
 - Daggerfall Living World: Wayside Denizens' one-line greetings never close an ANPC's talk window. Its
   rebuilt towns and houses (Wayside Settlements and Houses) move buildings, so ANPCs and named spots at fixed
   positions may need placing again with `anpc_pos` / `anpc_place`; generic ANPCs find their own spots.
@@ -1383,6 +1430,11 @@ quest givers. Name the vanilla NPC in `"replaces"`:
 
 - **`replaces`**: one id or a list. A sprite id is the flat's texture archive and record (`"177.2"`; `"177 2"` and
   `"177_2"` work too); `"faction:<id>"` matches every flat of that faction (named NPCs have their own faction).
+- **`replacesFlat`**: one or a list of single vanilla people, e.g. `"replacesFlat": "1234/b5678/-90"`. Stand next to
+  the vanilla NPC, open the console and type `anpc_flat`: it prints the nearest flat's name, sprite, faction and
+  the line to copy (also into `Player.log`). The id is map / place (`town`, `dungeon` or `b` + building key) /
+  flat. A flat named in any ANPC's `replacesFlat` only gets those ANPCs, never the ones matching its sprite or
+  faction. `replaces` and `replacesFlat` can be used together or alone.
 - The flat stays in the world but is hidden, and the ANPC appears on its spot with all its own sprites, AI, sounds
   and combat. Clicking it does exactly what clicking the vanilla NPC does: the same dialogue, quest offers, quest
   people, shop, bank, inn rooms and guild services (vanilla's own click is used, so other mods' services work too).
@@ -1392,7 +1444,8 @@ quest givers. Name the vanilla NPC in `"replaces"`:
 - **`stayNear`** (metres, default `0` = off): keeps a calm stand-in within this distance of its spot, so a
   shopkeeper stays by the counter; after a fight or flight it walks back. Indoors they wander at most 3 m anyway.
 - When several ANPCs replace the same vanilla NPC, each vanilla person gets one of them at random, and keeps that
-  one for the whole game (seeded by the flat itself, not saved).
+  one for the whole game (seeded by the flat itself, not saved). This holds for several `replacesFlat` ANPCs naming
+  the same person too, so replacer packs can be installed side by side.
 - Stand-ins can be fought and can die. A dead stand-in stays dead, and so does the vanilla NPC it replaced: that
   shop or guild has no one at the counter any more.
 - A quest that hides or shows the vanilla NPC hides or shows its stand-in. NPCs with their own scripted action (the
@@ -1584,17 +1637,22 @@ ANPCs/wench/
 - Make them with `Tools~/render-sprites.py` from a rigged, animated `.blend`: one sheet per Action, rows = directions (front, front_right, right, back_right, back, back_left, left, front_left), columns = frames, plus `sprites.json` (scale, frame sizes, feet row, fps). The feet row is the lowest point of the idle poses, so the character may stand at any height. Run with `test` first to check light and size:
   `blender -b character.blend --python render-sprites.py -- <out_dir> [test] [--rig NAME] [--mesh NAME]`
 - For characters with a separate weapon mesh, `Tools~/render-character-sprites.py` includes both meshes in rendering and bounds: `--mesh body,sword`. `--keep-last death_1` keeps the final corpse pose. The Dunmer example documents a complete command.
+- `Tools~/shrink-sprites.py <ANPCs folder> --backup <dir>` makes finished sets smaller: sets drawn with far more detail than a person (small animals) are halved, at most to 1/4, and every sheet is re-saved with maximum lossless compression. Smaller sheets load faster and use less video memory; world sizes stay the same.
 - A character whose idle holds a weapon above its head (a guard's upright spear) would look smaller in game, because the standing height is measured from the tallest idle pixel. Add `--standing-mesh body` (the body mesh alone) and the renderer writes `"standingHeight"` (pixels above the feet row, without the weapon) into `sprites.json`; the game then sizes the person by the body.
 - Sprite sets load when an ANPC using them appears (it may show up a moment after spawning) and unload a minute after the last one is gone; at startup only the files and their sizes are checked.
   Sheets are decoded and compressed on background threads, so loading does not stall the game; only 8-bit, non-interlaced
   PNGs take that path (other PNGs still load, on the main thread, with a short stall each). Big sheets still cost video
   memory while shown: every 1000x1000 pixels is about 1 MB.
-- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `run*` (running), `hit*` (hurt), `attack*` (attacking), `attack_range*` or `attack_ranged*` (shooting a bow or throwing, see `rangedAtDistance`), `cast*` (spellcasting), `greet*` (greeting), `talk*` (speaking in a [conversation](#conversations)), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing run sheets use walk sheets and missing walk sheets use run sheets, then idle; missing hit/attack sheets use idle; greet sheets have no fallback; missing talk sheets use idle; a set needs at least one idle sheet.
+- Sheet names pick the animation: `idle*` (standing), `walk*` (moving), `run*` (running), `hit*` (hurt), `attack*` (attacking), `attack_range*` or `attack_ranged*` (shooting a bow or throwing, see `rangedAtDistance`), `cast*` (spellcasting), `greet*` (greeting), `block*` (an attack on it did no damage), `talk*` (speaking in a [conversation](#conversations)), `death*` (dying). Numbered names (`idle_1`, `idle_2`) are variants picked at random. Missing cast sheets use attack sheets (no attack sheet either: spells play no animation); missing attack_range sheets use attack sheets; missing run sheets use walk sheets and missing walk sheets use run sheets, then idle; missing hit/attack sheets use idle; greet and block sheets have no fallback; missing talk sheets use idle; a set needs at least one idle sheet.
 - Turret: a set with no `walk*` and no `run*` sheet never moves: it does not wander, chase, flee or get knocked
   back, but still turns to its target and attacks, shoots or casts from where it stands. Like any DFU enemy it only
   notices a quiet player in front of it, so place turrets facing where trouble comes from. When `sprites.json` lists
   walk or run sheets but none of them can be used (wrong size, unreadable), `Player.log` says so: that set's people
   stand still too.
+- Block: when an attack on an ANPC does no damage (DFU's miss, heard as a parry, or a full shield block with Physical
+  Combat and Armor Overhaul), a `block*` sheet plays once if its set has one; `block_1`, `block_2`, ... are picked at
+  random. A hit sheet, its own swing, cast or heal is never cut short by it, and a hit cuts a block short. Spells never
+  count as blocked. Without a block sheet nothing changes. The **Block animations** setting turns it off.
 - Greeting: a calm ANPC with a `greet*` sheet sometimes (25 % per encounter) stops, turns and greets the player
   within 4 m and in sight when its people like you (`likes` or `loves`, the reaction dialogue uses), or another
   calm ANPC that is not an enemy. It greets the same person at most once every 2 game hours (not saved).
